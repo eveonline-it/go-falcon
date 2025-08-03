@@ -6,26 +6,23 @@ import (
 	"net/http"
 
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/module"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type Module struct {
-	mongodb *database.MongoDB
-	redis   *database.Redis
-	stopCh  chan struct{}
+	*module.BaseModule
 }
 
 func New(mongodb *database.MongoDB, redis *database.Redis) *Module {
 	return &Module{
-		mongodb: mongodb,
-		redis:   redis,
-		stopCh:  make(chan struct{}),
+		BaseModule: module.NewBaseModule("users", mongodb, redis),
 	}
 }
 
 func (m *Module) Routes(r chi.Router) {
-	r.Get("/health", m.healthHandler)
+	m.RegisterHealthRoute(r) // Use the base module health handler
 	r.Get("/", m.getUsersHandler)
 	r.Get("/{id}", m.getUserHandler)
 	r.Post("/", m.createUserHandler)
@@ -34,41 +31,31 @@ func (m *Module) Routes(r chi.Router) {
 }
 
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
-	slog.Info("Starting users background tasks")
+	slog.Info("Starting users-specific background tasks")
 	
+	// Call base implementation for common functionality
+	go m.BaseModule.StartBackgroundTasks(ctx)
+	
+	// Add users-specific background processing here
 	for {
 		select {
 		case <-ctx.Done():
 			slog.Info("Users background tasks stopped due to context cancellation")
 			return
-		case <-m.stopCh:
+		case <-m.StopChannel():
 			slog.Info("Users background tasks stopped")
 			return
 		default:
-			// Users background processing would go here
-			// For now, just sleep to prevent busy loop
+			// Users-specific background work would go here
+			// For now, just wait
 			select {
 			case <-ctx.Done():
 				return
-			case <-m.stopCh:
+			case <-m.StopChannel():
 				return
 			}
 		}
 	}
-}
-
-func (m *Module) Stop() {
-	close(m.stopCh)
-}
-
-func (m *Module) healthHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("Users health check requested",
-		slog.String("remote_addr", r.RemoteAddr),
-		slog.String("module", "users"),
-	)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"healthy","module":"users"}`))
 }
 
 func (m *Module) getUsersHandler(w http.ResponseWriter, r *http.Request) {

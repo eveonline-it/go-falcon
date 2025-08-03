@@ -15,22 +15,16 @@ import (
 	"go-falcon/internal/auth"
 	"go-falcon/internal/notifications"
 	"go-falcon/internal/users"
-	"go-falcon/pkg/database"
-	"go-falcon/pkg/logging"
+	"go-falcon/pkg/app"
+	"go-falcon/pkg/module"
 	"go-falcon/pkg/version"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/joho/godotenv"
 	_ "go.uber.org/automaxprocs"
 )
 
 func main() {
-	// Load .env file if it exists
-	if err := godotenv.Load(); err != nil {
-		log.Printf("No .env file found or error loading it: %v", err)
-	}
-
 	// Display startup banner
 	fmt.Print(`
  ██████╗  ██████╗       ███████╗ █████╗ ██╗      ██████╗ ██████╗ ███╗   ██╗
@@ -57,31 +51,12 @@ func main() {
 
 	ctx := context.Background()
 
-	// Initialize telemetry
-	telemetryManager := logging.NewTelemetryManager()
-	if err := telemetryManager.Initialize(ctx); err != nil {
-		log.Fatalf("Failed to initialize telemetry: %v", err)
-	}
-	defer telemetryManager.Shutdown(ctx)
-
-	// Initialize databases
-	mongodb, err := database.NewMongoDB(ctx, "gateway")
+	// Initialize application with shared components
+	appCtx, err := app.InitializeApp("gateway")
 	if err != nil {
-		slog.Error("Failed to connect to MongoDB", "error", err)
-		// Continue without MongoDB for now
-	} else {
-		defer mongodb.Close(ctx)
-		slog.Info("Connected to MongoDB")
+		log.Fatalf("Failed to initialize application: %v", err)
 	}
-
-	redis, err := database.NewRedis(ctx)
-	if err != nil {
-		slog.Error("Failed to connect to Redis", "error", err)
-		// Continue without Redis for now
-	} else {
-		defer redis.Close()
-		slog.Info("Connected to Redis")
-	}
+	defer appCtx.Shutdown(ctx)
 
 	// Initialize Chi router
 	r := chi.NewRouter()
@@ -93,37 +68,29 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// Health check endpoint
-	r.Get("/health", healthHandler)
+	// Health check endpoint with version info
+	r.Get("/health", enhancedHealthHandler)
 
 	// Initialize modules
-	authModule := auth.New(mongodb, redis)
-	usersModule := users.New(mongodb, redis)
-	notificationsModule := notifications.New(mongodb, redis)
+	var modules []module.Module
+	authModule := auth.New(appCtx.MongoDB, appCtx.Redis)
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis)
+	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis)
+	
+	modules = append(modules, authModule, usersModule, notificationsModule)
 
 	// Mount module routes
-	r.Route("/api/auth", func(r chi.Router) {
-		authModule.Routes(r)
-	})
+	r.Route("/api/auth", authModule.Routes)
+	r.Route("/api/users", usersModule.Routes)
+	r.Route("/api/notifications", notificationsModule.Routes)
 
-	r.Route("/api/users", func(r chi.Router) {
-		usersModule.Routes(r)
-	})
-
-	r.Route("/api/notifications", func(r chi.Router) {
-		notificationsModule.Routes(r)
-	})
-
-	// Start background services
-	go authModule.StartBackgroundTasks(ctx)
-	go usersModule.StartBackgroundTasks(ctx)
-	go notificationsModule.StartBackgroundTasks(ctx)
+	// Start background services for all modules
+	for _, mod := range modules {
+		go mod.StartBackgroundTasks(ctx)
+	}
 
 	// HTTP server setup
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	port := app.GetPort("8080")
 	
 	srv := &http.Server{
 		Addr:         ":" + port,
@@ -158,32 +125,19 @@ func main() {
 		slog.Error("Server forced to shutdown", "error", err)
 	}
 
-	// Stop background services
-	authModule.Stop()
-	usersModule.Stop()
-	notificationsModule.Stop()
-
-	// Close database connections
-	if mongodb != nil {
-		if err := mongodb.Close(shutdownCtx); err != nil {
-			slog.Error("Error closing MongoDB connection", "error", err)
-		}
+	// Stop background services for all modules
+	for _, mod := range modules {
+		mod.Stop()
 	}
 
-	if redis != nil {
-		if err := redis.Close(); err != nil {
-			slog.Error("Error closing Redis connection", "error", err)
-		}
-	}
-
-	// Shutdown telemetry
-	telemetryManager.Shutdown(shutdownCtx)
+	// Application context will handle database and telemetry shutdown
+	appCtx.Shutdown(shutdownCtx)
 
 	slog.Info("Gateway shutdown completed successfully")
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("Health check requested",
+func enhancedHealthHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Gateway health check requested",
 		slog.String("remote_addr", r.RemoteAddr),
 		slog.String("user_agent", r.UserAgent()),
 	)

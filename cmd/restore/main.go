@@ -7,43 +7,31 @@ import (
 	"log/slog"
 	"os"
 
-	"go-falcon/pkg/database"
-	"go-falcon/pkg/logging"
-
-	"github.com/joho/godotenv"
+	"go-falcon/pkg/app"
 )
 
 func main() {
-	// Load .env file if it exists
-	if err := godotenv.Load(); err != nil {
-		log.Printf("No .env file found or error loading it: %v", err)
-	}
-
 	ctx := context.Background()
 
-	// Initialize telemetry
-	telemetryManager := logging.NewTelemetryManager()
-	if err := telemetryManager.Initialize(ctx); err != nil {
-		log.Fatalf("Failed to initialize telemetry: %v", err)
+	// Initialize application with shared components
+	appCtx, err := app.InitializeApp("restore")
+	if err != nil {
+		log.Fatalf("Failed to initialize application: %v", err)
 	}
-	defer telemetryManager.Shutdown(ctx)
+	defer appCtx.Shutdown(ctx)
 
 	slog.Info("Starting restore utility...")
 
-	// Initialize databases
-	mongodb, err := database.NewMongoDB(ctx, "gateway")
-	if err != nil {
-		slog.Error("Failed to connect to MongoDB", "error", err)
+	// Check database connections
+	if appCtx.MongoDB == nil {
+		slog.Error("MongoDB connection required for restore")
 		os.Exit(1)
 	}
-	defer mongodb.Close(ctx)
-
-	redis, err := database.NewRedis(ctx)
-	if err != nil {
-		slog.Error("Failed to connect to Redis", "error", err)
+	
+	if appCtx.Redis == nil {
+		slog.Error("Redis connection required for restore")
 		os.Exit(1)
 	}
-	defer redis.Close()
 
 	// TODO: Implement restore logic
 	fmt.Println("Restore utility - Implementation pending")

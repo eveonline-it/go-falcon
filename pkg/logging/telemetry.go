@@ -4,8 +4,9 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"strconv"
 	"strings"
+	
+	"go-falcon/pkg/config"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
@@ -35,18 +36,18 @@ type TelemetryManager struct {
 }
 
 func NewTelemetryManager() *TelemetryManager {
-	config := TelemetryConfig{
-		EnableTelemetry:   getBoolEnv("ENABLE_TELEMETRY", true),
-		ServiceName:       getEnv("SERVICE_NAME", "unknown-service"),
-		OTLPEndpoint:      getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318"),
-		LogLevel:          getEnv("LOG_LEVEL", "info"),
-		EnablePrettyLogs:  getBoolEnv("ENABLE_PRETTY_LOGS", false),
-		DisableConsoleLog: getBoolEnv("DISABLE_CONSOLE_LOG", false),
-		NodeEnv:           getEnv("NODE_ENV", "development"),
+	telemetryConfig := TelemetryConfig{
+		EnableTelemetry:   config.GetBoolEnv("ENABLE_TELEMETRY", true),
+		ServiceName:       config.GetEnv("SERVICE_NAME", "unknown-service"),
+		OTLPEndpoint:      config.GetEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318"),
+		LogLevel:          config.GetEnv("LOG_LEVEL", "info"),
+		EnablePrettyLogs:  config.GetBoolEnv("ENABLE_PRETTY_LOGS", false),
+		DisableConsoleLog: config.GetBoolEnv("DISABLE_CONSOLE_LOG", false),
+		NodeEnv:           config.GetEnv("NODE_ENV", "development"),
 	}
 
 	return &TelemetryManager{
-		config: config,
+		config: telemetryConfig,
 	}
 }
 
@@ -184,22 +185,7 @@ func (tm *TelemetryManager) Logger() *slog.Logger {
 	return tm.logger
 }
 
-// Helper functions
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func getBoolEnv(key string, defaultValue bool) bool {
-	if value := os.Getenv(key); value != "" {
-		if parsed, err := strconv.ParseBool(value); err == nil {
-			return parsed
-		}
-	}
-	return defaultValue
-}
+// Helper function for log level parsing
 
 func parseLogLevel(level string) slog.Level {
 	switch strings.ToLower(level) {
