@@ -52,6 +52,18 @@ func NewTelemetryManager() *TelemetryManager {
 }
 
 func (tm *TelemetryManager) Initialize(ctx context.Context) error {
+	// Setup structured logging first (always needed)
+	tm.setupLogger()
+
+	// Only initialize telemetry if enabled
+	if !tm.config.EnableTelemetry {
+		slog.Info("Telemetry disabled",
+			slog.String("service", tm.config.ServiceName),
+			slog.Bool("telemetry_enabled", false),
+		)
+		return nil
+	}
+
 	// Create resource following OpenTelemetry 1.47.0 spec
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -64,19 +76,15 @@ func (tm *TelemetryManager) Initialize(ctx context.Context) error {
 		return err
 	}
 
-	// Initialize tracing if telemetry is enabled
-	if tm.config.EnableTelemetry {
-		if err := tm.initTracing(ctx, res); err != nil {
-			slog.Warn("〤 Failed to initialize tracing", "error", err)
-		}
-
-		if err := tm.initLogging(ctx, res); err != nil {
-			slog.Warn("〤 Failed to initialize OpenTelemetry logging", "error", err)
-		}
+	// Initialize tracing
+	if err := tm.initTracing(ctx, res); err != nil {
+		slog.Warn("Failed to initialize tracing", "error", err)
 	}
 
-	// Setup structured logging
-	tm.setupLogger()
+	// Initialize logging
+	if err := tm.initLogging(ctx, res); err != nil {
+		slog.Warn("Failed to initialize OpenTelemetry logging", "error", err)
+	}
 
 	slog.Info("Telemetry initialized",
 		slog.String("service", tm.config.ServiceName),
@@ -112,7 +120,9 @@ func (tm *TelemetryManager) initTracing(ctx context.Context, res *resource.Resou
 
 	tm.shutdownFuncs = append(tm.shutdownFuncs, tp.Shutdown)
 	
-	slog.Info("OpenTelemetry tracing initialized", "endpoint", tm.config.OTLPEndpoint)
+	slog.Info("OpenTelemetry tracing initialized", 
+		"endpoint", tm.config.OTLPEndpoint,
+		"service", tm.config.ServiceName)
 	return nil
 }
 
@@ -157,7 +167,7 @@ func (tm *TelemetryManager) setupLogger() {
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	}
 
-	// If OpenTelemetry logging is enabled, wrap with OTel handler
+	// Only wrap with OTel handler if telemetry is enabled
 	if tm.config.EnableTelemetry {
 		handler = NewOTelHandler(handler)
 	}

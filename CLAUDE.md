@@ -26,18 +26,25 @@ This is a GO architecture project featuring:
 
 ## Directory Structure
 The project's code is organized into several directories:
-- api: API definitions
+
 - cmd: main runnable applications
   - gateway: Main API gateway application
   - backup: backup application for MongoDb and Redis
   - restore: a restore application for MongoDb and Redis
 - internal: private packages
-  - auth
-  - users
-  - notifications
-  - shared
+  - auth: authentication service module
+  - dev: development module for testing and calling other services
+  - notifications: notification service module
+  - users: user management service module
 - pkg: shared libraries
-  - evegate: a service that manage the calls to EveOnline endpoints 
+  - app: application initialization and context management
+  - config: configuration management and environment variables
+  - database: MongoDB and Redis connection utilities
+  - handlers: shared HTTP handlers and utilities
+  - logging: OpenTelemetry logging and telemetry management
+  - module: base module interface and common functionality
+  - version: application version information
+  - evegate: EVE Online ESI client library for API integration
 - docs: This directory contains the documentation for the project, including deployment guides, API definitions, and functional requirements.
 - examples: This directory contains example code, such as an example for exporting data.
 - builders: This directory contains files related to building the project, such as Dockerfiles.

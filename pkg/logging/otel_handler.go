@@ -26,8 +26,30 @@ func (h *OTelHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *OTelHandler) Handle(ctx context.Context, record slog.Record) error {
-	// First, handle with the underlying handler (console/JSON)
-	if err := h.handler.Handle(ctx, record); err != nil {
+	// Add trace context to the console/JSON log output
+	var attrs []slog.Attr
+	
+	// Copy existing attributes
+	record.Attrs(func(attr slog.Attr) bool {
+		attrs = append(attrs, attr)
+		return true
+	})
+	
+	// Add trace context if available
+	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+		spanCtx := span.SpanContext()
+		attrs = append(attrs,
+			slog.String("trace_id", spanCtx.TraceID().String()),
+			slog.String("span_id", spanCtx.SpanID().String()),
+		)
+	}
+	
+	// Create new record with trace attributes
+	newRecord := slog.NewRecord(record.Time, record.Level, record.Message, record.PC)
+	newRecord.AddAttrs(attrs...)
+	
+	// Handle with the underlying handler (console/JSON) - now with trace info
+	if err := h.handler.Handle(ctx, newRecord); err != nil {
 		return err
 	}
 
@@ -48,7 +70,7 @@ func (h *OTelHandler) Handle(ctx context.Context, record slog.Record) error {
 		logRecord.SetSeverity(log.SeverityError)
 	}
 
-	// Add trace context if available
+	// Add trace context to OpenTelemetry logs
 	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
 		spanCtx := span.SpanContext()
 		logRecord.AddAttributes(
@@ -58,10 +80,9 @@ func (h *OTelHandler) Handle(ctx context.Context, record slog.Record) error {
 	}
 
 	// Add attributes from slog record
-	record.Attrs(func(attr slog.Attr) bool {
+	for _, attr := range attrs {
 		logRecord.AddAttributes(log.String(attr.Key, attr.Value.String()))
-		return true
-	})
+	}
 
 	h.logger.Emit(ctx, logRecord)
 	return nil

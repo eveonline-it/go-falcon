@@ -8,6 +8,14 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"go-falcon/pkg/config"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Client represents an EVE Online ESI client
@@ -26,9 +34,21 @@ type ESIStatusResponse struct {
 
 // NewClient creates a new EVE Online ESI client
 func NewClient() *Client {
+	var transport http.RoundTripper = http.DefaultTransport
+	
+	// Only add OpenTelemetry instrumentation if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		transport = otelhttp.NewTransport(http.DefaultTransport, 
+			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+				return fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Host)
+			}),
+		)
+	}
+	
 	return &Client{
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:   30 * time.Second,
+			Transport: transport,
 		},
 		baseURL:   "https://esi.evetech.net",
 		userAgent: "go-falcon/1.0.0",
@@ -37,42 +57,103 @@ func NewClient() *Client {
 
 // GetServerStatus retrieves EVE Online server status from ESI
 func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error) {
-	slog.Info("Requesting server status from ESI")
+	var span trace.Span
+	
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		tracer := otel.Tracer("go-falcon/evegate")
+		ctx, span = tracer.Start(ctx, "evegate.GetServerStatus")
+		defer span.End()
+		
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "status"),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("http.user_agent", c.userAgent),
+		)
+	}
+	
+	slog.InfoContext(ctx, "Requesting server status from ESI")
 	
 	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/status", nil)
 	if err != nil {
-		slog.Error("Failed to create ESI status request", "error", err)
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to create request")
+		}
+		slog.ErrorContext(ctx, "Failed to create ESI status request", "error", err)
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
 	
+	if span != nil {
+		span.SetAttributes(
+			attribute.String("http.method", req.Method),
+			attribute.String("http.url", req.URL.String()),
+		)
+	}
+	
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		slog.Error("Failed to call ESI status endpoint", "error", err)
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to call ESI")
+		}
+		slog.ErrorContext(ctx, "Failed to call ESI status endpoint", "error", err)
 		return nil, fmt.Errorf("failed to call ESI: %w", err)
 	}
 	defer resp.Body.Close()
 	
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.status_code", resp.StatusCode),
+			attribute.String("http.status_text", resp.Status),
+		)
+	}
+	
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("ESI status endpoint returned error", "status_code", resp.StatusCode)
+		if span != nil {
+			span.SetStatus(codes.Error, "ESI returned error status")
+		}
+		slog.ErrorContext(ctx, "ESI status endpoint returned error", "status_code", resp.StatusCode)
 		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
 	}
 	
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("Failed to read ESI status response", "error", err)
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to read response")
+		}
+		slog.ErrorContext(ctx, "Failed to read ESI status response", "error", err)
 		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	
+	if span != nil {
+		span.SetAttributes(attribute.Int("http.response_size", len(body)))
 	}
 	
 	var status ESIStatusResponse
 	if err := json.Unmarshal(body, &status); err != nil {
-		slog.Error("Failed to parse ESI status response", "error", err)
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to parse response")
+		}
+		slog.ErrorContext(ctx, "Failed to parse ESI status response", "error", err)
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	
-	slog.Info("Successfully retrieved ESI status", 
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("esi.players", status.Players),
+			attribute.String("esi.server_version", status.ServerVersion),
+			attribute.String("esi.start_time", status.StartTime.Format(time.RFC3339)),
+		)
+		span.SetStatus(codes.Ok, "successfully retrieved ESI status")
+	}
+	
+	slog.InfoContext(ctx, "Successfully retrieved ESI status", 
 		slog.Int("players", status.Players),
 		slog.String("server_version", status.ServerVersion),
 		slog.Time("start_time", status.StartTime))

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"go-falcon/internal/auth"
+	"go-falcon/internal/dev"
 	"go-falcon/internal/notifications"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
@@ -70,10 +71,11 @@ func main() {
 	// Initialize modules
 	var modules []module.Module
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis)
+	devModule := dev.New(appCtx.MongoDB, appCtx.Redis)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis)
 	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis)
 	
-	modules = append(modules, authModule, usersModule, notificationsModule)
+	modules = append(modules, authModule, devModule, usersModule, notificationsModule)
 	
 	// Initialize EVE Online ESI client as shared package
 	evegateClient := evegate.NewClient()
@@ -83,6 +85,7 @@ func main() {
 	apiPrefix := config.GetAPIPrefix()
 	log.Printf("🔗 Using API prefix: '%s'", apiPrefix)
 	r.Route(apiPrefix+"/auth", authModule.Routes)
+	r.Route(apiPrefix+"/dev", devModule.Routes)
 	r.Route(apiPrefix+"/users", usersModule.Routes)
 	r.Route(apiPrefix+"/notifications", notificationsModule.Routes)
 	
