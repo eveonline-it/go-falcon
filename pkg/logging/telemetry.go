@@ -90,7 +90,7 @@ func (tm *TelemetryManager) Initialize(ctx context.Context) error {
 
 func (tm *TelemetryManager) initTracing(ctx context.Context, res *resource.Resource) error {
 	traceExporter, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpoint(tm.config.OTLPEndpoint),
+		otlptracehttp.WithEndpointURL(tm.config.OTLPEndpoint),
 		otlptracehttp.WithInsecure(),
 		otlptracehttp.WithURLPath("/v1/traces"),
 	)
@@ -118,7 +118,7 @@ func (tm *TelemetryManager) initTracing(ctx context.Context, res *resource.Resou
 
 func (tm *TelemetryManager) initLogging(ctx context.Context, res *resource.Resource) error {
 	logExporter, err := otlploghttp.New(ctx,
-		otlploghttp.WithEndpoint(tm.config.OTLPEndpoint),
+		otlploghttp.WithEndpointURL(tm.config.OTLPEndpoint),
 		otlploghttp.WithInsecure(),
 		otlploghttp.WithURLPath("/v1/logs"),
 	)

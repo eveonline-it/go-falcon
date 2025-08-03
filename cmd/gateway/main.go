@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,6 +18,8 @@ import (
 	"go-falcon/internal/notifications"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
+	"go-falcon/pkg/config"
+	"go-falcon/pkg/evegate"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/version"
 
@@ -26,15 +30,7 @@ import (
 
 func main() {
 	// Display startup banner
-	fmt.Print(`
- ██████╗  ██████╗       ███████╗ █████╗ ██╗      ██████╗ ██████╗ ███╗   ██╗
-██╔════╝ ██╔═══██╗      ██╔════╝██╔══██╗██║     ██╔════╝██╔═══██╗████╗  ██║
-██║  ███╗██║   ██║█████╗█████╗  ███████║██║     ██║     ██║   ██║██╔██╗ ██║
-██║   ██║██║   ██║╚════╝██╔══╝  ██╔══██║██║     ██║     ██║   ██║██║╚██╗██║
-╚██████╔╝╚██████╔╝      ██║     ██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║
- ╚═════╝  ╚═════╝       ╚═╝     ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝
-
-`)
+	displayBanner()
 	
 	// Display version information
 	versionInfo := version.Get()
@@ -78,11 +74,21 @@ func main() {
 	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis)
 	
 	modules = append(modules, authModule, usersModule, notificationsModule)
+	
+	// Initialize EVE Online ESI client as shared package
+	evegateClient := evegate.NewClient()
+	log.Printf("🚀 EVE Online ESI client initialized")
 
-	// Mount module routes
-	r.Route("/api/auth", authModule.Routes)
-	r.Route("/api/users", usersModule.Routes)
-	r.Route("/api/notifications", notificationsModule.Routes)
+	// Mount module routes with configurable API prefix
+	apiPrefix := config.GetAPIPrefix()
+	log.Printf("🔗 Using API prefix: '%s'", apiPrefix)
+	r.Route(apiPrefix+"/auth", authModule.Routes)
+	r.Route(apiPrefix+"/users", usersModule.Routes)
+	r.Route(apiPrefix+"/notifications", notificationsModule.Routes)
+	
+	// Note: evegate is now a shared package for EVE Online ESI integration
+	// Other services can import and use: evegate.NewClient().GetServerStatus(ctx)
+	_ = evegateClient // Available for modules to use
 
 	// Start background services for all modules
 	for _, mod := range modules {
@@ -102,7 +108,7 @@ func main() {
 
 	// Start server
 	go func() {
-		slog.Info("Starting gateway server", slog.String("addr", srv.Addr))
+		slog.Info("Starting api gateway server", slog.String("addr", srv.Addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Server failed to start", "error", err)
 			os.Exit(1)
@@ -156,4 +162,44 @@ func enhancedHealthHandler(w http.ResponseWriter, r *http.Request) {
 	}`, versionInfo.Version, versionInfo.GitCommit, versionInfo.BuildDate, versionInfo.GoVersion, versionInfo.Platform)
 	
 	w.Write([]byte(response))
+}
+
+func displayBanner() {
+	file, err := os.Open("banner.txt")
+	if err != nil {
+		// Fallback to inline banner if file not found
+		fmt.Print("\033[38;5;33m")
+		fmt.Print("GO-FALCON API Gateway\n")
+		fmt.Print("\033[0m")
+		return
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		fmt.Print("\033[38;5;33m")
+		fmt.Print("GO-FALCON API Gateway\n")
+		fmt.Print("\033[0m")
+		return
+	}
+
+	lines := strings.Split(string(content), "\n")
+	colors := []string{
+		"\033[38;5;33m",  // Bright blue
+		"\033[38;5;39m",  // Cyan
+		"\033[38;5;75m",  // Light blue
+		"\033[38;5;51m",  // Bright cyan
+		"\033[38;5;33m",  // Bright blue
+		"\033[38;5;39m",  // Cyan
+	}
+
+	fmt.Print("\n")
+	for i, line := range lines {
+		if line != "" && i < len(colors) {
+			fmt.Print(colors[i])
+			fmt.Println(line)
+		}
+	}
+	fmt.Print("\033[0m") // Reset colors
+	fmt.Print("\n")
 }

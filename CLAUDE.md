@@ -26,13 +26,18 @@ This is a GO architecture project featuring:
 
 ## Directory Structure
 The project's code is organized into several directories:
-
-- cmd: This directory contains the main applications for the different services. Each subdirectory is a runnable application:
+- api: API definitions
+- cmd: main runnable applications
   - gateway: Main API gateway application
   - backup: backup application for MongoDb and Redis
   - restore: a restore application for MongoDb and Redis
-- internal: This directory contains packages that are shared across the different services but are not intended to be used by other applications.
-- pkg: This directory contains packages that are intended to be shared and used by other applications.
+- internal: private packages
+  - auth
+  - users
+  - notifications
+  - shared
+- pkg: shared libraries
+  - evegate: a service that manage the calls to EveOnline endpoints 
 - docs: This directory contains the documentation for the project, including deployment guides, API definitions, and functional requirements.
 - examples: This directory contains example code, such as an example for exporting data.
 - builders: This directory contains files related to building the project, such as Dockerfiles.

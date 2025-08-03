@@ -40,3 +40,12 @@ func MustGetEnv(key string) string {
 	}
 	panic("Required environment variable " + key + " is not set")
 }
+
+// GetAPIPrefix returns the API prefix from environment or default
+func GetAPIPrefix() string {
+	prefix := GetEnv("API_PREFIX", "")
+	if prefix == "" {
+		return ""
+	}
+	return "/" + prefix
+}

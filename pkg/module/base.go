@@ -95,7 +95,6 @@ func (b *BaseModule) StartBackgroundTasks(ctx context.Context) {
 			slog.Info("Background tasks stopped", "module", b.name)
 			return
 		case <-ticker.C:
-			slog.Debug("Background task heartbeat", "module", b.name)
 			// Modules can override this method to implement specific background work
 		}
 	}
