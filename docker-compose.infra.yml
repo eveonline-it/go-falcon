@@ -1,0 +1,41 @@
+version: '3.8'
+
+# Infrastructure services (MongoDB and Redis)
+# Use: docker-compose -f docker-compose.infra.yml up -d
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: go-falcon-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-password123}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - gateway-network
+
+  # Redis
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: go-falcon-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - gateway-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  gateway-network:
+    driver: bridge
