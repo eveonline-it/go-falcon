@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"go-falcon/pkg/evegate/alliance"
-	"go-falcon/pkg/evegate/status"
+	"go-falcon/pkg/evegateway/alliance"
+	"go-falcon/pkg/evegateway/status"
 	"go-falcon/pkg/handlers"
 
 	"github.com/go-chi/chi/v5"

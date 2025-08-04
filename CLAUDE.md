@@ -47,7 +47,7 @@ The project's code is organized into several directories:
   - module: base module interface and common functionality
   - sde: EVE Online Static Data Export (SDE) in-memory service
   - version: application version information
-  - evegate: EVE Online ESI client library for API integration
+  - evegateway: EVE Online ESI client library for API integration
 - docs: This directory contains the documentation for the project, including deployment guides, API definitions, and functional requirements.
 - examples: This directory contains example code, such as an example for exporting data.
 - builders: This directory contains files related to building the project, such as Dockerfiles.
@@ -85,7 +85,7 @@ The project's code is organized into several directories:
 
 ## EVE Online ESI Integration Guidelines
 
-The `pkg/evegate` package handles EVE Online ESI (Electronic System Interface) API calls and must follow CCP's best practices:
+The `pkg/evegateway` package handles EVE Online ESI (Electronic System Interface) API calls and must follow CCP's best practices:
 
 ### User Agent Requirements
 - **REQUIRED**: All ESI requests must include a proper User-Agent header
@@ -175,7 +175,7 @@ categories := sdeService.GetPublishedCategories()
 ### Integration with Modules
 - **Initialization**: SDE service initialized in `pkg/app/init.go`
 - **Module Access**: Available through base module interface
-- **ESI Enrichment**: Combines with `pkg/evegate` for live + static data
+- **ESI Enrichment**: Combines with `pkg/evegateway` for live + static data
 - **Internationalization**: Supports multiple languages from SDE data
 
 ### Performance Characteristics

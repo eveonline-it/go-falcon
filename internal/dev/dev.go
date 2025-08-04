@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"go-falcon/pkg/database"
-	"go-falcon/pkg/evegate"
-	"go-falcon/pkg/evegate/alliance"
-	"go-falcon/pkg/evegate/character"
-	"go-falcon/pkg/evegate/status"
-	"go-falcon/pkg/evegate/universe"
+	evegateway "go-falcon/pkg/evegateway"
+	"go-falcon/pkg/evegateway/alliance"
+	"go-falcon/pkg/evegateway/character"
+	"go-falcon/pkg/evegateway/status"
+	"go-falcon/pkg/evegateway/universe"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/sde"
 
@@ -21,26 +21,26 @@ import (
 
 type Module struct {
 	*module.BaseModule
-	evegateClient    *evegate.Client
+	evegateClient    *evegateway.Client
 	statusClient     status.Client
 	characterClient  character.Client
 	universeClient   universe.Client
 	allianceClient   alliance.Client
-	cacheManager     evegate.CacheManager
+	cacheManager     evegateway.CacheManager
 }
 
 func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService) *Module {
-	evegateClient := evegate.NewClient()
+	evegateClient := evegateway.NewClient()
 	
 	// Create shared cache manager for consistency
-	cacheManager := evegate.NewDefaultCacheManager()
+	cacheManager := evegateway.NewDefaultCacheManager()
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 	baseURL := "https://esi.evetech.net"
 	userAgent := "go-falcon/1.0.0 contact@example.com"
 	
-	errorLimits := &evegate.ESIErrorLimits{}
+	errorLimits := &evegateway.ESIErrorLimits{}
 	limitsMutex := &sync.RWMutex{}
-	retryClient := evegate.NewDefaultRetryClient(httpClient, errorLimits, limitsMutex)
+	retryClient := evegateway.NewDefaultRetryClient(httpClient, errorLimits, limitsMutex)
 	
 	statusClient := status.NewStatusClient(httpClient, baseURL, userAgent, cacheManager, retryClient)
 	characterClient := character.NewCharacterClient(httpClient, baseURL, userAgent, cacheManager, retryClient)

@@ -21,7 +21,7 @@ import (
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
-	"go-falcon/pkg/evegate"
+	evegateway "go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/version"
 
@@ -96,7 +96,7 @@ func main() {
 	modules = append(modules, authModule, devModule, usersModule, notificationsModule)
 	
 	// Initialize EVE Online ESI client as shared package
-	evegateClient := evegate.NewClient()
+	evegateClient := evegateway.NewClient()
 	log.Printf("🚀 EVE Online ESI client initialized")
 
 	// Mount module routes with configurable API prefix
@@ -107,8 +107,8 @@ func main() {
 	r.Route(apiPrefix+"/users", usersModule.Routes)
 	r.Route(apiPrefix+"/notifications", notificationsModule.Routes)
 	
-	// Note: evegate is now a shared package for EVE Online ESI integration
-	// Other services can import and use: evegate.NewClient().GetServerStatus(ctx)
+	// Note: evegateway is now a shared package for EVE Online ESI integration
+	// Other services can import and use: evegateway.NewClient().GetServerStatus(ctx)
 	_ = evegateClient // Available for modules to use
 
 	// Start background services for all modules
