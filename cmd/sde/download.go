@@ -25,8 +25,14 @@ func (wc WriteCounter) PrintProgress() {
 	fmt.Printf("Downloading... %d MB complete", wc.Total/1024/1024)
 }
 
-// downloadFile downloads a URL to a file. It will overwrite the file if it already exists.
+// downloadFile downloads a URL to a file. It will skip download if file already exists.
 func downloadFile(filepath string, url string) error {
+	// Check if file already exists
+	if _, err := os.Stat(filepath); err == nil {
+		fmt.Printf("File %s already exists, skipping download\n", filepath)
+		return nil
+	}
+
 	// Create the file with a temporary name
 	out, err := os.Create(filepath + ".tmp")
 	if err != nil {
