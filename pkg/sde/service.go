@@ -12,21 +12,33 @@ import (
 
 // Service provides in-memory access to EVE Online SDE data
 type Service struct {
-	agents     map[string]*Agent
-	categories map[string]*Category
-	blueprints map[string]*Blueprint
-	loaded     bool
-	loadMu     sync.Mutex // Only used during initial loading
-	dataDir    string
+	agents          map[string]*Agent
+	categories      map[string]*Category
+	blueprints      map[string]*Blueprint
+	marketGroups    map[string]*MarketGroup
+	metaGroups      map[string]*MetaGroup
+	npcCorporations map[string]*NPCCorporation
+	typeIDs         map[string]*TypeID
+	types           map[string]*Type
+	typeMaterials   map[string][]*TypeMaterial
+	loaded          bool
+	loadMu          sync.Mutex // Only used during initial loading
+	dataDir         string
 }
 
 // NewService creates a new SDE service instance
 func NewService(dataDir string) *Service {
 	return &Service{
-		agents:     make(map[string]*Agent),
-		categories: make(map[string]*Category),
-		blueprints: make(map[string]*Blueprint),
-		dataDir:    dataDir,
+		agents:          make(map[string]*Agent),
+		categories:      make(map[string]*Category),
+		blueprints:      make(map[string]*Blueprint),
+		marketGroups:    make(map[string]*MarketGroup),
+		metaGroups:      make(map[string]*MetaGroup),
+		npcCorporations: make(map[string]*NPCCorporation),
+		typeIDs:         make(map[string]*TypeID),
+		types:           make(map[string]*Type),
+		typeMaterials:   make(map[string][]*TypeMaterial),
+		dataDir:         dataDir,
 	}
 }
 
@@ -57,6 +69,30 @@ func (s *Service) ensureLoaded() error {
 		return fmt.Errorf("failed to load blueprints: %w", err)
 	}
 
+	if err := s.loadMarketGroups(); err != nil {
+		return fmt.Errorf("failed to load market groups: %w", err)
+	}
+
+	if err := s.loadMetaGroups(); err != nil {
+		return fmt.Errorf("failed to load meta groups: %w", err)
+	}
+
+	if err := s.loadNPCCorporations(); err != nil {
+		return fmt.Errorf("failed to load NPC corporations: %w", err)
+	}
+
+	if err := s.loadTypeIDs(); err != nil {
+		return fmt.Errorf("failed to load type IDs: %w", err)
+	}
+
+	if err := s.loadTypes(); err != nil {
+		return fmt.Errorf("failed to load types: %w", err)
+	}
+
+	if err := s.loadTypeMaterials(); err != nil {
+		return fmt.Errorf("failed to load type materials: %w", err)
+	}
+
 	s.loaded = true
 	
 	// Log memory usage after loading SDE data
@@ -66,6 +102,12 @@ func (s *Service) ensureLoaded() error {
 		"agents_count", len(s.agents),
 		"categories_count", len(s.categories),
 		"blueprints_count", len(s.blueprints),
+		"market_groups_count", len(s.marketGroups),
+		"meta_groups_count", len(s.metaGroups),
+		"npc_corporations_count", len(s.npcCorporations),
+		"type_ids_count", len(s.typeIDs),
+		"types_count", len(s.types),
+		"type_materials_count", len(s.typeMaterials),
 		"heap_size", formatBytes(m.HeapAlloc),
 		"total_alloc", formatBytes(m.TotalAlloc),
 	)
@@ -246,6 +288,327 @@ func (s *Service) GetAllBlueprints() (map[string]*Blueprint, error) {
 // IsLoaded returns whether SDE data has been loaded
 func (s *Service) IsLoaded() bool {
 	return s.loaded
+}
+
+// loadMarketGroups loads market group data from JSON file
+func (s *Service) loadMarketGroups() error {
+	filePath := filepath.Join(s.dataDir, "marketGroups.json")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read market groups file: %w", err)
+	}
+
+	var marketGroups map[string]*MarketGroup
+	if err := json.Unmarshal(data, &marketGroups); err != nil {
+		return fmt.Errorf("failed to unmarshal market groups: %w", err)
+	}
+
+	s.marketGroups = marketGroups
+	return nil
+}
+
+// loadMetaGroups loads meta group data from JSON file
+func (s *Service) loadMetaGroups() error {
+	filePath := filepath.Join(s.dataDir, "metaGroups.json")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read meta groups file: %w", err)
+	}
+
+	var metaGroups map[string]*MetaGroup
+	if err := json.Unmarshal(data, &metaGroups); err != nil {
+		return fmt.Errorf("failed to unmarshal meta groups: %w", err)
+	}
+
+	s.metaGroups = metaGroups
+	return nil
+}
+
+// loadNPCCorporations loads NPC corporation data from JSON file
+func (s *Service) loadNPCCorporations() error {
+	filePath := filepath.Join(s.dataDir, "npcCorporations.json")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read NPC corporations file: %w", err)
+	}
+
+	var npcCorporations map[string]*NPCCorporation
+	if err := json.Unmarshal(data, &npcCorporations); err != nil {
+		return fmt.Errorf("failed to unmarshal NPC corporations: %w", err)
+	}
+
+	s.npcCorporations = npcCorporations
+	return nil
+}
+
+// loadTypeIDs loads type ID data from JSON file (using types.json with basic fields)
+func (s *Service) loadTypeIDs() error {
+	filePath := filepath.Join(s.dataDir, "types.json")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read types file for type IDs: %w", err)
+	}
+
+	var fullTypes map[string]*Type
+	if err := json.Unmarshal(data, &fullTypes); err != nil {
+		return fmt.Errorf("failed to unmarshal types for type IDs: %w", err)
+	}
+
+	// Convert full Type data to TypeID data (basic fields only)
+	typeIDs := make(map[string]*TypeID, len(fullTypes))
+	for id, fullType := range fullTypes {
+		typeIDs[id] = &TypeID{
+			Name:        fullType.Name,
+			Description: fullType.Description,
+			GroupID:     fullType.GroupID,
+			Published:   fullType.Published,
+		}
+	}
+
+	s.typeIDs = typeIDs
+	return nil
+}
+
+// loadTypes loads type data from JSON file
+func (s *Service) loadTypes() error {
+	filePath := filepath.Join(s.dataDir, "types.json")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read types file: %w", err)
+	}
+
+	var types map[string]*Type
+	if err := json.Unmarshal(data, &types); err != nil {
+		return fmt.Errorf("failed to unmarshal types: %w", err)
+	}
+
+	s.types = types
+	return nil
+}
+
+// loadTypeMaterials loads type material data from JSON file
+func (s *Service) loadTypeMaterials() error {
+	filePath := filepath.Join(s.dataDir, "typeMaterials.json")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read type materials file: %w", err)
+	}
+
+	var rawTypeMaterials map[string]*TypeMaterialData
+	if err := json.Unmarshal(data, &rawTypeMaterials); err != nil {
+		return fmt.Errorf("failed to unmarshal type materials: %w", err)
+	}
+
+	// Convert from TypeMaterialData to []*TypeMaterial
+	typeMaterials := make(map[string][]*TypeMaterial, len(rawTypeMaterials))
+	for typeID, materialData := range rawTypeMaterials {
+		typeMaterials[typeID] = materialData.Materials
+	}
+
+	s.typeMaterials = typeMaterials
+	return nil
+}
+
+// GetMarketGroup retrieves a market group by ID
+func (s *Service) GetMarketGroup(id string) (*MarketGroup, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	marketGroup, exists := s.marketGroups[id]
+	if !exists {
+		return nil, fmt.Errorf("market group %s not found", id)
+	}
+
+	return marketGroup, nil
+}
+
+// GetMetaGroup retrieves a meta group by ID
+func (s *Service) GetMetaGroup(id string) (*MetaGroup, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	metaGroup, exists := s.metaGroups[id]
+	if !exists {
+		return nil, fmt.Errorf("meta group %s not found", id)
+	}
+
+	return metaGroup, nil
+}
+
+// GetNPCCorporation retrieves an NPC corporation by ID
+func (s *Service) GetNPCCorporation(id string) (*NPCCorporation, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	npcCorp, exists := s.npcCorporations[id]
+	if !exists {
+		return nil, fmt.Errorf("NPC corporation %s not found", id)
+	}
+
+	return npcCorp, nil
+}
+
+// GetTypeID retrieves a type ID by ID
+func (s *Service) GetTypeID(id string) (*TypeID, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	typeID, exists := s.typeIDs[id]
+	if !exists {
+		return nil, fmt.Errorf("type ID %s not found", id)
+	}
+
+	return typeID, nil
+}
+
+// GetType retrieves a type by ID
+func (s *Service) GetType(id string) (*Type, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	typeData, exists := s.types[id]
+	if !exists {
+		return nil, fmt.Errorf("type %s not found", id)
+	}
+
+	return typeData, nil
+}
+
+// GetTypeMaterials retrieves type materials by type ID
+func (s *Service) GetTypeMaterials(typeID string) ([]*TypeMaterial, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	materials, exists := s.typeMaterials[typeID]
+	if !exists {
+		return nil, fmt.Errorf("type materials for %s not found", typeID)
+	}
+
+	return materials, nil
+}
+
+// GetAllMarketGroups returns all market groups
+func (s *Service) GetAllMarketGroups() (map[string]*MarketGroup, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	marketGroups := make(map[string]*MarketGroup, len(s.marketGroups))
+	for id, marketGroup := range s.marketGroups {
+		marketGroups[id] = marketGroup
+	}
+
+	return marketGroups, nil
+}
+
+// GetAllMetaGroups returns all meta groups
+func (s *Service) GetAllMetaGroups() (map[string]*MetaGroup, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	metaGroups := make(map[string]*MetaGroup, len(s.metaGroups))
+	for id, metaGroup := range s.metaGroups {
+		metaGroups[id] = metaGroup
+	}
+
+	return metaGroups, nil
+}
+
+// GetAllNPCCorporations returns all NPC corporations
+func (s *Service) GetAllNPCCorporations() (map[string]*NPCCorporation, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	npcCorporations := make(map[string]*NPCCorporation, len(s.npcCorporations))
+	for id, npcCorp := range s.npcCorporations {
+		npcCorporations[id] = npcCorp
+	}
+
+	return npcCorporations, nil
+}
+
+// GetAllTypeIDs returns all type IDs
+func (s *Service) GetAllTypeIDs() (map[string]*TypeID, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	typeIDs := make(map[string]*TypeID, len(s.typeIDs))
+	for id, typeID := range s.typeIDs {
+		typeIDs[id] = typeID
+	}
+
+	return typeIDs, nil
+}
+
+// GetAllTypes returns all types
+func (s *Service) GetAllTypes() (map[string]*Type, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	types := make(map[string]*Type, len(s.types))
+	for id, typeData := range s.types {
+		types[id] = typeData
+	}
+
+	return types, nil
+}
+
+// GetPublishedTypes returns all published types
+func (s *Service) GetPublishedTypes() (map[string]*Type, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	published := make(map[string]*Type)
+	for id, typeData := range s.types {
+		if typeData.Published {
+			published[id] = typeData
+		}
+	}
+
+	return published, nil
+}
+
+// GetTypesByGroupID returns all types that belong to a specific group
+func (s *Service) GetTypesByGroupID(groupID int) ([]*Type, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	var types []*Type
+	for _, typeData := range s.types {
+		if typeData.GroupID == groupID {
+			types = append(types, typeData)
+		}
+	}
+
+	return types, nil
+}
+
+// GetNPCCorporationsByFaction returns all NPC corporations that belong to a specific faction
+func (s *Service) GetNPCCorporationsByFaction(factionID int) ([]*NPCCorporation, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	var corporations []*NPCCorporation
+	for _, corp := range s.npcCorporations {
+		if corp.FactionID == factionID {
+			corporations = append(corporations, corp)
+		}
+	}
+
+	return corporations, nil
 }
 
 // formatBytes converts bytes to human readable format

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "go-falcon-gateway-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: 9c00560 (9c00560)\nGenerated: 2025-08-04T11:09:41Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-04T12:10:18Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
@@ -458,7 +458,7 @@
           }
         },
         {
-          "name": "GET /sde/agent/{agentID}",
+          "name": "GET /sde/agent/Agent",
           "description": "Get agent information from SDE",
           "request": {
             "method": "GET",
@@ -470,7 +470,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/agent/{agentID}",
+              "raw": "{{gateway_url}}/dev/sde/agent/{{agent_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -478,14 +478,14 @@
                 "dev",
                 "sde",
                 "agent",
-                "{agentID}"
+                "{{agent_id}}"
               ]
             },
             "description": "Get agent information from SDE"
           }
         },
         {
-          "name": "GET /sde/category/{categoryID}",
+          "name": "GET /sde/category/Category",
           "description": "Get category information from SDE",
           "request": {
             "method": "GET",
@@ -497,7 +497,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/category/{categoryID}",
+              "raw": "{{gateway_url}}/dev/sde/category/{{category_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -505,14 +505,14 @@
                 "dev",
                 "sde",
                 "category",
-                "{categoryID}"
+                "{{category_id}}"
               ]
             },
             "description": "Get category information from SDE"
           }
         },
         {
-          "name": "GET /sde/blueprint/{blueprintID}",
+          "name": "GET /sde/blueprint/Blueprint",
           "description": "Get blueprint information from SDE",
           "request": {
             "method": "GET",
@@ -524,7 +524,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/blueprint/{blueprintID}",
+              "raw": "{{gateway_url}}/dev/sde/blueprint/{{blueprint_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -532,14 +532,14 @@
                 "dev",
                 "sde",
                 "blueprint",
-                "{blueprintID}"
+                "{{blueprint_id}}"
               ]
             },
             "description": "Get blueprint information from SDE"
           }
         },
         {
-          "name": "GET /sde/agents/location/{locationID}",
+          "name": "GET /sde/agents/location/Location",
           "description": "Get agents by location from SDE",
           "request": {
             "method": "GET",
@@ -551,7 +551,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/agents/location/{locationID}",
+              "raw": "{{gateway_url}}/dev/sde/agents/location/{{location_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -560,10 +560,411 @@
                 "sde",
                 "agents",
                 "location",
-                "{locationID}"
+                "{{location_id}}"
               ]
             },
             "description": "Get agents by location from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/blueprints",
+          "description": "Get all available blueprint IDs from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/blueprints",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "blueprints"
+              ]
+            },
+            "description": "Get all available blueprint IDs from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/marketgroup/MarketGroup",
+          "description": "Get market group information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/marketgroup/{{market_group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "marketgroup",
+                "{{market_group_id}}"
+              ]
+            },
+            "description": "Get market group information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/marketgroups",
+          "description": "Get all market groups from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/marketgroups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "marketgroups"
+              ]
+            },
+            "description": "Get all market groups from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/metagroup/MetaGroup",
+          "description": "Get meta group information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/metagroup/{{meta_group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "metagroup",
+                "{{meta_group_id}}"
+              ]
+            },
+            "description": "Get meta group information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/metagroups",
+          "description": "Get all meta groups from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/metagroups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "metagroups"
+              ]
+            },
+            "description": "Get all meta groups from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorp/NPCCorp",
+          "description": "Get NPC corporation information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorp/{{npc_corp_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorp",
+                "{{npc_corp_id}}"
+              ]
+            },
+            "description": "Get NPC corporation information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorps",
+          "description": "Get all NPC corporations from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorps",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorps"
+              ]
+            },
+            "description": "Get all NPC corporations from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorps/faction/Faction",
+          "description": "Get NPC corporations by faction from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorps/faction/{{faction_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorps",
+                "faction",
+                "{{faction_id}}"
+              ]
+            },
+            "description": "Get NPC corporations by faction from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/typeid/Type",
+          "description": "Get type ID information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/typeid/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "typeid",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type ID information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/typeids",
+          "description": "Get all type IDs from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/typeids",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "typeids"
+              ]
+            },
+            "description": "Get all type IDs from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/type/Type",
+          "description": "Get type information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/type/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "type",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types",
+          "description": "Get all types from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types"
+              ]
+            },
+            "description": "Get all types from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types/published",
+          "description": "Get all published types from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types/published",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types",
+                "published"
+              ]
+            },
+            "description": "Get all published types from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types/group/Group",
+          "description": "Get types by group ID from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types/group/{{group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types",
+                "group",
+                "{{group_id}}"
+              ]
+            },
+            "description": "Get types by group ID from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/typematerials/Type",
+          "description": "Get type materials from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/typematerials/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "typematerials",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type materials from SDE"
           }
         },
         {
@@ -1075,6 +1476,56 @@
       "key": "access_token",
       "value": "",
       "description": "JWT access token for authenticated endpoints"
+    },
+    {
+      "key": "agent_id",
+      "value": "3008416",
+      "description": "Example agent ID for SDE testing"
+    },
+    {
+      "key": "category_id",
+      "value": "6",
+      "description": "Example category ID (Ship) for SDE testing"
+    },
+    {
+      "key": "blueprint_id",
+      "value": "1000001",
+      "description": "Example blueprint ID for SDE testing"
+    },
+    {
+      "key": "location_id",
+      "value": "60003760",
+      "description": "Example location ID for SDE testing"
+    },
+    {
+      "key": "market_group_id",
+      "value": "4",
+      "description": "Example market group ID for SDE testing"
+    },
+    {
+      "key": "meta_group_id",
+      "value": "1",
+      "description": "Example meta group ID for SDE testing"
+    },
+    {
+      "key": "npc_corp_id",
+      "value": "1000001",
+      "description": "Example NPC corporation ID for SDE testing"
+    },
+    {
+      "key": "faction_id",
+      "value": "500001",
+      "description": "Example faction ID (Caldari State) for SDE testing"
+    },
+    {
+      "key": "type_id",
+      "value": "34",
+      "description": "Example type ID (Tritanium) for SDE testing"
+    },
+    {
+      "key": "group_id",
+      "value": "18",
+      "description": "Example group ID (Mineral) for SDE testing"
     }
   ]
 }

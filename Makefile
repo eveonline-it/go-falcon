@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-utils clean test install-tools help version postman postman-build lint fmt tidy dev-setup quick-test
+.PHONY: dev build build-all build-utils clean test install-tools help version postman postman-build sde lint fmt tidy dev-setup quick-test
 
 # Version variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -142,6 +142,11 @@ postman-build: ## Build and run postman exporter
 	@echo "📋 Generating Postman collection..."
 	@./bin/postman
 	@echo "✅ Postman collection generated: go-falcon-gateway-endpoints.postman_collection.json"
+
+sde: ## Download and convert EVE Online SDE data to JSON
+	@echo "📊 Processing EVE Online SDE data..."
+	@go run ./cmd/sde
+	@echo "✅ SDE data conversion completed: data/sde/*.json"
 
 # Linting and code quality
 lint: ## Run linter

@@ -231,6 +231,21 @@ func inspectModuleRoutes(_ module.Module, moduleName string) []RouteInfo {
 			{Method: "GET", Path: "/sde/category/{categoryID}", ModuleName: moduleName, HandlerName: "sdeCategoryHandler", Description: "Get category information from SDE"},
 			{Method: "GET", Path: "/sde/blueprint/{blueprintID}", ModuleName: moduleName, HandlerName: "sdeBlueprintHandler", Description: "Get blueprint information from SDE"},
 			{Method: "GET", Path: "/sde/agents/location/{locationID}", ModuleName: moduleName, HandlerName: "sdeAgentsByLocationHandler", Description: "Get agents by location from SDE"},
+			{Method: "GET", Path: "/sde/blueprints", ModuleName: moduleName, HandlerName: "sdeBlueprintIdsHandler", Description: "Get all available blueprint IDs from SDE"},
+			{Method: "GET", Path: "/sde/marketgroup/{marketGroupID}", ModuleName: moduleName, HandlerName: "sdeMarketGroupHandler", Description: "Get market group information from SDE"},
+			{Method: "GET", Path: "/sde/marketgroups", ModuleName: moduleName, HandlerName: "sdeMarketGroupsHandler", Description: "Get all market groups from SDE"},
+			{Method: "GET", Path: "/sde/metagroup/{metaGroupID}", ModuleName: moduleName, HandlerName: "sdeMetaGroupHandler", Description: "Get meta group information from SDE"},
+			{Method: "GET", Path: "/sde/metagroups", ModuleName: moduleName, HandlerName: "sdeMetaGroupsHandler", Description: "Get all meta groups from SDE"},
+			{Method: "GET", Path: "/sde/npccorp/{corpID}", ModuleName: moduleName, HandlerName: "sdeNPCCorpHandler", Description: "Get NPC corporation information from SDE"},
+			{Method: "GET", Path: "/sde/npccorps", ModuleName: moduleName, HandlerName: "sdeNPCCorpsHandler", Description: "Get all NPC corporations from SDE"},
+			{Method: "GET", Path: "/sde/npccorps/faction/{factionID}", ModuleName: moduleName, HandlerName: "sdeNPCCorpsByFactionHandler", Description: "Get NPC corporations by faction from SDE"},
+			{Method: "GET", Path: "/sde/typeid/{typeID}", ModuleName: moduleName, HandlerName: "sdeTypeIDHandler", Description: "Get type ID information from SDE"},
+			{Method: "GET", Path: "/sde/typeids", ModuleName: moduleName, HandlerName: "sdeTypeIDsHandler", Description: "Get all type IDs from SDE"},
+			{Method: "GET", Path: "/sde/type/{typeID}", ModuleName: moduleName, HandlerName: "sdeTypeHandler", Description: "Get type information from SDE"},
+			{Method: "GET", Path: "/sde/types", ModuleName: moduleName, HandlerName: "sdeTypesHandler", Description: "Get all types from SDE"},
+			{Method: "GET", Path: "/sde/types/published", ModuleName: moduleName, HandlerName: "sdePublishedTypesHandler", Description: "Get all published types from SDE"},
+			{Method: "GET", Path: "/sde/types/group/{groupID}", ModuleName: moduleName, HandlerName: "sdeTypesByGroupHandler", Description: "Get types by group ID from SDE"},
+			{Method: "GET", Path: "/sde/typematerials/{typeID}", ModuleName: moduleName, HandlerName: "sdeTypeMaterialsHandler", Description: "Get type materials from SDE"},
 			{Method: "GET", Path: "/services", ModuleName: moduleName, HandlerName: "servicesHandler", Description: "List available development services"},
 			{Method: "GET", Path: "/status", ModuleName: moduleName, HandlerName: "statusHandler", Description: "Get module status"},
 		}
@@ -321,6 +336,56 @@ func generatePostmanCollection(routes []RouteInfo) *PostmanCollection {
 				Key:         "access_token",
 				Value:       "",
 				Description: "JWT access token for authenticated endpoints",
+			},
+			{
+				Key:         "agent_id",
+				Value:       "3008416",
+				Description: "Example agent ID for SDE testing",
+			},
+			{
+				Key:         "category_id",
+				Value:       "6",
+				Description: "Example category ID (Ship) for SDE testing",
+			},
+			{
+				Key:         "blueprint_id",
+				Value:       "1000001",
+				Description: "Example blueprint ID for SDE testing",
+			},
+			{
+				Key:         "location_id",
+				Value:       "60003760",
+				Description: "Example location ID for SDE testing",
+			},
+			{
+				Key:         "market_group_id",
+				Value:       "4",
+				Description: "Example market group ID for SDE testing",
+			},
+			{
+				Key:         "meta_group_id",
+				Value:       "1",
+				Description: "Example meta group ID for SDE testing",
+			},
+			{
+				Key:         "npc_corp_id",
+				Value:       "1000001",
+				Description: "Example NPC corporation ID for SDE testing",
+			},
+			{
+				Key:         "faction_id",
+				Value:       "500001",
+				Description: "Example faction ID (Caldari State) for SDE testing",
+			},
+			{
+				Key:         "type_id",
+				Value:       "34",
+				Description: "Example type ID (Tritanium) for SDE testing",
+			},
+			{
+				Key:         "group_id",
+				Value:       "18",
+				Description: "Example group ID (Mineral) for SDE testing",
 			},
 		},
 		Event: []PostmanEvent{
@@ -470,12 +535,22 @@ func processPathParameters(path string) string {
 	
 	// Common parameter mappings
 	paramMappings := map[string]string{
-		"{characterID}": "{{character_id}}",
-		"{allianceID}":  "{{alliance_id}}",
-		"{systemID}":    "{{system_id}}",
-		"{stationID}":   "{{station_id}}",
-		"{userID}":      "{{user_id}}",
-		"{id}":          "{{id}}",
+		"{characterID}":    "{{character_id}}",
+		"{allianceID}":     "{{alliance_id}}",
+		"{systemID}":       "{{system_id}}",
+		"{stationID}":      "{{station_id}}",
+		"{userID}":         "{{user_id}}",
+		"{id}":             "{{id}}",
+		"{agentID}":        "{{agent_id}}",
+		"{categoryID}":     "{{category_id}}",
+		"{blueprintID}":    "{{blueprint_id}}",
+		"{locationID}":     "{{location_id}}",
+		"{marketGroupID}":  "{{market_group_id}}",
+		"{metaGroupID}":    "{{meta_group_id}}",
+		"{corpID}":         "{{npc_corp_id}}",
+		"{factionID}":      "{{faction_id}}",
+		"{typeID}":         "{{type_id}}",
+		"{groupID}":        "{{group_id}}",
 	}
 	
 	for old, new := range paramMappings {
@@ -515,6 +590,16 @@ func createRequestName(route RouteInfo) string {
 	name = strings.ReplaceAll(name, "{stationID}", "Station")
 	name = strings.ReplaceAll(name, "{userID}", "User")
 	name = strings.ReplaceAll(name, "{id}", "ID")
+	name = strings.ReplaceAll(name, "{agentID}", "Agent")
+	name = strings.ReplaceAll(name, "{categoryID}", "Category")
+	name = strings.ReplaceAll(name, "{blueprintID}", "Blueprint")
+	name = strings.ReplaceAll(name, "{locationID}", "Location")
+	name = strings.ReplaceAll(name, "{marketGroupID}", "MarketGroup")
+	name = strings.ReplaceAll(name, "{metaGroupID}", "MetaGroup")
+	name = strings.ReplaceAll(name, "{corpID}", "NPCCorp")
+	name = strings.ReplaceAll(name, "{factionID}", "Faction")
+	name = strings.ReplaceAll(name, "{typeID}", "Type")
+	name = strings.ReplaceAll(name, "{groupID}", "Group")
 	
 	return name
 }
