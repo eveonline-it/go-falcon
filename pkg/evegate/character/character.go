@@ -162,18 +162,29 @@ func (c *CharacterClient) GetCharacterInfo(ctx context.Context, characterID int)
 
 	// Handle 304 Not Modified
 	if resp.StatusCode == http.StatusNotModified {
-		if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		// Use GetForNotModified which returns cached data even if expired
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			if span != nil {
 				span.SetAttributes(attribute.Bool("cache.hit", true))
 				span.SetStatus(codes.Ok, "cache hit - not modified")
 			}
 			slog.InfoContext(ctx, "Character info not modified, using cached data")
 
+			// Refresh the expiry since ESI confirmed data is still valid
+			c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+
 			var character CharacterInfoResponse
 			if err := json.Unmarshal(cachedData, &character); err != nil {
 				return nil, fmt.Errorf("failed to parse cached response: %w", err)
 			}
 			return &character, nil
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "character_id", characterID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for character %d", characterID)
 		}
 	}
 
@@ -289,14 +300,28 @@ func (c *CharacterClient) GetCharacterPortrait(ctx context.Context, characterID 
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotModified {
-		if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		// Use GetForNotModified which returns cached data even if expired
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var portrait CharacterPortraitResponse
 			if err := json.Unmarshal(cachedData, &portrait); err == nil {
 				if span != nil {
 					span.SetAttributes(attribute.Bool("cache.hit", true))
+					span.SetStatus(codes.Ok, "cache hit - not modified")
 				}
+				slog.InfoContext(ctx, "Character portrait not modified, using cached data")
+				
+				// Refresh the expiry since ESI confirmed data is still valid
+				c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+				
 				return &portrait, nil
 			}
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "character_id", characterID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for character %d portrait", characterID)
 		}
 	}
 

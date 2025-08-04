@@ -142,14 +142,25 @@ func (c *UniverseClient) GetSystemInfo(ctx context.Context, systemID int) (*Syst
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotModified {
-		if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+		
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var system SystemInfoResponse
 			if err := json.Unmarshal(cachedData, &system); err == nil {
 				if span != nil {
 					span.SetAttributes(attribute.Bool("cache.hit", true))
+					span.SetStatus(codes.Ok, "cache hit - not modified")
 				}
+				slog.InfoContext(ctx, "System info not modified, using cached data", "system_id", systemID)
 				return &system, nil
 			}
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "system_id", systemID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for system %d", systemID)
 		}
 	}
 
@@ -241,10 +252,25 @@ func (c *UniverseClient) GetStationInfo(ctx context.Context, stationID int) (*St
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotModified {
-		if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+		
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var station StationInfoResponse
-			json.Unmarshal(cachedData, &station)
-			return &station, nil
+			if err := json.Unmarshal(cachedData, &station); err == nil {
+				if span != nil {
+					span.SetAttributes(attribute.Bool("cache.hit", true))
+					span.SetStatus(codes.Ok, "cache hit - not modified")
+				}
+				slog.InfoContext(ctx, "Station info not modified, using cached data", "station_id", stationID)
+				return &station, nil
+			}
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "station_id", stationID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for station %d", stationID)
 		}
 	}
 

@@ -15,6 +15,7 @@ import (
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/sde"
 	"go-falcon/pkg/version"
 )
 
@@ -169,17 +170,18 @@ func main() {
 func discoverRoutes() ([]RouteInfo, error) {
 	var routes []RouteInfo
 	
-	// Create dummy database connections for module initialization
+	// Create dummy database connections and SDE service for module initialization
 	// This is safe since we're only discovering routes, not actually using the modules
 	mongodb := &database.MongoDB{} 
 	redis := &database.Redis{}
+	sdeService := sde.NewService("data/sde") // Dummy SDE service for route discovery
 	
 	// Initialize modules
 	modules := map[string]module.Module{
-		"auth":          auth.New(mongodb, redis),
-		"dev":           dev.New(mongodb, redis),
-		"users":         users.New(mongodb, redis),
-		"notifications": notifications.New(mongodb, redis),
+		"auth":          auth.New(mongodb, redis, sdeService),
+		"dev":           dev.New(mongodb, redis, sdeService),
+		"users":         users.New(mongodb, redis, sdeService),
+		"notifications": notifications.New(mongodb, redis, sdeService),
 	}
 	
 	// Create a route inspector to capture routes
@@ -224,6 +226,11 @@ func inspectModuleRoutes(_ module.Module, moduleName string) []RouteInfo {
 			{Method: "GET", Path: "/alliance/{allianceID}", ModuleName: moduleName, HandlerName: "allianceInfoHandler", Description: "Get alliance information"},
 			{Method: "GET", Path: "/alliance/{allianceID}/corporations", ModuleName: moduleName, HandlerName: "allianceCorporationsHandler", Description: "Get alliance member corporations"},
 			{Method: "GET", Path: "/alliance/{allianceID}/icons", ModuleName: moduleName, HandlerName: "allianceIconsHandler", Description: "Get alliance icon URLs"},
+			{Method: "GET", Path: "/sde/status", ModuleName: moduleName, HandlerName: "sdeStatusHandler", Description: "Get SDE service status and statistics"},
+			{Method: "GET", Path: "/sde/agent/{agentID}", ModuleName: moduleName, HandlerName: "sdeAgentHandler", Description: "Get agent information from SDE"},
+			{Method: "GET", Path: "/sde/category/{categoryID}", ModuleName: moduleName, HandlerName: "sdeCategoryHandler", Description: "Get category information from SDE"},
+			{Method: "GET", Path: "/sde/blueprint/{blueprintID}", ModuleName: moduleName, HandlerName: "sdeBlueprintHandler", Description: "Get blueprint information from SDE"},
+			{Method: "GET", Path: "/sde/agents/location/{locationID}", ModuleName: moduleName, HandlerName: "sdeAgentsByLocationHandler", Description: "Get agents by location from SDE"},
 			{Method: "GET", Path: "/services", ModuleName: moduleName, HandlerName: "servicesHandler", Description: "List available development services"},
 			{Method: "GET", Path: "/status", ModuleName: moduleName, HandlerName: "statusHandler", Description: "Get module status"},
 		}

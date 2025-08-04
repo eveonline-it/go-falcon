@@ -7,6 +7,7 @@ import (
 
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/sde"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -15,9 +16,9 @@ type Module struct {
 	*module.BaseModule
 }
 
-func New(mongodb *database.MongoDB, redis *database.Redis) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService) *Module {
 	return &Module{
-		BaseModule: module.NewBaseModule("users", mongodb, redis),
+		BaseModule: module.NewBaseModule("users", mongodb, redis, sdeService),
 	}
 }
 

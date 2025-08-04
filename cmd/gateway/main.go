@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -55,6 +56,23 @@ func main() {
 	}
 	defer appCtx.Shutdown(ctx)
 
+	// Print memory information after app initialization (more accurate)
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	runtime.GC() // Force GC to get more accurate stats
+	runtime.ReadMemStats(&m)
+	
+	log.Printf("💾 Memory Configuration:")
+	log.Printf(" - Heap allocated: %s", formatBytes(m.HeapAlloc))
+	log.Printf(" - Heap system: %s", formatBytes(m.HeapSys))
+	log.Printf(" - Total system: %s", formatBytes(m.Sys))
+	log.Printf(" - Stack: %s", formatBytes(m.StackSys))
+	log.Printf(" - GC cycles: %d", m.NumGC)
+	log.Printf(" - Next GC target: %s", formatBytes(m.NextGC))
+	
+	// Print memory limits if available (cgroups v1/v2)
+	printMemoryLimits()
+
 	// Initialize Chi router
 	r := chi.NewRouter()
 
@@ -70,10 +88,10 @@ func main() {
 
 	// Initialize modules
 	var modules []module.Module
-	authModule := auth.New(appCtx.MongoDB, appCtx.Redis)
-	devModule := dev.New(appCtx.MongoDB, appCtx.Redis)
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis)
-	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis)
+	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	devModule := dev.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
 	
 	modules = append(modules, authModule, devModule, usersModule, notificationsModule)
 	
@@ -205,4 +223,77 @@ func displayBanner() {
 	}
 	fmt.Print("\033[0m") // Reset colors
 	fmt.Print("\n")
+}
+
+// formatBytes converts bytes to human readable format
+func formatBytes(bytes uint64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := uint64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// printMemoryLimits reads and displays container memory limits
+func printMemoryLimits() {
+	// Try cgroups v2 first (newer systems)
+	if limit := readCgroupV2MemoryLimit(); limit > 0 {
+		log.Printf(" - Container limit: %s (cgroups v2)", formatBytes(uint64(limit)))
+		return
+	}
+	
+	// Try cgroups v1 (older systems)
+	if limit := readCgroupV1MemoryLimit(); limit > 0 {
+		log.Printf(" - Container limit: %s (cgroups v1)", formatBytes(uint64(limit)))
+		return
+	}
+	
+	log.Printf(" - Container limit: Not detected (running outside container or unsupported)")
+}
+
+// readCgroupV2MemoryLimit reads memory limit from cgroups v2
+func readCgroupV2MemoryLimit() int64 {
+	data, err := os.ReadFile("/sys/fs/cgroup/memory.max")
+	if err != nil {
+		return 0
+	}
+	
+	limitStr := strings.TrimSpace(string(data))
+	if limitStr == "max" {
+		return 0 // No limit set
+	}
+	
+	limit, err := strconv.ParseInt(limitStr, 10, 64)
+	if err != nil {
+		return 0
+	}
+	
+	return limit
+}
+
+// readCgroupV1MemoryLimit reads memory limit from cgroups v1
+func readCgroupV1MemoryLimit() int64 {
+	data, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes")
+	if err != nil {
+		return 0
+	}
+	
+	limitStr := strings.TrimSpace(string(data))
+	limit, err := strconv.ParseInt(limitStr, 10, 64)
+	if err != nil {
+		return 0
+	}
+	
+	// cgroups v1 sometimes returns very large values when no limit is set
+	// Anything larger than 1TB is probably "unlimited"
+	if limit > 1024*1024*1024*1024 {
+		return 0
+	}
+	
+	return limit
 }

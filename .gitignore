@@ -30,3 +30,14 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# temp
+temp/
+tmp/
+
+# SDE stuff
+*.zip
+data/
+
+# Build artifacts
+bin/

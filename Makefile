@@ -33,28 +33,40 @@ version: ## Show version information
 
 build: ## Build the falcon application
 	@echo "🔨 Building falcon application..."
-	@go build $(LDFLAGS) -o falcon ./cmd/gateway
-	@echo "✅ Build complete: ./falcon"
+	@mkdir -p bin
+	@go build $(LDFLAGS) -o bin/falcon ./cmd/gateway
+	@echo "✅ Build complete: bin/falcon"
 
-build-all: ## Build all applications (gateway, backup, restore, postman)
+build-all: ## Build all applications (gateway, backup, restore, postman, sde)
 	@echo "🔨 Building all applications..."
-	@go build $(LDFLAGS) -o falcon ./cmd/gateway
-	@go build $(LDFLAGS) -o backup ./cmd/backup
-	@go build $(LDFLAGS) -o restore ./cmd/restore
-	@go build $(LDFLAGS) -o postman ./cmd/postman
-	@echo "✅ Build complete: ./falcon, ./backup, ./restore, ./postman"
+	@mkdir -p bin
+	@go build $(LDFLAGS) -o bin/falcon ./cmd/gateway
+	@go build $(LDFLAGS) -o bin/backup ./cmd/backup
+	@go build $(LDFLAGS) -o bin/restore ./cmd/restore
+	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
+	@go build $(LDFLAGS) -o bin/sde ./cmd/sde
+	@echo "✅ Build complete: bin/falcon, bin/backup, bin/restore, bin/postman, bin/sde"
+
+build-sde: ## Build the sde application
+	@echo "🔨 Building sde application..."
+	@mkdir -p bin
+	@go build $(LDFLAGS) -o bin/sde ./cmd/sde
+	@echo "✅ Build complete: bin/sde"
 
 build-utils: ## Build utility applications (backup, restore, postman)
 	@echo "🔨 Building utility applications..."
-	@go build $(LDFLAGS) -o backup ./cmd/backup
-	@go build $(LDFLAGS) -o restore ./cmd/restore
-	@go build $(LDFLAGS) -o postman ./cmd/postman
-	@echo "✅ Build complete: ./backup, ./restore, ./postman"
+	@mkdir -p bin
+	@go build $(LDFLAGS) -o bin/backup ./cmd/backup
+	@go build $(LDFLAGS) -o bin/restore ./cmd/restore
+	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
+	@echo "✅ Build complete: bin/backup, bin/restore, bin/postman"
 
 clean: ## Clean build artifacts and temporary files
 	@echo "🧹 Cleaning build artifacts..."
+	@rm -rf bin/
 	@rm -rf tmp/
-	@rm -f falcon gateway backup restore postman
+	@rm -rf data/sde
+	@rm -f falcon gateway backup restore postman sde
 	@rm -f *.postman_collection.json
 	@echo "✅ Clean complete"
 
@@ -125,10 +137,10 @@ postman: ## Generate Postman collection for all gateway endpoints
 
 postman-build: ## Build and run postman exporter
 	@echo "🔨 Building postman exporter..."
-	@go build $(LDFLAGS) -o postman ./cmd/postman
+	@mkdir -p bin
+	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
 	@echo "📋 Generating Postman collection..."
-	@./postman
-	@rm ./postman
+	@./bin/postman
 	@echo "✅ Postman collection generated: go-falcon-gateway-endpoints.postman_collection.json"
 
 # Linting and code quality

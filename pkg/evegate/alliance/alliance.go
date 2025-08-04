@@ -181,6 +181,13 @@ func (c *AllianceClient) GetAlliances(ctx context.Context) ([]int64, error) {
 				return nil, fmt.Errorf("failed to parse cached response: %w", err)
 			}
 			return alliances, nil
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available")
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for alliances")
 		}
 	}
 
@@ -291,14 +298,25 @@ func (c *AllianceClient) GetAllianceInfo(ctx context.Context, allianceID int64) 
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotModified {
-		if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+		
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var alliance AllianceInfoResponse
 			if err := json.Unmarshal(cachedData, &alliance); err == nil {
 				if span != nil {
 					span.SetAttributes(attribute.Bool("cache.hit", true))
+					span.SetStatus(codes.Ok, "cache hit - not modified")
 				}
+				slog.InfoContext(ctx, "Alliance info not modified, using cached data", "alliance_id", allianceID)
 				return &alliance, nil
 			}
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "alliance_id", allianceID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for alliance %d", allianceID)
 		}
 	}
 
@@ -531,14 +549,25 @@ func (c *AllianceClient) GetAllianceCorporations(ctx context.Context, allianceID
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotModified {
-		if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+		
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var corporations []int64
 			if err := json.Unmarshal(cachedData, &corporations); err == nil {
 				if span != nil {
 					span.SetAttributes(attribute.Bool("cache.hit", true))
+					span.SetStatus(codes.Ok, "cache hit - not modified")
 				}
+				slog.InfoContext(ctx, "Alliance corporations not modified, using cached data", "alliance_id", allianceID)
 				return corporations, nil
 			}
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "alliance_id", allianceID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for alliance %d corporations", allianceID)
 		}
 	}
 
@@ -627,11 +656,25 @@ func (c *AllianceClient) GetAllianceIcons(ctx context.Context, allianceID int64)
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotModified {
-		if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+		
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var icons AllianceIconsResponse
 			if err := json.Unmarshal(cachedData, &icons); err == nil {
+				if span != nil {
+					span.SetAttributes(attribute.Bool("cache.hit", true))
+					span.SetStatus(codes.Ok, "cache hit - not modified")
+				}
+				slog.InfoContext(ctx, "Alliance icons not modified, using cached data", "alliance_id", allianceID)
 				return &icons, nil
 			}
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "alliance_id", allianceID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for alliance %d icons", allianceID)
 		}
 	}
 

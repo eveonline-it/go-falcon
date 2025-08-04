@@ -32,6 +32,7 @@ The project's code is organized into several directories:
   - backup: backup application for MongoDb and Redis
   - restore: a restore application for MongoDb and Redis
   - postman: export all the endpoints of the gateway
+  - sde: convert SDE to JSON files stored in data/sde
 - internal: private packages
   - auth: authentication service module
   - dev: development module for testing and calling other services
@@ -44,6 +45,7 @@ The project's code is organized into several directories:
   - handlers: shared HTTP handlers and utilities
   - logging: OpenTelemetry logging and telemetry management
   - module: base module interface and common functionality
+  - sde: EVE Online Static Data Export (SDE) in-memory service
   - version: application version information
   - evegate: EVE Online ESI client library for API integration
 - docs: This directory contains the documentation for the project, including deployment guides, API definitions, and functional requirements.
@@ -141,6 +143,53 @@ if lastModified != "" {
 - Follow all CCP guidelines to maintain API access for the community
 
 **Reference**: [EVE Online ESI Best Practices](https://developers.eveonline.com/docs/services/esi/best-practices/)
+
+## EVE Online SDE (Static Data Export) Integration
+
+The `pkg/sde` package provides in-memory access to EVE Online's Static Data Export, offering fast lookups for game data like agents, categories, blueprints, and more.
+
+### Architecture Overview
+- **Single Instance**: One SDE service instance shared across all modules in the monolith
+- **In-Memory Storage**: Data loaded at startup for ultra-fast access (nanosecond lookups)
+- **Type-Safe Access**: Structured Go types with proper JSON unmarshaling
+- **Lazy Loading**: Data loaded on first access to optimize startup time
+- **Thread-Safe**: Concurrent access via read-write mutexes
+
+### Data Sources
+- **Source Data**: `data/sde/*.json` files converted from CCP's YAML format
+- **Conversion Tool**: `cmd/sde/main.go` downloads and converts SDE data
+- **Update Process**: Run SDE tool when CCP releases new static data
+
+### Usage Patterns
+```go
+// Access SDE data from any module
+agent, err := sdeService.GetAgent("3008416")
+category, err := sdeService.GetCategory("1")
+blueprint, err := sdeService.GetBlueprint("1000001")
+
+// Query operations
+agents := sdeService.GetAgentsByLocation(60000004)
+categories := sdeService.GetPublishedCategories()
+```
+
+### Integration with Modules
+- **Initialization**: SDE service initialized in `pkg/app/init.go`
+- **Module Access**: Available through base module interface
+- **ESI Enrichment**: Combines with `pkg/evegate` for live + static data
+- **Internationalization**: Supports multiple languages from SDE data
+
+### Performance Characteristics
+- **Memory Usage**: ~50-500MB depending on SDE data size
+- **Access Speed**: Direct map/slice lookups (O(1) or O(log n))
+- **Startup Impact**: 1-2 second initial load time
+- **No External Dependencies**: No Redis/database calls for SDE data
+
+### Data Types Available
+Current SDE data includes:
+- **Agents**: Mission agents with location and corporation info
+- **Categories**: Item categories with internationalized names
+- **Blueprints**: Manufacturing blueprints with material requirements
+- **Extensible**: Easy to add more SDE data types as needed
 
 ## OpenTelemetry Logging
 
