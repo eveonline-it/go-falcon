@@ -337,6 +337,9 @@ I18N support for multiple languages:
 4. **Use conventional commits**: Follow commit message standards
 5. **Feature branches**: Create branches for new development
 
+> [!NOTE]
+> We would very much appreciate any contribution. If you like to provide a fix or add a feature please feel free top open a PR. Or if you have any questions please contact us on Discord.
+
 ## 📄 License
 
 [Your License Here]

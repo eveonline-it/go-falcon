@@ -1,4 +1,4 @@
-.PHONY: dev build clean test install-tools help version
+.PHONY: dev build build-all build-utils clean test install-tools help version postman postman-build lint fmt tidy dev-setup quick-test
 
 # Version variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -36,23 +36,26 @@ build: ## Build the falcon application
 	@go build $(LDFLAGS) -o falcon ./cmd/gateway
 	@echo "✅ Build complete: ./falcon"
 
-build-all: ## Build all applications (gateway, backup, restore)
+build-all: ## Build all applications (gateway, backup, restore, postman)
 	@echo "🔨 Building all applications..."
 	@go build $(LDFLAGS) -o falcon ./cmd/gateway
 	@go build $(LDFLAGS) -o backup ./cmd/backup
 	@go build $(LDFLAGS) -o restore ./cmd/restore
-	@echo "✅ Build complete: ./falcon, ./backup, ./restore"
+	@go build $(LDFLAGS) -o postman ./cmd/postman
+	@echo "✅ Build complete: ./falcon, ./backup, ./restore, ./postman"
 
-build-utils: ## Build utility applications (backup, restore)
+build-utils: ## Build utility applications (backup, restore, postman)
 	@echo "🔨 Building utility applications..."
 	@go build $(LDFLAGS) -o backup ./cmd/backup
 	@go build $(LDFLAGS) -o restore ./cmd/restore
-	@echo "✅ Build complete: ./backup, ./restore"
+	@go build $(LDFLAGS) -o postman ./cmd/postman
+	@echo "✅ Build complete: ./backup, ./restore, ./postman"
 
 clean: ## Clean build artifacts and temporary files
 	@echo "🧹 Cleaning build artifacts..."
 	@rm -rf tmp/
-	@rm -f falcon gateway backup restore
+	@rm -f falcon gateway backup restore postman
+	@rm -f *.postman_collection.json
 	@echo "✅ Clean complete"
 
 test: ## Run tests
@@ -113,3 +116,38 @@ health-infra: ## Check infrastructure health
 	@docker exec -it go-falcon-mongodb mongosh --eval "db.adminCommand('ping')" --quiet || echo "MongoDB not running"
 	@echo "Redis:"
 	@docker exec -it go-falcon-redis redis-cli ping || echo "Redis not running"
+
+# Development tools
+postman: ## Generate Postman collection for all gateway endpoints
+	@echo "📋 Generating Postman collection..."
+	@go run ./cmd/postman
+	@echo "✅ Postman collection generated: go-falcon-gateway-endpoints.postman_collection.json"
+
+postman-build: ## Build and run postman exporter
+	@echo "🔨 Building postman exporter..."
+	@go build $(LDFLAGS) -o postman ./cmd/postman
+	@echo "📋 Generating Postman collection..."
+	@./postman
+	@rm ./postman
+	@echo "✅ Postman collection generated: go-falcon-gateway-endpoints.postman_collection.json"
+
+# Linting and code quality
+lint: ## Run linter
+	@echo "🔍 Running linter..."
+	@golangci-lint run ./...
+
+fmt: ## Format code
+	@echo "✨ Formatting code..."
+	@go fmt ./...
+
+tidy: ## Tidy dependencies
+	@echo "🧹 Tidying dependencies..."
+	@go mod tidy
+
+# Quick development workflow
+dev-setup: install-tools docker-infra ## Set up development environment
+	@echo "🚀 Development environment ready!"
+	@echo "Run 'make dev' to start the development server"
+
+quick-test: fmt lint test ## Run formatting, linting, and tests
+	@echo "✅ Quick test suite completed successfully!"
