@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"go-falcon/pkg/evegate/alliance"
 	"go-falcon/pkg/evegate/status"
@@ -119,7 +120,7 @@ func (m *Module) characterInfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	characterInfo, err := m.characterClient.GetCharacterInfo(ctx, characterID)
+	result, err := m.characterClient.GetCharacterInfoWithCache(ctx, characterID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.Bool("dev.success", false))
@@ -133,23 +134,33 @@ func (m *Module) characterInfoHandler(w http.ResponseWriter, r *http.Request) {
 	span.SetAttributes(
 		attribute.Bool("dev.success", true),
 		attribute.Int("character.id", characterID),
+		attribute.Bool("cache.hit", result.Cache.Cached),
 	)
 
-	slog.InfoContext(ctx, "Dev: Character info retrieved successfully", "character_id", characterID)
+	slog.InfoContext(ctx, "Dev: Character info retrieved successfully", "character_id", characterID, "cached", result.Cache.Cached)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	response := map[string]interface{}{
-		"source":    "EVE Online ESI",
-		"endpoint":  "/characters/" + characterIDStr + "/",
-		"status":    "success",
-		"data":      characterInfo,
-		"module":    m.Name(),
-		"cache": map[string]interface{}{
+		"source":   "EVE Online ESI",
+		"endpoint": "/characters/" + characterIDStr + "/",
+		"status":   "success",
+		"data":     result.Data,
+		"module":   m.Name(),
+	}
+
+	// Add cache information
+	if result.Cache.Cached && result.Cache.ExpiresAt != nil {
+		response["cache"] = map[string]interface{}{
+			"cached":     true,
+			"expires_at": result.Cache.ExpiresAt.Format(time.RFC3339),
+			"expires_in": int(time.Until(*result.Cache.ExpiresAt).Seconds()),
+		}
+	} else {
+		response["cache"] = map[string]interface{}{
 			"cached": false,
-			"note":   "Character endpoints not yet implemented with caching",
-		},
+		}
 	}
 
 	json.NewEncoder(w).Encode(response)
@@ -178,7 +189,7 @@ func (m *Module) characterPortraitHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	ctx := r.Context()
-	portraitData, err := m.characterClient.GetCharacterPortrait(ctx, characterID)
+	result, err := m.characterClient.GetCharacterPortraitWithCache(ctx, characterID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.Bool("dev.success", false))
@@ -192,23 +203,33 @@ func (m *Module) characterPortraitHandler(w http.ResponseWriter, r *http.Request
 	span.SetAttributes(
 		attribute.Bool("dev.success", true),
 		attribute.Int("character.id", characterID),
+		attribute.Bool("cache.hit", result.Cache.Cached),
 	)
 
-	slog.InfoContext(ctx, "Dev: Character portrait retrieved successfully", "character_id", characterID)
+	slog.InfoContext(ctx, "Dev: Character portrait retrieved successfully", "character_id", characterID, "cached", result.Cache.Cached)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	response := map[string]interface{}{
-		"source":    "EVE Online ESI",
-		"endpoint":  "/characters/" + characterIDStr + "/portrait/",
-		"status":    "success",
-		"data":      portraitData,
-		"module":    m.Name(),
-		"cache": map[string]interface{}{
+		"source":   "EVE Online ESI",
+		"endpoint": "/characters/" + characterIDStr + "/portrait/",
+		"status":   "success",
+		"data":     result.Data,
+		"module":   m.Name(),
+	}
+
+	// Add cache information
+	if result.Cache.Cached && result.Cache.ExpiresAt != nil {
+		response["cache"] = map[string]interface{}{
+			"cached":     true,
+			"expires_at": result.Cache.ExpiresAt.Format(time.RFC3339),
+			"expires_in": int(time.Until(*result.Cache.ExpiresAt).Seconds()),
+		}
+	} else {
+		response["cache"] = map[string]interface{}{
 			"cached": false,
-			"note":   "Character endpoints not yet implemented with caching",
-		},
+		}
 	}
 
 	json.NewEncoder(w).Encode(response)
@@ -237,7 +258,7 @@ func (m *Module) systemInfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	systemInfo, err := m.universeClient.GetSystemInfo(ctx, systemID)
+	result, err := m.universeClient.GetSystemInfoWithCache(ctx, systemID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.Bool("dev.success", false))
@@ -251,23 +272,33 @@ func (m *Module) systemInfoHandler(w http.ResponseWriter, r *http.Request) {
 	span.SetAttributes(
 		attribute.Bool("dev.success", true),
 		attribute.Int("system.id", systemID),
+		attribute.Bool("cache.hit", result.Cache.Cached),
 	)
 
-	slog.InfoContext(ctx, "Dev: System info retrieved successfully", "system_id", systemID)
+	slog.InfoContext(ctx, "Dev: System info retrieved successfully", "system_id", systemID, "cached", result.Cache.Cached)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	response := map[string]interface{}{
-		"source":    "EVE Online ESI",
-		"endpoint":  "/universe/systems/" + systemIDStr + "/",
-		"status":    "success",
-		"data":      systemInfo,
-		"module":    m.Name(),
-		"cache": map[string]interface{}{
+		"source":   "EVE Online ESI",
+		"endpoint": "/universe/systems/" + systemIDStr + "/",
+		"status":   "success",
+		"data":     result.Data,
+		"module":   m.Name(),
+	}
+
+	// Add cache information
+	if result.Cache.Cached && result.Cache.ExpiresAt != nil {
+		response["cache"] = map[string]interface{}{
+			"cached":     true,
+			"expires_at": result.Cache.ExpiresAt.Format(time.RFC3339),
+			"expires_in": int(time.Until(*result.Cache.ExpiresAt).Seconds()),
+		}
+	} else {
+		response["cache"] = map[string]interface{}{
 			"cached": false,
-			"note":   "Universe endpoints not yet implemented with caching",
-		},
+		}
 	}
 
 	json.NewEncoder(w).Encode(response)
@@ -296,7 +327,7 @@ func (m *Module) stationInfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	stationInfo, err := m.universeClient.GetStationInfo(ctx, stationID)
+	result, err := m.universeClient.GetStationInfoWithCache(ctx, stationID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.Bool("dev.success", false))
@@ -310,23 +341,33 @@ func (m *Module) stationInfoHandler(w http.ResponseWriter, r *http.Request) {
 	span.SetAttributes(
 		attribute.Bool("dev.success", true),
 		attribute.Int("station.id", stationID),
+		attribute.Bool("cache.hit", result.Cache.Cached),
 	)
 
-	slog.InfoContext(ctx, "Dev: Station info retrieved successfully", "station_id", stationID)
+	slog.InfoContext(ctx, "Dev: Station info retrieved successfully", "station_id", stationID, "cached", result.Cache.Cached)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	response := map[string]interface{}{
-		"source":    "EVE Online ESI",
-		"endpoint":  "/universe/stations/" + stationIDStr + "/",
-		"status":    "success",
-		"data":      stationInfo,
-		"module":    m.Name(),
-		"cache": map[string]interface{}{
+		"source":   "EVE Online ESI",
+		"endpoint": "/universe/stations/" + stationIDStr + "/",
+		"status":   "success",
+		"data":     result.Data,
+		"module":   m.Name(),
+	}
+
+	// Add cache information
+	if result.Cache.Cached && result.Cache.ExpiresAt != nil {
+		response["cache"] = map[string]interface{}{
+			"cached":     true,
+			"expires_at": result.Cache.ExpiresAt.Format(time.RFC3339),
+			"expires_in": int(time.Until(*result.Cache.ExpiresAt).Seconds()),
+		}
+	} else {
+		response["cache"] = map[string]interface{}{
 			"cached": false,
-			"note":   "Universe endpoints not yet implemented with caching",
-		},
+		}
 	}
 
 	json.NewEncoder(w).Encode(response)

@@ -107,16 +107,32 @@ func (c *DefaultCacheManager) RefreshExpiry(key string, headers http.Header) err
 		return nil
 	}
 
-	// Default refresh time if no cache control headers
-	entry.Expires = time.Now().Add(30 * time.Second)
-
-	// Parse Cache-Control for better cache timing
-	if cacheControl := headers.Get("Cache-Control"); cacheControl != "" {
-		if maxAge := parseCacheControlMaxAge(cacheControl); maxAge > 0 {
-			entry.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
+	// Parse expires header first (ESI primary cache header)
+	if expires := headers.Get("Expires"); expires != "" {
+		// Try RFC1123 format first (standard HTTP date format)
+		if parsedTime, err := time.Parse(time.RFC1123, expires); err == nil {
+			entry.Expires = parsedTime
+			c.cache[key] = entry
+			return nil
+		} else if parsedTime, err := time.Parse(time.RFC1123Z, expires); err == nil {
+			// Try RFC1123Z format as fallback
+			entry.Expires = parsedTime
+			c.cache[key] = entry
+			return nil
 		}
 	}
 
+	// Parse Cache-Control for max-age as fallback
+	if cacheControl := headers.Get("Cache-Control"); cacheControl != "" {
+		if maxAge := parseCacheControlMaxAge(cacheControl); maxAge > 0 {
+			entry.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
+			c.cache[key] = entry
+			return nil
+		}
+	}
+
+	// Default refresh time if no cache headers
+	entry.Expires = time.Now().Add(5 * time.Second)
 	c.cache[key] = entry
 	return nil
 }
@@ -130,12 +146,20 @@ func (c *DefaultCacheManager) Set(key string, data []byte, headers http.Header) 
 		Data:         data,
 		ETag:         headers.Get("ETag"),
 		LastModified: headers.Get("Last-Modified"),
-		Expires:      time.Now().Add(30 * time.Second), // Default 30s cache
+		Expires:      time.Now().Add(5 * time.Second), // Default 5s cache
 	}
 
-	// Parse Cache-Control for better cache timing
-	if cacheControl := headers.Get("Cache-Control"); cacheControl != "" {
-		// Simple max-age parsing - could be enhanced
+	// Parse expires header first (ESI primary cache header)
+	if expires := headers.Get("Expires"); expires != "" {
+		// Try RFC1123 format first (standard HTTP date format)
+		if parsedTime, err := time.Parse(time.RFC1123, expires); err == nil {
+			entry.Expires = parsedTime
+		} else if parsedTime, err := time.Parse(time.RFC1123Z, expires); err == nil {
+			// Try RFC1123Z format as fallback
+			entry.Expires = parsedTime
+		}
+	} else if cacheControl := headers.Get("Cache-Control"); cacheControl != "" {
+		// Parse Cache-Control for max-age as fallback
 		if maxAge := parseCacheControlMaxAge(cacheControl); maxAge > 0 {
 			entry.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
 		}

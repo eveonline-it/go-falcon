@@ -17,10 +17,30 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// CacheInfo represents cache information for responses
+type CacheInfo struct {
+	Cached    bool       `json:"cached"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
+// CharacterInfoResult contains character info and cache information
+type CharacterInfoResult struct {
+	Data  *CharacterInfoResponse `json:"data"`
+	Cache CacheInfo              `json:"cache"`
+}
+
+// CharacterPortraitResult contains portrait info and cache information  
+type CharacterPortraitResult struct {
+	Data  *CharacterPortraitResponse `json:"data"`
+	Cache CacheInfo                  `json:"cache"`
+}
+
 // Client interface for character-related ESI operations
 type Client interface {
 	GetCharacterInfo(ctx context.Context, characterID int) (*CharacterInfoResponse, error)
+	GetCharacterInfoWithCache(ctx context.Context, characterID int) (*CharacterInfoResult, error)
 	GetCharacterPortrait(ctx context.Context, characterID int) (*CharacterPortraitResponse, error)
+	GetCharacterPortraitWithCache(ctx context.Context, characterID int) (*CharacterPortraitResult, error)
 }
 
 // CharacterInfoResponse represents character public information
@@ -242,6 +262,60 @@ func (c *CharacterClient) GetCharacterInfo(ctx context.Context, characterID int)
 	return &character, nil
 }
 
+// GetCharacterInfoWithCache retrieves character public information from ESI with cache info
+func (c *CharacterClient) GetCharacterInfoWithCache(ctx context.Context, characterID int) (*CharacterInfoResult, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/", characterID)
+	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+	cached := false
+	var cacheExpiry *time.Time
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterInfoWithCache")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "character"),
+			attribute.Int("esi.character_id", characterID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting character info from ESI with cache info", "character_id", characterID)
+
+	// Check cache first
+	if cachedData, found, expiry, err := c.cacheManager.GetWithExpiry(cacheKey); err == nil && found {
+		var character CharacterInfoResponse
+		if err := json.Unmarshal(cachedData, &character); err == nil {
+			cached = true
+			cacheExpiry = expiry
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached character data", "character_id", characterID)
+			return &CharacterInfoResult{
+				Data:  &character,
+				Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+			}, nil
+		}
+	}
+
+	// Get fresh data
+	data, err := c.GetCharacterInfo(ctx, characterID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CharacterInfoResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
 // GetCharacterPortrait retrieves character portrait URLs from ESI
 func (c *CharacterClient) GetCharacterPortrait(ctx context.Context, characterID int) (*CharacterPortraitResponse, error) {
 	var span trace.Span
@@ -355,4 +429,58 @@ func (c *CharacterClient) GetCharacterPortrait(ctx context.Context, characterID 
 	}
 
 	return &portrait, nil
+}
+
+// GetCharacterPortraitWithCache retrieves character portrait URLs from ESI with cache info
+func (c *CharacterClient) GetCharacterPortraitWithCache(ctx context.Context, characterID int) (*CharacterPortraitResult, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/portrait/", characterID)
+	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+	cached := false
+	var cacheExpiry *time.Time
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterPortraitWithCache")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "character_portrait"),
+			attribute.Int("esi.character_id", characterID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting character portrait from ESI with cache info", "character_id", characterID)
+
+	// Check cache first
+	if cachedData, found, expiry, err := c.cacheManager.GetWithExpiry(cacheKey); err == nil && found {
+		var portrait CharacterPortraitResponse
+		if err := json.Unmarshal(cachedData, &portrait); err == nil {
+			cached = true
+			cacheExpiry = expiry
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached character portrait data", "character_id", characterID)
+			return &CharacterPortraitResult{
+				Data:  &portrait,
+				Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+			}, nil
+		}
+	}
+
+	// Get fresh data
+	data, err := c.GetCharacterPortrait(ctx, characterID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CharacterPortraitResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
 }

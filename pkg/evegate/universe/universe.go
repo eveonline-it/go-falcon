@@ -17,10 +17,30 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// CacheInfo represents cache information for responses
+type CacheInfo struct {
+	Cached    bool       `json:"cached"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
+// SystemInfoResult contains system info and cache information
+type SystemInfoResult struct {
+	Data  *SystemInfoResponse `json:"data"`
+	Cache CacheInfo           `json:"cache"`
+}
+
+// StationInfoResult contains station info and cache information
+type StationInfoResult struct {
+	Data  *StationInfoResponse `json:"data"`
+	Cache CacheInfo            `json:"cache"`
+}
+
 // Client interface for universe-related ESI operations
 type Client interface {
 	GetSystemInfo(ctx context.Context, systemID int) (*SystemInfoResponse, error)
+	GetSystemInfoWithCache(ctx context.Context, systemID int) (*SystemInfoResult, error)
 	GetStationInfo(ctx context.Context, stationID int) (*StationInfoResponse, error)
+	GetStationInfoWithCache(ctx context.Context, stationID int) (*StationInfoResult, error)
 }
 
 // SystemInfoResponse represents solar system information
@@ -200,6 +220,60 @@ func (c *UniverseClient) GetSystemInfo(ctx context.Context, systemID int) (*Syst
 	return &system, nil
 }
 
+// GetSystemInfoWithCache retrieves solar system information from ESI with cache info
+func (c *UniverseClient) GetSystemInfoWithCache(ctx context.Context, systemID int) (*SystemInfoResult, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/universe/systems/%d/", systemID)
+	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+	cached := false
+	var cacheExpiry *time.Time
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		tracer := otel.Tracer("go-falcon/evegate/universe")
+		ctx, span = tracer.Start(ctx, "universe.GetSystemInfoWithCache")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "system"),
+			attribute.Int("esi.system_id", systemID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting system info from ESI with cache info", "system_id", systemID)
+
+	// Check cache first
+	if cachedData, found, expiry, err := c.cacheManager.GetWithExpiry(cacheKey); err == nil && found {
+		var system SystemInfoResponse
+		if err := json.Unmarshal(cachedData, &system); err == nil {
+			cached = true
+			cacheExpiry = expiry
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached system data", "system_id", systemID)
+			return &SystemInfoResult{
+				Data:  &system,
+				Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+			}, nil
+		}
+	}
+
+	// Get fresh data
+	data, err := c.GetSystemInfo(ctx, systemID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SystemInfoResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
 // GetStationInfo retrieves station information from ESI
 func (c *UniverseClient) GetStationInfo(ctx context.Context, stationID int) (*StationInfoResponse, error) {
 	var span trace.Span
@@ -295,4 +369,58 @@ func (c *UniverseClient) GetStationInfo(ctx context.Context, stationID int) (*St
 	}
 
 	return &station, nil
+}
+
+// GetStationInfoWithCache retrieves station information from ESI with cache info
+func (c *UniverseClient) GetStationInfoWithCache(ctx context.Context, stationID int) (*StationInfoResult, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/universe/stations/%d/", stationID)
+	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+	cached := false
+	var cacheExpiry *time.Time
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		tracer := otel.Tracer("go-falcon/evegate/universe")
+		ctx, span = tracer.Start(ctx, "universe.GetStationInfoWithCache")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "station"),
+			attribute.Int("esi.station_id", stationID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting station info from ESI with cache info", "station_id", stationID)
+
+	// Check cache first
+	if cachedData, found, expiry, err := c.cacheManager.GetWithExpiry(cacheKey); err == nil && found {
+		var station StationInfoResponse
+		if err := json.Unmarshal(cachedData, &station); err == nil {
+			cached = true
+			cacheExpiry = expiry
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached station data", "station_id", stationID)
+			return &StationInfoResult{
+				Data:  &station,
+				Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+			}, nil
+		}
+	}
+
+	// Get fresh data
+	data, err := c.GetStationInfo(ctx, stationID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &StationInfoResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
 }
