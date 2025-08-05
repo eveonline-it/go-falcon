@@ -80,7 +80,8 @@ func (m *Module) CreateOrUpdateUserProfile(ctx context.Context, charInfo *EVECha
 	
 	slog.Info("MongoDB replace operation", 
 		slog.Any("filter", filter),
-		slog.Any("profile", profile))
+		slog.String("character_name", profile.CharacterName),
+		slog.Int("character_id", profile.CharacterID))
 
 	opts := options.Replace().SetUpsert(true)
 	_, err = collection.ReplaceOne(ctx, filter, profile, opts)

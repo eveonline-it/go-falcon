@@ -384,10 +384,10 @@ func (r *Repository) UpdateTaskStatistics(ctx context.Context) error {
 		var result struct {
 			ID       string `bson:"_id"`
 			Metadata struct {
-				TotalRuns      int64         `bson:"total_runs"`
-				SuccessCount   int64         `bson:"success_count"`
-				FailureCount   int64         `bson:"failure_count"`
-				AverageRuntime time.Duration `bson:"average_runtime"`
+				TotalRuns      int64   `bson:"total_runs"`
+				SuccessCount   int64   `bson:"success_count"`
+				FailureCount   int64   `bson:"failure_count"`
+				AverageRuntime float64 `bson:"average_runtime"` // Use float64 to handle existing data
 			} `bson:"metadata"`
 		}
 
@@ -401,7 +401,7 @@ func (r *Repository) UpdateTaskStatistics(ctx context.Context) error {
 				"metadata.total_runs":      result.Metadata.TotalRuns,
 				"metadata.success_count":   result.Metadata.SuccessCount,
 				"metadata.failure_count":   result.Metadata.FailureCount,
-				"metadata.average_runtime": result.Metadata.AverageRuntime,
+				"metadata.average_runtime": time.Duration(result.Metadata.AverageRuntime), // Convert float64 to Duration
 				"updated_at":               time.Now(),
 			},
 		}
