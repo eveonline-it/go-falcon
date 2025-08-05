@@ -543,10 +543,10 @@ func (m *Module) sdeNPCCorpHandler(w http.ResponseWriter, r *http.Request) {
 	span.SetAttributes(
 		attribute.Bool("dev.success", true),
 		attribute.String("sde.npc_corp_id", corpID),
-		attribute.String("sde.npc_corp_ticker", npcCorp.TickerName.String()),
+		attribute.String("sde.npc_corp_ticker", npcCorp.TickerName),
 	)
 
-	slog.InfoContext(r.Context(), "Dev: SDE NPC corporation retrieved", "corp_id", corpID, "ticker", npcCorp.TickerName.String())
+	slog.InfoContext(r.Context(), "Dev: SDE NPC corporation retrieved", "corp_id", corpID, "ticker", npcCorp.TickerName)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -711,50 +711,6 @@ func (m *Module) sdeTypeIDHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// sdeTypeIDsHandler gets all type IDs from SDE
-func (m *Module) sdeTypeIDsHandler(w http.ResponseWriter, r *http.Request) {
-	span, r := handlers.StartHTTPSpan(r, "dev.sdeTypeIDsHandler",
-		attribute.String("dev.operation", "sde_type_ids"),
-		attribute.String("dev.service", "sde"),
-		attribute.String("http.route", r.URL.Path),
-		attribute.String("http.method", r.Method),
-	)
-	defer span.End()
-
-	slog.InfoContext(r.Context(), "Dev: SDE type IDs request")
-
-	typeIDs, err := m.SDEService().GetAllTypeIDs()
-	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.Bool("dev.success", false))
-		slog.ErrorContext(r.Context(), "Dev: Failed to get SDE type IDs", "error", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"Failed to retrieve type IDs","details":"` + err.Error() + `"}`))
-		return
-	}
-
-	span.SetAttributes(
-		attribute.Bool("dev.success", true),
-		attribute.Int("sde.type_ids_count", len(typeIDs)),
-	)
-
-	slog.InfoContext(r.Context(), "Dev: SDE type IDs retrieved", "count", len(typeIDs))
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	response := map[string]interface{}{
-		"source":    "SDE Service",
-		"status":    "success",
-		"data":      typeIDs,
-		"module":    m.Name(),
-		"count":     len(typeIDs),
-		"timestamp": time.Now().Format(time.RFC3339),
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
 
 // sdeTypeHandler gets type information from SDE
 func (m *Module) sdeTypeHandler(w http.ResponseWriter, r *http.Request) {

@@ -52,17 +52,19 @@ type Skill struct {
 
 // MarketGroup represents an EVE Online market group from the SDE
 type MarketGroup struct {
-	Description   map[string]string `json:"description,omitempty"`
+	DescriptionID map[string]string `json:"descriptionID,omitempty"`
 	HasTypes      bool              `json:"hasTypes,omitempty"`
-	Name          map[string]string `json:"name"`
+	IconID        int               `json:"iconID,omitempty"`
+	NameID        map[string]string `json:"nameID"`
 	ParentGroupID int               `json:"parentGroupID,omitempty"`
 }
 
 // MetaGroup represents an EVE Online meta group from the SDE
 type MetaGroup struct {
-	Description   map[string]string `json:"description,omitempty"`
-	Name          map[string]string `json:"name"`
-	NameID        map[string]string `json:"nameID,omitempty"`
+	Color      []float64         `json:"color,omitempty"`
+	IconID     int               `json:"iconID,omitempty"`
+	IconSuffix string            `json:"iconSuffix,omitempty"`
+	NameID     map[string]string `json:"nameID"`
 }
 
 // FlexibleString is a type that can unmarshal both string and boolean values
@@ -109,13 +111,16 @@ func (fs FlexibleString) String() string {
 type NPCCorporation struct {
 	AllowedMemberRaces         []int             `json:"allowedMemberRaces,omitempty"`
 	CeoID                      int               `json:"ceoID,omitempty"`
+	Deleted                    bool              `json:"deleted,omitempty"`
 	DescriptionID              map[string]string `json:"descriptionID,omitempty"`
-	Extent                     FlexibleString    `json:"extent,omitempty"`
+	Extent                     string            `json:"extent,omitempty"`
 	FactionID                  int               `json:"factionID,omitempty"`
 	HasPlayerPersonnelManager  bool              `json:"hasPlayerPersonnelManager,omitempty"`
 	IconID                     int               `json:"iconID,omitempty"`
 	InitialPrice               float64           `json:"initialPrice,omitempty"`
+	MemberLimit                int               `json:"memberLimit,omitempty"`
 	MinSecurity                float64           `json:"minSecurity,omitempty"`
+	MinimumJoinStanding        float64           `json:"minimumJoinStanding,omitempty"`
 	NameID                     map[string]string `json:"nameID"`
 	PublicShares               int64             `json:"publicShares,omitempty"`
 	SendCharTerminationMessage bool              `json:"sendCharTerminationMessage,omitempty"`
@@ -123,7 +128,10 @@ type NPCCorporation struct {
 	Size                       string            `json:"size,omitempty"`
 	SizeFactor                 float64           `json:"sizeFactor,omitempty"`
 	SolarSystemID              int               `json:"solarSystemID,omitempty"`
-	TickerName                 FlexibleString    `json:"tickerName,omitempty"`
+	StationID                  int               `json:"stationID,omitempty"`
+	TaxRate                    float64           `json:"taxRate,omitempty"`
+	TickerName                 string            `json:"tickerName,omitempty"`
+	UniqueName                 bool              `json:"uniqueName,omitempty"`
 }
 
 // TypeID represents basic type information from typeIDs.yaml

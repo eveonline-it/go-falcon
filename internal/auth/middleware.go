@@ -28,7 +28,7 @@ func (m *Module) JWTMiddleware(next http.Handler) http.Handler {
 		var jwtToken string
 		
 		// Try cookie first
-		if cookie, err := r.Cookie("eve_auth_token"); err == nil {
+		if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 			jwtToken = cookie.Value
 		} else {
 			// Try Authorization header
@@ -80,7 +80,7 @@ func (m *Module) OptionalJWTMiddleware(next http.Handler) http.Handler {
 		var jwtToken string
 		
 		// Try cookie first
-		if cookie, err := r.Cookie("eve_auth_token"); err == nil {
+		if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 			jwtToken = cookie.Value
 		} else {
 			// Try Authorization header

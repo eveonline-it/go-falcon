@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"go-falcon/pkg/config"
+
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -42,10 +44,16 @@ func NewRedis(ctx context.Context) (*Redis, error) {
 
 	log.Printf("Connected to Redis at: %s", opt.Addr)
 
-	return &Redis{
+	redis := &Redis{
 		Client: client,
-		tracer: otel.Tracer("redis-client"),
-	}, nil
+	}
+
+	// Only initialize tracer if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		redis.tracer = otel.Tracer("redis-client")
+	}
+
+	return redis, nil
 }
 
 func (r *Redis) Close() error {
@@ -53,67 +61,83 @@ func (r *Redis) Close() error {
 }
 
 func (r *Redis) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	ctx, span := r.tracer.Start(ctx, "redis.set",
-		trace.WithAttributes(
-			attribute.String("redis.key", key),
-			attribute.String("redis.operation", "SET"),
-		),
-	)
-	defer span.End()
+	if r.tracer != nil {
+		ctx, span := r.tracer.Start(ctx, "redis.set",
+			trace.WithAttributes(
+				attribute.String("redis.key", key),
+				attribute.String("redis.operation", "SET"),
+			),
+		)
+		defer span.End()
 
-	err := r.Client.Set(ctx, key, value, expiration).Err()
-	if err != nil {
-		span.RecordError(err)
+		err := r.Client.Set(ctx, key, value, expiration).Err()
+		if err != nil {
+			span.RecordError(err)
+		}
+		return err
 	}
-	return err
+
+	return r.Client.Set(ctx, key, value, expiration).Err()
 }
 
 func (r *Redis) Get(ctx context.Context, key string) (string, error) {
-	ctx, span := r.tracer.Start(ctx, "redis.get",
-		trace.WithAttributes(
-			attribute.String("redis.key", key),
-			attribute.String("redis.operation", "GET"),
-		),
-	)
-	defer span.End()
+	if r.tracer != nil {
+		ctx, span := r.tracer.Start(ctx, "redis.get",
+			trace.WithAttributes(
+				attribute.String("redis.key", key),
+				attribute.String("redis.operation", "GET"),
+			),
+		)
+		defer span.End()
 
-	result, err := r.Client.Get(ctx, key).Result()
-	if err != nil {
-		span.RecordError(err)
+		result, err := r.Client.Get(ctx, key).Result()
+		if err != nil {
+			span.RecordError(err)
+		}
+		return result, err
 	}
-	return result, err
+
+	return r.Client.Get(ctx, key).Result()
 }
 
 func (r *Redis) Delete(ctx context.Context, keys ...string) error {
-	ctx, span := r.tracer.Start(ctx, "redis.delete",
-		trace.WithAttributes(
-			attribute.StringSlice("redis.keys", keys),
-			attribute.String("redis.operation", "DEL"),
-		),
-	)
-	defer span.End()
+	if r.tracer != nil {
+		ctx, span := r.tracer.Start(ctx, "redis.delete",
+			trace.WithAttributes(
+				attribute.StringSlice("redis.keys", keys),
+				attribute.String("redis.operation", "DEL"),
+			),
+		)
+		defer span.End()
 
-	err := r.Client.Del(ctx, keys...).Err()
-	if err != nil {
-		span.RecordError(err)
+		err := r.Client.Del(ctx, keys...).Err()
+		if err != nil {
+			span.RecordError(err)
+		}
+		return err
 	}
-	return err
+
+	return r.Client.Del(ctx, keys...).Err()
 }
 
 func (r *Redis) Exists(ctx context.Context, keys ...string) (int64, error) {
-	ctx, span := r.tracer.Start(ctx, "redis.exists",
-		trace.WithAttributes(
-			attribute.StringSlice("redis.keys", keys),
-			attribute.String("redis.operation", "EXISTS"),
-		),
-	)
-	defer span.End()
+	if r.tracer != nil {
+		ctx, span := r.tracer.Start(ctx, "redis.exists",
+			trace.WithAttributes(
+				attribute.StringSlice("redis.keys", keys),
+				attribute.String("redis.operation", "EXISTS"),
+			),
+		)
+		defer span.End()
 
-	result, err := r.Client.Exists(ctx, keys...).Result()
-	if err != nil {
-		span.RecordError(err)
+		result, err := r.Client.Exists(ctx, keys...).Result()
+		if err != nil {
+			span.RecordError(err)
+		}
+		return result, err
 	}
-	return result, err
+
+	return r.Client.Exists(ctx, keys...).Result()
 }
 
 func (r *Redis) HealthCheck(ctx context.Context) error {

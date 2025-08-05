@@ -13,6 +13,13 @@ import (
 
 // TracingMiddleware creates HTTP tracing middleware using OpenTelemetry
 func TracingMiddleware(serviceName string) func(http.Handler) http.Handler {
+	// If telemetry is disabled, return a no-op middleware
+	if !config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		return func(next http.Handler) http.Handler {
+			return next
+		}
+	}
+
 	return otelhttp.NewMiddleware(
 		serviceName,
 		otelhttp.WithTracerProvider(otel.GetTracerProvider()),

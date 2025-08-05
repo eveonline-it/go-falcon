@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"go-falcon/pkg/config"
+
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/mongo/otelmongo"
@@ -23,10 +25,13 @@ func NewMongoDB(ctx context.Context, serviceName string) (*MongoDB, error) {
 		uri = "mongodb://admin:password123@localhost:27017/" + serviceName + "?authSource=admin"
 	}
 
-	// Create client options with OpenTelemetry instrumentation
-	opts := options.Client().
-		ApplyURI(uri).
-		SetMonitor(otelmongo.NewMonitor())
+	// Create client options
+	opts := options.Client().ApplyURI(uri)
+
+	// Only add OpenTelemetry instrumentation if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		opts.SetMonitor(otelmongo.NewMonitor())
+	}
 
 	// Set connection timeout
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)

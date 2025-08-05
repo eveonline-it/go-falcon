@@ -83,7 +83,6 @@ func (m *Module) Routes(r chi.Router) {
 	r.Get("/sde/npccorps", m.sdeNPCCorpsHandler)
 	r.Get("/sde/npccorps/faction/{factionID}", m.sdeNPCCorpsByFactionHandler)
 	r.Get("/sde/typeid/{typeID}", m.sdeTypeIDHandler)
-	r.Get("/sde/typeids", m.sdeTypeIDsHandler)
 	r.Get("/sde/type/{typeID}", m.sdeTypeHandler)
 	r.Get("/sde/types", m.sdeTypesHandler)
 	r.Get("/sde/types/published", m.sdePublishedTypesHandler)

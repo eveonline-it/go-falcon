@@ -341,35 +341,14 @@ func (s *Service) loadNPCCorporations() error {
 	return nil
 }
 
-// loadTypeIDs loads type ID data from JSON file (using types.json with basic fields)
+// loadTypeIDs creates lightweight TypeID data from already loaded types
 func (s *Service) loadTypeIDs() error {
-	filePath := filepath.Join(s.dataDir, "types.json")
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to read types file for type IDs: %w", err)
-	}
-
-	var fullTypes map[string]*Type
-	if err := json.Unmarshal(data, &fullTypes); err != nil {
-		return fmt.Errorf("failed to unmarshal types for type IDs: %w", err)
-	}
-
-	// Convert full Type data to TypeID data (basic fields only)
-	typeIDs := make(map[string]*TypeID, len(fullTypes))
-	for id, fullType := range fullTypes {
-		typeIDs[id] = &TypeID{
-			Name:        fullType.Name,
-			Description: fullType.Description,
-			GroupID:     fullType.GroupID,
-			Published:   fullType.Published,
-		}
-	}
-
-	s.typeIDs = typeIDs
+	// TypeIDs will be populated from types data after types are loaded
+	// This method is kept for consistency but actual loading happens in loadTypes
 	return nil
 }
 
-// loadTypes loads type data from JSON file
+// loadTypes loads type data from JSON file and creates TypeID data
 func (s *Service) loadTypes() error {
 	filePath := filepath.Join(s.dataDir, "types.json")
 	data, err := os.ReadFile(filePath)
@@ -383,6 +362,19 @@ func (s *Service) loadTypes() error {
 	}
 
 	s.types = types
+
+	// Create lightweight TypeID data from loaded types
+	typeIDs := make(map[string]*TypeID, len(types))
+	for id, fullType := range types {
+		typeIDs[id] = &TypeID{
+			Name:        fullType.Name,
+			Description: fullType.Description,
+			GroupID:     fullType.GroupID,
+			Published:   fullType.Published,
+		}
+	}
+	s.typeIDs = typeIDs
+
 	return nil
 }
 

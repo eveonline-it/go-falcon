@@ -15,11 +15,7 @@ type HealthResponse struct {
 // HealthHandler creates a generic health check handler for a given module
 func HealthHandler(moduleName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		slog.Info("Health check requested",
-			slog.String("remote_addr", r.RemoteAddr),
-			slog.String("user_agent", r.UserAgent()),
-			slog.String("module", moduleName),
-		)
+		// Health checks are excluded from logging to reduce noise
 
 		response := HealthResponse{
 			Status: "healthy",
@@ -38,10 +34,7 @@ func HealthHandler(moduleName string) http.HandlerFunc {
 // SimpleHealthHandler creates a simple health check without module information
 func SimpleHealthHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		slog.Info("Health check requested",
-			slog.String("remote_addr", r.RemoteAddr),
-			slog.String("user_agent", r.UserAgent()),
-		)
+		// Health checks are excluded from logging to reduce noise
 
 		response := HealthResponse{
 			Status: "healthy",

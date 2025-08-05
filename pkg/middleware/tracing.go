@@ -3,6 +3,8 @@ package middleware
 import (
 	"net/http"
 
+	"go-falcon/pkg/config"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -10,6 +12,11 @@ import (
 )
 
 func TracingMiddleware(next http.Handler) http.Handler {
+	// If telemetry is disabled, return the handler without tracing
+	if !config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+		return next
+	}
+
 	tracer := otel.Tracer("api-gateway")
 	
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

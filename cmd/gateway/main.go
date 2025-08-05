@@ -30,6 +30,45 @@ import (
 	_ "go.uber.org/automaxprocs"
 )
 
+// customLoggerMiddleware logs requests but excludes health check endpoints
+func customLoggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip logging for health check endpoints
+		if strings.HasSuffix(r.URL.Path, "/health") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		
+		// Use the default chi logger for all other requests
+		middleware.Logger(next).ServeHTTP(w, r)
+	})
+}
+
+// corsMiddleware adds CORS headers for cross-subdomain requests
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		
+		// Allow requests from any subdomain of eveonline.it
+		if strings.HasSuffix(origin, ".eveonline.it") || origin == "https://eveonline.it" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+		
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// Display startup banner
 	displayBanner()
@@ -77,11 +116,12 @@ func main() {
 	r := chi.NewRouter()
 
 	// Global middleware
-	r.Use(middleware.Logger)
+	r.Use(customLoggerMiddleware) // Custom logger that excludes health checks
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(corsMiddleware) // Add CORS support for cross-subdomain requests
 
 	// Health check endpoint with version info
 	r.Get("/health", enhancedHealthHandler)
@@ -164,10 +204,7 @@ func main() {
 }
 
 func enhancedHealthHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("Gateway health check requested",
-		slog.String("remote_addr", r.RemoteAddr),
-		slog.String("user_agent", r.UserAgent()),
-	)
+	// Health checks are excluded from logging to reduce noise
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	

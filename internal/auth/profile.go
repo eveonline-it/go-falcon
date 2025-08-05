@@ -133,17 +133,16 @@ func (m *Module) CreateOrUpdateUserProfile(ctx context.Context, charInfo *EVECha
 	}
 
 	// Fetch the updated document
-	result := collection.FindOne(ctx, filter)
-	
-	if err := result.Decode(profile); err != nil {
-		return nil, fmt.Errorf("failed to upsert user profile: %w", err)
+	var updatedProfile UserProfile
+	if err := collection.FindOne(ctx, filter).Decode(&updatedProfile); err != nil {
+		return nil, fmt.Errorf("failed to decode user profile after upsert: %w", err)
 	}
 
 	slog.Info("User profile updated", 
-		slog.Int("character_id", profile.CharacterID),
-		slog.String("character_name", profile.CharacterName))
+		slog.Int("character_id", updatedProfile.CharacterID),
+		slog.String("character_name", updatedProfile.CharacterName))
 
-	return profile, nil
+	return &updatedProfile, nil
 }
 
 // GetUserProfile retrieves a user profile by character ID

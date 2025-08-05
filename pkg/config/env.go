@@ -70,3 +70,8 @@ func GetEVEScopes() string {
 func GetJWTSecret() string {
 	return MustGetEnv("JWT_SECRET")
 }
+
+// GetFrontendURL returns the frontend URL for redirects
+func GetFrontendURL() string {
+	return GetEnv("FRONTEND_URL", "https://go.eveonline.it")
+}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/sde"
@@ -43,6 +44,13 @@ func (m *Module) Routes(r chi.Router) {
 	r.With(m.JWTMiddleware).Get("/profile", m.profileHandler)
 	r.With(m.JWTMiddleware).Post("/profile/refresh", m.refreshProfileHandler)
 	r.Get("/profile/public", m.publicProfileHandler)
+	
+	// User info endpoint (checks JWT cookie and returns user data)
+	r.Get("/user", m.getCurrentUserHandler)
+	
+	// Authentication status and logout endpoints
+	r.Get("/status", m.authStatusHandler)
+	r.Post("/logout", m.logoutHandler)
 }
 
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
@@ -128,10 +136,11 @@ func (m *Module) eveLoginHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "eve_auth_state",
 		Value:    state,
+		Domain:   ".eveonline.it", // Allow access from all subdomains
 		Path:     "/",
 		MaxAge:   900, // 15 minutes
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   true, // Always secure for production
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -154,12 +163,29 @@ func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify state matches what we stored
+	slog.Info("Validating EVE SSO callback", 
+		slog.String("received_state", state),
+		slog.String("user_agent", r.UserAgent()),
+		slog.String("referer", r.Referer()))
+	
 	cookie, err := r.Cookie("eve_auth_state")
-	if err != nil || cookie.Value != state {
-		slog.Warn("Invalid or missing state parameter", slog.String("expected", cookie.Value), slog.String("received", state))
+	if err != nil {
+		slog.Warn("Missing state cookie", 
+			slog.String("error", err.Error()), 
+			slog.String("received_state", state),
+			slog.Int("total_cookies", len(r.Cookies())))
 		http.Error(w, "Invalid state parameter", http.StatusBadRequest)
 		return
 	}
+	if cookie.Value != state {
+		slog.Warn("Invalid state parameter", 
+			slog.String("expected", cookie.Value), 
+			slog.String("received", state))
+		http.Error(w, "Invalid state parameter", http.StatusBadRequest)
+		return
+	}
+	
+	slog.Info("State validation successful", slog.String("state", state))
 
 	// Exchange code for token
 	tokenResp, err := m.eveSSOHandler.ExchangeCodeForToken(r.Context(), code, state)
@@ -198,19 +224,21 @@ func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "eve_auth_state",
 		Value:    "",
+		Domain:   ".eveonline.it", // Same domain as when it was set
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
 	})
 
-	// Set authentication cookie
+	// Set authentication cookie for cross-subdomain access
 	http.SetCookie(w, &http.Cookie{
-		Name:     "eve_auth_token",
+		Name:     "falcon_auth_token",
 		Value:    jwtToken,
+		Domain:   ".eveonline.it", // Allow access from all subdomains
 		Path:     "/",
 		MaxAge:   86400, // 24 hours
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   true, // Always secure for production
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -218,16 +246,11 @@ func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		slog.Int("character_id", charInfo.CharacterID),
 		slog.String("character_name", charInfo.CharacterName))
 
-	response := map[string]interface{}{
-		"success":        true,
-		"character_id":   charInfo.CharacterID,
-		"character_name": charInfo.CharacterName,
-		"scopes":         charInfo.Scopes,
-		"token":          jwtToken,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	// Redirect to React client
+	frontendURL := config.GetFrontendURL()
+	
+	slog.Info("Redirecting to frontend", slog.String("url", frontendURL))
+	http.Redirect(w, r, frontendURL, http.StatusFound)
 }
 
 func (m *Module) eveRefreshHandler(w http.ResponseWriter, r *http.Request) {
@@ -286,7 +309,7 @@ func (m *Module) eveVerifyHandler(w http.ResponseWriter, r *http.Request) {
 	var jwtToken string
 	
 	// Try cookie first
-	if cookie, err := r.Cookie("eve_auth_token"); err == nil {
+	if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 		jwtToken = cookie.Value
 	} else {
 		// Try Authorization header
@@ -318,4 +341,101 @@ func (m *Module) eveVerifyHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// getCurrentUserHandler returns the current user info from JWT cookie
+func (m *Module) getCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
+	// Try to get JWT from cookie
+	cookie, err := r.Cookie("falcon_auth_token")
+	if err != nil {
+		// No cookie found, user is not authenticated
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"authenticated": false,
+		})
+		return
+	}
+
+	// Validate JWT
+	claims, err := m.eveSSOHandler.ValidateJWT(cookie.Value)
+	if err != nil {
+		// Invalid token, user is not authenticated
+		slog.Warn("Invalid JWT token in getCurrentUser", slog.String("error", err.Error()))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"authenticated": false,
+		})
+		return
+	}
+
+	// Return user information
+	response := map[string]interface{}{
+		"authenticated":  true,
+		"character_id":   (*claims)["character_id"],
+		"character_name": (*claims)["character_name"],
+		"scopes":         (*claims)["scopes"],
+		"expires_at":     (*claims)["exp"],
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// authStatusHandler returns simple authentication status
+func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
+	// Try to get JWT from cookie
+	cookie, err := r.Cookie("falcon_auth_token")
+	if err != nil {
+		// No cookie found, user is not authenticated
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]bool{
+			"authenticated": false,
+		})
+		return
+	}
+
+	// Validate JWT
+	_, err = m.eveSSOHandler.ValidateJWT(cookie.Value)
+	if err != nil {
+		// Invalid token, user is not authenticated
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]bool{
+			"authenticated": false,
+		})
+		return
+	}
+
+	// Valid token, user is authenticated
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{
+		"authenticated": true,
+	})
+}
+
+// logoutHandler clears the authentication cookie
+func (m *Module) logoutHandler(w http.ResponseWriter, r *http.Request) {
+	// Clear the authentication cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "falcon_auth_token",
+		Value:    "",
+		Domain:   ".eveonline.it", // Same domain as when it was set
+		Path:     "/",
+		MaxAge:   -1, // Delete immediately
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	slog.Info("User logged out", slog.String("remote_addr", r.RemoteAddr))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Logged out successfully",
+	})
 }

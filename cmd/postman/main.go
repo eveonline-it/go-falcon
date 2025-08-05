@@ -240,7 +240,6 @@ func inspectModuleRoutes(_ module.Module, moduleName string) []RouteInfo {
 			{Method: "GET", Path: "/sde/npccorps", ModuleName: moduleName, HandlerName: "sdeNPCCorpsHandler", Description: "Get all NPC corporations from SDE"},
 			{Method: "GET", Path: "/sde/npccorps/faction/{factionID}", ModuleName: moduleName, HandlerName: "sdeNPCCorpsByFactionHandler", Description: "Get NPC corporations by faction from SDE"},
 			{Method: "GET", Path: "/sde/typeid/{typeID}", ModuleName: moduleName, HandlerName: "sdeTypeIDHandler", Description: "Get type ID information from SDE"},
-			{Method: "GET", Path: "/sde/typeids", ModuleName: moduleName, HandlerName: "sdeTypeIDsHandler", Description: "Get all type IDs from SDE"},
 			{Method: "GET", Path: "/sde/type/{typeID}", ModuleName: moduleName, HandlerName: "sdeTypeHandler", Description: "Get type information from SDE"},
 			{Method: "GET", Path: "/sde/types", ModuleName: moduleName, HandlerName: "sdeTypesHandler", Description: "Get all types from SDE"},
 			{Method: "GET", Path: "/sde/types/published", ModuleName: moduleName, HandlerName: "sdePublishedTypesHandler", Description: "Get all published types from SDE"},

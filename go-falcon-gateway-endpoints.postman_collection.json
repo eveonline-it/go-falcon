@@ -2,169 +2,11 @@
   "info": {
     "_postman_id": "go-falcon-gateway-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-04T12:10:18Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-05T04:40:17Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
   "item": [
-    {
-      "name": "Auth Module",
-      "description": "Endpoints for the auth module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Auth module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "health"
-              ]
-            },
-            "description": "Auth module health check"
-          }
-        },
-        {
-          "name": "POST /login",
-          "description": "User login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/auth/login",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            },
-            "description": "User login"
-          }
-        },
-        {
-          "name": "POST /logout",
-          "description": "User logout",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/auth/logout",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "logout"
-              ]
-            },
-            "description": "User logout"
-          }
-        },
-        {
-          "name": "POST /refresh",
-          "description": "Refresh authentication token",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/auth/refresh",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "refresh"
-              ]
-            },
-            "description": "Refresh authentication token"
-          }
-        },
-        {
-          "name": "GET /me",
-          "description": "Get current user information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/me",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "me"
-              ]
-            },
-            "description": "Get current user information"
-          }
-        }
-      ]
-    },
     {
       "name": "Dev Module",
       "description": "Endpoints for the dev module",
@@ -807,32 +649,6 @@
           }
         },
         {
-          "name": "GET /sde/typeids",
-          "description": "Get all type IDs from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/dev/sde/typeids",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "dev",
-                "sde",
-                "typeids"
-              ]
-            },
-            "description": "Get all type IDs from SDE"
-          }
-        },
-        {
           "name": "GET /sde/type/Type",
           "description": "Get type information from SDE",
           "request": {
@@ -1389,6 +1205,164 @@
               ]
             },
             "description": "Gateway health check with version information"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth Module",
+      "description": "Endpoints for the auth module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Auth module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "health"
+              ]
+            },
+            "description": "Auth module health check"
+          }
+        },
+        {
+          "name": "POST /login",
+          "description": "User login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "User login"
+          }
+        },
+        {
+          "name": "POST /logout",
+          "description": "User logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/logout",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "User logout"
+          }
+        },
+        {
+          "name": "POST /refresh",
+          "description": "Refresh authentication token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/refresh",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Refresh authentication token"
+          }
+        },
+        {
+          "name": "GET /me",
+          "description": "Get current user information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/me",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Get current user information"
           }
         }
       ]
