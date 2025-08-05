@@ -14,6 +14,11 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+// AuthModule interface defines the methods needed from the auth module
+type AuthModule interface {
+	RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error)
+}
+
 // Engine handles task scheduling and execution
 type Engine struct {
 	repository *Repository
@@ -62,7 +67,7 @@ type TaskResult struct {
 }
 
 // NewEngine creates a new scheduler engine
-func NewEngine(repository *Repository, redis *database.Redis) *Engine {
+func NewEngine(repository *Repository, redis *database.Redis, authModule AuthModule) *Engine {
 	// Create cron scheduler with second precision
 	cronScheduler := cron.New(cron.WithSeconds())
 	
@@ -81,7 +86,7 @@ func NewEngine(repository *Repository, redis *database.Redis) *Engine {
 	}
 	
 	// Register default executors
-	engine.registerDefaultExecutors()
+	engine.registerDefaultExecutors(authModule)
 	
 	return engine
 }
@@ -595,10 +600,10 @@ func (e *Engine) releaseLock(ctx context.Context, key, value string) error {
 }
 
 // registerDefaultExecutors registers the default task executors
-func (e *Engine) registerDefaultExecutors() {
+func (e *Engine) registerDefaultExecutors(authModule AuthModule) {
 	e.executors[TaskTypeHTTP] = &HTTPExecutor{}
 	e.executors[TaskTypeFunction] = &FunctionExecutor{}
-	e.executors[TaskTypeSystem] = &SystemExecutor{}
+	e.executors[TaskTypeSystem] = NewSystemExecutor(authModule)
 }
 
 // RegisterExecutor registers a custom task executor

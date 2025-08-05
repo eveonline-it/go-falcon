@@ -31,9 +31,9 @@ type Module struct {
 }
 
 // New creates a new scheduler module
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule AuthModule) *Module {
 	repository := NewRepository(mongodb)
-	engine := NewEngine(repository, redis)
+	engine := NewEngine(repository, redis, authModule)
 
 	return &Module{
 		BaseModule: module.NewBaseModule("scheduler", mongodb, redis, sdeService),

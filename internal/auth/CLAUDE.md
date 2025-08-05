@@ -105,6 +105,13 @@ POST /auth/logout
 - Login timestamps
 - Encrypted refresh token storage
 
+### Bulk Token Management
+- **RefreshExpiringTokens**: Batch refresh tokens for users with expiring access tokens
+- **Configurable Batch Size**: Process tokens in configurable batches (default: 100)
+- **Smart Expiration Detection**: Finds tokens expiring within the next hour
+- **Comprehensive Error Handling**: Individual user failures don't stop the batch
+- **Performance Optimized**: MongoDB aggregation pipeline for efficient queries
+
 ### JWT Token Validation
 - **JWKS Integration**: Fetches and caches EVE Online's JSON Web Key Set (JWKS)
 - **Signature Verification**: Validates JWT tokens using RSA public keys from JWKS
@@ -187,6 +194,15 @@ ESI_USER_AGENT=go-falcon/1.0.0 (contact@example.com)
 | `/auth/profile/refresh` | POST | Yes | Refresh profile from ESI |
 | `/auth/profile/public` | GET | No | Get public profile by ID |
 
+### Internal Methods
+
+| Method | Description | Parameters | Returns |
+|--------|-------------|------------|---------|
+| `RefreshExpiringTokens` | Batch refresh expiring tokens | `ctx`, `batchSize` | `successCount`, `failureCount`, `error` |
+| `RefreshUserProfile` | Refresh single user profile | `ctx`, `characterID` | `*UserProfile`, `error` |
+| `GetUserProfile` | Get user profile by character ID | `ctx`, `characterID` | `*UserProfile`, `error` |
+| `CreateOrUpdateUserProfile` | Create/update user profile | `ctx`, `charInfo`, `userID`, `accessToken`, `refreshToken` | `*UserProfile`, `error` |
+
 ## Frontend Integration
 
 ### Authentication Check
@@ -235,6 +251,12 @@ fetch('/auth/logout', {
 - Runs every 5 minutes
 - Removes expired OAuth2 states
 - Prevents memory leaks
+
+### Token Refresh Integration
+- **Scheduler Integration**: Provides `RefreshExpiringTokens` method for the scheduler module
+- **Automated Execution**: System task `system-token-refresh` runs every 15 minutes
+- **Batch Processing**: Configurable batch size (default: 100 users per run)
+- **Performance Monitoring**: Detailed logging and metrics for success/failure rates
 
 ### Implementation Notes
 - Thread-safe operations

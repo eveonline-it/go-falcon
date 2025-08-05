@@ -18,6 +18,7 @@ import (
 	"go-falcon/internal/auth"
 	"go-falcon/internal/dev"
 	"go-falcon/internal/notifications"
+	"go-falcon/internal/scheduler"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
@@ -132,8 +133,9 @@ func main() {
 	devModule := dev.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
 	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule)
 	
-	modules = append(modules, authModule, devModule, usersModule, notificationsModule)
+	modules = append(modules, authModule, devModule, usersModule, notificationsModule, schedulerModule)
 	
 	// Initialize EVE Online ESI client as shared package
 	evegateClient := evegateway.NewClient()
@@ -146,6 +148,7 @@ func main() {
 	r.Route(apiPrefix+"/dev", devModule.Routes)
 	r.Route(apiPrefix+"/users", usersModule.Routes)
 	r.Route(apiPrefix+"/notifications", notificationsModule.Routes)
+	r.Route(apiPrefix+"/scheduler", schedulerModule.Routes)
 	
 	// Note: evegateway is now a shared package for EVE Online ESI integration
 	// Other services can import and use: evegateway.NewClient().GetServerStatus(ctx)

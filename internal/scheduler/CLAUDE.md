@@ -14,6 +14,7 @@ The scheduler module provides a comprehensive task scheduling and management sys
 - **Hardcoded Tasks**: Predefined system tasks for critical operations
 - **Task Types**: Support for HTTP, function, system, and custom tasks
 - **Distributed Locking**: Redis-based locking to prevent duplicate executions
+- **Module Integration**: Direct integration with auth module for token refresh operations
 
 ### Files Structure
 
@@ -57,8 +58,10 @@ Predefined tasks that are automatically created and managed by the scheduler. Th
 
 - **EVE Token Refresh** (`system-token-refresh`)
   - Schedule: Every 15 minutes
-  - Refreshes expired EVE Online access tokens
+  - Refreshes expired EVE Online access tokens using the auth module
   - High priority with 3 retry attempts
+  - Processes tokens in configurable batches (default: 100 users)
+  - Uses `AuthModule.RefreshExpiringTokens()` for actual implementation
 
 - **State Cleanup** (`system-state-cleanup`)
   - Schedule: Every 2 hours
@@ -318,6 +321,21 @@ func (e *MyCustomExecutor) Execute(ctx context.Context, task *Task) (*TaskResult
 engine.RegisterExecutor("my_custom_type", &MyCustomExecutor{})
 ```
 
+### Module Dependencies
+The scheduler module integrates with other modules through interfaces to maintain loose coupling:
+
+```go
+// AuthModule interface for token refresh operations
+type AuthModule interface {
+    RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error)
+}
+
+// SystemExecutor with auth module dependency
+type SystemExecutor struct {
+    authModule AuthModule
+}
+```
+
 ### Adding New System Tasks
 To add a new hardcoded system task, edit `hardcoded.go`:
 
@@ -532,7 +550,7 @@ curl -X POST /scheduler/tasks/task-id/start
 ### External Services
 - **MongoDB**: Task definitions and execution history
 - **Redis**: Distributed locking and coordination
-- **EVE Online ESI**: For EVE-related system tasks (optional)
+- **EVE Online ESI**: For EVE-related system tasks (via auth module)
 
 ### Go Packages
 - `github.com/robfig/cron/v3` - Cron expression parsing and scheduling
@@ -546,6 +564,7 @@ curl -X POST /scheduler/tasks/task-id/start
 - `go-falcon/pkg/database` - Database connections
 - `go-falcon/pkg/handlers` - HTTP utilities
 - `go-falcon/pkg/config` - Configuration management
+- `go-falcon/internal/auth` - Auth module interface for token refresh operations
 
 ## Future Enhancements
 

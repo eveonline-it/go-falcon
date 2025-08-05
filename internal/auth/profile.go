@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -18,13 +19,15 @@ import (
 
 // UserProfile represents a user's profile with EVE character information
 type UserProfile struct {
-	CharacterID   int    `json:"character_id" bson:"character_id"`
-	CharacterName string `json:"character_name" bson:"character_name"`
-	Scopes        string `json:"scopes" bson:"scopes"`
-	UserID        string `json:"user_id" bson:"user_id"`                         // UUID linking characters to user
-	Valid         bool   `json:"valid" bson:"valid"`                           // Character profile validity status
-	AccessToken   string `json:"-" bson:"access_token"`                        // Hidden from JSON for security
-	RefreshToken  string `json:"-" bson:"refresh_token"`                       // Hidden from JSON for security
+	CharacterID   int       `json:"character_id" bson:"character_id"`
+	CharacterName string    `json:"character_name" bson:"character_name"`
+	Scopes        string    `json:"scopes" bson:"scopes"`
+	UserID        string    `json:"user_id" bson:"user_id"`                         // UUID linking characters to user
+	Valid         bool      `json:"valid" bson:"valid"`                           // Character profile validity status
+	AccessToken   string    `json:"-" bson:"access_token"`                        // Hidden from JSON for security
+	RefreshToken  string    `json:"-" bson:"refresh_token"`                       // Hidden from JSON for security
+	CreatedAt     time.Time `json:"created_at" bson:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at" bson:"updated_at"`
 }
 
 // CreateOrUpdateUserProfile creates or updates a user profile with EVE character data
@@ -48,6 +51,12 @@ func (m *Module) CreateOrUpdateUserProfile(ctx context.Context, charInfo *EVECha
 		slog.String("character_name", charInfo.CharacterName),
 		slog.String("user_id", userID))
 	
+	now := time.Now()
+	
+	// Check if profile already exists to determine if this is creation or update
+	existingProfile, err := m.GetUserProfile(ctx, charInfo.CharacterID)
+	isCreate := err != nil // If error, profile doesn't exist, so this is a create
+	
 	profile := &UserProfile{
 		CharacterID:   charInfo.CharacterID,
 		CharacterName: charInfo.CharacterName,
@@ -56,6 +65,14 @@ func (m *Module) CreateOrUpdateUserProfile(ctx context.Context, charInfo *EVECha
 		Valid:         true, // Set valid as true as specified in docs
 		AccessToken:   accessToken,
 		RefreshToken:  refreshToken,
+		UpdatedAt:     now,
+	}
+	
+	if isCreate {
+		profile.CreatedAt = now
+	} else {
+		// Preserve original creation date for updates
+		profile.CreatedAt = existingProfile.CreatedAt
 	}
 
 	// Replace the entire document to ensure all fields are present
@@ -66,7 +83,7 @@ func (m *Module) CreateOrUpdateUserProfile(ctx context.Context, charInfo *EVECha
 		slog.Any("profile", profile))
 
 	opts := options.Replace().SetUpsert(true)
-	_, err := collection.ReplaceOne(ctx, filter, profile, opts)
+	_, err = collection.ReplaceOne(ctx, filter, profile, opts)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Failed to upsert user profile")
@@ -143,6 +160,104 @@ func (m *Module) RefreshUserProfile(ctx context.Context, characterID int) (*User
 
 	// Update profile with fresh data and new tokens
 	return m.CreateOrUpdateUserProfile(ctx, charInfo, profile.UserID, tokenResp.AccessToken, tokenResp.RefreshToken)
+}
+
+// RefreshExpiringTokens refreshes tokens for users with expiring access tokens
+func (m *Module) RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error) {
+	// Find users with tokens expiring within the next hour
+	expirationThreshold := time.Now().Add(1 * time.Hour)
+	
+	// Create aggregation pipeline to find users needing token refresh
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"refresh_token": bson.M{"$ne": ""},
+				"$or": []bson.M{
+					{"token_expires_at": bson.M{"$lt": expirationThreshold}},
+					{"token_expires_at": bson.M{"$exists": false}}, // Handle missing expiration
+				},
+			},
+		},
+		{"$limit": batchSize},
+		{
+			"$project": bson.M{
+				"character_id":  1,
+				"refresh_token": 1,
+				"user_id":       1,
+			},
+		},
+	}
+
+	collection := m.MongoDB().Collection("user_profiles")
+	cursor, err := collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to query users for token refresh: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var users []struct {
+		CharacterID  int    `bson:"character_id"`
+		RefreshToken string `bson:"refresh_token"`
+		UserID       string `bson:"user_id"`
+	}
+
+	if err := cursor.All(ctx, &users); err != nil {
+		return 0, 0, fmt.Errorf("failed to decode users: %w", err)
+	}
+
+	slog.Info("Found users for token refresh", 
+		slog.Int("count", len(users)),
+		slog.Int("batch_size", batchSize))
+
+	// Refresh tokens for each user
+	for _, user := range users {
+		select {
+		case <-ctx.Done():
+			return successCount, failureCount, ctx.Err()
+		default:
+		}
+
+		// Use existing RefreshToken method
+		tokenResp, err := m.eveSSOHandler.RefreshToken(ctx, user.RefreshToken)
+		if err != nil {
+			failureCount++
+			slog.Warn("Token refresh failed", 
+				slog.Int("character_id", user.CharacterID),
+				slog.String("error", err.Error()))
+			continue
+		}
+
+		// Verify the new token to get character info
+		charInfo, err := m.eveSSOHandler.VerifyToken(ctx, tokenResp.AccessToken)
+		if err != nil {
+			failureCount++
+			slog.Warn("Token verification failed after refresh", 
+				slog.Int("character_id", user.CharacterID),
+				slog.String("error", err.Error()))
+			continue
+		}
+
+		// Update the user profile with new tokens
+		_, err = m.CreateOrUpdateUserProfile(ctx, charInfo, user.UserID, tokenResp.AccessToken, tokenResp.RefreshToken)
+		if err != nil {
+			failureCount++
+			slog.Warn("Failed to update user profile after token refresh", 
+				slog.Int("character_id", user.CharacterID),
+				slog.String("error", err.Error()))
+			continue
+		}
+
+		successCount++
+		slog.Debug("Token refreshed successfully", 
+			slog.Int("character_id", user.CharacterID))
+	}
+
+	slog.Info("Token refresh batch completed", 
+		slog.Int("success_count", successCount),
+		slog.Int("failure_count", failureCount),
+		slog.Int("total_users", len(users)))
+
+	return successCount, failureCount, nil
 }
 
 // Profile handler endpoints

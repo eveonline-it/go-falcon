@@ -329,7 +329,16 @@ func parseFunctionConfig(config map[string]interface{}) (*FunctionTaskConfig, er
 }
 
 // SystemExecutor executes system tasks
-type SystemExecutor struct{}
+type SystemExecutor struct {
+	authModule AuthModule
+}
+
+// NewSystemExecutor creates a new system executor with dependencies
+func NewSystemExecutor(authModule AuthModule) *SystemExecutor {
+	return &SystemExecutor{
+		authModule: authModule,
+	}
+}
 
 // Execute executes a system task
 func (e *SystemExecutor) Execute(ctx context.Context, task *Task) (*TaskResult, error) {
@@ -385,35 +394,55 @@ func (e *SystemExecutor) tokenRefreshTask(ctx context.Context, params map[string
 		batchSize = int(size)
 	}
 
-	// Simulate token refresh process
+	startTime := time.Now()
 	slog.Info("Starting EVE token refresh", slog.Int("batch_size", batchSize))
 
-	// TODO: Implement actual token refresh logic
-	// This would involve:
-	// 1. Query database for expiring tokens
-	// 2. Refresh tokens using EVE SSO
-	// 3. Update database with new tokens
-	// 4. Handle refresh failures
-
-	// Simulate processing delay
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-time.After(2 * time.Second):
-		// Processing completed
+	// Use the auth module to refresh expiring tokens
+	successCount, failureCount, err := e.authModule.RefreshExpiringTokens(ctx, batchSize)
+	if err != nil {
+		return &TaskResult{
+			Success: false,
+			Error:   fmt.Sprintf("Token refresh failed: %v", err),
+			Metadata: map[string]interface{}{
+				"task":         "token_refresh",
+				"batch_size":   batchSize,
+				"duration":     time.Since(startTime).String(),
+				"error_detail": err.Error(),
+			},
+		}, nil
 	}
 
-	refreshedCount := 15 // Simulated count
-	return &TaskResult{
-		Success: true,
-		Output:  fmt.Sprintf("Refreshed %d EVE tokens successfully", refreshedCount),
+	duration := time.Since(startTime)
+	totalUsers := successCount + failureCount
+	success := failureCount == 0 || successCount > 0 // Consider partial success acceptable
+
+	output := fmt.Sprintf("Token refresh completed: %d successful, %d failed out of %d users", 
+		successCount, failureCount, totalUsers)
+
+	result := &TaskResult{
+		Success: success,
+		Output:  output,
 		Metadata: map[string]interface{}{
-			"task":           "token_refresh",
-			"batch_size":     batchSize,
-			"refreshed":      refreshedCount,
-			"failed":         0,
+			"task":          "token_refresh",
+			"batch_size":    batchSize,
+			"users_found":   totalUsers,
+			"success_count": successCount,
+			"failure_count": failureCount,
+			"duration":      duration.String(),
 		},
-	}, nil
+	}
+
+	if !success {
+		result.Error = fmt.Sprintf("Token refresh had %d failures", failureCount)
+	}
+
+	slog.Info("EVE token refresh completed", 
+		slog.Int("success_count", successCount),
+		slog.Int("failure_count", failureCount),
+		slog.Int("total_users", totalUsers),
+		slog.Duration("duration", duration))
+
+	return result, nil
 }
 
 func (e *SystemExecutor) stateCleanupTask(ctx context.Context, params map[string]interface{}) (*TaskResult, error) {
