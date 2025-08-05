@@ -1,0 +1,176 @@
+package scheduler
+
+import (
+	"time"
+)
+
+// getSystemTasks returns the hardcoded system tasks that are automatically
+// created and managed by the scheduler. These tasks handle critical system
+// operations and maintenance functions.
+func getSystemTasks() []*Task {
+	now := time.Now()
+
+	return []*Task{
+		// EVE Token Refresh - High priority task to keep authentication tokens fresh
+		{
+			ID:          "system-token-refresh",
+			Name:        "EVE Token Refresh",
+			Description: "Refresh expired EVE Online access tokens",
+			Type:        TaskTypeSystem,
+			Schedule:    "0 */15 * * * *", // Every 15 minutes
+			Status:      TaskStatusPending,
+			Priority:    TaskPriorityHigh,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "token_refresh",
+				"parameters": map[string]interface{}{
+					"batch_size": 100,
+					"timeout":    "5m",
+				},
+			},
+			Metadata: TaskMetadata{
+				MaxRetries:    3,
+				RetryInterval: 2 * time.Minute,
+				Timeout:       10 * time.Minute,
+				Tags:          []string{"system", "auth", "eve"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
+
+		// State Cleanup - Regular cleanup of expired states and temporary data
+		{
+			ID:          "system-state-cleanup",
+			Name:        "State Cleanup",
+			Description: "Clean up expired states and temporary data",
+			Type:        TaskTypeSystem,
+			Schedule:    "0 0 */2 * * *", // Every 2 hours
+			Status:      TaskStatusPending,
+			Priority:    TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "state_cleanup",
+				"parameters": map[string]interface{}{
+					"max_age": "24h",
+				},
+			},
+			Metadata: TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: 5 * time.Minute,
+				Timeout:       30 * time.Minute,
+				Tags:          []string{"system", "cleanup"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
+
+		// Health Check - Regular monitoring of system components
+		{
+			ID:          "system-health-check",
+			Name:        "Health Check",
+			Description: "Perform system health checks and monitoring",
+			Type:        TaskTypeSystem,
+			Schedule:    "0 */5 * * * *", // Every 5 minutes
+			Status:      TaskStatusPending,
+			Priority:    TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "health_check",
+				"parameters": map[string]interface{}{
+					"check_services": []string{"mongodb", "redis", "esi"},
+					"timeout":        "30s",
+				},
+			},
+			Metadata: TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: 1 * time.Minute,
+				Timeout:       2 * time.Minute,
+				Tags:          []string{"system", "monitoring", "health"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
+
+		// Task History Cleanup - Daily maintenance to remove old execution records
+		{
+			ID:          "system-task-cleanup",
+			Name:        "Task History Cleanup",
+			Description: "Clean up old task execution records",
+			Type:        TaskTypeSystem,
+			Schedule:    "0 0 2 * * *", // Daily at 2 AM
+			Status:      TaskStatusPending,
+			Priority:    TaskPriorityLow,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "task_cleanup",
+				"parameters": map[string]interface{}{
+					"retention_days": 30,
+					"batch_size":     1000,
+				},
+			},
+			Metadata: TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: 10 * time.Minute,
+				Timeout:       1 * time.Hour,
+				Tags:          []string{"system", "cleanup", "maintenance"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
+	}
+}
+
+// SystemTaskDefinitions provides metadata about each system task for documentation
+// and administrative purposes
+var SystemTaskDefinitions = map[string]struct {
+	Name        string
+	Description string
+	Schedule    string
+	Purpose     string
+	Priority    string
+}{
+	"system-token-refresh": {
+		Name:        "EVE Token Refresh",
+		Description: "Refresh expired EVE Online access tokens",
+		Schedule:    "Every 15 minutes",
+		Purpose:     "Maintains authentication for EVE Online API access",
+		Priority:    "High",
+	},
+	"system-state-cleanup": {
+		Name:        "State Cleanup",
+		Description: "Clean up expired states and temporary data",
+		Schedule:    "Every 2 hours",
+		Purpose:     "Prevents memory/storage bloat from temporary data",
+		Priority:    "Normal",
+	},
+	"system-health-check": {
+		Name:        "Health Check",
+		Description: "Perform system health checks and monitoring",
+		Schedule:    "Every 5 minutes",
+		Purpose:     "Early detection of system issues and service failures",
+		Priority:    "Normal",
+	},
+	"system-task-cleanup": {
+		Name:        "Task History Cleanup",
+		Description: "Clean up old task execution records",
+		Schedule:    "Daily at 2 AM",
+		Purpose:     "Maintains database performance by removing old execution logs",
+		Priority:    "Low",
+	},
+}
