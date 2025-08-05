@@ -49,3 +49,24 @@ func GetAPIPrefix() string {
 	}
 	return "/" + prefix
 }
+
+// EVE Online SSO Configuration
+func GetEVEClientID() string {
+	return MustGetEnv("EVE_CLIENT_ID")
+}
+
+func GetEVEClientSecret() string {
+	return MustGetEnv("EVE_CLIENT_SECRET")
+}
+
+func GetEVERedirectURI() string {
+	return GetEnv("EVE_REDIRECT_URI", "http://localhost:8080/auth/eve/callback")
+}
+
+func GetEVEScopes() string {
+	return GetEnv("EVE_SCOPES", "publicData")
+}
+
+func GetJWTSecret() string {
+	return MustGetEnv("JWT_SECRET")
+}
