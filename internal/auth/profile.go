@@ -7,140 +7,94 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
-
-	"go-falcon/pkg/evegateway"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // UserProfile represents a user's profile with EVE character information
 type UserProfile struct {
-	CharacterID       int       `json:"character_id" bson:"character_id"`
-	CharacterName     string    `json:"character_name" bson:"character_name"`
-	CorporationID     int       `json:"corporation_id" bson:"corporation_id"`
-	CorporationName   string    `json:"corporation_name" bson:"corporation_name"`
-	AllianceID        int       `json:"alliance_id,omitempty" bson:"alliance_id,omitempty"`
-	AllianceName      string    `json:"alliance_name,omitempty" bson:"alliance_name,omitempty"`
-	SecurityStatus    float64   `json:"security_status" bson:"security_status"`
-	Birthday          time.Time `json:"birthday" bson:"birthday"`
-	Scopes            string    `json:"scopes" bson:"scopes"`
-	LastLogin         time.Time `json:"last_login" bson:"last_login"`
-	RefreshToken      string    `json:"-" bson:"refresh_token"` // Hidden from JSON
-	CreatedAt         time.Time `json:"created_at" bson:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at" bson:"updated_at"`
+	CharacterID   int    `json:"character_id" bson:"character_id"`
+	CharacterName string `json:"character_name" bson:"character_name"`
+	Scopes        string `json:"scopes" bson:"scopes"`
+	UserID        string `json:"user_id" bson:"user_id"`                         // UUID linking characters to user
+	Valid         bool   `json:"valid" bson:"valid"`                           // Character profile validity status
+	AccessToken   string `json:"-" bson:"access_token"`                        // Hidden from JSON for security
+	RefreshToken  string `json:"-" bson:"refresh_token"`                       // Hidden from JSON for security
 }
 
 // CreateOrUpdateUserProfile creates or updates a user profile with EVE character data
-func (m *Module) CreateOrUpdateUserProfile(ctx context.Context, charInfo *EVECharacterInfo, refreshToken string) (*UserProfile, error) {
+func (m *Module) CreateOrUpdateUserProfile(ctx context.Context, charInfo *EVECharacterInfo, userID, accessToken, refreshToken string) (*UserProfile, error) {
+	tracer := otel.Tracer("go-falcon/auth")
+	ctx, span := tracer.Start(ctx, "auth.profile.create_or_update")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("service", "auth"),
+		attribute.String("operation", "create_or_update_profile"),
+		attribute.Int("eve.character_id", charInfo.CharacterID),
+		attribute.String("eve.character_name", charInfo.CharacterName),
+		attribute.String("auth.user_id", userID),
+	)
+
 	collection := m.MongoDB().Collection("user_profiles")
 	
-	// Create EVE ESI client to get additional character information
-	client := evegateway.NewClient()
+	slog.Info("CreateOrUpdateUserProfile called", 
+		slog.Int("character_id", charInfo.CharacterID),
+		slog.String("character_name", charInfo.CharacterName),
+		slog.String("user_id", userID))
 	
-	// Get character public information
-	charPublicInfo, err := client.GetCharacterInfo(ctx, charInfo.CharacterID)
-	if err != nil {
-		slog.Error("Failed to get character public info", 
-			slog.Int("character_id", charInfo.CharacterID),
-			slog.String("error", err.Error()))
-		// Continue with basic info if ESI call fails
-	}
-
-	// Get corporation information
-	var corpName string
-	var corpID int
-	if charPublicInfo != nil {
-		if id, ok := charPublicInfo["corporation_id"].(float64); ok {
-			corpID = int(id)
-			if corpInfo, err := client.GetCorporationInfo(ctx, corpID); err == nil {
-				if name, ok := corpInfo["name"].(string); ok {
-					corpName = name
-				}
-			}
-		}
-	}
-
-	// Get alliance information if character is in an alliance
-	var allianceID int
-	var allianceName string
-	if charPublicInfo != nil {
-		if id, ok := charPublicInfo["alliance_id"].(float64); ok {
-			allianceID = int(id)
-			if allianceInfo, err := client.GetAllianceInfo(ctx, allianceID); err == nil {
-				if name, ok := allianceInfo["name"].(string); ok {
-					allianceName = name
-				}
-			}
-		}
-	}
-
-	now := time.Now()
 	profile := &UserProfile{
-		CharacterID:     charInfo.CharacterID,
-		CharacterName:   charInfo.CharacterName,
-		Scopes:          charInfo.Scopes,
-		LastLogin:       now,
-		RefreshToken:    refreshToken,
-		UpdatedAt:       now,
+		CharacterID:   charInfo.CharacterID,
+		CharacterName: charInfo.CharacterName,
+		Scopes:        charInfo.Scopes,
+		UserID:        userID,
+		Valid:         true, // Set valid as true as specified in docs
+		AccessToken:   accessToken,
+		RefreshToken:  refreshToken,
 	}
 
-	// Add additional info if available
-	if charPublicInfo != nil {
-		profile.CorporationID = corpID
-		profile.CorporationName = corpName
-		profile.AllianceID = allianceID
-		profile.AllianceName = allianceName
-		
-		// Extract security status and birthday if available
-		if secStatus, ok := charPublicInfo["security_status"].(float64); ok {
-			profile.SecurityStatus = secStatus
-		}
-		if birthdayStr, ok := charPublicInfo["birthday"].(string); ok {
-			if birthday, err := time.Parse(time.RFC3339, birthdayStr); err == nil {
-				profile.Birthday = birthday
-			}
-		}
-	}
-
-	// Try to update existing profile or create new one
+	// Replace the entire document to ensure all fields are present
 	filter := bson.M{"character_id": charInfo.CharacterID}
-	update := bson.M{
-		"$set": bson.M{
-			"character_name":   profile.CharacterName,
-			"corporation_id":   profile.CorporationID,
-			"corporation_name": profile.CorporationName,
-			"alliance_id":      profile.AllianceID,
-			"alliance_name":    profile.AllianceName,
-			"security_status":  profile.SecurityStatus,
-			"birthday":         profile.Birthday,
-			"scopes":           profile.Scopes,
-			"last_login":       profile.LastLogin,
-			"refresh_token":    profile.RefreshToken,
-			"updated_at":       profile.UpdatedAt,
-		},
-		"$setOnInsert": bson.M{
-			"created_at": now,
-		},
-	}
+	
+	slog.Info("MongoDB replace operation", 
+		slog.Any("filter", filter),
+		slog.Any("profile", profile))
 
-	opts := options.Update().SetUpsert(true)
-	_, err = collection.UpdateOne(ctx, filter, update, opts)
+	opts := options.Replace().SetUpsert(true)
+	_, err := collection.ReplaceOne(ctx, filter, profile, opts)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to upsert user profile")
+		span.SetAttributes(attribute.String("error.type", "database_upsert_failed"))
 		return nil, fmt.Errorf("failed to upsert user profile: %w", err)
 	}
+
+	span.SetAttributes(attribute.Bool("database.upsert_success", true))
 
 	// Fetch the updated document
 	var updatedProfile UserProfile
 	if err := collection.FindOne(ctx, filter).Decode(&updatedProfile); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to decode user profile")
+		span.SetAttributes(attribute.String("error.type", "database_decode_failed"))
 		return nil, fmt.Errorf("failed to decode user profile after upsert: %w", err)
 	}
 
+	span.SetAttributes(
+		attribute.Bool("database.fetch_success", true),
+		attribute.Bool("profile.created", true),
+		attribute.Bool("profile.valid", updatedProfile.Valid),
+	)
+
 	slog.Info("User profile updated", 
 		slog.Int("character_id", updatedProfile.CharacterID),
-		slog.String("character_name", updatedProfile.CharacterName))
+		slog.String("character_name", updatedProfile.CharacterName),
+		slog.String("user_id", updatedProfile.UserID))
 
 	return &updatedProfile, nil
 }
@@ -171,6 +125,11 @@ func (m *Module) RefreshUserProfile(ctx context.Context, characterID int) (*User
 	}
 
 	// Use stored refresh token to get new access token
+	if profile.RefreshToken == "" {
+		return nil, fmt.Errorf("no refresh token available for character %d", characterID)
+	}
+
+	// Get EVE SSO handler from the module
 	tokenResp, err := m.eveSSOHandler.RefreshToken(ctx, profile.RefreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh access token: %w", err)
@@ -182,8 +141,8 @@ func (m *Module) RefreshUserProfile(ctx context.Context, characterID int) (*User
 		return nil, fmt.Errorf("failed to verify refreshed token: %w", err)
 	}
 
-	// Update profile with fresh data
-	return m.CreateOrUpdateUserProfile(ctx, charInfo, tokenResp.RefreshToken)
+	// Update profile with fresh data and new tokens
+	return m.CreateOrUpdateUserProfile(ctx, charInfo, profile.UserID, tokenResp.AccessToken, tokenResp.RefreshToken)
 }
 
 // Profile handler endpoints
@@ -259,14 +218,11 @@ func (m *Module) publicProfileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Return only public information
 	publicProfile := map[string]interface{}{
-		"character_id":     profile.CharacterID,
-		"character_name":   profile.CharacterName,
-		"corporation_id":   profile.CorporationID,
-		"corporation_name": profile.CorporationName,
-		"alliance_id":      profile.AllianceID,
-		"alliance_name":    profile.AllianceName,
-		"security_status":  profile.SecurityStatus,
-		"birthday":         profile.Birthday,
+		"character_id":   profile.CharacterID,
+		"character_name": profile.CharacterName,
+		"scopes":         profile.Scopes,
+		"user_id":        profile.UserID,
+		"valid":          profile.Valid,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

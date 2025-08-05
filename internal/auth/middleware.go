@@ -16,6 +16,7 @@ const (
 
 // AuthenticatedUser represents an authenticated EVE Online character
 type AuthenticatedUser struct {
+	UserID        string `json:"user_id"`
 	CharacterID   int    `json:"character_id"`
 	CharacterName string `json:"character_name"`
 	Scopes        string `json:"scopes"`
@@ -53,6 +54,10 @@ func (m *Module) JWTMiddleware(next http.Handler) http.Handler {
 
 		// Extract user information from claims
 		user := &AuthenticatedUser{}
+		
+		if userID, ok := (*claims)["user_id"].(string); ok {
+			user.UserID = userID
+		}
 		
 		if characterID, ok := (*claims)["character_id"].(float64); ok {
 			user.CharacterID = int(characterID)
@@ -95,6 +100,10 @@ func (m *Module) OptionalJWTMiddleware(next http.Handler) http.Handler {
 			if claims, err := m.eveSSOHandler.ValidateJWT(jwtToken); err == nil {
 				// Extract user information from claims
 				user := &AuthenticatedUser{}
+				
+				if userID, ok := (*claims)["user_id"].(string); ok {
+					user.UserID = userID
+				}
 				
 				if characterID, ok := (*claims)["character_id"].(float64); ok {
 					user.CharacterID = int(characterID)

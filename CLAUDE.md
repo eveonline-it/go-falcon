@@ -243,3 +243,55 @@ The project includes complete EVE Online Single Sign-On (SSO) authentication int
 
 ### Documentation
 Complete integration documentation available in `docs/EVE_SSO_INTEGRATION.md`
+
+## Module-Specific Documentation
+
+The following modules have detailed CLAUDE.md documentation files with comprehensive implementation details:
+
+### Authentication Module
+- **Location**: `internal/auth/CLAUDE.md`
+- **Coverage**: Complete EVE Online SSO integration, JWT middleware, user profile management, security features, API endpoints, and frontend integration examples
+- **Key Features**: OAuth2 flow, cross-subdomain cookies, CSRF protection, ESI integration, background tasks
+
+### Development Module
+- **Location**: `internal/dev/CLAUDE.md`
+- **Coverage**: ESI testing endpoints, SDE data access, cache management, telemetry integration, and development utilities
+- **Key Features**: EVE Online API testing, static data validation, performance monitoring, debugging tools
+
+### Package Documentation
+
+The following shared packages have detailed CLAUDE.md documentation:
+
+#### Core Infrastructure
+- **Application**: `pkg/app/CLAUDE.md` - Application initialization and context management
+- **Configuration**: `pkg/config/CLAUDE.md` - Environment variable management and settings
+- **Database**: `pkg/database/CLAUDE.md` - MongoDB and Redis connection utilities
+- **Module System**: `pkg/module/CLAUDE.md` - Base module interface and common functionality
+
+#### EVE Online Integration
+- **EVE Gateway**: `pkg/evegateway/CLAUDE.md` - Complete ESI client library with caching and compliance
+- **Static Data Export**: `pkg/sde/CLAUDE.md` - In-memory EVE Online static data service
+
+#### Observability & Utilities
+- **Logging**: `pkg/logging/CLAUDE.md` - OpenTelemetry logging and telemetry management
+- **Handlers**: `pkg/handlers/CLAUDE.md` - Shared HTTP handlers and utilities
+- **Middleware**: `pkg/middleware/CLAUDE.md` - OpenTelemetry tracing middleware
+- **Version**: `pkg/version/CLAUDE.md` - Application version and build information
+
+### Future Module Documentation
+As additional modules are enhanced with detailed documentation, they will be listed here:
+- `internal/users/CLAUDE.md` - User management system (planned)  
+- `internal/notifications/CLAUDE.md` - Notification service (planned)
+
+## How to Use Module Documentation
+
+1. **Start with this root CLAUDE.md** for project overview and architecture
+2. **Navigate to specific module CLAUDE.md files** for detailed implementation guidance
+3. **Use module docs for**:
+   - API endpoint references
+   - Configuration requirements
+   - Integration examples
+   - Security considerations
+   - Best practices
+
+Each module's CLAUDE.md provides complete documentation for developers working with that specific component, including code examples, configuration, and troubleshooting guides.

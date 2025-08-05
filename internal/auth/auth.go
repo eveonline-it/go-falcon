@@ -10,10 +10,14 @@ import (
 
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/handlers"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/sde"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type Module struct {
@@ -125,12 +129,25 @@ func (m *Module) statusHandler(w http.ResponseWriter, r *http.Request) {
 // EVE Online SSO Handlers
 
 func (m *Module) eveLoginHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "auth.eve.login",
+		attribute.String("service", "auth"),
+		attribute.String("operation", "eve_login"),
+	)
+	defer span.End()
+
 	authURL, state, err := m.eveSSOHandler.GenerateAuthURL()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to generate EVE auth URL")
 		slog.Error("Failed to generate EVE auth URL", slog.String("error", err.Error()))
 		http.Error(w, "Failed to generate auth URL", http.StatusInternalServerError)
 		return
 	}
+
+	span.SetAttributes(
+		attribute.String("auth.state", state),
+		attribute.Bool("auth.success", true),
+	)
 
 	// Store state in session/cookie for additional security if needed
 	http.SetCookie(w, &http.Cookie{
@@ -154,10 +171,23 @@ func (m *Module) eveLoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "auth.eve.callback",
+		attribute.String("service", "auth"),
+		attribute.String("operation", "eve_callback"),
+	)
+	defer span.End()
+
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
 
+	span.SetAttributes(
+		attribute.String("auth.state", state),
+		attribute.Bool("auth.code_present", code != ""),
+	)
+
 	if code == "" || state == "" {
+		span.SetStatus(codes.Error, "Missing required parameters")
+		span.SetAttributes(attribute.String("error.type", "missing_parameters"))
 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
 		return
 	}
@@ -170,6 +200,9 @@ func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	
 	cookie, err := r.Cookie("eve_auth_state")
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Missing state cookie")
+		span.SetAttributes(attribute.String("error.type", "missing_state_cookie"))
 		slog.Warn("Missing state cookie", 
 			slog.String("error", err.Error()), 
 			slog.String("received_state", state),
@@ -178,6 +211,11 @@ func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if cookie.Value != state {
+		span.SetStatus(codes.Error, "Invalid state parameter")
+		span.SetAttributes(
+			attribute.String("error.type", "state_mismatch"),
+			attribute.String("expected_state", cookie.Value[:8]+"..."), // Only log prefix for security
+		)
 		slog.Warn("Invalid state parameter", 
 			slog.String("expected", cookie.Value), 
 			slog.String("received", state))
@@ -185,40 +223,106 @@ func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	span.SetAttributes(attribute.Bool("auth.state_valid", true))
 	slog.Info("State validation successful", slog.String("state", state))
 
 	// Exchange code for token
 	tokenResp, err := m.eveSSOHandler.ExchangeCodeForToken(r.Context(), code, state)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to exchange code for token")
+		span.SetAttributes(attribute.String("error.type", "token_exchange_failed"))
 		slog.Error("Failed to exchange code for token", slog.String("error", err.Error()))
 		http.Error(w, "Authentication failed", http.StatusInternalServerError)
 		return
 	}
 
+	span.SetAttributes(attribute.Bool("auth.token_exchange_success", true))
+
 	// Verify token and get character info
 	charInfo, err := m.eveSSOHandler.VerifyToken(r.Context(), tokenResp.AccessToken)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to verify token")
+		span.SetAttributes(attribute.String("error.type", "token_verification_failed"))
 		slog.Error("Failed to verify token", slog.String("error", err.Error()))
 		http.Error(w, "Token verification failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Create or update user profile
-	profile, err := m.CreateOrUpdateUserProfile(r.Context(), charInfo, tokenResp.RefreshToken)
-	if err != nil {
-		slog.Error("Failed to create/update user profile", slog.String("error", err.Error()))
-		// Continue with authentication even if profile creation fails
-	} else {
-		slog.Info("User profile updated successfully", slog.Int("character_id", profile.CharacterID))
+	span.SetAttributes(
+		attribute.Bool("auth.token_verification_success", true),
+		attribute.Int("eve.character_id", charInfo.CharacterID),
+		attribute.String("eve.character_name", charInfo.CharacterName),
+	)
+
+	// Check for existing falcon_auth_token cookie to get existing user_id
+	var existingUserID string
+	if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
+		if claims, err := m.eveSSOHandler.ValidateJWT(cookie.Value); err == nil {
+			if userID, ok := (*claims)["user_id"].(string); ok {
+				existingUserID = userID
+				slog.Info("Found existing user_id from cookie", slog.String("user_id", userID))
+			}
+		}
 	}
 
-	// Generate JWT for internal use
-	jwtToken, err := m.eveSSOHandler.GenerateJWT(charInfo)
+	// Look up character in database to get user_id
+	profile, err := m.GetUserProfile(r.Context(), charInfo.CharacterID)
+	var userID string
 	if err != nil {
+		// Character not found - use existing userID or generate new one
+		if existingUserID != "" {
+			userID = existingUserID
+			slog.Info("Using existing user_id for new character", slog.String("user_id", userID))
+		} else {
+			userID = uuid.New().String()
+			slog.Info("Generated new user_id", slog.String("user_id", userID))
+		}
+	} else {
+		// Character exists - use its user_id if it exists, otherwise generate new one
+		if profile.UserID != "" {
+			userID = profile.UserID
+			slog.Info("Using existing character's user_id", slog.String("user_id", userID))
+		} else {
+			userID = uuid.New().String()
+			slog.Info("Generated new user_id for existing character", slog.String("user_id", userID))
+		}
+	}
+
+	span.SetAttributes(
+		attribute.String("auth.user_id", userID),
+		attribute.Bool("auth.existing_user", existingUserID != ""),
+	)
+
+	// Create or update user profile with user_id and tokens
+	profile, err = m.CreateOrUpdateUserProfile(r.Context(), charInfo, userID, tokenResp.AccessToken, tokenResp.RefreshToken)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to create/update user profile")
+		span.SetAttributes(attribute.String("error.type", "profile_creation_failed"))
+		slog.Error("Failed to create/update user profile", slog.String("error", err.Error()))
+		http.Error(w, "Failed to create user profile", http.StatusInternalServerError)
+		return
+	}
+	
+	span.SetAttributes(attribute.Bool("auth.profile_updated", true))
+	slog.Info("User profile updated successfully", 
+		slog.Int("character_id", profile.CharacterID),
+		slog.String("user_id", profile.UserID))
+
+	// Generate JWT for internal use
+	jwtToken, err := m.eveSSOHandler.GenerateJWT(charInfo, userID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to generate JWT")
+		span.SetAttributes(attribute.String("error.type", "jwt_generation_failed"))
 		slog.Error("Failed to generate JWT", slog.String("error", err.Error()))
 		http.Error(w, "Failed to generate session token", http.StatusInternalServerError)
 		return
 	}
+
+	span.SetAttributes(attribute.Bool("auth.jwt_generated", true))
 
 	// Clear the state cookie
 	http.SetCookie(w, &http.Cookie{
@@ -242,6 +346,11 @@ func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
+	span.SetAttributes(
+		attribute.Bool("auth.cookies_set", true),
+		attribute.Bool("auth.success", true),
+	)
+
 	slog.Info("EVE SSO authentication successful", 
 		slog.Int("character_id", charInfo.CharacterID),
 		slog.String("character_name", charInfo.CharacterName))
@@ -249,6 +358,7 @@ func (m *Module) eveCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	// Redirect to React client
 	frontendURL := config.GetFrontendURL()
 	
+	span.SetAttributes(attribute.String("auth.redirect_url", frontendURL))
 	slog.Info("Redirecting to frontend", slog.String("url", frontendURL))
 	http.Redirect(w, r, frontendURL, http.StatusFound)
 }
@@ -283,8 +393,16 @@ func (m *Module) eveRefreshHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get user profile to obtain user_id
+	profile, err := m.GetUserProfile(r.Context(), charInfo.CharacterID)
+	if err != nil {
+		slog.Error("Failed to get user profile for refresh", slog.String("error", err.Error()))
+		http.Error(w, "User profile not found", http.StatusInternalServerError)
+		return
+	}
+
 	// Generate new JWT
-	jwtToken, err := m.eveSSOHandler.GenerateJWT(charInfo)
+	jwtToken, err := m.eveSSOHandler.GenerateJWT(charInfo, profile.UserID)
 	if err != nil {
 		slog.Error("Failed to generate JWT after refresh", slog.String("error", err.Error()))
 		http.Error(w, "Failed to generate session token", http.StatusInternalServerError)
@@ -296,6 +414,7 @@ func (m *Module) eveRefreshHandler(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": tokenResp.RefreshToken,
 		"expires_in":    tokenResp.ExpiresIn,
 		"jwt_token":     jwtToken,
+		"user_id":       profile.UserID,
 		"character_id":  charInfo.CharacterID,
 		"character_name": charInfo.CharacterName,
 	}
@@ -333,6 +452,7 @@ func (m *Module) eveVerifyHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"valid":          true,
+		"user_id":        (*claims)["user_id"],
 		"character_id":   (*claims)["character_id"],
 		"character_name": (*claims)["character_name"],
 		"scopes":         (*claims)["scopes"],
@@ -373,6 +493,7 @@ func (m *Module) getCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Return user information
 	response := map[string]interface{}{
 		"authenticated":  true,
+		"user_id":        (*claims)["user_id"],
 		"character_id":   (*claims)["character_id"],
 		"character_name": (*claims)["character_name"],
 		"scopes":         (*claims)["scopes"],
