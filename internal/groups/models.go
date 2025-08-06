@@ -250,10 +250,23 @@ func (gs *GroupService) InitializeDefaultGroups(ctx context.Context) error {
 	for _, group := range defaultGroups {
 		// Use upsert to avoid duplicates
 		filter := bson.M{"name": group.Name, "is_default": true}
+		
+		// Remove fields that might conflict in upsert
+		insertDoc := group
+		insertDoc.UpdatedAt = time.Now()
+		
 		update := bson.M{
-			"$setOnInsert": group,
+			"$setOnInsert": bson.M{
+				"name":                  insertDoc.Name,
+				"description":           insertDoc.Description,
+				"is_default":            insertDoc.IsDefault,
+				"discord_roles":         insertDoc.DiscordRoles,
+				"auto_assignment_rules": insertDoc.AutoAssignmentRules,
+				"created_at":            insertDoc.CreatedAt,
+				"created_by":            insertDoc.CreatedBy,
+			},
 			"$set": bson.M{
-				"updated_at": time.Now(),
+				"updated_at":  time.Now(),
 				"permissions": group.Permissions, // Always update permissions
 			},
 		}
@@ -266,6 +279,8 @@ func (gs *GroupService) InitializeDefaultGroups(ctx context.Context) error {
 
 		if result.UpsertedCount > 0 {
 			slog.Info("Created default group", slog.String("name", group.Name))
+		} else if result.ModifiedCount > 0 {
+			slog.Debug("Updated default group permissions", slog.String("name", group.Name))
 		}
 	}
 

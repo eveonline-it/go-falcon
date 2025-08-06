@@ -72,8 +72,8 @@ func (m *Module) StartBackgroundTasks(ctx context.Context) {
 	// Call base implementation for common functionality
 	go m.BaseModule.StartBackgroundTasks(ctx)
 	
-	// Initialize default groups
-	go m.initializeDefaultGroups(ctx)
+	// Initialize default groups and then super admin in sequence
+	go m.initializeGroupsAndSuperAdmin(ctx)
 	
 	// Start membership validation routine
 	go m.runMembershipValidation(ctx)
@@ -99,6 +99,21 @@ func (m *Module) StartBackgroundTasks(ctx context.Context) {
 	}
 }
 
+func (m *Module) initializeGroupsAndSuperAdmin(ctx context.Context) {
+	// First initialize default groups
+	slog.Info("Initializing default groups")
+	
+	if err := m.groupService.InitializeDefaultGroups(ctx); err != nil {
+		slog.Error("Failed to initialize default groups", slog.String("error", err.Error()))
+		return // Don't proceed with super admin if groups failed
+	}
+	
+	slog.Info("Default groups initialized successfully")
+	
+	// Now initialize super admin
+	m.initializeSuperAdmin(ctx)
+}
+
 func (m *Module) initializeDefaultGroups(ctx context.Context) {
 	slog.Info("Initializing default groups")
 	
@@ -106,6 +121,66 @@ func (m *Module) initializeDefaultGroups(ctx context.Context) {
 		slog.Error("Failed to initialize default groups", slog.String("error", err.Error()))
 	} else {
 		slog.Info("Default groups initialized successfully")
+	}
+}
+
+func (m *Module) initializeSuperAdmin(ctx context.Context) {
+	superAdminCharID := config.GetSuperAdminCharacterID()
+	
+	if superAdminCharID <= 0 {
+		slog.Warn("⚠️  No super admin configured. Set SUPER_ADMIN_CHARACTER_ID environment variable to assign super admin privileges")
+		return
+	}
+	
+	slog.Info("👑 Super Admin configured", 
+		slog.Int("character_id", superAdminCharID),
+		slog.String("note", "This character will have unrestricted access to all system resources"))
+	
+	// Check if the super admin group exists (with retry logic)
+	var superAdminGroup *Group
+	var err error
+	
+	for attempts := 0; attempts < 3; attempts++ {
+		superAdminGroup, err = m.groupService.GetGroupByName(ctx, "super_admin")
+		if err == nil {
+			break
+		}
+		
+		if attempts < 2 {
+			slog.Warn("Super admin group not found, retrying...", 
+				slog.String("error", err.Error()),
+				slog.Int("attempt", attempts+1))
+			time.Sleep(100 * time.Millisecond) // Brief pause before retry
+		}
+	}
+	
+	if err != nil {
+		slog.Error("Failed to find super admin group after retries", 
+			slog.String("error", err.Error()),
+			slog.String("solution", "Ensure default groups are properly initialized"))
+		return
+	}
+	
+	// Check if already a member
+	isMember, err := m.groupService.IsUserMember(ctx, superAdminCharID, superAdminGroup.ID.Hex())
+	if err != nil {
+		slog.Error("Failed to check super admin membership", 
+			slog.String("error", err.Error()),
+			slog.Int("character_id", superAdminCharID))
+		return
+	}
+	
+	if !isMember {
+		// Assign super admin privileges proactively
+		if err := m.groupService.AssignToDefaultGroup(ctx, superAdminCharID, "super_admin"); err != nil {
+			slog.Error("Failed to assign super admin privileges", 
+				slog.String("error", err.Error()),
+				slog.Int("character_id", superAdminCharID))
+		} else {
+			slog.Info("✅ Super admin privileges assigned", slog.Int("character_id", superAdminCharID))
+		}
+	} else {
+		slog.Info("✅ Super admin privileges already assigned", slog.Int("character_id", superAdminCharID))
 	}
 }
 
@@ -562,6 +637,12 @@ func (m *Module) GetGroupService() *GroupService {
 	return m.groupService
 }
 
+// IsSuperAdmin checks if a character is the configured super admin
+func (m *Module) IsSuperAdmin(characterID int) bool {
+	superAdminCharID := config.GetSuperAdminCharacterID()
+	return superAdminCharID > 0 && characterID == superAdminCharID
+}
+
 // AssignUserToDefaultGroups assigns a user to appropriate default groups
 func (m *Module) AssignUserToDefaultGroups(ctx context.Context, characterID int, corporationID, allianceID *int) error {
 	slog.Info("Assigning user to default groups",
@@ -582,7 +663,7 @@ func (m *Module) AssignUserToDefaultGroups(ctx context.Context, characterID int,
 	}
 
 	// Check if user should be super admin
-	superAdminCharID := config.GetEnvInt("SUPER_ADMIN_CHARACTER_ID", 0)
+	superAdminCharID := config.GetSuperAdminCharacterID()
 	if superAdminCharID > 0 && characterID == superAdminCharID {
 		if err := m.groupService.AssignToDefaultGroup(ctx, characterID, "super_admin"); err != nil {
 			slog.Error("Failed to assign super admin", 

@@ -145,8 +145,8 @@ func (ps *PermissionService) buildPermissionMatrix(characterID int, groups []Gro
 
 // grantAllPermissions grants all possible permissions (super admin)
 func (ps *PermissionService) grantAllPermissions(matrix *UserPermissionMatrix) {
-	resources := []string{"public", "user", "profile", "corporation", "alliance", "groups", "system", "admin"}
-	actions := []string{"read", "write", "delete", "admin"}
+	resources := []string{"public", "user", "profile", "corporation", "alliance", "groups", "system", "admin", "scheduler", "notifications", "dev", "*"}
+	actions := []string{"read", "write", "delete", "admin", "*"}
 
 	for _, resource := range resources {
 		if matrix.Permissions[resource] == nil {
@@ -156,6 +156,12 @@ func (ps *PermissionService) grantAllPermissions(matrix *UserPermissionMatrix) {
 			matrix.Permissions[resource][action] = true
 		}
 	}
+	
+	// Also add the wildcard permission for ultimate access
+	if matrix.Permissions["*"] == nil {
+		matrix.Permissions["*"] = make(map[string]bool)
+	}
+	matrix.Permissions["*"]["*"] = true
 }
 
 // grantAllActionsOnResource grants all actions on a specific resource
@@ -460,15 +466,18 @@ func (ps *PermissionService) ValidatePermissionStructure(permissions map[string]
 	var issues []string
 
 	validResources := map[string]bool{
-		"public":      true,
-		"user":        true,
-		"profile":     true,
-		"corporation": true,
-		"alliance":    true,
-		"groups":      true,
-		"system":      true,
-		"admin":       true,
-		"*":           true, // Wildcard resource
+		"public":        true,
+		"user":          true,
+		"profile":       true,
+		"corporation":   true,
+		"alliance":      true,
+		"groups":        true,
+		"system":        true,
+		"admin":         true,
+		"scheduler":     true,
+		"notifications": true,
+		"dev":           true,
+		"*":             true, // Wildcard resource
 	}
 
 	validActions := map[string]bool{
