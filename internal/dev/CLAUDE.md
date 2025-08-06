@@ -34,10 +34,11 @@ internal/dev/
 - **HTTP Client Pooling**: Efficient connection management
 
 ### ESI Clients Available
-- **Status Client**: Server status and player counts
-- **Character Client**: Character information and portraits
+- **Status Client**: Server status and player counts  
+- **Character Client**: Character information and portraits with full caching support
 - **Universe Client**: Solar systems, stations, and universe data
-- **Alliance Client**: Alliance data, members, and icons
+- **Alliance Client**: Alliance data, contacts, corporations, and icons
+- **Corporation Client**: Complete corporation management with authentication support
 
 ### Cache Strategy
 - **Cache Keys**: URL-based cache keys for consistency
@@ -49,17 +50,45 @@ internal/dev/
 
 ### ESI Testing Endpoints
 
+#### Status Endpoints
 | Endpoint | Method | Description | Cache | Telemetry |
 |----------|--------|-------------|-------|-----------|
 | `/esi-status` | GET | EVE Online server status | ✅ | ✅ |
+
+#### Character Endpoints
+| Endpoint | Method | Description | Cache | Telemetry |
+|----------|--------|-------------|-------|-----------|
 | `/character/{characterID}` | GET | Character information | ✅ | ✅ |
 | `/character/{characterID}/portrait` | GET | Character portrait URLs | ✅ | ✅ |
+
+#### Universe Endpoints
+| Endpoint | Method | Description | Cache | Telemetry |
+|----------|--------|-------------|-------|-----------|
 | `/universe/system/{systemID}` | GET | Solar system information | ✅ | ✅ |
 | `/universe/station/{stationID}` | GET | Station information | ✅ | ✅ |
-| `/alliances` | GET | All active alliances | ✅ | ✅ |
-| `/alliance/{allianceID}` | GET | Alliance information | ✅ | ✅ |
-| `/alliance/{allianceID}/corporations` | GET | Alliance member corporations | ✅ | ✅ |
-| `/alliance/{allianceID}/icons` | GET | Alliance icon URLs | ✅ | ✅ |
+
+#### Alliance Endpoints
+| Endpoint | Method | Description | Cache | Auth | Telemetry |
+|----------|--------|-------------|-------|------|--------|
+| `/alliances` | GET | All active alliances | ✅ | ❌ | ✅ |
+| `/alliance/{allianceID}` | GET | Alliance information | ✅ | ❌ | ✅ |
+| `/alliance/{allianceID}/contacts` | GET | Alliance contacts | ✅ | ✅ | ✅ |
+| `/alliance/{allianceID}/contacts/labels` | GET | Alliance contact labels | ✅ | ✅ | ✅ |
+| `/alliance/{allianceID}/corporations` | GET | Alliance member corporations | ✅ | ❌ | ✅ |
+| `/alliance/{allianceID}/icons` | GET | Alliance icon URLs | ✅ | ❌ | ✅ |
+
+#### Corporation Endpoints
+| Endpoint | Method | Description | Cache | Auth | Telemetry |
+|----------|--------|-------------|-------|------|--------|
+| `/corporation/{corporationID}` | GET | Corporation information | ✅ | ❌ | ✅ |
+| `/corporation/{corporationID}/icons` | GET | Corporation icon URLs | ✅ | ❌ | ✅ |
+| `/corporation/{corporationID}/alliancehistory` | GET | Corporation alliance history | ✅ | ❌ | ✅ |
+| `/corporation/{corporationID}/members` | GET | Corporation members | ✅ | ✅ | ✅ |
+| `/corporation/{corporationID}/membertracking` | GET | Member tracking information | ✅ | ✅ | ✅ |
+| `/corporation/{corporationID}/roles` | GET | Member roles | ✅ | ✅ | ✅ |
+| `/corporation/{corporationID}/structures` | GET | Corporation structures | ✅ | ✅ | ✅ |
+| `/corporation/{corporationID}/standings` | GET | Corporation standings | ✅ | ✅ | ✅ |
+| `/corporation/{corporationID}/wallets` | GET | Corporation wallets | ✅ | ✅ | ✅ |
 
 ### SDE Testing Endpoints
 
@@ -100,7 +129,7 @@ All endpoints return a consistent JSON structure:
 ```json
 {
   "source": "EVE Online ESI" | "Static Data Export",
-  "endpoint": "/original/esi/endpoint",
+  "endpoint": "/original/esi/endpoint", 
   "status": "success" | "error",
   "data": { /* actual response data */ },
   "module": "dev",
@@ -111,6 +140,22 @@ All endpoints return a consistent JSON structure:
     "expires_in": 3600
   }
 }
+```
+
+### Enhanced Cache Support
+
+All ESI endpoints now support enhanced cache metadata:
+
+```json
+{
+  "cache": {
+    "cached": true,
+    "expires_at": "2023-01-01T01:00:00Z",
+    "cache_hit": true,
+    "cache_key": "https://esi.evetech.net/v1/characters/123456789/"
+  }
+}
+```
 ```
 
 ## Cache Information
@@ -198,9 +243,28 @@ curl http://localhost:3000/dev/esi-status
 
 # Test character information
 curl http://localhost:3000/dev/character/2112625428
+curl http://localhost:3000/dev/character/2112625428/portrait
 
 # Test alliance information
 curl http://localhost:3000/dev/alliance/99005065
+curl http://localhost:3000/dev/alliances
+
+# Test corporation information (public)
+curl http://localhost:3000/dev/corporation/1000001
+curl http://localhost:3000/dev/corporation/1000001/icons
+curl http://localhost:3000/dev/corporation/1000001/alliancehistory
+
+# Test authenticated corporation endpoints (requires valid token)
+curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/members
+curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/membertracking
+curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/roles
+curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/structures
+curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/standings
+curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/wallets
+
+# Test authenticated alliance endpoints (requires valid token)
+curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/alliance/99005065/contacts
+curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/alliance/99005065/contacts/labels
 ```
 
 ### Testing SDE Integration
@@ -254,17 +318,39 @@ ESI_USER_AGENT=go-falcon/1.0.0 contact@example.com
 - **Cache Manager**: Default implementation with memory storage
 - **Retry Client**: Exponential backoff with error limit tracking
 
+## Authentication Support
+
+### Authenticated Endpoints
+Some ESI endpoints require valid EVE Online access tokens:
+
+- **Corporation Members**: Requires corporation director roles or higher
+- **Corporation Structures**: Requires corporation manager roles or higher  
+- **Corporation Finances**: Requires corporation accountant roles or higher
+- **Alliance Contacts**: Requires alliance executor corporation roles
+
+### Token Format
+Provide access tokens via Authorization header:
+```bash
+curl -H "Authorization: Bearer <access_token>" <endpoint>
+```
+
+### Security Considerations
+- Tokens are never logged or cached
+- Invalid tokens result in 401/403 responses
+- Role validation performed by ESI, not locally
+
 ## Background Tasks
 
 ### Module Background Processing
 - **Health Monitoring**: Continuous service health checks
 - **Cache Maintenance**: Automatic cleanup of expired cache entries
-- **Error Limit Monitoring**: Tracks ESI error rates
+- **Error Limit Monitoring**: Tracks ESI error rates and prevents blocking
+- **Token Validation**: Periodic validation of authentication tokens
 - **Graceful Shutdown**: Proper cleanup on application termination
 
 ### Task Lifecycle
 - **Startup**: Initialize ESI clients and cache managers
-- **Runtime**: Process requests and maintain caches
+- **Runtime**: Process requests, maintain caches, and validate tokens
 - **Shutdown**: Clean up resources and connections
 
 ## Integration Examples
@@ -346,8 +432,15 @@ resp2, _ := http.Get("http://localhost:3000/dev/esi-status")
 ## Future Enhancements
 
 ### Planned Features
-- **More ESI Endpoints**: Additional EVE Online API coverage
+- **Character Assets**: Character-owned items and locations
+- **Character Skills**: Skill information and training queues
+- **Market Data**: Market orders, history, and pricing
+- **Industry**: Manufacturing jobs and blueprints  
+- **Mail System**: EVE Online in-game mail
+- **Contracts**: Public and corporation contracts
+- **Killmails**: Combat records and statistics
 - **Batch Operations**: Multi-request handling
-- **Advanced Caching**: Distributed cache support
+- **Advanced Caching**: Distributed cache support  
 - **WebSocket Integration**: Real-time data streaming
 - **Performance Metrics**: Detailed performance analytics
+- **Token Management**: Automatic token refresh and validation
