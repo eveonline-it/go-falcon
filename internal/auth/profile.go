@@ -135,6 +135,27 @@ func (m *Module) GetUserProfile(ctx context.Context, characterID int) (*UserProf
 	return &profile, nil
 }
 
+// GetAllUserCharacters retrieves all characters for a given user_id
+func (m *Module) GetAllUserCharacters(ctx context.Context, userID string) ([]UserProfile, error) {
+	collection := m.MongoDB().Collection("user_profiles")
+	
+	var characters []UserProfile
+	filter := bson.M{"user_id": userID}
+	
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find characters for user_id %s: %w", userID, err)
+	}
+	defer cursor.Close(ctx)
+	
+	err = cursor.All(ctx, &characters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode characters for user_id %s: %w", userID, err)
+	}
+	
+	return characters, nil
+}
+
 // RefreshUserProfile updates character information from EVE ESI
 func (m *Module) RefreshUserProfile(ctx context.Context, characterID int) (*UserProfile, error) {
 	profile, err := m.GetUserProfile(ctx, characterID)

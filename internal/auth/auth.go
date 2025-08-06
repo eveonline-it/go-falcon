@@ -598,6 +598,29 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 	// Add user info from claims if available
 	if userID, ok := (*claims)["user_id"].(string); ok {
 		response["user_id"] = userID
+		
+		// Get all characters for this user_id
+		allCharacters, err := m.GetAllUserCharacters(r.Context(), userID)
+		if err != nil {
+			slog.Warn("Failed to get all user characters", 
+				slog.String("user_id", userID),
+				slog.String("error", err.Error()))
+			// Still return response without characters if this fails
+		} else {
+			// Create simplified character list for response
+			var characters []map[string]interface{}
+			for _, char := range allCharacters {
+				characters = append(characters, map[string]interface{}{
+					"character_id":   char.CharacterID,
+					"character_name": char.CharacterName,
+					"scopes":         char.Scopes,
+					"valid":          char.Valid,
+					"created_at":     char.CreatedAt,
+					"updated_at":     char.UpdatedAt,
+				})
+			}
+			response["characters"] = characters
+		}
 	}
 	if charName, ok := (*claims)["character_name"].(string); ok {
 		response["character_name"] = charName
