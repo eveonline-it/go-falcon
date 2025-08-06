@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -43,6 +44,7 @@ func (m *Module) Routes(r chi.Router) {
 	r.Get("/eve/callback", m.eveCallbackHandler)
 	r.Post("/eve/refresh", m.eveRefreshHandler)
 	r.Get("/eve/verify", m.eveVerifyHandler)
+	r.Post("/eve/token", m.mobileTokenHandler)
 	
 	// Profile routes (require authentication)
 	r.With(m.JWTMiddleware).Get("/profile", m.profileHandler)
@@ -142,6 +144,19 @@ func (m *Module) eveLoginHandler(w http.ResponseWriter, r *http.Request) {
 		slog.Error("Failed to generate EVE auth URL", slog.String("error", err.Error()))
 		http.Error(w, "Failed to generate auth URL", http.StatusInternalServerError)
 		return
+	}
+	
+	// Debug logging to check URL length
+	slog.Info("Generated EVE auth URL", 
+		slog.Int("url_length", len(authURL)),
+		slog.String("url_preview", authURL[:min(200, len(authURL))]))
+		
+	// Check scope parameter specifically
+	if parsedURL, err := url.Parse(authURL); err == nil {
+		scopeParam := parsedURL.Query().Get("scope")
+		slog.Info("Scope parameter debug",
+			slog.Int("scope_length", len(scopeParam)),
+			slog.String("scope_preview", scopeParam[:min(100, len(scopeParam))]))
 	}
 
 	span.SetAttributes(
@@ -559,4 +574,126 @@ func (m *Module) logoutHandler(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"message": "Logged out successfully",
 	})
+}
+
+// mobileTokenHandler converts EVE SSO tokens to JWT tokens for mobile apps
+func (m *Module) mobileTokenHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "auth.eve.mobile_token",
+		attribute.String("service", "auth"),
+		attribute.String("operation", "mobile_token"),
+	)
+	defer span.End()
+
+	var request struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Invalid request body")
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if request.AccessToken == "" {
+		span.SetStatus(codes.Error, "Missing access_token")
+		http.Error(w, "Missing access_token", http.StatusBadRequest)
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("auth.access_token_present", true),
+		attribute.Bool("auth.refresh_token_present", request.RefreshToken != ""),
+	)
+
+	// Verify the EVE access token and get character info
+	charInfo, err := m.eveSSOHandler.VerifyToken(r.Context(), request.AccessToken)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to verify EVE token")
+		slog.Error("Failed to verify EVE token for mobile", slog.String("error", err.Error()))
+		http.Error(w, "Invalid EVE access token", http.StatusUnauthorized)
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("auth.token_verification_success", true),
+		attribute.Int("eve.character_id", charInfo.CharacterID),
+		attribute.String("eve.character_name", charInfo.CharacterName),
+	)
+
+	// Look up character in database to get user_id
+	profile, err := m.GetUserProfile(r.Context(), charInfo.CharacterID)
+	var userID string
+	if err != nil {
+		// Character not found - create new user
+		userID = uuid.New().String()
+		slog.Info("Generated new user_id for mobile auth", slog.String("user_id", userID))
+		
+		// Create user profile with the provided tokens
+		profile, err = m.CreateOrUpdateUserProfile(r.Context(), charInfo, userID, request.AccessToken, request.RefreshToken)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to create user profile")
+			slog.Error("Failed to create user profile for mobile", slog.String("error", err.Error()))
+			http.Error(w, "Failed to create user profile", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Character exists - use its user_id
+		userID = profile.UserID
+		if userID == "" {
+			userID = uuid.New().String()
+			slog.Info("Generated new user_id for existing character in mobile auth", slog.String("user_id", userID))
+		}
+		
+		// Update profile with new tokens if provided
+		if request.RefreshToken != "" {
+			profile, err = m.CreateOrUpdateUserProfile(r.Context(), charInfo, userID, request.AccessToken, request.RefreshToken)
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "Failed to update user profile")
+				slog.Error("Failed to update user profile for mobile", slog.String("error", err.Error()))
+				http.Error(w, "Failed to update user profile", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	span.SetAttributes(
+		attribute.String("auth.user_id", userID),
+		attribute.Bool("auth.profile_updated", true),
+	)
+
+	// Generate JWT for internal use
+	jwtToken, err := m.eveSSOHandler.GenerateJWT(charInfo, userID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to generate JWT")
+		slog.Error("Failed to generate JWT for mobile", slog.String("error", err.Error()))
+		http.Error(w, "Failed to generate session token", http.StatusInternalServerError)
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("auth.jwt_generated", true),
+		attribute.Bool("auth.success", true),
+	)
+
+	slog.Info("Mobile token exchange successful", 
+		slog.Int("character_id", charInfo.CharacterID),
+		slog.String("character_name", charInfo.CharacterName),
+		slog.String("user_id", userID))
+
+	response := map[string]interface{}{
+		"jwt_token":      jwtToken,
+		"user_id":        userID,
+		"character_id":   charInfo.CharacterID,
+		"character_name": charInfo.CharacterName,
+		"scopes":         charInfo.Scopes,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

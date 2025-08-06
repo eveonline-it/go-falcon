@@ -68,7 +68,17 @@ GET /auth/user
 - Returns full user details if authenticated
 - Includes character info, scopes, and expiration
 
-### 5. Logout
+### 5. Mobile Token Exchange
+```
+POST /auth/eve/token
+```
+- Accepts EVE SSO access token and optional refresh token
+- Validates EVE access token with CCP
+- Creates or updates user profile
+- Returns JWT token for API access
+- Designed for mobile apps that can't use cookies
+
+### 6. Logout
 ```
 POST /auth/logout
 ```
@@ -94,6 +104,7 @@ POST /auth/logout
 - 24-hour expiration
 - Contains character ID, name, and scopes
 - Server-side validation
+- Supports both cookie and Bearer token authentication
 
 ## User Profile Management
 
@@ -193,6 +204,7 @@ ESI_USER_AGENT=go-falcon/1.0.0 (contact@example.com)
 | `/auth/profile` | GET | Yes | Get full user profile |
 | `/auth/profile/refresh` | POST | Yes | Refresh profile from ESI |
 | `/auth/profile/public` | GET | No | Get public profile by ID |
+| `/auth/eve/token` | POST | No | Exchange EVE token for JWT (mobile) |
 
 ### Internal Methods
 
@@ -217,7 +229,7 @@ fetch('/auth/status', { credentials: 'include' })
   });
 ```
 
-### Login Flow
+### Web Login Flow
 ```javascript
 // 1. Get auth URL from backend
 fetch('/auth/eve/login', { credentials: 'include' })
@@ -229,6 +241,34 @@ fetch('/auth/eve/login', { credentials: 'include' })
 
 // 3. Handle callback redirect (automatic)
 // 4. User will be redirected back to frontend with auth cookie
+```
+
+### Mobile Authentication Flow
+```javascript
+// 1. Mobile app handles EVE SSO flow directly
+// 2. Once app has EVE access token, exchange for JWT
+fetch('/auth/eve/token', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    access_token: eveAccessToken,
+    refresh_token: eveRefreshToken // optional
+  })
+})
+.then(res => res.json())
+.then(data => {
+  // Store JWT token for API calls
+  const jwtToken = data.jwt_token;
+  
+  // Use Bearer token for subsequent API calls
+  fetch('/protected-endpoint', {
+    headers: {
+      'Authorization': `Bearer ${jwtToken}`
+    }
+  });
+});
 ```
 
 ### Logout

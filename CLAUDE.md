@@ -213,7 +213,7 @@ The project implements logging with OpenTelemetry integration following the Open
 
 ## EVE Online SSO Integration
 
-The project includes complete EVE Online Single Sign-On (SSO) authentication integration:
+The project includes complete EVE Online Single Sign-On (SSO) authentication integration with support for both web and mobile applications:
 
 ### Configuration
 - **EVE Application Registration**: Applications must be registered at [developers.eveonline.com](https://developers.eveonline.com/)
@@ -226,12 +226,14 @@ The project includes complete EVE Online Single Sign-On (SSO) authentication int
 - **Character Profile Integration**: Automatic retrieval and storage of character data
 - **ESI Integration**: Real-time data from EVE's ESI API (character, corporation, alliance)
 - **Security Best Practices**: CSRF protection, secure cookies, proper token validation
+- **Multi-Platform Support**: Cookie-based auth for web, Bearer token auth for mobile apps
 
 ### Authentication Endpoints
 - `GET /auth/eve/login` - Initiate EVE SSO authentication
 - `GET /auth/eve/callback` - Handle OAuth2 callback
 - `GET /auth/eve/verify` - Verify JWT token validity
 - `POST /auth/eve/refresh` - Refresh access tokens
+- `POST /auth/eve/token` - Exchange EVE tokens for JWT (mobile apps)
 
 ### Profile Endpoints
 - `GET /auth/profile` - Get authenticated user's full profile
@@ -239,9 +241,36 @@ The project includes complete EVE Online Single Sign-On (SSO) authentication int
 - `GET /auth/profile/public` - Get public character information
 
 ### Middleware
-- **JWTMiddleware**: Require valid authentication
-- **OptionalJWTMiddleware**: Add user context if authenticated
+- **JWTMiddleware**: Require valid authentication (supports cookies and Bearer tokens)
+- **OptionalJWTMiddleware**: Add user context if authenticated (supports both methods)
 - **RequireScopes**: Enforce specific EVE Online permissions
+
+### Mobile App Integration
+For mobile applications that cannot use HTTP-only cookies:
+
+1. **EVE SSO Flow**: Mobile app handles EVE Online OAuth2 flow directly
+2. **Token Exchange**: POST EVE access token to `/auth/eve/token`
+3. **JWT Token**: Receive JWT token for API authentication
+4. **Bearer Authentication**: Use `Authorization: Bearer <jwt_token>` header for all API calls
+
+```javascript
+// Mobile app token exchange example
+const response = await fetch('/auth/eve/token', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    access_token: eveAccessToken,
+    refresh_token: eveRefreshToken // optional
+  })
+});
+
+const { jwt_token } = await response.json();
+
+// Use JWT for API calls
+fetch('/protected-endpoint', {
+  headers: { 'Authorization': `Bearer ${jwt_token}` }
+});
+```
 
 ### Documentation
 Complete integration documentation available in `docs/EVE_SSO_INTEGRATION.md`
