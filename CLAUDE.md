@@ -6,8 +6,9 @@ This is a GO architecture project featuring:
 - Monolith modular architecture
 - API Gateway using net/http with Chi
 - Multiple services running background tasks
+- Comprehensive task scheduler with cron scheduling and distributed locking
 - Shared libraries
-- Redis (caching/session management)
+- Redis (caching/session management/distributed locking)
 - MongoDB (primary database)
 - Docker Compose orchestration
 - Websocket using Socket.io via Redis Adapter
@@ -38,6 +39,7 @@ The project's code is organized into several directories:
   - auth: authentication service module with EVE Online SSO integration
   - dev: development module for testing and calling other services
   - notifications: notification service module
+  - scheduler: comprehensive task scheduling and management service
   - users: user management service module
 - pkg: shared libraries
   - app: application initialization and context management
@@ -257,6 +259,11 @@ The following modules have detailed CLAUDE.md documentation files with comprehen
 - **Location**: `internal/dev/CLAUDE.md`
 - **Coverage**: ESI testing endpoints, SDE data access, cache management, telemetry integration, and development utilities
 - **Key Features**: EVE Online API testing, static data validation, performance monitoring, debugging tools
+
+### Scheduler Module
+- **Location**: `internal/scheduler/CLAUDE.md`
+- **Coverage**: Complete task scheduling and management system with cron scheduling, worker pool execution, distributed locking, and comprehensive API
+- **Key Features**: HTTP/Function/System task types, Redis-based distributed locking, execution history, monitoring capabilities, hardcoded system tasks
 
 ### Package Documentation
 

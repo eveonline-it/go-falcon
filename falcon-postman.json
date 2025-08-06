@@ -1,0 +1,1701 @@
+{
+  "info": {
+    "_postman_id": "go-falcon-gateway-collection",
+    "name": "Go-Falcon Gateway - All Endpoints",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T05:43:05Z",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "go-falcon-exporter"
+  },
+  "item": [
+    {
+      "name": "Gateway Module",
+      "description": "Endpoints for the gateway module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Gateway health check with version information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Gateway health check with version information"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth Module",
+      "description": "Endpoints for the auth module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Auth module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "health"
+              ]
+            },
+            "description": "Auth module health check"
+          }
+        },
+        {
+          "name": "GET /eve/login",
+          "description": "Initiate EVE SSO login",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/eve/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "eve",
+                "login"
+              ]
+            },
+            "description": "Initiate EVE SSO login"
+          }
+        },
+        {
+          "name": "GET /eve/callback",
+          "description": "Handle EVE SSO callback",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/eve/callback",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "eve",
+                "callback"
+              ]
+            },
+            "description": "Handle EVE SSO callback"
+          }
+        },
+        {
+          "name": "GET /eve/verify",
+          "description": "Verify JWT token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/eve/verify",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "eve",
+                "verify"
+              ]
+            },
+            "description": "Verify JWT token"
+          }
+        },
+        {
+          "name": "POST /eve/refresh",
+          "description": "Refresh access token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/eve/refresh",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "eve",
+                "refresh"
+              ]
+            },
+            "description": "Refresh access token"
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Check authentication status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "status"
+              ]
+            },
+            "description": "Check authentication status"
+          }
+        },
+        {
+          "name": "GET /user",
+          "description": "Get current user information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/user",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "user"
+              ]
+            },
+            "description": "Get current user information",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /logout",
+          "description": "User logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/logout",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "User logout"
+          }
+        },
+        {
+          "name": "GET /profile",
+          "description": "Get user profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/profile",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
+              ]
+            },
+            "description": "Get user profile",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /profile/refresh",
+          "description": "Refresh profile from ESI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/profile/refresh",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile",
+                "refresh"
+              ]
+            },
+            "description": "Refresh profile from ESI",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /profile/public",
+          "description": "Get public profile by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/profile/public",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile",
+                "public"
+              ]
+            },
+            "description": "Get public profile by ID",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dev Module",
+      "description": "Endpoints for the dev module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Dev module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "health"
+              ]
+            },
+            "description": "Dev module health check"
+          }
+        },
+        {
+          "name": "GET /esi-status",
+          "description": "Get EVE Online server status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/esi-status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "esi-status"
+              ]
+            },
+            "description": "Get EVE Online server status"
+          }
+        },
+        {
+          "name": "GET /character/Character",
+          "description": "Get character information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/character/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "character",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Get character information"
+          }
+        },
+        {
+          "name": "GET /character/Character/portrait",
+          "description": "Get character portrait URLs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/character/{{character_id}}/portrait",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "character",
+                "{{character_id}}",
+                "portrait"
+              ]
+            },
+            "description": "Get character portrait URLs"
+          }
+        },
+        {
+          "name": "GET /universe/system/System",
+          "description": "Get solar system information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/universe/system/{{system_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "universe",
+                "system",
+                "{{system_id}}"
+              ]
+            },
+            "description": "Get solar system information"
+          }
+        },
+        {
+          "name": "GET /universe/station/Station",
+          "description": "Get station information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/universe/station/{{station_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "universe",
+                "station",
+                "{{station_id}}"
+              ]
+            },
+            "description": "Get station information"
+          }
+        },
+        {
+          "name": "GET /alliances",
+          "description": "Get all active alliances",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliances",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliances"
+              ]
+            },
+            "description": "Get all active alliances"
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance",
+          "description": "Get alliance information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}"
+              ]
+            },
+            "description": "Get alliance information"
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance/corporations",
+          "description": "Get alliance member corporations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/corporations",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}",
+                "corporations"
+              ]
+            },
+            "description": "Get alliance member corporations"
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance/icons",
+          "description": "Get alliance icon URLs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/icons",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}",
+                "icons"
+              ]
+            },
+            "description": "Get alliance icon URLs"
+          }
+        },
+        {
+          "name": "GET /sde/status",
+          "description": "Get SDE service status and statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "status"
+              ]
+            },
+            "description": "Get SDE service status and statistics"
+          }
+        },
+        {
+          "name": "GET /sde/agent/Agent",
+          "description": "Get agent information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/agent/{{agent_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "agent",
+                "{{agent_id}}"
+              ]
+            },
+            "description": "Get agent information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/category/Category",
+          "description": "Get category information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/category/{{category_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "category",
+                "{{category_id}}"
+              ]
+            },
+            "description": "Get category information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/blueprint/Blueprint",
+          "description": "Get blueprint information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/blueprint/{{blueprint_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "blueprint",
+                "{{blueprint_id}}"
+              ]
+            },
+            "description": "Get blueprint information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/agents/location/Location",
+          "description": "Get agents by location from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/agents/location/{{location_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "agents",
+                "location",
+                "{{location_id}}"
+              ]
+            },
+            "description": "Get agents by location from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/blueprints",
+          "description": "Get all available blueprint IDs from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/blueprints",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "blueprints"
+              ]
+            },
+            "description": "Get all available blueprint IDs from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/marketgroup/MarketGroup",
+          "description": "Get market group information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/marketgroup/{{market_group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "marketgroup",
+                "{{market_group_id}}"
+              ]
+            },
+            "description": "Get market group information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/marketgroups",
+          "description": "Get all market groups from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/marketgroups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "marketgroups"
+              ]
+            },
+            "description": "Get all market groups from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/metagroup/MetaGroup",
+          "description": "Get meta group information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/metagroup/{{meta_group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "metagroup",
+                "{{meta_group_id}}"
+              ]
+            },
+            "description": "Get meta group information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/metagroups",
+          "description": "Get all meta groups from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/metagroups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "metagroups"
+              ]
+            },
+            "description": "Get all meta groups from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorp/NPCCorp",
+          "description": "Get NPC corporation information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorp/{{npc_corp_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorp",
+                "{{npc_corp_id}}"
+              ]
+            },
+            "description": "Get NPC corporation information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorps",
+          "description": "Get all NPC corporations from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorps",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorps"
+              ]
+            },
+            "description": "Get all NPC corporations from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorps/faction/Faction",
+          "description": "Get NPC corporations by faction from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorps/faction/{{faction_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorps",
+                "faction",
+                "{{faction_id}}"
+              ]
+            },
+            "description": "Get NPC corporations by faction from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/typeid/Type",
+          "description": "Get type ID information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/typeid/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "typeid",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type ID information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/type/Type",
+          "description": "Get type information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/type/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "type",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types",
+          "description": "Get all types from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types"
+              ]
+            },
+            "description": "Get all types from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types/published",
+          "description": "Get all published types from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types/published",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types",
+                "published"
+              ]
+            },
+            "description": "Get all published types from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types/group/Group",
+          "description": "Get types by group ID from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types/group/{{group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types",
+                "group",
+                "{{group_id}}"
+              ]
+            },
+            "description": "Get types by group ID from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/typematerials/Type",
+          "description": "Get type materials from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/typematerials/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "typematerials",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type materials from SDE"
+          }
+        },
+        {
+          "name": "GET /services",
+          "description": "List available development services",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/services",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "services"
+              ]
+            },
+            "description": "List available development services"
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Get module status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "status"
+              ]
+            },
+            "description": "Get module status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users Module",
+      "description": "Endpoints for the users module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Users module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "health"
+              ]
+            },
+            "description": "Users module health check"
+          }
+        },
+        {
+          "name": "GET /",
+          "description": "List all users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "List all users"
+          }
+        },
+        {
+          "name": "POST /",
+          "description": "Create a new user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/users/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "Create a new user"
+          }
+        },
+        {
+          "name": "GET /User",
+          "description": "Get user by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/{{user_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Get user by ID"
+          }
+        },
+        {
+          "name": "PUT /User",
+          "description": "Update user information",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/users/{{user_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Update user information"
+          }
+        },
+        {
+          "name": "DELETE /User",
+          "description": "Delete user",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/{{user_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Delete user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications Module",
+      "description": "Endpoints for the notifications module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Notifications module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/notifications/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications",
+                "health"
+              ]
+            },
+            "description": "Notifications module health check"
+          }
+        },
+        {
+          "name": "GET /",
+          "description": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/notifications/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            },
+            "description": "List notifications"
+          }
+        },
+        {
+          "name": "POST /",
+          "description": "Create a new notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/notifications/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            },
+            "description": "Create a new notification"
+          }
+        },
+        {
+          "name": "GET /{notificationID}",
+          "description": "Get notification by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/notifications/{notificationID}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{notificationID}"
+              ]
+            },
+            "description": "Get notification by ID"
+          }
+        },
+        {
+          "name": "PUT /{notificationID}",
+          "description": "Update notification",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/notifications/{notificationID}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{notificationID}"
+              ]
+            },
+            "description": "Update notification"
+          }
+        },
+        {
+          "name": "DELETE /{notificationID}",
+          "description": "Delete notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/notifications/{notificationID}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{notificationID}"
+              ]
+            },
+            "description": "Delete notification"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set common headers",
+          "pm.request.headers.add({",
+          "    key: 'Accept',",
+          "    value: 'application/json'",
+          "});",
+          "",
+          "// Add timestamp for request tracking",
+          "pm.globals.set('request_timestamp', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Test for successful response or expected error",
+          "pm.test('Response status is valid', function () {",
+          "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204, 400, 401, 403, 404, 500]);",
+          "});",
+          "",
+          "// Test for JSON response when content type is JSON",
+          "if (pm.response.headers.get('Content-Type') \u0026\u0026 pm.response.headers.get('Content-Type').includes('application/json')) {",
+          "    pm.test('Response is valid JSON', function () {",
+          "        pm.response.to.be.json;",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8080",
+      "description": "Base URL for the Go-Falcon API Gateway"
+    },
+    {
+      "key": "api_prefix",
+      "value": "/api/v1",
+      "description": "API prefix used by the gateway"
+    },
+    {
+      "key": "character_id",
+      "value": "123456789",
+      "description": "Example character ID for testing"
+    },
+    {
+      "key": "alliance_id",
+      "value": "1354830081",
+      "description": "Example alliance ID (Goonswarm Federation)"
+    },
+    {
+      "key": "system_id",
+      "value": "30000142",
+      "description": "Example system ID (Jita)"
+    },
+    {
+      "key": "station_id",
+      "value": "60003760",
+      "description": "Example station ID (Jita IV - Moon 4)"
+    },
+    {
+      "key": "user_id",
+      "value": "1",
+      "description": "Example user ID for testing"
+    },
+    {
+      "key": "notification_id",
+      "value": "1",
+      "description": "Example notification ID for testing"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "description": "JWT access token for authenticated endpoints"
+    },
+    {
+      "key": "agent_id",
+      "value": "3008416",
+      "description": "Example agent ID for SDE testing"
+    },
+    {
+      "key": "category_id",
+      "value": "6",
+      "description": "Example category ID (Ship) for SDE testing"
+    },
+    {
+      "key": "blueprint_id",
+      "value": "1000001",
+      "description": "Example blueprint ID for SDE testing"
+    },
+    {
+      "key": "location_id",
+      "value": "60003760",
+      "description": "Example location ID for SDE testing"
+    },
+    {
+      "key": "market_group_id",
+      "value": "4",
+      "description": "Example market group ID for SDE testing"
+    },
+    {
+      "key": "meta_group_id",
+      "value": "1",
+      "description": "Example meta group ID for SDE testing"
+    },
+    {
+      "key": "npc_corp_id",
+      "value": "1000001",
+      "description": "Example NPC corporation ID for SDE testing"
+    },
+    {
+      "key": "faction_id",
+      "value": "500001",
+      "description": "Example faction ID (Caldari State) for SDE testing"
+    },
+    {
+      "key": "type_id",
+      "value": "34",
+      "description": "Example type ID (Tritanium) for SDE testing"
+    },
+    {
+      "key": "group_id",
+      "value": "18",
+      "description": "Example group ID (Mineral) for SDE testing"
+    }
+  ]
+}

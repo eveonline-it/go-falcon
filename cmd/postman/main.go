@@ -8,14 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"go-falcon/internal/auth"
-	"go-falcon/internal/dev"
-	"go-falcon/internal/notifications"
-	"go-falcon/internal/users"
 	"go-falcon/pkg/config"
-	"go-falcon/pkg/database"
-	"go-falcon/pkg/module"
-	"go-falcon/pkg/sde"
 	"go-falcon/pkg/version"
 )
 
@@ -156,7 +149,7 @@ func main() {
 	collection := generatePostmanCollection(routes)
 	
 	// Export to JSON file
-	filename := "go-falcon-gateway-endpoints.postman_collection.json"
+	filename := "falcon-postman.json"
 	if err := exportCollection(collection, filename); err != nil {
 		log.Fatalf("❌ Failed to export collection: %v", err)
 	}
@@ -166,30 +159,22 @@ func main() {
 		countTotalRequests(collection), len(collection.Item))
 }
 
-// discoverRoutes initializes all modules and extracts their routes
+// discoverRoutes uses static route definitions instead of module initialization
 func discoverRoutes() ([]RouteInfo, error) {
 	var routes []RouteInfo
 	
-	// Create dummy database connections and SDE service for module initialization
-	// This is safe since we're only discovering routes, not actually using the modules
-	mongodb := &database.MongoDB{} 
-	redis := &database.Redis{}
-	sdeService := sde.NewService("data/sde") // Dummy SDE service for route discovery
-	
-	// Initialize modules
-	modules := map[string]module.Module{
-		"auth":          auth.New(mongodb, redis, sdeService),
-		"dev":           dev.New(mongodb, redis, sdeService),
-		"users":         users.New(mongodb, redis, sdeService),
-		"notifications": notifications.New(mongodb, redis, sdeService),
+	// Use static route definitions for all modules to avoid environment dependencies
+	moduleRoutes := map[string][]RouteInfo{
+		"auth": getAuthRoutes(),
+		"dev": getDevRoutes(),
+		"users": getUsersRoutes(),
+		"notifications": getNotificationsRoutes(),
 	}
 	
-	// Create a route inspector to capture routes
-	for moduleName, mod := range modules {
+	// Collect routes from all modules
+	for moduleName, moduleRouteList := range moduleRoutes {
 		fmt.Printf("🔍 Discovering routes for module: %s\n", moduleName)
-		
-		moduleRoutes := inspectModuleRoutes(mod, moduleName)
-		routes = append(routes, moduleRoutes...)
+		routes = append(routes, moduleRouteList...)
 	}
 	
 	// Add gateway-level routes
@@ -207,76 +192,82 @@ func discoverRoutes() ([]RouteInfo, error) {
 	return routes, nil
 }
 
-// inspectModuleRoutes extracts route information from known module patterns
-func inspectModuleRoutes(_ module.Module, moduleName string) []RouteInfo {
-	var routes []RouteInfo
-	
-	// Since implementing the full chi.Router interface is complex, 
-	// we'll use predefined route information for each module
-	switch moduleName {
-	case "dev":
-		routes = []RouteInfo{
-			{Method: "GET", Path: "/health", ModuleName: moduleName, HandlerName: "HealthHandler", Description: "Dev module health check"},
-			{Method: "GET", Path: "/esi-status", ModuleName: moduleName, HandlerName: "esiStatusHandler", Description: "Get EVE Online server status"},
-			{Method: "GET", Path: "/character/{characterID}", ModuleName: moduleName, HandlerName: "characterInfoHandler", Description: "Get character information"},
-			{Method: "GET", Path: "/character/{characterID}/portrait", ModuleName: moduleName, HandlerName: "characterPortraitHandler", Description: "Get character portrait URLs"},
-			{Method: "GET", Path: "/universe/system/{systemID}", ModuleName: moduleName, HandlerName: "systemInfoHandler", Description: "Get solar system information"},
-			{Method: "GET", Path: "/universe/station/{stationID}", ModuleName: moduleName, HandlerName: "stationInfoHandler", Description: "Get station information"},
-			{Method: "GET", Path: "/alliances", ModuleName: moduleName, HandlerName: "alliancesHandler", Description: "Get all active alliances"},
-			{Method: "GET", Path: "/alliance/{allianceID}", ModuleName: moduleName, HandlerName: "allianceInfoHandler", Description: "Get alliance information"},
-			{Method: "GET", Path: "/alliance/{allianceID}/corporations", ModuleName: moduleName, HandlerName: "allianceCorporationsHandler", Description: "Get alliance member corporations"},
-			{Method: "GET", Path: "/alliance/{allianceID}/icons", ModuleName: moduleName, HandlerName: "allianceIconsHandler", Description: "Get alliance icon URLs"},
-			{Method: "GET", Path: "/sde/status", ModuleName: moduleName, HandlerName: "sdeStatusHandler", Description: "Get SDE service status and statistics"},
-			{Method: "GET", Path: "/sde/agent/{agentID}", ModuleName: moduleName, HandlerName: "sdeAgentHandler", Description: "Get agent information from SDE"},
-			{Method: "GET", Path: "/sde/category/{categoryID}", ModuleName: moduleName, HandlerName: "sdeCategoryHandler", Description: "Get category information from SDE"},
-			{Method: "GET", Path: "/sde/blueprint/{blueprintID}", ModuleName: moduleName, HandlerName: "sdeBlueprintHandler", Description: "Get blueprint information from SDE"},
-			{Method: "GET", Path: "/sde/agents/location/{locationID}", ModuleName: moduleName, HandlerName: "sdeAgentsByLocationHandler", Description: "Get agents by location from SDE"},
-			{Method: "GET", Path: "/sde/blueprints", ModuleName: moduleName, HandlerName: "sdeBlueprintIdsHandler", Description: "Get all available blueprint IDs from SDE"},
-			{Method: "GET", Path: "/sde/marketgroup/{marketGroupID}", ModuleName: moduleName, HandlerName: "sdeMarketGroupHandler", Description: "Get market group information from SDE"},
-			{Method: "GET", Path: "/sde/marketgroups", ModuleName: moduleName, HandlerName: "sdeMarketGroupsHandler", Description: "Get all market groups from SDE"},
-			{Method: "GET", Path: "/sde/metagroup/{metaGroupID}", ModuleName: moduleName, HandlerName: "sdeMetaGroupHandler", Description: "Get meta group information from SDE"},
-			{Method: "GET", Path: "/sde/metagroups", ModuleName: moduleName, HandlerName: "sdeMetaGroupsHandler", Description: "Get all meta groups from SDE"},
-			{Method: "GET", Path: "/sde/npccorp/{corpID}", ModuleName: moduleName, HandlerName: "sdeNPCCorpHandler", Description: "Get NPC corporation information from SDE"},
-			{Method: "GET", Path: "/sde/npccorps", ModuleName: moduleName, HandlerName: "sdeNPCCorpsHandler", Description: "Get all NPC corporations from SDE"},
-			{Method: "GET", Path: "/sde/npccorps/faction/{factionID}", ModuleName: moduleName, HandlerName: "sdeNPCCorpsByFactionHandler", Description: "Get NPC corporations by faction from SDE"},
-			{Method: "GET", Path: "/sde/typeid/{typeID}", ModuleName: moduleName, HandlerName: "sdeTypeIDHandler", Description: "Get type ID information from SDE"},
-			{Method: "GET", Path: "/sde/type/{typeID}", ModuleName: moduleName, HandlerName: "sdeTypeHandler", Description: "Get type information from SDE"},
-			{Method: "GET", Path: "/sde/types", ModuleName: moduleName, HandlerName: "sdeTypesHandler", Description: "Get all types from SDE"},
-			{Method: "GET", Path: "/sde/types/published", ModuleName: moduleName, HandlerName: "sdePublishedTypesHandler", Description: "Get all published types from SDE"},
-			{Method: "GET", Path: "/sde/types/group/{groupID}", ModuleName: moduleName, HandlerName: "sdeTypesByGroupHandler", Description: "Get types by group ID from SDE"},
-			{Method: "GET", Path: "/sde/typematerials/{typeID}", ModuleName: moduleName, HandlerName: "sdeTypeMaterialsHandler", Description: "Get type materials from SDE"},
-			{Method: "GET", Path: "/services", ModuleName: moduleName, HandlerName: "servicesHandler", Description: "List available development services"},
-			{Method: "GET", Path: "/status", ModuleName: moduleName, HandlerName: "statusHandler", Description: "Get module status"},
-		}
-	case "auth":
-		routes = []RouteInfo{
-			{Method: "GET", Path: "/health", ModuleName: moduleName, HandlerName: "HealthHandler", Description: "Auth module health check"},
-			{Method: "POST", Path: "/login", ModuleName: moduleName, HandlerName: "loginHandler", Description: "User login"},
-			{Method: "POST", Path: "/logout", ModuleName: moduleName, HandlerName: "logoutHandler", Description: "User logout"},
-			{Method: "POST", Path: "/refresh", ModuleName: moduleName, HandlerName: "refreshHandler", Description: "Refresh authentication token"},
-			{Method: "GET", Path: "/me", ModuleName: moduleName, HandlerName: "meHandler", Description: "Get current user information"},
-		}
-	case "users":
-		routes = []RouteInfo{
-			{Method: "GET", Path: "/health", ModuleName: moduleName, HandlerName: "HealthHandler", Description: "Users module health check"},
-			{Method: "GET", Path: "/", ModuleName: moduleName, HandlerName: "listUsersHandler", Description: "List all users"},
-			{Method: "POST", Path: "/", ModuleName: moduleName, HandlerName: "createUserHandler", Description: "Create a new user"},
-			{Method: "GET", Path: "/{userID}", ModuleName: moduleName, HandlerName: "getUserHandler", Description: "Get user by ID"},
-			{Method: "PUT", Path: "/{userID}", ModuleName: moduleName, HandlerName: "updateUserHandler", Description: "Update user information"},
-			{Method: "DELETE", Path: "/{userID}", ModuleName: moduleName, HandlerName: "deleteUserHandler", Description: "Delete user"},
-		}
-	case "notifications":
-		routes = []RouteInfo{
-			{Method: "GET", Path: "/health", ModuleName: moduleName, HandlerName: "HealthHandler", Description: "Notifications module health check"},
-			{Method: "GET", Path: "/", ModuleName: moduleName, HandlerName: "listNotificationsHandler", Description: "List notifications"},
-			{Method: "POST", Path: "/", ModuleName: moduleName, HandlerName: "createNotificationHandler", Description: "Create a new notification"},
-			{Method: "GET", Path: "/{notificationID}", ModuleName: moduleName, HandlerName: "getNotificationHandler", Description: "Get notification by ID"},
-			{Method: "PUT", Path: "/{notificationID}", ModuleName: moduleName, HandlerName: "updateNotificationHandler", Description: "Update notification"},
-			{Method: "DELETE", Path: "/{notificationID}", ModuleName: moduleName, HandlerName: "deleteNotificationHandler", Description: "Delete notification"},
-		}
+// getAuthRoutes returns static route definitions for the auth module
+func getAuthRoutes() []RouteInfo {
+	return []RouteInfo{
+		{Method: "GET", Path: "/health", ModuleName: "auth", HandlerName: "HealthHandler", Description: "Auth module health check"},
+		{Method: "GET", Path: "/eve/login", ModuleName: "auth", HandlerName: "eveLoginHandler", Description: "Initiate EVE SSO login"},
+		{Method: "GET", Path: "/eve/callback", ModuleName: "auth", HandlerName: "eveCallbackHandler", Description: "Handle EVE SSO callback"},
+		{Method: "GET", Path: "/eve/verify", ModuleName: "auth", HandlerName: "eveVerifyHandler", Description: "Verify JWT token"},
+		{Method: "POST", Path: "/eve/refresh", ModuleName: "auth", HandlerName: "eveRefreshHandler", Description: "Refresh access token"},
+		{Method: "GET", Path: "/status", ModuleName: "auth", HandlerName: "statusHandler", Description: "Check authentication status"},
+		{Method: "GET", Path: "/user", ModuleName: "auth", HandlerName: "userHandler", Description: "Get current user information"},
+		{Method: "POST", Path: "/logout", ModuleName: "auth", HandlerName: "logoutHandler", Description: "User logout"},
+		{Method: "GET", Path: "/profile", ModuleName: "auth", HandlerName: "profileHandler", Description: "Get user profile"},
+		{Method: "POST", Path: "/profile/refresh", ModuleName: "auth", HandlerName: "profileRefreshHandler", Description: "Refresh profile from ESI"},
+		{Method: "GET", Path: "/profile/public", ModuleName: "auth", HandlerName: "publicProfileHandler", Description: "Get public profile by ID"},
 	}
-	
-	return routes
+}
+
+// getDevRoutes returns static route definitions for the dev module
+func getDevRoutes() []RouteInfo {
+	return []RouteInfo{
+		{Method: "GET", Path: "/health", ModuleName: "dev", HandlerName: "HealthHandler", Description: "Dev module health check"},
+		{Method: "GET", Path: "/esi-status", ModuleName: "dev", HandlerName: "esiStatusHandler", Description: "Get EVE Online server status"},
+		{Method: "GET", Path: "/character/{characterID}", ModuleName: "dev", HandlerName: "characterInfoHandler", Description: "Get character information"},
+		{Method: "GET", Path: "/character/{characterID}/portrait", ModuleName: "dev", HandlerName: "characterPortraitHandler", Description: "Get character portrait URLs"},
+		{Method: "GET", Path: "/universe/system/{systemID}", ModuleName: "dev", HandlerName: "systemInfoHandler", Description: "Get solar system information"},
+		{Method: "GET", Path: "/universe/station/{stationID}", ModuleName: "dev", HandlerName: "stationInfoHandler", Description: "Get station information"},
+		{Method: "GET", Path: "/alliances", ModuleName: "dev", HandlerName: "alliancesHandler", Description: "Get all active alliances"},
+		{Method: "GET", Path: "/alliance/{allianceID}", ModuleName: "dev", HandlerName: "allianceInfoHandler", Description: "Get alliance information"},
+		{Method: "GET", Path: "/alliance/{allianceID}/corporations", ModuleName: "dev", HandlerName: "allianceCorporationsHandler", Description: "Get alliance member corporations"},
+		{Method: "GET", Path: "/alliance/{allianceID}/icons", ModuleName: "dev", HandlerName: "allianceIconsHandler", Description: "Get alliance icon URLs"},
+		{Method: "GET", Path: "/sde/status", ModuleName: "dev", HandlerName: "sdeStatusHandler", Description: "Get SDE service status and statistics"},
+		{Method: "GET", Path: "/sde/agent/{agentID}", ModuleName: "dev", HandlerName: "sdeAgentHandler", Description: "Get agent information from SDE"},
+		{Method: "GET", Path: "/sde/category/{categoryID}", ModuleName: "dev", HandlerName: "sdeCategoryHandler", Description: "Get category information from SDE"},
+		{Method: "GET", Path: "/sde/blueprint/{blueprintID}", ModuleName: "dev", HandlerName: "sdeBlueprintHandler", Description: "Get blueprint information from SDE"},
+		{Method: "GET", Path: "/sde/agents/location/{locationID}", ModuleName: "dev", HandlerName: "sdeAgentsByLocationHandler", Description: "Get agents by location from SDE"},
+		{Method: "GET", Path: "/sde/blueprints", ModuleName: "dev", HandlerName: "sdeBlueprintIdsHandler", Description: "Get all available blueprint IDs from SDE"},
+		{Method: "GET", Path: "/sde/marketgroup/{marketGroupID}", ModuleName: "dev", HandlerName: "sdeMarketGroupHandler", Description: "Get market group information from SDE"},
+		{Method: "GET", Path: "/sde/marketgroups", ModuleName: "dev", HandlerName: "sdeMarketGroupsHandler", Description: "Get all market groups from SDE"},
+		{Method: "GET", Path: "/sde/metagroup/{metaGroupID}", ModuleName: "dev", HandlerName: "sdeMetaGroupHandler", Description: "Get meta group information from SDE"},
+		{Method: "GET", Path: "/sde/metagroups", ModuleName: "dev", HandlerName: "sdeMetaGroupsHandler", Description: "Get all meta groups from SDE"},
+		{Method: "GET", Path: "/sde/npccorp/{corpID}", ModuleName: "dev", HandlerName: "sdeNPCCorpHandler", Description: "Get NPC corporation information from SDE"},
+		{Method: "GET", Path: "/sde/npccorps", ModuleName: "dev", HandlerName: "sdeNPCCorpsHandler", Description: "Get all NPC corporations from SDE"},
+		{Method: "GET", Path: "/sde/npccorps/faction/{factionID}", ModuleName: "dev", HandlerName: "sdeNPCCorpsByFactionHandler", Description: "Get NPC corporations by faction from SDE"},
+		{Method: "GET", Path: "/sde/typeid/{typeID}", ModuleName: "dev", HandlerName: "sdeTypeIDHandler", Description: "Get type ID information from SDE"},
+		{Method: "GET", Path: "/sde/type/{typeID}", ModuleName: "dev", HandlerName: "sdeTypeHandler", Description: "Get type information from SDE"},
+		{Method: "GET", Path: "/sde/types", ModuleName: "dev", HandlerName: "sdeTypesHandler", Description: "Get all types from SDE"},
+		{Method: "GET", Path: "/sde/types/published", ModuleName: "dev", HandlerName: "sdePublishedTypesHandler", Description: "Get all published types from SDE"},
+		{Method: "GET", Path: "/sde/types/group/{groupID}", ModuleName: "dev", HandlerName: "sdeTypesByGroupHandler", Description: "Get types by group ID from SDE"},
+		{Method: "GET", Path: "/sde/typematerials/{typeID}", ModuleName: "dev", HandlerName: "sdeTypeMaterialsHandler", Description: "Get type materials from SDE"},
+		{Method: "GET", Path: "/services", ModuleName: "dev", HandlerName: "servicesHandler", Description: "List available development services"},
+		{Method: "GET", Path: "/status", ModuleName: "dev", HandlerName: "statusHandler", Description: "Get module status"},
+	}
+}
+
+// getUsersRoutes returns static route definitions for the users module
+func getUsersRoutes() []RouteInfo {
+	return []RouteInfo{
+		{Method: "GET", Path: "/health", ModuleName: "users", HandlerName: "HealthHandler", Description: "Users module health check"},
+		{Method: "GET", Path: "/", ModuleName: "users", HandlerName: "listUsersHandler", Description: "List all users"},
+		{Method: "POST", Path: "/", ModuleName: "users", HandlerName: "createUserHandler", Description: "Create a new user"},
+		{Method: "GET", Path: "/{userID}", ModuleName: "users", HandlerName: "getUserHandler", Description: "Get user by ID"},
+		{Method: "PUT", Path: "/{userID}", ModuleName: "users", HandlerName: "updateUserHandler", Description: "Update user information"},
+		{Method: "DELETE", Path: "/{userID}", ModuleName: "users", HandlerName: "deleteUserHandler", Description: "Delete user"},
+	}
+}
+
+// getNotificationsRoutes returns static route definitions for the notifications module
+func getNotificationsRoutes() []RouteInfo {
+	return []RouteInfo{
+		{Method: "GET", Path: "/health", ModuleName: "notifications", HandlerName: "HealthHandler", Description: "Notifications module health check"},
+		{Method: "GET", Path: "/", ModuleName: "notifications", HandlerName: "listNotificationsHandler", Description: "List notifications"},
+		{Method: "POST", Path: "/", ModuleName: "notifications", HandlerName: "createNotificationHandler", Description: "Create a new notification"},
+		{Method: "GET", Path: "/{notificationID}", ModuleName: "notifications", HandlerName: "getNotificationHandler", Description: "Get notification by ID"},
+		{Method: "PUT", Path: "/{notificationID}", ModuleName: "notifications", HandlerName: "updateNotificationHandler", Description: "Update notification"},
+		{Method: "DELETE", Path: "/{notificationID}", ModuleName: "notifications", HandlerName: "deleteNotificationHandler", Description: "Delete notification"},
+	}
 }
 
 

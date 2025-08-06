@@ -12,6 +12,7 @@ import (
 
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/evegateway/alliance"
+	"go-falcon/pkg/evegateway/corporation"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -31,10 +32,11 @@ type Client struct {
 	limitsMutex sync.RWMutex
 	
 	// Category clients
-	Status    StatusClient
-	Character CharacterClient
-	Universe  UniverseClient
-	Alliance  AllianceClient
+	Status      StatusClient
+	Character   CharacterClient
+	Universe    UniverseClient
+	Alliance    AllianceClient
+	Corporation CorporationClient
 }
 
 // ESIStatusResponse represents the EVE Online server status
@@ -71,6 +73,37 @@ type AllianceClient interface {
 	GetAllianceIcons(ctx context.Context, allianceID int64) (map[string]any, error)
 }
 
+// CorporationClient interface for corporation operations
+type CorporationClient interface {
+	// Basic Corporation Information
+	GetCorporationInfo(ctx context.Context, corporationID int) (*corporation.CorporationInfoResponse, error)
+	GetCorporationInfoWithCache(ctx context.Context, corporationID int) (*corporation.CorporationInfoResult, error)
+	GetCorporationIcons(ctx context.Context, corporationID int) (*corporation.CorporationIcons, error)
+	GetCorporationIconsWithCache(ctx context.Context, corporationID int) (*corporation.CorporationIconsResult, error)
+	GetCorporationAllianceHistory(ctx context.Context, corporationID int) ([]corporation.CorporationAllianceHistory, error)
+	GetCorporationAllianceHistoryWithCache(ctx context.Context, corporationID int) (*corporation.CorporationAllianceHistoryResult, error)
+
+	// Corporation Members (requires authentication)
+	GetCorporationMembers(ctx context.Context, corporationID int, token string) ([]corporation.CorporationMember, error)
+	GetCorporationMembersWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationMembersResult, error)
+	GetCorporationMemberTracking(ctx context.Context, corporationID int, token string) ([]corporation.CorporationMemberTracking, error)
+	GetCorporationMemberTrackingWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationMemberTrackingResult, error)
+	GetCorporationMemberRoles(ctx context.Context, corporationID int, token string) ([]corporation.CorporationMemberRoles, error)
+	GetCorporationMemberRolesWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationRolesResult, error)
+
+	// Corporation Structures and Assets (requires authentication)
+	GetCorporationStructures(ctx context.Context, corporationID int, token string) ([]corporation.CorporationStructure, error)
+	GetCorporationStructuresWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationStructuresResult, error)
+
+	// Corporation Relationships
+	GetCorporationStandings(ctx context.Context, corporationID int, token string) ([]corporation.CorporationStanding, error)
+	GetCorporationStandingsWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationStandingsResult, error)
+
+	// Corporation Finances (requires authentication)
+	GetCorporationWallets(ctx context.Context, corporationID int, token string) ([]corporation.CorporationWallet, error)
+	GetCorporationWalletsWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationWalletResult, error)
+}
+
 // NewClient creates a new EVE Online ESI client
 func NewClient() *Client {
 	var transport http.RoundTripper = http.DefaultTransport
@@ -103,6 +136,8 @@ func NewClient() *Client {
 	universeClient := &universeClientImpl{cacheManager, retryClient, httpClient, "https://esi.evetech.net", userAgent}
 	allianceClientDirect := alliance.NewAllianceClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	allianceClient := &allianceClientImpl{client: allianceClientDirect}
+	corporationClientDirect := corporation.NewCorporationClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	corporationClient := &corporationClientImpl{client: corporationClientDirect}
 	
 	return &Client{
 		httpClient:   httpClient,
@@ -116,6 +151,7 @@ func NewClient() *Client {
 		Character:    characterClient,
 		Universe:     universeClient,
 		Alliance:     allianceClient,
+		Corporation:  corporationClient,
 	}
 }
 
@@ -447,5 +483,82 @@ func (a *allianceClientImpl) GetAllianceIcons(ctx context.Context, allianceID in
 		result["px128x128"] = *icons.Px128x128
 	}
 	return result, nil
+}
+
+// corporationClientImpl wraps the corporation.Client to match the interface
+type corporationClientImpl struct {
+	client corporation.Client
+}
+
+func (c *corporationClientImpl) GetCorporationInfo(ctx context.Context, corporationID int) (*corporation.CorporationInfoResponse, error) {
+	return c.client.GetCorporationInfo(ctx, corporationID)
+}
+
+func (c *corporationClientImpl) GetCorporationInfoWithCache(ctx context.Context, corporationID int) (*corporation.CorporationInfoResult, error) {
+	return c.client.GetCorporationInfoWithCache(ctx, corporationID)
+}
+
+func (c *corporationClientImpl) GetCorporationIcons(ctx context.Context, corporationID int) (*corporation.CorporationIcons, error) {
+	return c.client.GetCorporationIcons(ctx, corporationID)
+}
+
+func (c *corporationClientImpl) GetCorporationIconsWithCache(ctx context.Context, corporationID int) (*corporation.CorporationIconsResult, error) {
+	return c.client.GetCorporationIconsWithCache(ctx, corporationID)
+}
+
+func (c *corporationClientImpl) GetCorporationAllianceHistory(ctx context.Context, corporationID int) ([]corporation.CorporationAllianceHistory, error) {
+	return c.client.GetCorporationAllianceHistory(ctx, corporationID)
+}
+
+func (c *corporationClientImpl) GetCorporationAllianceHistoryWithCache(ctx context.Context, corporationID int) (*corporation.CorporationAllianceHistoryResult, error) {
+	return c.client.GetCorporationAllianceHistoryWithCache(ctx, corporationID)
+}
+
+func (c *corporationClientImpl) GetCorporationMembers(ctx context.Context, corporationID int, token string) ([]corporation.CorporationMember, error) {
+	return c.client.GetCorporationMembers(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationMembersWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationMembersResult, error) {
+	return c.client.GetCorporationMembersWithCache(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationMemberTracking(ctx context.Context, corporationID int, token string) ([]corporation.CorporationMemberTracking, error) {
+	return c.client.GetCorporationMemberTracking(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationMemberTrackingWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationMemberTrackingResult, error) {
+	return c.client.GetCorporationMemberTrackingWithCache(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationMemberRoles(ctx context.Context, corporationID int, token string) ([]corporation.CorporationMemberRoles, error) {
+	return c.client.GetCorporationMemberRoles(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationMemberRolesWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationRolesResult, error) {
+	return c.client.GetCorporationMemberRolesWithCache(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationStructures(ctx context.Context, corporationID int, token string) ([]corporation.CorporationStructure, error) {
+	return c.client.GetCorporationStructures(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationStructuresWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationStructuresResult, error) {
+	return c.client.GetCorporationStructuresWithCache(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationStandings(ctx context.Context, corporationID int, token string) ([]corporation.CorporationStanding, error) {
+	return c.client.GetCorporationStandings(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationStandingsWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationStandingsResult, error) {
+	return c.client.GetCorporationStandingsWithCache(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationWallets(ctx context.Context, corporationID int, token string) ([]corporation.CorporationWallet, error) {
+	return c.client.GetCorporationWallets(ctx, corporationID, token)
+}
+
+func (c *corporationClientImpl) GetCorporationWalletsWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationWalletResult, error) {
+	return c.client.GetCorporationWalletsWithCache(ctx, corporationID, token)
 }
 
