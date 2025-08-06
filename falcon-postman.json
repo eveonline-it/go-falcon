@@ -2,11 +2,315 @@
   "info": {
     "_postman_id": "go-falcon-gateway-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T05:56:51Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T10:26:58Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
   "item": [
+    {
+      "name": "Users Module",
+      "description": "Endpoints for the users module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Users module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "health"
+              ]
+            },
+            "description": "Users module health check"
+          }
+        },
+        {
+          "name": "GET /",
+          "description": "List all users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "description": "List all users"
+          }
+        },
+        {
+          "name": "POST /",
+          "description": "Create a new user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/users/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "description": "Create a new user"
+          }
+        },
+        {
+          "name": "GET /ID",
+          "description": "Get user by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{id}}"
+              ]
+            },
+            "description": "Get user by ID"
+          }
+        },
+        {
+          "name": "PUT /ID",
+          "description": "Update user information",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{id}}"
+              ]
+            },
+            "description": "Update user information"
+          }
+        },
+        {
+          "name": "DELETE /ID",
+          "description": "Delete user",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{id}}"
+              ]
+            },
+            "description": "Delete user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications Module",
+      "description": "Endpoints for the notifications module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Notifications module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/notifications/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "health"
+              ]
+            },
+            "description": "Notifications module health check"
+          }
+        },
+        {
+          "name": "GET /",
+          "description": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/notifications/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ]
+            },
+            "description": "List notifications"
+          }
+        },
+        {
+          "name": "POST /",
+          "description": "Send a new notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/notifications/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ]
+            },
+            "description": "Send a new notification"
+          }
+        },
+        {
+          "name": "PUT /ID",
+          "description": "Mark notification as read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/notifications/{{id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "{{id}}"
+              ]
+            },
+            "description": "Mark notification as read"
+          }
+        }
+      ]
+    },
     {
       "name": "Scheduler Module",
       "description": "Endpoints for the scheduler module",
@@ -24,11 +328,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/scheduler/health",
+              "raw": "{{gateway_url}}/api/scheduler/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "health"
               ]
@@ -49,11 +354,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks",
+              "raw": "{{gateway_url}}/api/scheduler/tasks",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks"
               ]
@@ -93,11 +399,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks",
+              "raw": "{{gateway_url}}/api/scheduler/tasks",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks"
               ]
@@ -128,11 +435,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}"
@@ -173,11 +481,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}"
@@ -209,11 +518,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}"
@@ -254,11 +564,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/start",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/start",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -300,11 +611,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/stop",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/stop",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -346,11 +658,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/pause",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/pause",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -392,11 +705,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/resume",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/resume",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -429,11 +743,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/history",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/history",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -466,11 +781,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/executions/{{execution_id}}",
+              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/executions/{{execution_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -504,11 +820,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/scheduler/stats",
+              "raw": "{{gateway_url}}/api/scheduler/stats",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "stats"
               ]
@@ -538,11 +855,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/scheduler/reload",
+              "raw": "{{gateway_url}}/api/scheduler/reload",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "reload"
               ]
@@ -563,16 +881,47 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/scheduler/status",
+              "raw": "{{gateway_url}}/api/scheduler/status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "scheduler",
                 "status"
               ]
             },
             "description": "Get scheduler service status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateway Module",
+      "description": "Endpoints for the gateway module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Gateway health check with version information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Gateway health check with version information"
           }
         }
       ]
@@ -594,11 +943,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/health",
+              "raw": "{{gateway_url}}/api/auth/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "health"
               ]
@@ -628,11 +978,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/auth/login",
+              "raw": "{{gateway_url}}/api/auth/login",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "login"
               ]
@@ -662,11 +1013,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/auth/register",
+              "raw": "{{gateway_url}}/api/auth/register",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "register"
               ]
@@ -687,11 +1039,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/status",
+              "raw": "{{gateway_url}}/api/auth/status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "status"
               ]
@@ -712,11 +1065,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/eve/login",
+              "raw": "{{gateway_url}}/api/auth/eve/login",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "eve",
                 "login"
@@ -738,11 +1092,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/eve/callback",
+              "raw": "{{gateway_url}}/api/auth/eve/callback",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "eve",
                 "callback"
@@ -773,11 +1128,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/auth/eve/refresh",
+              "raw": "{{gateway_url}}/api/auth/eve/refresh",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "eve",
                 "refresh"
@@ -799,11 +1155,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/eve/verify",
+              "raw": "{{gateway_url}}/api/auth/eve/verify",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "eve",
                 "verify"
@@ -825,11 +1182,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/profile/public",
+              "raw": "{{gateway_url}}/api/auth/profile/public",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "profile",
                 "public"
@@ -861,11 +1219,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/user",
+              "raw": "{{gateway_url}}/api/auth/user",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "user"
               ]
@@ -896,11 +1255,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/status",
+              "raw": "{{gateway_url}}/api/auth/status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "status"
               ]
@@ -930,11 +1290,12 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/auth/logout",
+              "raw": "{{gateway_url}}/api/auth/logout",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "logout"
               ]
@@ -965,11 +1326,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/profile",
+              "raw": "{{gateway_url}}/api/auth/profile",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "profile"
               ]
@@ -1009,17 +1371,402 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/auth/profile/refresh",
+              "raw": "{{gateway_url}}/api/auth/profile/refresh",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "profile",
                 "refresh"
               ]
             },
             "description": "Refresh profile from ESI",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups Module",
+      "description": "Endpoints for the groups module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Groups module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Groups module health check"
+          }
+        },
+        {
+          "name": "GET /groups",
+          "description": "List all groups with user's membership status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/groups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "groups"
+              ]
+            },
+            "description": "List all groups with user's membership status",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /groups",
+          "description": "Create a new custom group (admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/groups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "groups"
+              ]
+            },
+            "description": "Create a new custom group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /groups/Group",
+          "description": "Update an existing group (admin only)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "groups",
+                "{{group_id_groups}}"
+              ]
+            },
+            "description": "Update an existing group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /groups/Group",
+          "description": "Delete a custom group (admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "groups",
+                "{{group_id_groups}}"
+              ]
+            },
+            "description": "Delete a custom group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /groups/Group/members",
+          "description": "List all members of a group (admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}/members",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "groups",
+                "{{group_id_groups}}",
+                "members"
+              ]
+            },
+            "description": "List all members of a group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /groups/Group/members",
+          "description": "Add a member to a group (admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}/members",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "groups",
+                "{{group_id_groups}}",
+                "members"
+              ]
+            },
+            "description": "Add a member to a group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /groups/Group/members/Character",
+          "description": "Remove a member from a group (admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}/members/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "groups",
+                "{{group_id_groups}}",
+                "members",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Remove a member from a group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /permissions/check",
+          "description": "Check if user has specific permission",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/permissions/check",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "permissions",
+                "check"
+              ]
+            },
+            "description": "Check if user has specific permission",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /permissions/user",
+          "description": "Get user's complete permission matrix",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/permissions/user",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "permissions",
+                "user"
+              ]
+            },
+            "description": "Get user's complete permission matrix",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1051,11 +1798,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/health",
+              "raw": "{{gateway_url}}/api/dev/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "health"
               ]
@@ -1076,11 +1824,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/esi-status",
+              "raw": "{{gateway_url}}/api/dev/esi-status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "esi-status"
               ]
@@ -1101,11 +1850,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/character/{{character_id}}",
+              "raw": "{{gateway_url}}/api/dev/character/{{character_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "character",
                 "{{character_id}}"
@@ -1127,11 +1877,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/character/{{character_id}}/portrait",
+              "raw": "{{gateway_url}}/api/dev/character/{{character_id}}/portrait",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "character",
                 "{{character_id}}",
@@ -1154,11 +1905,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/universe/system/{{system_id}}",
+              "raw": "{{gateway_url}}/api/dev/universe/system/{{system_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "universe",
                 "system",
@@ -1181,11 +1933,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/universe/station/{{station_id}}",
+              "raw": "{{gateway_url}}/api/dev/universe/station/{{station_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "universe",
                 "station",
@@ -1208,11 +1961,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/alliances",
+              "raw": "{{gateway_url}}/api/dev/alliances",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "alliances"
               ]
@@ -1233,11 +1987,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}",
+              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "alliance",
                 "{{alliance_id}}"
@@ -1259,11 +2014,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/contacts",
+              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}/contacts",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "alliance",
                 "{{alliance_id}}",
@@ -1296,11 +2052,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/contacts/labels",
+              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}/contacts/labels",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "alliance",
                 "{{alliance_id}}",
@@ -1334,11 +2091,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/corporations",
+              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}/corporations",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "alliance",
                 "{{alliance_id}}",
@@ -1361,11 +2119,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/icons",
+              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}/icons",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "alliance",
                 "{{alliance_id}}",
@@ -1388,11 +2147,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}"
@@ -1414,11 +2174,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/icons",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/icons",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}",
@@ -1441,11 +2202,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/alliancehistory",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/alliancehistory",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}",
@@ -1468,11 +2230,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/members",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/members",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}",
@@ -1505,11 +2268,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/membertracking",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/membertracking",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}",
@@ -1542,11 +2306,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/roles",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/roles",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}",
@@ -1579,11 +2344,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/structures",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/structures",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}",
@@ -1616,11 +2382,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/standings",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/standings",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}",
@@ -1653,11 +2420,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/wallets",
+              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/wallets",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "corporation",
                 "{{corporation_id}}",
@@ -1690,11 +2458,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/status",
+              "raw": "{{gateway_url}}/api/dev/sde/status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "status"
@@ -1716,11 +2485,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/agent/{{agent_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/agent/{{agent_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "agent",
@@ -1743,11 +2513,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/category/{{category_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/category/{{category_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "category",
@@ -1770,11 +2541,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/blueprint/{{blueprint_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/blueprint/{{blueprint_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "blueprint",
@@ -1797,11 +2569,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/agents/location/{{location_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/agents/location/{{location_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "agents",
@@ -1825,11 +2598,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/blueprints",
+              "raw": "{{gateway_url}}/api/dev/sde/blueprints",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "blueprints"
@@ -1851,11 +2625,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/marketgroup/{{market_group_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/marketgroup/{{market_group_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "marketgroup",
@@ -1878,11 +2653,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/marketgroups",
+              "raw": "{{gateway_url}}/api/dev/sde/marketgroups",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "marketgroups"
@@ -1904,11 +2680,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/metagroup/{{meta_group_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/metagroup/{{meta_group_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "metagroup",
@@ -1931,11 +2708,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/metagroups",
+              "raw": "{{gateway_url}}/api/dev/sde/metagroups",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "metagroups"
@@ -1957,11 +2735,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/npccorp/{{npc_corp_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/npccorp/{{npc_corp_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "npccorp",
@@ -1984,11 +2763,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/npccorps",
+              "raw": "{{gateway_url}}/api/dev/sde/npccorps",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "npccorps"
@@ -2010,11 +2790,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/npccorps/faction/{{faction_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/npccorps/faction/{{faction_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "npccorps",
@@ -2038,11 +2819,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/typeid/{{type_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/typeid/{{type_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "typeid",
@@ -2065,11 +2847,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/type/{{type_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/type/{{type_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "type",
@@ -2092,11 +2875,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/types",
+              "raw": "{{gateway_url}}/api/dev/sde/types",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "types"
@@ -2118,11 +2902,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/types/published",
+              "raw": "{{gateway_url}}/api/dev/sde/types/published",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "types",
@@ -2145,11 +2930,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/types/group/{{group_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/types/group/{{group_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "types",
@@ -2173,11 +2959,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/sde/typematerials/{{type_id}}",
+              "raw": "{{gateway_url}}/api/dev/sde/typematerials/{{type_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "sde",
                 "typematerials",
@@ -2200,11 +2987,12 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/services",
+              "raw": "{{gateway_url}}/api/dev/services",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "services"
               ]
@@ -2225,340 +3013,17 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/status",
+              "raw": "{{gateway_url}}/api/dev/status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "api",
                 "dev",
                 "status"
               ]
             },
             "description": "Get module status"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Users Module",
-      "description": "Endpoints for the users module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Users module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "health"
-              ]
-            },
-            "description": "Users module health check"
-          }
-        },
-        {
-          "name": "GET /",
-          "description": "List all users",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users"
-              ]
-            },
-            "description": "List all users"
-          }
-        },
-        {
-          "name": "POST /",
-          "description": "Create a new user",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/users/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users"
-              ]
-            },
-            "description": "Create a new user"
-          }
-        },
-        {
-          "name": "GET /ID",
-          "description": "Get user by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/{{id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "{{id}}"
-              ]
-            },
-            "description": "Get user by ID"
-          }
-        },
-        {
-          "name": "PUT /ID",
-          "description": "Update user information",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/users/{{id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "{{id}}"
-              ]
-            },
-            "description": "Update user information"
-          }
-        },
-        {
-          "name": "DELETE /ID",
-          "description": "Delete user",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/{{id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "{{id}}"
-              ]
-            },
-            "description": "Delete user"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Notifications Module",
-      "description": "Endpoints for the notifications module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Notifications module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/notifications/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications",
-                "health"
-              ]
-            },
-            "description": "Notifications module health check"
-          }
-        },
-        {
-          "name": "GET /",
-          "description": "List notifications",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/notifications/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications"
-              ]
-            },
-            "description": "List notifications"
-          }
-        },
-        {
-          "name": "POST /",
-          "description": "Send a new notification",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/notifications/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications"
-              ]
-            },
-            "description": "Send a new notification"
-          }
-        },
-        {
-          "name": "PUT /ID",
-          "description": "Mark notification as read",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/notifications/{{id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications",
-                "{{id}}"
-              ]
-            },
-            "description": "Mark notification as read"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Gateway Module",
-      "description": "Endpoints for the gateway module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Gateway health check with version information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Gateway health check with version information"
           }
         }
       ]
@@ -2711,6 +3176,11 @@
       "key": "execution_id",
       "value": "1",
       "description": "Example execution ID for scheduler testing"
+    },
+    {
+      "key": "group_id_groups",
+      "value": "507f1f77bcf86cd799439011",
+      "description": "Example group ID (MongoDB ObjectID) for groups testing"
     }
   ]
 }

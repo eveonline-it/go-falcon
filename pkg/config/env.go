@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // GetEnv returns the value of an environment variable or a default value if not set
@@ -45,7 +46,7 @@ func MustGetEnv(key string) string {
 func GetAPIPrefix() string {
 	prefix := GetEnv("API_PREFIX", "")
 	if prefix == "" {
-		return ""
+		return "/api" // Default to /api if no prefix is set
 	}
 	return "/" + prefix
 }
@@ -74,4 +75,33 @@ func GetJWTSecret() string {
 // GetFrontendURL returns the frontend URL for redirects
 func GetFrontendURL() string {
 	return GetEnv("FRONTEND_URL", "https://go.eveonline.it")
+}
+
+// GetEnvInt is an alias for GetIntEnv for backward compatibility
+func GetEnvInt(key string, defaultValue int) int {
+	return GetIntEnv(key, defaultValue)
+}
+
+// GetEnvIntSlice returns a slice of integers from a comma-separated environment variable
+func GetEnvIntSlice(key string) []int {
+	value := os.Getenv(key)
+	if value == "" {
+		return []int{}
+	}
+	
+	parts := strings.Split(value, ",")
+	result := make([]int, 0, len(parts))
+	
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		
+		if num, err := strconv.Atoi(part); err == nil {
+			result = append(result, num)
+		}
+	}
+	
+	return result
 }

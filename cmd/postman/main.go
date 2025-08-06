@@ -166,6 +166,7 @@ func discoverRoutes() ([]RouteInfo, error) {
 	// Use static route definitions for all modules to avoid environment dependencies
 	moduleRoutes := map[string][]RouteInfo{
 		"auth": getAuthRoutes(),
+		"groups": getGroupsRoutes(),
 		"dev": getDevRoutes(),
 		"users": getUsersRoutes(),
 		"notifications": getNotificationsRoutes(),
@@ -214,6 +215,28 @@ func getAuthRoutes() []RouteInfo {
 		{Method: "POST", Path: "/logout", ModuleName: "auth", HandlerName: "logoutHandler", Description: "User logout"},
 		{Method: "GET", Path: "/profile", ModuleName: "auth", HandlerName: "profileHandler", Description: "Get user profile"},
 		{Method: "POST", Path: "/profile/refresh", ModuleName: "auth", HandlerName: "profileRefreshHandler", Description: "Refresh profile from ESI"},
+	}
+}
+
+// getGroupsRoutes returns static route definitions for the groups module
+func getGroupsRoutes() []RouteInfo {
+	return []RouteInfo{
+		{Method: "GET", Path: "/health", ModuleName: "groups", HandlerName: "HealthHandler", Description: "Groups module health check"},
+		
+		// Group Management endpoints
+		{Method: "GET", Path: "/groups", ModuleName: "groups", HandlerName: "listGroupsHandler", Description: "List all groups with user's membership status"},
+		{Method: "POST", Path: "/groups", ModuleName: "groups", HandlerName: "createGroupHandler", Description: "Create a new custom group (admin only)"},
+		{Method: "PUT", Path: "/groups/{groupsID}", ModuleName: "groups", HandlerName: "updateGroupHandler", Description: "Update an existing group (admin only)"},
+		{Method: "DELETE", Path: "/groups/{groupsID}", ModuleName: "groups", HandlerName: "deleteGroupHandler", Description: "Delete a custom group (admin only)"},
+		
+		// Group Membership endpoints
+		{Method: "GET", Path: "/groups/{groupsID}/members", ModuleName: "groups", HandlerName: "listMembersHandler", Description: "List all members of a group (admin only)"},
+		{Method: "POST", Path: "/groups/{groupsID}/members", ModuleName: "groups", HandlerName: "addMemberHandler", Description: "Add a member to a group (admin only)"},
+		{Method: "DELETE", Path: "/groups/{groupsID}/members/{characterID}", ModuleName: "groups", HandlerName: "removeMemberHandler", Description: "Remove a member from a group (admin only)"},
+		
+		// Permission endpoints
+		{Method: "GET", Path: "/permissions/check", ModuleName: "groups", HandlerName: "checkPermissionHandler", Description: "Check if user has specific permission"},
+		{Method: "GET", Path: "/permissions/user", ModuleName: "groups", HandlerName: "getUserPermissionsHandler", Description: "Get user's complete permission matrix"},
 	}
 }
 
@@ -440,6 +463,11 @@ func generatePostmanCollection(routes []RouteInfo) *PostmanCollection {
 				Value:       "1",
 				Description: "Example execution ID for scheduler testing",
 			},
+			{
+				Key:         "group_id_groups",
+				Value:       "507f1f77bcf86cd799439011",
+				Description: "Example group ID (MongoDB ObjectID) for groups testing",
+			},
 		},
 		Event: []PostmanEvent{
 			{
@@ -522,6 +550,13 @@ func createPostmanRequest(route RouteInfo) PostmanRequest {
 	if route.ModuleName == "gateway" {
 		// Gateway routes don't have module prefix
 		fullPath = route.Path
+	} else if route.ModuleName == "groups" {
+		// Groups routes are mounted at API root level (no /groups prefix)
+		if apiPrefix != "" {
+			fullPath = apiPrefix + route.Path
+		} else {
+			fullPath = route.Path
+		}
 	} else {
 		// Module routes: apiPrefix + /module + route.Path
 		if apiPrefix != "" {
@@ -607,6 +642,7 @@ func processPathParameters(path string) string {
 		"{corporationID}":  "{{corporation_id}}",
 		"{taskID}":         "{{task_id}}",
 		"{executionID}":    "{{execution_id}}",
+		"{groupsID}":       "{{group_id_groups}}",
 	}
 	
 	for old, new := range paramMappings {
@@ -633,6 +669,8 @@ func needsAuth(path string) bool {
 		"/tasks",
 		"/logout",
 		"/scheduler",
+		"/groups",
+		"/permissions",
 	}
 	
 	for _, authPath := range authPaths {
@@ -668,6 +706,7 @@ func createRequestName(route RouteInfo) string {
 	name = strings.ReplaceAll(name, "{corporationID}", "Corporation")
 	name = strings.ReplaceAll(name, "{taskID}", "Task")
 	name = strings.ReplaceAll(name, "{executionID}", "Execution")
+	name = strings.ReplaceAll(name, "{groupsID}", "Group")
 	
 	return name
 }
