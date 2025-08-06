@@ -11,6 +11,7 @@ import (
 	evegateway "go-falcon/pkg/evegateway"
 	"go-falcon/pkg/evegateway/alliance"
 	"go-falcon/pkg/evegateway/character"
+	"go-falcon/pkg/evegateway/corporation"
 	"go-falcon/pkg/evegateway/status"
 	"go-falcon/pkg/evegateway/universe"
 	"go-falcon/pkg/module"
@@ -21,12 +22,13 @@ import (
 
 type Module struct {
 	*module.BaseModule
-	evegateClient    *evegateway.Client
-	statusClient     status.Client
-	characterClient  character.Client
-	universeClient   universe.Client
-	allianceClient   alliance.Client
-	cacheManager     evegateway.CacheManager
+	evegateClient     *evegateway.Client
+	statusClient      status.Client
+	characterClient   character.Client
+	universeClient    universe.Client
+	allianceClient    alliance.Client
+	corporationClient corporation.Client
+	cacheManager      evegateway.CacheManager
 }
 
 func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService) *Module {
@@ -46,15 +48,17 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 	characterClient := character.NewCharacterClient(httpClient, baseURL, userAgent, cacheManager, retryClient)
 	universeClient := universe.NewUniverseClient(httpClient, baseURL, userAgent, cacheManager, retryClient)
 	allianceClient := alliance.NewAllianceClient(httpClient, baseURL, userAgent, cacheManager, retryClient)
+	corporationClient := corporation.NewCorporationClient(httpClient, baseURL, userAgent, cacheManager, retryClient)
 	
 	return &Module{
-		BaseModule:       module.NewBaseModule("dev", mongodb, redis, sdeService),
-		evegateClient:    evegateClient,
-		statusClient:     statusClient,
-		characterClient:  characterClient,
-		universeClient:   universeClient,
-		allianceClient:   allianceClient,
-		cacheManager:     cacheManager,
+		BaseModule:        module.NewBaseModule("dev", mongodb, redis, sdeService),
+		evegateClient:     evegateClient,
+		statusClient:      statusClient,
+		characterClient:   characterClient,
+		universeClient:    universeClient,
+		allianceClient:    allianceClient,
+		corporationClient: corporationClient,
+		cacheManager:      cacheManager,
 	}
 }
 
@@ -67,8 +71,20 @@ func (m *Module) Routes(r chi.Router) {
 	r.Get("/universe/station/{stationID}", m.stationInfoHandler)
 	r.Get("/alliances", m.alliancesHandler)
 	r.Get("/alliance/{allianceID}", m.allianceInfoHandler)
+	r.Get("/alliance/{allianceID}/contacts", m.allianceContactsHandler)
+	r.Get("/alliance/{allianceID}/contacts/labels", m.allianceContactLabelsHandler)
 	r.Get("/alliance/{allianceID}/corporations", m.allianceCorporationsHandler)
 	r.Get("/alliance/{allianceID}/icons", m.allianceIconsHandler)
+	// Corporation endpoints
+	r.Get("/corporation/{corporationID}", m.corporationInfoHandler)
+	r.Get("/corporation/{corporationID}/icons", m.corporationIconsHandler)
+	r.Get("/corporation/{corporationID}/alliancehistory", m.corporationAllianceHistoryHandler)
+	r.Get("/corporation/{corporationID}/members", m.corporationMembersHandler)
+	r.Get("/corporation/{corporationID}/membertracking", m.corporationMemberTrackingHandler)
+	r.Get("/corporation/{corporationID}/roles", m.corporationMemberRolesHandler)
+	r.Get("/corporation/{corporationID}/structures", m.corporationStructuresHandler)
+	r.Get("/corporation/{corporationID}/standings", m.corporationStandingsHandler)
+	r.Get("/corporation/{corporationID}/wallets", m.corporationWalletsHandler)
 	r.Get("/sde/status", m.sdeStatusHandler)
 	r.Get("/sde/agent/{agentID}", m.sdeAgentHandler)
 	r.Get("/sde/category/{categoryID}", m.sdeCategoryHandler)

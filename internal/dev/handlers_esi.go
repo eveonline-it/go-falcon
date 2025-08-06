@@ -697,3 +697,167 @@ func (m *Module) allianceIconsHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(response)
 }
+
+// allianceContactsHandler gets alliance contacts from ESI (requires authentication)
+func (m *Module) allianceContactsHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.allianceContactsHandler",
+		attribute.String("dev.operation", "alliance_contacts"),
+		attribute.String("dev.service", "evegate"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	allianceIDStr := chi.URLParam(r, "allianceID")
+	allianceID, err := strconv.ParseInt(allianceIDStr, 10, 64)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Invalid alliance ID", "alliance_id", allianceIDStr, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"Invalid alliance ID","details":"Alliance ID must be a valid integer"}`))
+		return
+	}
+
+	// Extract token from Authorization header
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Missing authorization token for alliance contacts", "alliance_id", allianceID)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"Authorization required","details":"This endpoint requires a valid EVE Online access token"}`))
+		return
+	}
+
+	// Remove "Bearer " prefix if present
+	if len(token) > 7 && token[:7] == "Bearer " {
+		token = token[7:]
+	}
+
+	ctx := r.Context()
+	contacts, err := m.allianceClient.GetAllianceContacts(ctx, allianceID, token)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(ctx, "Dev: Failed to get alliance contacts", "alliance_id", allianceID, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		
+		// Check if it's an auth error
+		if err.Error() == "403" || err.Error() == "401" {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"Access denied","details":"Invalid token or insufficient permissions for alliance contacts"}`))
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error":"Failed to retrieve alliance contacts","details":"` + err.Error() + `"}`))
+		}
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.Int64("alliance.id", allianceID),
+		attribute.Int("contacts.count", len(contacts)),
+	)
+
+	slog.InfoContext(ctx, "Dev: Alliance contacts retrieved successfully",
+		"alliance_id", allianceID,
+		"count", len(contacts))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":   "EVE Online ESI",
+		"endpoint": "/alliances/" + allianceIDStr + "/contacts",
+		"status":   "success",
+		"data":     contacts,
+		"module":   m.Name(),
+		"count":    len(contacts),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// allianceContactLabelsHandler gets alliance contact labels from ESI (requires authentication)
+func (m *Module) allianceContactLabelsHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.allianceContactLabelsHandler",
+		attribute.String("dev.operation", "alliance_contact_labels"),
+		attribute.String("dev.service", "evegate"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	allianceIDStr := chi.URLParam(r, "allianceID")
+	allianceID, err := strconv.ParseInt(allianceIDStr, 10, 64)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Invalid alliance ID", "alliance_id", allianceIDStr, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"Invalid alliance ID","details":"Alliance ID must be a valid integer"}`))
+		return
+	}
+
+	// Extract token from Authorization header
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Missing authorization token for alliance contact labels", "alliance_id", allianceID)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"Authorization required","details":"This endpoint requires a valid EVE Online access token"}`))
+		return
+	}
+
+	// Remove "Bearer " prefix if present
+	if len(token) > 7 && token[:7] == "Bearer " {
+		token = token[7:]
+	}
+
+	ctx := r.Context()
+	labels, err := m.allianceClient.GetAllianceContactLabels(ctx, allianceID, token)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(ctx, "Dev: Failed to get alliance contact labels", "alliance_id", allianceID, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		
+		// Check if it's an auth error
+		if err.Error() == "403" || err.Error() == "401" {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"Access denied","details":"Invalid token or insufficient permissions for alliance contact labels"}`))
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error":"Failed to retrieve alliance contact labels","details":"` + err.Error() + `"}`))
+		}
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.Int64("alliance.id", allianceID),
+		attribute.Int("labels.count", len(labels)),
+	)
+
+	slog.InfoContext(ctx, "Dev: Alliance contact labels retrieved successfully",
+		"alliance_id", allianceID,
+		"count", len(labels))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":   "EVE Online ESI",
+		"endpoint": "/alliances/" + allianceIDStr + "/contacts/labels",
+		"status":   "success",
+		"data":     labels,
+		"module":   m.Name(),
+		"count":    len(labels),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
