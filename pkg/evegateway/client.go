@@ -109,7 +109,7 @@ func NewClient() *Client {
 	var transport http.RoundTripper = http.DefaultTransport
 	
 	// Only add OpenTelemetry instrumentation if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		transport = otelhttp.NewTransport(http.DefaultTransport, 
 			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 				return fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Host)
@@ -167,7 +167,7 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 	
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate")
 		ctx, span = tracer.Start(ctx, "evegate.GetServerStatus")
 		defer span.End()

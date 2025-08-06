@@ -29,7 +29,7 @@ func NewMongoDB(ctx context.Context, serviceName string) (*MongoDB, error) {
 	opts := options.Client().ApplyURI(uri)
 
 	// Only add OpenTelemetry instrumentation if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		opts.SetMonitor(otelmongo.NewMonitor())
 	}
 

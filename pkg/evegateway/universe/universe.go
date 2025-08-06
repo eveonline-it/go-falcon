@@ -111,7 +111,7 @@ func (c *UniverseClient) GetSystemInfo(ctx context.Context, systemID int) (*Syst
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/universe")
 		ctx, span = tracer.Start(ctx, "universe.GetSystemInfo")
 		defer span.End()
@@ -229,7 +229,7 @@ func (c *UniverseClient) GetSystemInfoWithCache(ctx context.Context, systemID in
 	var cacheExpiry *time.Time
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/universe")
 		ctx, span = tracer.Start(ctx, "universe.GetSystemInfoWithCache")
 		defer span.End()
@@ -280,7 +280,7 @@ func (c *UniverseClient) GetStationInfo(ctx context.Context, stationID int) (*St
 	endpoint := fmt.Sprintf("/universe/stations/%d/", stationID)
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/universe")
 		ctx, span = tracer.Start(ctx, "universe.GetStationInfo")
 		defer span.End()
@@ -380,7 +380,7 @@ func (c *UniverseClient) GetStationInfoWithCache(ctx context.Context, stationID 
 	var cacheExpiry *time.Time
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/universe")
 		ctx, span = tracer.Start(ctx, "universe.GetStationInfoWithCache")
 		defer span.End()

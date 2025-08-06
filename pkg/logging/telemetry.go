@@ -37,7 +37,7 @@ type TelemetryManager struct {
 
 func NewTelemetryManager() *TelemetryManager {
 	telemetryConfig := TelemetryConfig{
-		EnableTelemetry:   config.GetBoolEnv("ENABLE_TELEMETRY", true),
+		EnableTelemetry:   config.GetBoolEnv("ENABLE_TELEMETRY", false),
 		ServiceName:       config.GetEnv("SERVICE_NAME", "unknown-service"),
 		OTLPEndpoint:      config.GetEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318"),
 		LogLevel:          config.GetEnv("LOG_LEVEL", "info"),

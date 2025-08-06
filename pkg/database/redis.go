@@ -49,7 +49,7 @@ func NewRedis(ctx context.Context) (*Redis, error) {
 	}
 
 	// Only initialize tracer if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		redis.tracer = otel.Tracer("redis-client")
 	}
 

@@ -13,7 +13,7 @@ import (
 
 func TracingMiddleware(next http.Handler) http.Handler {
 	// If telemetry is disabled, return the handler without tracing
-	if !config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if !config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		return next
 	}
 

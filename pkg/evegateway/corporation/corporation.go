@@ -241,7 +241,7 @@ func (c *CorporationClient) GetCorporationInfo(ctx context.Context, corporationI
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegateway/corporation")
 		ctx, span = tracer.Start(ctx, "corporation.GetCorporationInfo")
 		defer span.End()
@@ -403,7 +403,7 @@ func (c *CorporationClient) GetCorporationInfoWithCache(ctx context.Context, cor
 	var cacheExpiry *time.Time
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegateway/corporation")
 		ctx, span = tracer.Start(ctx, "corporation.GetCorporationInfoWithCache")
 		defer span.End()
@@ -455,7 +455,7 @@ func (c *CorporationClient) GetCorporationIcons(ctx context.Context, corporation
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegateway/corporation")
 		ctx, span = tracer.Start(ctx, "corporation.GetCorporationIcons")
 		defer span.End()
@@ -561,7 +561,7 @@ func (c *CorporationClient) GetCorporationIconsWithCache(ctx context.Context, co
 	var cacheExpiry *time.Time
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegateway/corporation")
 		ctx, span = tracer.Start(ctx, "corporation.GetCorporationIconsWithCache")
 		defer span.End()
@@ -600,7 +600,7 @@ func (c *CorporationClient) GetCorporationIconsWithCache(ctx context.Context, co
 func (c *CorporationClient) makeAuthenticatedRequest(ctx context.Context, endpoint, token string, cacheKey string) ([]byte, error) {
 	var span trace.Span
 	
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegateway/corporation")
 		ctx, span = tracer.Start(ctx, "corporation.makeAuthenticatedRequest")
 		defer span.End()

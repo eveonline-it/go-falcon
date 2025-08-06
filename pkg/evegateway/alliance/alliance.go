@@ -99,7 +99,7 @@ func (c *AllianceClient) GetAlliances(ctx context.Context) ([]int64, error) {
 	endpoint := "/alliances"
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/alliance")
 		ctx, span = tracer.Start(ctx, "alliance.GetAlliances")
 		defer span.End()
@@ -247,7 +247,7 @@ func (c *AllianceClient) GetAllianceInfo(ctx context.Context, allianceID int64) 
 	endpoint := fmt.Sprintf("/alliances/%d", allianceID)
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/alliance")
 		ctx, span = tracer.Start(ctx, "alliance.GetAllianceInfo")
 		defer span.End()
@@ -361,7 +361,7 @@ func (c *AllianceClient) GetAllianceContacts(ctx context.Context, allianceID int
 	var span trace.Span
 	endpoint := fmt.Sprintf("/alliances/%d/contacts", allianceID)
 
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/alliance")
 		ctx, span = tracer.Start(ctx, "alliance.GetAllianceContacts")
 		defer span.End()
@@ -431,7 +431,7 @@ func (c *AllianceClient) GetAllianceContactLabels(ctx context.Context, allianceI
 	var span trace.Span
 	endpoint := fmt.Sprintf("/alliances/%d/contacts/labels", allianceID)
 
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/alliance")
 		ctx, span = tracer.Start(ctx, "alliance.GetAllianceContactLabels")
 		defer span.End()
@@ -502,7 +502,7 @@ func (c *AllianceClient) GetAllianceCorporations(ctx context.Context, allianceID
 	endpoint := fmt.Sprintf("/alliances/%d/corporations", allianceID)
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/alliance")
 		ctx, span = tracer.Start(ctx, "alliance.GetAllianceCorporations")
 		defer span.End()
@@ -610,7 +610,7 @@ func (c *AllianceClient) GetAllianceIcons(ctx context.Context, allianceID int64)
 	endpoint := fmt.Sprintf("/alliances/%d/icons", allianceID)
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/alliance")
 		ctx, span = tracer.Start(ctx, "alliance.GetAllianceIcons")
 		defer span.End()

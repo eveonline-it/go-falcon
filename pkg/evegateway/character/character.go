@@ -109,7 +109,7 @@ func (c *CharacterClient) GetCharacterInfo(ctx context.Context, characterID int)
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/character")
 		ctx, span = tracer.Start(ctx, "character.GetCharacterInfo")
 		defer span.End()
@@ -271,7 +271,7 @@ func (c *CharacterClient) GetCharacterInfoWithCache(ctx context.Context, charact
 	var cacheExpiry *time.Time
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/character")
 		ctx, span = tracer.Start(ctx, "character.GetCharacterInfoWithCache")
 		defer span.End()
@@ -323,7 +323,7 @@ func (c *CharacterClient) GetCharacterPortrait(ctx context.Context, characterID 
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/character")
 		ctx, span = tracer.Start(ctx, "character.GetCharacterPortrait")
 		defer span.End()
@@ -440,7 +440,7 @@ func (c *CharacterClient) GetCharacterPortraitWithCache(ctx context.Context, cha
 	var cacheExpiry *time.Time
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/character")
 		ctx, span = tracer.Start(ctx, "character.GetCharacterPortraitWithCache")
 		defer span.End()

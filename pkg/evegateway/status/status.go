@@ -71,7 +71,7 @@ func (c *StatusClient) GetServerStatus(ctx context.Context) (*ServerStatusRespon
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
 	// Only create spans if telemetry is enabled
-	if config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate/status")
 		ctx, span = tracer.Start(ctx, "status.GetServerStatus")
 		defer span.End()

@@ -14,7 +14,7 @@ import (
 // TracingMiddleware creates HTTP tracing middleware using OpenTelemetry
 func TracingMiddleware(serviceName string) func(http.Handler) http.Handler {
 	// If telemetry is disabled, return a no-op middleware
-	if !config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if !config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		return func(next http.Handler) http.Handler {
 			return next
 		}
@@ -30,7 +30,7 @@ func TracingMiddleware(serviceName string) func(http.Handler) http.Handler {
 // StartHTTPSpan starts a new span for HTTP operations
 func StartHTTPSpan(r *http.Request, operationName string, attributes ...attribute.KeyValue) (trace.Span, *http.Request) {
 	// Only create spans if telemetry is enabled
-	if !config.GetBoolEnv("ENABLE_TELEMETRY", true) {
+	if !config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		return trace.SpanFromContext(r.Context()), r
 	}
 	
