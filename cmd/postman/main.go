@@ -298,11 +298,14 @@ func getDevRoutes() []RouteInfo {
 func getUsersRoutes() []RouteInfo {
 	return []RouteInfo{
 		{Method: "GET", Path: "/health", ModuleName: "users", HandlerName: "HealthHandler", Description: "Users module health check"},
-		{Method: "GET", Path: "/", ModuleName: "users", HandlerName: "getUsersHandler", Description: "List all users"},
-		{Method: "POST", Path: "/", ModuleName: "users", HandlerName: "createUserHandler", Description: "Create a new user"},
-		{Method: "GET", Path: "/{id}", ModuleName: "users", HandlerName: "getUserHandler", Description: "Get user by ID"},
-		{Method: "PUT", Path: "/{id}", ModuleName: "users", HandlerName: "updateUserHandler", Description: "Update user information"},
-		{Method: "DELETE", Path: "/{id}", ModuleName: "users", HandlerName: "deleteUserHandler", Description: "Delete user"},
+		// Public endpoints
+		{Method: "GET", Path: "/stats", ModuleName: "users", HandlerName: "getUserStatsHandler", Description: "Get user statistics (public endpoint)"},
+		// Administrative endpoints (require authentication and admin permissions)
+		{Method: "GET", Path: "/", ModuleName: "users", HandlerName: "listUsersHandler", Description: "List users with pagination and filtering (requires users:read permission)"},
+		{Method: "GET", Path: "/{character_id}", ModuleName: "users", HandlerName: "getUserHandler", Description: "Get user by character ID (requires users:read permission)"},
+		{Method: "PUT", Path: "/{character_id}", ModuleName: "users", HandlerName: "updateUserHandler", Description: "Update user status and settings (requires users:write permission)"},
+		// User-specific character management (requires authentication)
+		{Method: "GET", Path: "/by-user-id/{user_id}/characters", ModuleName: "users", HandlerName: "listCharactersHandler", Description: "List characters for a user (requires authentication, self-access or users:read permission)"},
 	}
 }
 
@@ -346,7 +349,7 @@ func getSchedulerRoutes() []RouteInfo {
 func generatePostmanCollection(routes []RouteInfo) *PostmanCollection {
 	collection := &PostmanCollection{
 		Info: PostmanInfo{
-			PostmanID:   "go-falcon-gateway-collection",
+			PostmanID:   "go-falcon-collection",
 			Name:        "Go-Falcon Gateway - All Endpoints",
 			Description: fmt.Sprintf("Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: %s\nGenerated: %s", version.GetVersionString(), time.Now().Format(time.RFC3339)),
 			Schema:      "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -547,17 +550,18 @@ func createPostmanRequest(route RouteInfo) PostmanRequest {
 	apiPrefix := config.GetAPIPrefix()
 	
 	var fullPath string
-	if route.ModuleName == "gateway" {
+	switch route.ModuleName {
+	case "gateway":
 		// Gateway routes don't have module prefix
 		fullPath = route.Path
-	} else if route.ModuleName == "groups" {
+	case "groups":
 		// Groups routes are mounted at API root level (no /groups prefix)
 		if apiPrefix != "" {
 			fullPath = apiPrefix + route.Path
 		} else {
 			fullPath = route.Path
 		}
-	} else {
+	default:
 		// Module routes: apiPrefix + /module + route.Path
 		if apiPrefix != "" {
 			fullPath = apiPrefix + "/" + route.ModuleName + route.Path
@@ -624,10 +628,12 @@ func processPathParameters(path string) string {
 	// Common parameter mappings
 	paramMappings := map[string]string{
 		"{characterID}":    "{{character_id}}",
+		"{character_id}":   "{{character_id}}",
 		"{allianceID}":     "{{alliance_id}}",
 		"{systemID}":       "{{system_id}}",
 		"{stationID}":      "{{station_id}}",
 		"{userID}":         "{{user_id}}",
+		"{user_id}":        "{{user_id}}",
 		"{id}":             "{{id}}",
 		"{agentID}":        "{{agent_id}}",
 		"{categoryID}":     "{{category_id}}",
@@ -654,32 +660,42 @@ func processPathParameters(path string) string {
 
 // needsAuth determines if an endpoint needs authentication
 func needsAuth(path string) bool {
-	authPaths := []string{
-		"/contacts",
-		"/user",
-		"/profile",
-		"/private",
-		"/admin",
-		"/members",
-		"/membertracking", 
-		"/roles",
-		"/structures",
-		"/standings",
-		"/wallets",
-		"/tasks",
-		"/logout",
-		"/scheduler",
-		"/groups",
-		"/permissions",
+	// Public endpoints that never require authentication
+	publicPaths := []string{
+		"/health",
+		"/stats", // users stats endpoint is public
+		"/esi-status",
+		"/alliances",
+		"/alliance/", // public alliance info endpoints
+		"/corporation/", // public corporation info endpoints  
+		"/universe/",
+		"/character/", // public character info endpoints
+		"/sde/",
+		"/services",
+		"/status",
+		"/eve/login",
+		"/eve/callback",
 	}
 	
-	for _, authPath := range authPaths {
-		if strings.Contains(path, authPath) {
-			return true
+	// Check if it's a public endpoint
+	for _, publicPath := range publicPaths {
+		if strings.Contains(path, publicPath) {
+			// Special case: some endpoints under these paths still need auth
+			if strings.Contains(path, "/contacts") || 
+			   strings.Contains(path, "/members") ||
+			   strings.Contains(path, "/membertracking") ||
+			   strings.Contains(path, "/roles") ||
+			   strings.Contains(path, "/structures") ||
+			   strings.Contains(path, "/standings") ||
+			   strings.Contains(path, "/wallets") {
+				return true
+			}
+			return false
 		}
 	}
 	
-	return false
+	// All other paths require authentication
+	return true
 }
 
 // createRequestName generates a human-readable name for the request
@@ -688,10 +704,12 @@ func createRequestName(route RouteInfo) string {
 	
 	// Clean up common patterns
 	name = strings.ReplaceAll(name, "{characterID}", "Character")
+	name = strings.ReplaceAll(name, "{character_id}", "Character")
 	name = strings.ReplaceAll(name, "{allianceID}", "Alliance")
 	name = strings.ReplaceAll(name, "{systemID}", "System")
 	name = strings.ReplaceAll(name, "{stationID}", "Station")
 	name = strings.ReplaceAll(name, "{userID}", "User")
+	name = strings.ReplaceAll(name, "{user_id}", "User")
 	name = strings.ReplaceAll(name, "{id}", "ID")
 	name = strings.ReplaceAll(name, "{agentID}", "Agent")
 	name = strings.ReplaceAll(name, "{categoryID}", "Category")

@@ -1,190 +1,12 @@
 {
   "info": {
-    "_postman_id": "go-falcon-gateway-collection",
+    "_postman_id": "go-falcon-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T10:26:58Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T15:13:25Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
   "item": [
-    {
-      "name": "Users Module",
-      "description": "Endpoints for the users module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Users module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "health"
-              ]
-            },
-            "description": "Users module health check"
-          }
-        },
-        {
-          "name": "GET /",
-          "description": "List all users",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users"
-              ]
-            },
-            "description": "List all users"
-          }
-        },
-        {
-          "name": "POST /",
-          "description": "Create a new user",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/users/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users"
-              ]
-            },
-            "description": "Create a new user"
-          }
-        },
-        {
-          "name": "GET /ID",
-          "description": "Get user by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/{{id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "{{id}}"
-              ]
-            },
-            "description": "Get user by ID"
-          }
-        },
-        {
-          "name": "PUT /ID",
-          "description": "Update user information",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/users/{{id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "{{id}}"
-              ]
-            },
-            "description": "Update user information"
-          }
-        },
-        {
-          "name": "DELETE /ID",
-          "description": "Delete user",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/{{id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "{{id}}"
-              ]
-            },
-            "description": "Delete user"
-          }
-        }
-      ]
-    },
     {
       "name": "Notifications Module",
       "description": "Endpoints for the notifications module",
@@ -237,7 +59,17 @@
                 "notifications"
               ]
             },
-            "description": "List notifications"
+            "description": "List notifications",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -271,7 +103,17 @@
                 "notifications"
               ]
             },
-            "description": "Send a new notification"
+            "description": "Send a new notification",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -306,7 +148,17 @@
                 "{{id}}"
               ]
             },
-            "description": "Mark notification as read"
+            "description": "Mark notification as read",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
       ]
@@ -865,7 +717,17 @@
                 "reload"
               ]
             },
-            "description": "Reload scheduler configuration"
+            "description": "Reload scheduler configuration",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -988,7 +850,17 @@
                 "login"
               ]
             },
-            "description": "Basic login endpoint"
+            "description": "Basic login endpoint",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -1023,7 +895,17 @@
                 "register"
               ]
             },
-            "description": "User registration endpoint"
+            "description": "User registration endpoint",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -1139,7 +1021,17 @@
                 "refresh"
               ]
             },
-            "description": "Refresh access token"
+            "description": "Refresh access token",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -1166,7 +1058,17 @@
                 "verify"
               ]
             },
-            "description": "Verify JWT token"
+            "description": "Verify JWT token",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -1682,7 +1584,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}/members/{{character_id}}",
+              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}/members/{{{character_id}}}",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -1691,7 +1593,7 @@
                 "groups",
                 "{{group_id_groups}}",
                 "members",
-                "{{character_id}}"
+                "{{{character_id}}}"
               ]
             },
             "description": "Remove a member from a group (admin only)",
@@ -1850,7 +1752,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/dev/character/{{character_id}}",
+              "raw": "{{gateway_url}}/api/dev/character/{{{character_id}}}",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -1858,7 +1760,7 @@
                 "api",
                 "dev",
                 "character",
-                "{{character_id}}"
+                "{{{character_id}}}"
               ]
             },
             "description": "Get character information"
@@ -1877,7 +1779,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/dev/character/{{character_id}}/portrait",
+              "raw": "{{gateway_url}}/api/dev/character/{{{character_id}}}/portrait",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -1885,7 +1787,7 @@
                 "api",
                 "dev",
                 "character",
-                "{{character_id}}",
+                "{{{character_id}}}",
                 "portrait"
               ]
             },
@@ -3024,6 +2926,218 @@
               ]
             },
             "description": "Get module status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users Module",
+      "description": "Endpoints for the users module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Users module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "health"
+              ]
+            },
+            "description": "Users module health check"
+          }
+        },
+        {
+          "name": "GET /stats",
+          "description": "Get user statistics (public endpoint)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/stats",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "stats"
+              ]
+            },
+            "description": "Get user statistics (public endpoint)"
+          }
+        },
+        {
+          "name": "GET /",
+          "description": "List users with pagination and filtering (requires users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "description": "List users with pagination and filtering (requires users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /Character",
+          "description": "Get user by character ID (requires users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Get user by character ID (requires users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /Character",
+          "description": "Update user status and settings (requires users:write permission)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Update user status and settings (requires users:write permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /by-user-id/User/characters",
+          "description": "List characters for a user (requires authentication, self-access or users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/users/by-user-id/{{user_id}}/characters",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "by-user-id",
+                "{{user_id}}",
+                "characters"
+              ]
+            },
+            "description": "List characters for a user (requires authentication, self-access or users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
       ]
