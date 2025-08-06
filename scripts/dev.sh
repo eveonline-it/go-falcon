@@ -14,7 +14,9 @@ fi
 # Load environment variables if .env exists
 if [ -f .env ]; then
     echo "📄 Loading environment variables from .env..."
-    export $(grep -v '^#' .env | xargs)
+    set -o allexport
+    source .env
+    set +o allexport
 else
     echo "❌ Error: .env file not found"
     echo "Please create a .env file in the project root"
