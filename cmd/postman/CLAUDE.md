@@ -46,6 +46,7 @@ moduleRoutes := map[string][]RouteInfo{
     "dev":           getDevRoutes(), 
     "users":         getUsersRoutes(),
     "notifications": getNotificationsRoutes(),
+    "scheduler":     getSchedulerRoutes(),
 }
 ```
 
@@ -76,6 +77,28 @@ func discoverRoutesReflection() ([]RouteInfo, error) {
 
 ## Module Coverage
 
+### Recently Updated (2024-08-06)
+
+The Postman collection exporter has been significantly enhanced to include all endpoints from the internal packages:
+
+**Major Improvements:**
+- ✅ **Added Scheduler Module**: Complete task management system (15 endpoints)
+- ✅ **Enhanced Auth Module**: Added basic login/register endpoints and protected routes (14 endpoints total)
+- ✅ **Expanded Dev Module**: Added corporation endpoints and alliance contact endpoints (42 endpoints total)
+- ✅ **Fixed Users Module**: Corrected path parameters from `{userID}` to `{id}` (6 endpoints)
+- ✅ **Updated Notifications Module**: Aligned with actual implementation (4 endpoints)
+- ✅ **Enhanced Authentication Detection**: Added patterns for EVE corporation endpoints
+- ✅ **New Variables**: Added `corporation_id`, `task_id`, `execution_id` for comprehensive testing
+- ✅ **Route Count**: Increased from ~45 to 82 endpoints across 6 modules
+
+**Endpoint Coverage:**
+- **Gateway Module**: 1 endpoint
+- **Auth Module**: 14 endpoints (EVE SSO + basic auth + protected routes)
+- **Dev Module**: 42 endpoints (ESI + SDE + Corporation + Alliance)
+- **Users Module**: 6 endpoints (CRUD operations)
+- **Notifications Module**: 4 endpoints (list, send, mark read)
+- **Scheduler Module**: 15 endpoints (task management + control + history)
+
 ### Currently Supported Modules
 
 #### Gateway Module
@@ -101,8 +124,14 @@ func discoverRoutesReflection() ([]RouteInfo, error) {
 - **Health Monitoring**: Module status and health
 
 #### Notifications Module  
-- **CRUD Operations**: Create, read, update, delete notifications
-- **Notification Management**: List notifications, get by ID
+- **Notification Management**: List notifications, send notifications, mark as read
+- **Health Monitoring**: Module status and health
+
+#### Scheduler Module (Task Management)
+- **Task Management**: Create, read, update, delete scheduled tasks
+- **Task Control**: Start, stop, pause, resume tasks
+- **Execution History**: View task execution history and specific execution details
+- **System Management**: Statistics, reload configuration, service status
 - **Health Monitoring**: Module status and health
 
 ### Module Extension Pattern
@@ -171,7 +200,26 @@ Go-Falcon Gateway Collection/
 │   │   └── ... more SDE endpoints
 │   └── Utility Endpoints/
 ├── Users Module/
-└── Notifications Module/
+│   ├── GET /users/
+│   ├── POST /users/
+│   ├── GET /users/{id}
+│   └── ... more user endpoints
+├── Notifications Module/
+│   ├── GET /notifications/
+│   ├── POST /notifications/
+│   └── PUT /notifications/{id}
+└── Scheduler Module/
+    ├── Task Management/
+    │   ├── GET /scheduler/tasks
+    │   ├── POST /scheduler/tasks
+    │   └── ... more task endpoints
+    ├── Task Control/
+    │   ├── POST /scheduler/tasks/{taskID}/start
+    │   ├── POST /scheduler/tasks/{taskID}/stop
+    │   └── ... more control endpoints
+    └── System Management/
+        ├── GET /scheduler/stats
+        └── POST /scheduler/reload
 ```
 
 ## Variable Management
@@ -213,7 +261,10 @@ The collection includes comprehensive variables for all endpoint parameters:
 ```json
 {
     "user_id": "1",
-    "notification_id": "1"
+    "notification_id": "1",
+    "corporation_id": "98000001",
+    "task_id": "1",
+    "execution_id": "1"
 }
 ```
 
@@ -243,6 +294,15 @@ func needsAuth(path string) bool {
         "/profile",
         "/private",
         "/admin",
+        "/members",
+        "/membertracking", 
+        "/roles",
+        "/structures",
+        "/standings",
+        "/wallets",
+        "/tasks",
+        "/logout",
+        "/scheduler",
     }
     // ... detection logic
 }
@@ -362,9 +422,10 @@ go build -o postman cmd/postman/main.go
 🔍 Discovering routes for module: dev
 🔍 Discovering routes for module: users
 🔍 Discovering routes for module: notifications
-📋 Discovered 45 routes across 4 modules
+🔍 Discovering routes for module: scheduler
+📋 Discovered 82 routes across 6 modules
 ✅ Postman collection exported to: falcon-postman.json
-📊 Collection contains 45 endpoints organized in 4 modules
+📊 Collection contains 82 endpoints organized in 6 modules
 ```
 
 ### Output File

@@ -2,18 +2,18 @@
   "info": {
     "_postman_id": "go-falcon-gateway-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T05:43:05Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T05:56:51Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
   "item": [
     {
-      "name": "Gateway Module",
-      "description": "Endpoints for the gateway module",
+      "name": "Scheduler Module",
+      "description": "Endpoints for the scheduler module",
       "item": [
         {
           "name": "GET /health",
-          "description": "Gateway health check with version information",
+          "description": "Scheduler module health check",
           "request": {
             "method": "GET",
             "header": [
@@ -24,15 +24,555 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/health",
+              "raw": "{{gateway_url}}/scheduler/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
+                "scheduler",
                 "health"
               ]
             },
-            "description": "Gateway health check with version information"
+            "description": "Scheduler module health check"
+          }
+        },
+        {
+          "name": "GET /tasks",
+          "description": "List all scheduled tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks"
+              ]
+            },
+            "description": "List all scheduled tasks",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks",
+          "description": "Create a new scheduled task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks"
+              ]
+            },
+            "description": "Create a new scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /tasks/Task",
+          "description": "Get task details by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": "Get task details by ID",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /tasks/Task",
+          "description": "Update task configuration",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": "Update task configuration",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /tasks/Task",
+          "description": "Delete scheduled task",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": "Delete scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/Task/start",
+          "description": "Start/enable scheduled task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/start",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "start"
+              ]
+            },
+            "description": "Start/enable scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/Task/stop",
+          "description": "Stop/disable scheduled task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/stop",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "stop"
+              ]
+            },
+            "description": "Stop/disable scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/Task/pause",
+          "description": "Pause scheduled task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/pause",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "pause"
+              ]
+            },
+            "description": "Pause scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/Task/resume",
+          "description": "Resume paused task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/resume",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "resume"
+              ]
+            },
+            "description": "Resume paused task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /tasks/Task/history",
+          "description": "Get task execution history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/history",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "history"
+              ]
+            },
+            "description": "Get task execution history",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /tasks/Task/executions/Execution",
+          "description": "Get specific execution details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/executions/{{execution_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "executions",
+                "{{execution_id}}"
+              ]
+            },
+            "description": "Get specific execution details",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /stats",
+          "description": "Get scheduler statistics and metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/stats",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "stats"
+              ]
+            },
+            "description": "Get scheduler statistics and metrics"
+          }
+        },
+        {
+          "name": "POST /reload",
+          "description": "Reload scheduler configuration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/reload",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "reload"
+              ]
+            },
+            "description": "Reload scheduler configuration"
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Get scheduler service status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "status"
+              ]
+            },
+            "description": "Get scheduler service status"
           }
         }
       ]
@@ -64,6 +604,99 @@
               ]
             },
             "description": "Auth module health check"
+          }
+        },
+        {
+          "name": "POST /login",
+          "description": "Basic login endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Basic login endpoint"
+          }
+        },
+        {
+          "name": "POST /register",
+          "description": "User registration endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "User registration endpoint"
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Check authentication status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "status"
+              ]
+            },
+            "description": "Check authentication status"
           }
         },
         {
@@ -119,32 +752,6 @@
           }
         },
         {
-          "name": "GET /eve/verify",
-          "description": "Verify JWT token",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/eve/verify",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "eve",
-                "verify"
-              ]
-            },
-            "description": "Verify JWT token"
-          }
-        },
-        {
           "name": "POST /eve/refresh",
           "description": "Refresh access token",
           "request": {
@@ -180,8 +787,8 @@
           }
         },
         {
-          "name": "GET /status",
-          "description": "Check authentication status",
+          "name": "GET /eve/verify",
+          "description": "Verify JWT token",
           "request": {
             "method": "GET",
             "header": [
@@ -192,16 +799,53 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/auth/status",
+              "raw": "{{gateway_url}}/auth/eve/verify",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
                 "auth",
-                "status"
+                "eve",
+                "verify"
               ]
             },
-            "description": "Check authentication status"
+            "description": "Verify JWT token"
+          }
+        },
+        {
+          "name": "GET /profile/public",
+          "description": "Get public profile by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/profile/public",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile",
+                "public"
+              ]
+            },
+            "description": "Get public profile by ID",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -240,6 +884,31 @@
           }
         },
         {
+          "name": "GET /status",
+          "description": "Get authentication status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "status"
+              ]
+            },
+            "description": "Get authentication status"
+          }
+        },
+        {
           "name": "POST /logout",
           "description": "User logout",
           "request": {
@@ -270,7 +939,17 @@
                 "logout"
               ]
             },
-            "description": "User logout"
+            "description": "User logout",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -341,42 +1020,6 @@
               ]
             },
             "description": "Refresh profile from ESI",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /profile/public",
-          "description": "Get public profile by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/profile/public",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "profile",
-                "public"
-              ]
-            },
-            "description": "Get public profile by ID",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -604,6 +1247,81 @@
           }
         },
         {
+          "name": "GET /alliance/Alliance/contacts",
+          "description": "Get alliance contacts (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/contacts",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}",
+                "contacts"
+              ]
+            },
+            "description": "Get alliance contacts (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance/contacts/labels",
+          "description": "Get alliance contact labels (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/contacts/labels",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}",
+                "contacts",
+                "labels"
+              ]
+            },
+            "description": "Get alliance contact labels (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "GET /alliance/Alliance/corporations",
           "description": "Get alliance member corporations",
           "request": {
@@ -655,6 +1373,308 @@
               ]
             },
             "description": "Get alliance icon URLs"
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation",
+          "description": "Get corporation information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}"
+              ]
+            },
+            "description": "Get corporation information"
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/icons",
+          "description": "Get corporation icon URLs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/icons",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "icons"
+              ]
+            },
+            "description": "Get corporation icon URLs"
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/alliancehistory",
+          "description": "Get corporation alliance history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/alliancehistory",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "alliancehistory"
+              ]
+            },
+            "description": "Get corporation alliance history"
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/members",
+          "description": "Get corporation members (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/members",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "members"
+              ]
+            },
+            "description": "Get corporation members (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/membertracking",
+          "description": "Get corporation member tracking (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/membertracking",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "membertracking"
+              ]
+            },
+            "description": "Get corporation member tracking (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/roles",
+          "description": "Get corporation member roles (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/roles",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "roles"
+              ]
+            },
+            "description": "Get corporation member roles (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/structures",
+          "description": "Get corporation structures (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/structures",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "structures"
+              ]
+            },
+            "description": "Get corporation structures (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/standings",
+          "description": "Get corporation standings (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/standings",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "standings"
+              ]
+            },
+            "description": "Get corporation standings (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/wallets",
+          "description": "Get corporation wallets (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/wallets",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "wallets"
+              ]
+            },
+            "description": "Get corporation wallets (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -1306,7 +2326,7 @@
           }
         },
         {
-          "name": "GET /User",
+          "name": "GET /ID",
           "description": "Get user by ID",
           "request": {
             "method": "GET",
@@ -1318,20 +2338,20 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/users/{{user_id}}",
+              "raw": "{{gateway_url}}/users/{{id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
                 "users",
-                "{{user_id}}"
+                "{{id}}"
               ]
             },
             "description": "Get user by ID"
           }
         },
         {
-          "name": "PUT /User",
+          "name": "PUT /ID",
           "description": "Update user information",
           "request": {
             "method": "PUT",
@@ -1352,20 +2372,20 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/users/{{user_id}}",
+              "raw": "{{gateway_url}}/users/{{id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
                 "users",
-                "{{user_id}}"
+                "{{id}}"
               ]
             },
             "description": "Update user information"
           }
         },
         {
-          "name": "DELETE /User",
+          "name": "DELETE /ID",
           "description": "Delete user",
           "request": {
             "method": "DELETE",
@@ -1377,13 +2397,13 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/users/{{user_id}}",
+              "raw": "{{gateway_url}}/users/{{id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
                 "users",
-                "{{user_id}}"
+                "{{id}}"
               ]
             },
             "description": "Delete user"
@@ -1446,7 +2466,7 @@
         },
         {
           "name": "POST /",
-          "description": "Create a new notification",
+          "description": "Send a new notification",
           "request": {
             "method": "POST",
             "header": [
@@ -1474,37 +2494,12 @@
                 "notifications"
               ]
             },
-            "description": "Create a new notification"
+            "description": "Send a new notification"
           }
         },
         {
-          "name": "GET /{notificationID}",
-          "description": "Get notification by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/notifications/{notificationID}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications",
-                "{notificationID}"
-              ]
-            },
-            "description": "Get notification by ID"
-          }
-        },
-        {
-          "name": "PUT /{notificationID}",
-          "description": "Update notification",
+          "name": "PUT /ID",
+          "description": "Mark notification as read",
           "request": {
             "method": "PUT",
             "header": [
@@ -1524,23 +2519,29 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/notifications/{notificationID}",
+              "raw": "{{gateway_url}}/notifications/{{id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
                 "notifications",
-                "{notificationID}"
+                "{{id}}"
               ]
             },
-            "description": "Update notification"
+            "description": "Mark notification as read"
           }
-        },
+        }
+      ]
+    },
+    {
+      "name": "Gateway Module",
+      "description": "Endpoints for the gateway module",
+      "item": [
         {
-          "name": "DELETE /{notificationID}",
-          "description": "Delete notification",
+          "name": "GET /health",
+          "description": "Gateway health check with version information",
           "request": {
-            "method": "DELETE",
+            "method": "GET",
             "header": [
               {
                 "key": "Accept",
@@ -1549,16 +2550,15 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/notifications/{notificationID}",
+              "raw": "{{gateway_url}}/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "notifications",
-                "{notificationID}"
+                "health"
               ]
             },
-            "description": "Delete notification"
+            "description": "Gateway health check with version information"
           }
         }
       ]
@@ -1696,6 +2696,21 @@
       "key": "group_id",
       "value": "18",
       "description": "Example group ID (Mineral) for SDE testing"
+    },
+    {
+      "key": "corporation_id",
+      "value": "98000001",
+      "description": "Example corporation ID for testing"
+    },
+    {
+      "key": "task_id",
+      "value": "1",
+      "description": "Example task ID for scheduler testing"
+    },
+    {
+      "key": "execution_id",
+      "value": "1",
+      "description": "Example execution ID for scheduler testing"
     }
   ]
 }

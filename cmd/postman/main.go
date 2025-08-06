@@ -169,6 +169,7 @@ func discoverRoutes() ([]RouteInfo, error) {
 		"dev": getDevRoutes(),
 		"users": getUsersRoutes(),
 		"notifications": getNotificationsRoutes(),
+		"scheduler": getSchedulerRoutes(),
 	}
 	
 	// Collect routes from all modules
@@ -196,16 +197,23 @@ func discoverRoutes() ([]RouteInfo, error) {
 func getAuthRoutes() []RouteInfo {
 	return []RouteInfo{
 		{Method: "GET", Path: "/health", ModuleName: "auth", HandlerName: "HealthHandler", Description: "Auth module health check"},
+		// Basic auth endpoints
+		{Method: "POST", Path: "/login", ModuleName: "auth", HandlerName: "loginHandler", Description: "Basic login endpoint"},
+		{Method: "POST", Path: "/register", ModuleName: "auth", HandlerName: "registerHandler", Description: "User registration endpoint"},
+		{Method: "GET", Path: "/status", ModuleName: "auth", HandlerName: "statusHandler", Description: "Check authentication status"},
+		// EVE SSO endpoints  
 		{Method: "GET", Path: "/eve/login", ModuleName: "auth", HandlerName: "eveLoginHandler", Description: "Initiate EVE SSO login"},
 		{Method: "GET", Path: "/eve/callback", ModuleName: "auth", HandlerName: "eveCallbackHandler", Description: "Handle EVE SSO callback"},
-		{Method: "GET", Path: "/eve/verify", ModuleName: "auth", HandlerName: "eveVerifyHandler", Description: "Verify JWT token"},
 		{Method: "POST", Path: "/eve/refresh", ModuleName: "auth", HandlerName: "eveRefreshHandler", Description: "Refresh access token"},
-		{Method: "GET", Path: "/status", ModuleName: "auth", HandlerName: "statusHandler", Description: "Check authentication status"},
-		{Method: "GET", Path: "/user", ModuleName: "auth", HandlerName: "userHandler", Description: "Get current user information"},
+		{Method: "GET", Path: "/eve/verify", ModuleName: "auth", HandlerName: "eveVerifyHandler", Description: "Verify JWT token"},
+		// Profile endpoints (public)
+		{Method: "GET", Path: "/profile/public", ModuleName: "auth", HandlerName: "publicProfileHandler", Description: "Get public profile by ID"},
+		// Protected endpoints (require JWT)
+		{Method: "GET", Path: "/user", ModuleName: "auth", HandlerName: "getCurrentUserHandler", Description: "Get current user information"},
+		{Method: "GET", Path: "/status", ModuleName: "auth", HandlerName: "authStatusHandler", Description: "Get authentication status"},
 		{Method: "POST", Path: "/logout", ModuleName: "auth", HandlerName: "logoutHandler", Description: "User logout"},
 		{Method: "GET", Path: "/profile", ModuleName: "auth", HandlerName: "profileHandler", Description: "Get user profile"},
 		{Method: "POST", Path: "/profile/refresh", ModuleName: "auth", HandlerName: "profileRefreshHandler", Description: "Refresh profile from ESI"},
-		{Method: "GET", Path: "/profile/public", ModuleName: "auth", HandlerName: "publicProfileHandler", Description: "Get public profile by ID"},
 	}
 }
 
@@ -213,15 +221,31 @@ func getAuthRoutes() []RouteInfo {
 func getDevRoutes() []RouteInfo {
 	return []RouteInfo{
 		{Method: "GET", Path: "/health", ModuleName: "dev", HandlerName: "HealthHandler", Description: "Dev module health check"},
+		// ESI Server and character endpoints
 		{Method: "GET", Path: "/esi-status", ModuleName: "dev", HandlerName: "esiStatusHandler", Description: "Get EVE Online server status"},
 		{Method: "GET", Path: "/character/{characterID}", ModuleName: "dev", HandlerName: "characterInfoHandler", Description: "Get character information"},
 		{Method: "GET", Path: "/character/{characterID}/portrait", ModuleName: "dev", HandlerName: "characterPortraitHandler", Description: "Get character portrait URLs"},
+		// Universe endpoints
 		{Method: "GET", Path: "/universe/system/{systemID}", ModuleName: "dev", HandlerName: "systemInfoHandler", Description: "Get solar system information"},
 		{Method: "GET", Path: "/universe/station/{stationID}", ModuleName: "dev", HandlerName: "stationInfoHandler", Description: "Get station information"},
+		// Alliance endpoints
 		{Method: "GET", Path: "/alliances", ModuleName: "dev", HandlerName: "alliancesHandler", Description: "Get all active alliances"},
 		{Method: "GET", Path: "/alliance/{allianceID}", ModuleName: "dev", HandlerName: "allianceInfoHandler", Description: "Get alliance information"},
+		{Method: "GET", Path: "/alliance/{allianceID}/contacts", ModuleName: "dev", HandlerName: "allianceContactsHandler", Description: "Get alliance contacts (requires auth)"},
+		{Method: "GET", Path: "/alliance/{allianceID}/contacts/labels", ModuleName: "dev", HandlerName: "allianceContactLabelsHandler", Description: "Get alliance contact labels (requires auth)"},
 		{Method: "GET", Path: "/alliance/{allianceID}/corporations", ModuleName: "dev", HandlerName: "allianceCorporationsHandler", Description: "Get alliance member corporations"},
 		{Method: "GET", Path: "/alliance/{allianceID}/icons", ModuleName: "dev", HandlerName: "allianceIconsHandler", Description: "Get alliance icon URLs"},
+		// Corporation endpoints
+		{Method: "GET", Path: "/corporation/{corporationID}", ModuleName: "dev", HandlerName: "corporationInfoHandler", Description: "Get corporation information"},
+		{Method: "GET", Path: "/corporation/{corporationID}/icons", ModuleName: "dev", HandlerName: "corporationIconsHandler", Description: "Get corporation icon URLs"},
+		{Method: "GET", Path: "/corporation/{corporationID}/alliancehistory", ModuleName: "dev", HandlerName: "corporationAllianceHistoryHandler", Description: "Get corporation alliance history"},
+		{Method: "GET", Path: "/corporation/{corporationID}/members", ModuleName: "dev", HandlerName: "corporationMembersHandler", Description: "Get corporation members (requires auth)"},
+		{Method: "GET", Path: "/corporation/{corporationID}/membertracking", ModuleName: "dev", HandlerName: "corporationMemberTrackingHandler", Description: "Get corporation member tracking (requires auth)"},
+		{Method: "GET", Path: "/corporation/{corporationID}/roles", ModuleName: "dev", HandlerName: "corporationMemberRolesHandler", Description: "Get corporation member roles (requires auth)"},
+		{Method: "GET", Path: "/corporation/{corporationID}/structures", ModuleName: "dev", HandlerName: "corporationStructuresHandler", Description: "Get corporation structures (requires auth)"},
+		{Method: "GET", Path: "/corporation/{corporationID}/standings", ModuleName: "dev", HandlerName: "corporationStandingsHandler", Description: "Get corporation standings (requires auth)"},
+		{Method: "GET", Path: "/corporation/{corporationID}/wallets", ModuleName: "dev", HandlerName: "corporationWalletsHandler", Description: "Get corporation wallets (requires auth)"},
+		// SDE endpoints
 		{Method: "GET", Path: "/sde/status", ModuleName: "dev", HandlerName: "sdeStatusHandler", Description: "Get SDE service status and statistics"},
 		{Method: "GET", Path: "/sde/agent/{agentID}", ModuleName: "dev", HandlerName: "sdeAgentHandler", Description: "Get agent information from SDE"},
 		{Method: "GET", Path: "/sde/category/{categoryID}", ModuleName: "dev", HandlerName: "sdeCategoryHandler", Description: "Get category information from SDE"},
@@ -241,6 +265,7 @@ func getDevRoutes() []RouteInfo {
 		{Method: "GET", Path: "/sde/types/published", ModuleName: "dev", HandlerName: "sdePublishedTypesHandler", Description: "Get all published types from SDE"},
 		{Method: "GET", Path: "/sde/types/group/{groupID}", ModuleName: "dev", HandlerName: "sdeTypesByGroupHandler", Description: "Get types by group ID from SDE"},
 		{Method: "GET", Path: "/sde/typematerials/{typeID}", ModuleName: "dev", HandlerName: "sdeTypeMaterialsHandler", Description: "Get type materials from SDE"},
+		// Service endpoints
 		{Method: "GET", Path: "/services", ModuleName: "dev", HandlerName: "servicesHandler", Description: "List available development services"},
 		{Method: "GET", Path: "/status", ModuleName: "dev", HandlerName: "statusHandler", Description: "Get module status"},
 	}
@@ -250,11 +275,11 @@ func getDevRoutes() []RouteInfo {
 func getUsersRoutes() []RouteInfo {
 	return []RouteInfo{
 		{Method: "GET", Path: "/health", ModuleName: "users", HandlerName: "HealthHandler", Description: "Users module health check"},
-		{Method: "GET", Path: "/", ModuleName: "users", HandlerName: "listUsersHandler", Description: "List all users"},
+		{Method: "GET", Path: "/", ModuleName: "users", HandlerName: "getUsersHandler", Description: "List all users"},
 		{Method: "POST", Path: "/", ModuleName: "users", HandlerName: "createUserHandler", Description: "Create a new user"},
-		{Method: "GET", Path: "/{userID}", ModuleName: "users", HandlerName: "getUserHandler", Description: "Get user by ID"},
-		{Method: "PUT", Path: "/{userID}", ModuleName: "users", HandlerName: "updateUserHandler", Description: "Update user information"},
-		{Method: "DELETE", Path: "/{userID}", ModuleName: "users", HandlerName: "deleteUserHandler", Description: "Delete user"},
+		{Method: "GET", Path: "/{id}", ModuleName: "users", HandlerName: "getUserHandler", Description: "Get user by ID"},
+		{Method: "PUT", Path: "/{id}", ModuleName: "users", HandlerName: "updateUserHandler", Description: "Update user information"},
+		{Method: "DELETE", Path: "/{id}", ModuleName: "users", HandlerName: "deleteUserHandler", Description: "Delete user"},
 	}
 }
 
@@ -262,11 +287,34 @@ func getUsersRoutes() []RouteInfo {
 func getNotificationsRoutes() []RouteInfo {
 	return []RouteInfo{
 		{Method: "GET", Path: "/health", ModuleName: "notifications", HandlerName: "HealthHandler", Description: "Notifications module health check"},
-		{Method: "GET", Path: "/", ModuleName: "notifications", HandlerName: "listNotificationsHandler", Description: "List notifications"},
-		{Method: "POST", Path: "/", ModuleName: "notifications", HandlerName: "createNotificationHandler", Description: "Create a new notification"},
-		{Method: "GET", Path: "/{notificationID}", ModuleName: "notifications", HandlerName: "getNotificationHandler", Description: "Get notification by ID"},
-		{Method: "PUT", Path: "/{notificationID}", ModuleName: "notifications", HandlerName: "updateNotificationHandler", Description: "Update notification"},
-		{Method: "DELETE", Path: "/{notificationID}", ModuleName: "notifications", HandlerName: "deleteNotificationHandler", Description: "Delete notification"},
+		{Method: "GET", Path: "/", ModuleName: "notifications", HandlerName: "getNotificationsHandler", Description: "List notifications"},
+		{Method: "POST", Path: "/", ModuleName: "notifications", HandlerName: "sendNotificationHandler", Description: "Send a new notification"},
+		{Method: "PUT", Path: "/{id}", ModuleName: "notifications", HandlerName: "markReadHandler", Description: "Mark notification as read"},
+	}
+}
+
+// getSchedulerRoutes returns static route definitions for the scheduler module  
+func getSchedulerRoutes() []RouteInfo {
+	return []RouteInfo{
+		{Method: "GET", Path: "/health", ModuleName: "scheduler", HandlerName: "HealthHandler", Description: "Scheduler module health check"},
+		// Task management
+		{Method: "GET", Path: "/tasks", ModuleName: "scheduler", HandlerName: "listTasksHandler", Description: "List all scheduled tasks"},
+		{Method: "POST", Path: "/tasks", ModuleName: "scheduler", HandlerName: "createTaskHandler", Description: "Create a new scheduled task"},
+		{Method: "GET", Path: "/tasks/{taskID}", ModuleName: "scheduler", HandlerName: "getTaskHandler", Description: "Get task details by ID"},
+		{Method: "PUT", Path: "/tasks/{taskID}", ModuleName: "scheduler", HandlerName: "updateTaskHandler", Description: "Update task configuration"},
+		{Method: "DELETE", Path: "/tasks/{taskID}", ModuleName: "scheduler", HandlerName: "deleteTaskHandler", Description: "Delete scheduled task"},
+		// Task control
+		{Method: "POST", Path: "/tasks/{taskID}/start", ModuleName: "scheduler", HandlerName: "startTaskHandler", Description: "Start/enable scheduled task"},
+		{Method: "POST", Path: "/tasks/{taskID}/stop", ModuleName: "scheduler", HandlerName: "stopTaskHandler", Description: "Stop/disable scheduled task"},
+		{Method: "POST", Path: "/tasks/{taskID}/pause", ModuleName: "scheduler", HandlerName: "pauseTaskHandler", Description: "Pause scheduled task"},
+		{Method: "POST", Path: "/tasks/{taskID}/resume", ModuleName: "scheduler", HandlerName: "resumeTaskHandler", Description: "Resume paused task"},
+		// Execution history
+		{Method: "GET", Path: "/tasks/{taskID}/history", ModuleName: "scheduler", HandlerName: "getTaskHistoryHandler", Description: "Get task execution history"},
+		{Method: "GET", Path: "/tasks/{taskID}/executions/{executionID}", ModuleName: "scheduler", HandlerName: "getExecutionHandler", Description: "Get specific execution details"},
+		// System endpoints
+		{Method: "GET", Path: "/stats", ModuleName: "scheduler", HandlerName: "getStatsHandler", Description: "Get scheduler statistics and metrics"},
+		{Method: "POST", Path: "/reload", ModuleName: "scheduler", HandlerName: "reloadTasksHandler", Description: "Reload scheduler configuration"},
+		{Method: "GET", Path: "/status", ModuleName: "scheduler", HandlerName: "getStatusHandler", Description: "Get scheduler service status"},
 	}
 }
 
@@ -376,6 +424,21 @@ func generatePostmanCollection(routes []RouteInfo) *PostmanCollection {
 				Key:         "group_id",
 				Value:       "18",
 				Description: "Example group ID (Mineral) for SDE testing",
+			},
+			{
+				Key:         "corporation_id",
+				Value:       "98000001",
+				Description: "Example corporation ID for testing",
+			},
+			{
+				Key:         "task_id",
+				Value:       "1",
+				Description: "Example task ID for scheduler testing",
+			},
+			{
+				Key:         "execution_id",
+				Value:       "1",
+				Description: "Example execution ID for scheduler testing",
 			},
 		},
 		Event: []PostmanEvent{
@@ -541,6 +604,9 @@ func processPathParameters(path string) string {
 		"{factionID}":      "{{faction_id}}",
 		"{typeID}":         "{{type_id}}",
 		"{groupID}":        "{{group_id}}",
+		"{corporationID}":  "{{corporation_id}}",
+		"{taskID}":         "{{task_id}}",
+		"{executionID}":    "{{execution_id}}",
 	}
 	
 	for old, new := range paramMappings {
@@ -558,6 +624,15 @@ func needsAuth(path string) bool {
 		"/profile",
 		"/private",
 		"/admin",
+		"/members",
+		"/membertracking", 
+		"/roles",
+		"/structures",
+		"/standings",
+		"/wallets",
+		"/tasks",
+		"/logout",
+		"/scheduler",
 	}
 	
 	for _, authPath := range authPaths {
@@ -590,6 +665,9 @@ func createRequestName(route RouteInfo) string {
 	name = strings.ReplaceAll(name, "{factionID}", "Faction")
 	name = strings.ReplaceAll(name, "{typeID}", "Type")
 	name = strings.ReplaceAll(name, "{groupID}", "Group")
+	name = strings.ReplaceAll(name, "{corporationID}", "Corporation")
+	name = strings.ReplaceAll(name, "{taskID}", "Task")
+	name = strings.ReplaceAll(name, "{executionID}", "Execution")
 	
 	return name
 }
