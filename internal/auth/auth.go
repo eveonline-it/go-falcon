@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 type Module struct {
 	*module.BaseModule
 	eveSSOHandler *EVESSOHandler
+	groupsModule  interface{} // Will be set after groups module creation
 }
 
 func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService) *Module {
@@ -33,13 +35,17 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 	}
 }
 
+// SetGroupsModule sets the groups module reference after both modules are created
+func (m *Module) SetGroupsModule(groupsModule interface{}) {
+	m.groupsModule = groupsModule
+}
+
 func (m *Module) Routes(r chi.Router) {
 	m.RegisterHealthRoute(r) // Use the base module health handler
 	r.Post("/login", m.loginHandler)
 	r.Post("/register", m.registerHandler)
-	r.Get("/status", m.statusHandler)
 	
-	// EVE Online SSO routes
+	// EVE Online SSO routes (not restricted)
 	r.Get("/eve/login", m.eveLoginHandler)
 	r.Get("/eve/callback", m.eveCallbackHandler)
 	r.Post("/eve/refresh", m.eveRefreshHandler)
@@ -54,7 +60,7 @@ func (m *Module) Routes(r chi.Router) {
 	// User info endpoint (checks JWT cookie and returns user data)
 	r.Get("/user", m.getCurrentUserHandler)
 	
-	// Authentication status and logout endpoints
+	// Authentication status and logout endpoints (not restricted)
 	r.Get("/status", m.authStatusHandler)
 	r.Post("/logout", m.logoutHandler)
 }
@@ -519,7 +525,7 @@ func (m *Module) getCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// authStatusHandler returns simple authentication status
+// authStatusHandler returns authentication status with user permissions
 func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 	// Try to get JWT from cookie
 	cookie, err := r.Cookie("falcon_auth_token")
@@ -527,29 +533,81 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 		// No cookie found, user is not authenticated
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"authenticated": false,
+			"permissions": []string{},
 		})
 		return
 	}
 
-	// Validate JWT
-	_, err = m.eveSSOHandler.ValidateJWT(cookie.Value)
+	// Validate JWT and extract claims
+	claims, err := m.eveSSOHandler.ValidateJWT(cookie.Value)
 	if err != nil {
 		// Invalid token, user is not authenticated
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"authenticated": false,
+			"permissions": []string{},
 		})
 		return
 	}
 
+	// Extract character ID from claims
+	var characterID int
+	if charIDFloat, ok := (*claims)["character_id"].(float64); ok {
+		characterID = int(charIDFloat)
+	}
+
+	// Get user permissions from groups module
+	var permissions []string
+	if m.groupsModule != nil && characterID > 0 {
+		// Use reflection to call GetUserPermissions method
+		groupsModuleValue := reflect.ValueOf(m.groupsModule)
+		method := groupsModuleValue.MethodByName("GetUserPermissions")
+		if method.IsValid() {
+			ctx := reflect.ValueOf(r.Context())
+			charID := reflect.ValueOf(characterID)
+			results := method.Call([]reflect.Value{ctx, charID})
+			
+			if len(results) == 2 && results[1].IsNil() { // error is nil
+				userPerms := results[0].Interface()
+				// Use reflection to access Permissions field
+				permsValue := reflect.ValueOf(userPerms).Elem()
+				permissionsField := permsValue.FieldByName("Permissions")
+				if permissionsField.IsValid() {
+					permsMap := permissionsField.Interface().(map[string]map[string]bool)
+					for resource, actions := range permsMap {
+						for action, allowed := range actions {
+							if allowed {
+								permissions = append(permissions, resource+":"+action)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Valid token, user is authenticated
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{
+	response := map[string]interface{}{
 		"authenticated": true,
-	})
+		"permissions": permissions,
+	}
+	
+	// Add user info from claims if available
+	if userID, ok := (*claims)["user_id"].(string); ok {
+		response["user_id"] = userID
+	}
+	if charName, ok := (*claims)["character_name"].(string); ok {
+		response["character_name"] = charName
+	}
+	if characterID > 0 {
+		response["character_id"] = characterID
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // logoutHandler clears the authentication cookie

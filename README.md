@@ -12,7 +12,7 @@ A production-ready Go gateway application with modular architecture featuring Ch
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐   │
 │  │ Auth Module │  │ User Module │  │  Notification Module    │   │
 │  │             │  │             │  │                         │   │
-│  │ /api/auth/* │  │ /api/users/*│  │  /api/notifications/*   │   │
+│  │   /auth/*   │  │  /users/*   │  │    /notifications/*     │   │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘   │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────────┐ │
@@ -129,7 +129,7 @@ The gateway follows clean architecture principles:
 curl http://localhost:8080/health
 
 # Module test
-curl http://localhost:8080/api/auth/status
+curl http://localhost:8080/auth/status
 ```
 
 ## 🛠️ Utility Applications
@@ -212,9 +212,9 @@ Access observability dashboard at: `http://localhost:3301`
 ### Health Checks
 The gateway exposes health endpoints:
 - Application: `http://localhost:8080/health`
-- Auth Module: `http://localhost:8080/api/auth/health`
-- Users Module: `http://localhost:8080/api/users/health`
-- Notifications Module: `http://localhost:8080/api/notifications/health`
+- Auth Module: `http://localhost:8080/auth/health`
+- Users Module: `http://localhost:8080/users/health`
+- Notifications Module: `http://localhost:8080/notifications/health`
 
 ## 🔄 Development Workflow
 
@@ -260,7 +260,7 @@ make health        # Check application health
 ### Testing Modules
 ```bash
 # Test auth module
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"password"}'
 

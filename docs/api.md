@@ -19,7 +19,7 @@
 ### Authentication Module
 
 #### Auth Health Check
-- **GET** `/api/auth/health`
+- **GET** `/auth/health`
 - **Description**: Check auth module health
 - **Response**:
   ```json
@@ -30,7 +30,7 @@
   ```
 
 #### Auth Status
-- **GET** `/api/auth/status`
+- **GET** `/auth/status`
 - **Description**: Get auth module status
 - **Response**:
   ```json
@@ -42,7 +42,7 @@
   ```
 
 #### Login (Not Implemented)
-- **POST** `/api/auth/login`
+- **POST** `/auth/login`
 - **Description**: User login
 - **Response**:
   ```json
@@ -53,7 +53,7 @@
   ```
 
 #### Register (Not Implemented)
-- **POST** `/api/auth/register`
+- **POST** `/auth/register`
 - **Description**: User registration
 - **Response**:
   ```json

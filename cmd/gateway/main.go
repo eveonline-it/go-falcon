@@ -132,8 +132,12 @@ func main() {
 	var modules []module.Module
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
 	groupsModule := groups.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule)
+	
+	// Set cross-module dependencies after creation to avoid circular dependency issues
+	authModule.SetGroupsModule(groupsModule)
+	
 	devModule := dev.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, groupsModule)
 	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule)
 	
@@ -146,12 +150,23 @@ func main() {
 	// Mount module routes with configurable API prefix
 	apiPrefix := config.GetAPIPrefix()
 	log.Printf("🔗 Using API prefix: '%s'", apiPrefix)
-	r.Route(apiPrefix+"/auth", authModule.Routes)
-	r.Route(apiPrefix, groupsModule.Routes) // Groups routes are mounted at API root for /api/groups
-	r.Route(apiPrefix+"/dev", devModule.Routes)
-	r.Route(apiPrefix+"/users", usersModule.Routes)
-	r.Route(apiPrefix+"/notifications", notificationsModule.Routes)
-	r.Route(apiPrefix+"/scheduler", schedulerModule.Routes)
+	
+	// Handle empty prefix case
+	if apiPrefix == "" {
+		r.Route("/auth", authModule.Routes)
+		groupsModule.Routes(r) // Groups routes are mounted at root for /groups
+		r.Route("/dev", devModule.Routes)
+		r.Route("/users", usersModule.Routes)
+		r.Route("/notifications", notificationsModule.Routes)
+		r.Route("/scheduler", schedulerModule.Routes)
+	} else {
+		r.Route(apiPrefix+"/auth", authModule.Routes)
+		r.Route(apiPrefix, groupsModule.Routes) // Groups routes are mounted at API root for /api/groups
+		r.Route(apiPrefix+"/dev", devModule.Routes)
+		r.Route(apiPrefix+"/users", usersModule.Routes)
+		r.Route(apiPrefix+"/notifications", notificationsModule.Routes)
+		r.Route(apiPrefix+"/scheduler", schedulerModule.Routes)
+	}
 	
 	// Note: evegateway is now a shared package for EVE Online ESI integration
 	// Other services can import and use: evegateway.NewClient().GetServerStatus(ctx)

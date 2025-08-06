@@ -2,11 +2,1422 @@
   "info": {
     "_postman_id": "go-falcon-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T15:13:25Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-06T15:43:19Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
   "item": [
+    {
+      "name": "Dev Module",
+      "description": "Endpoints for the dev module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Dev module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "health"
+              ]
+            },
+            "description": "Dev module health check"
+          }
+        },
+        {
+          "name": "GET /esi-status",
+          "description": "Get EVE Online server status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/esi-status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "esi-status"
+              ]
+            },
+            "description": "Get EVE Online server status"
+          }
+        },
+        {
+          "name": "GET /character/Character",
+          "description": "Get character information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/character/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "character",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Get character information"
+          }
+        },
+        {
+          "name": "GET /character/Character/portrait",
+          "description": "Get character portrait URLs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/character/{{{character_id}}}/portrait",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "character",
+                "{{{character_id}}}",
+                "portrait"
+              ]
+            },
+            "description": "Get character portrait URLs"
+          }
+        },
+        {
+          "name": "GET /universe/system/System",
+          "description": "Get solar system information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/universe/system/{{system_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "universe",
+                "system",
+                "{{system_id}}"
+              ]
+            },
+            "description": "Get solar system information"
+          }
+        },
+        {
+          "name": "GET /universe/station/Station",
+          "description": "Get station information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/universe/station/{{station_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "universe",
+                "station",
+                "{{station_id}}"
+              ]
+            },
+            "description": "Get station information"
+          }
+        },
+        {
+          "name": "GET /alliances",
+          "description": "Get all active alliances",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliances",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliances"
+              ]
+            },
+            "description": "Get all active alliances"
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance",
+          "description": "Get alliance information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}"
+              ]
+            },
+            "description": "Get alliance information"
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance/contacts",
+          "description": "Get alliance contacts (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/contacts",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}",
+                "contacts"
+              ]
+            },
+            "description": "Get alliance contacts (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance/contacts/labels",
+          "description": "Get alliance contact labels (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/contacts/labels",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}",
+                "contacts",
+                "labels"
+              ]
+            },
+            "description": "Get alliance contact labels (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance/corporations",
+          "description": "Get alliance member corporations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/corporations",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}",
+                "corporations"
+              ]
+            },
+            "description": "Get alliance member corporations"
+          }
+        },
+        {
+          "name": "GET /alliance/Alliance/icons",
+          "description": "Get alliance icon URLs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/alliance/{{alliance_id}}/icons",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "alliance",
+                "{{alliance_id}}",
+                "icons"
+              ]
+            },
+            "description": "Get alliance icon URLs"
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation",
+          "description": "Get corporation information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}"
+              ]
+            },
+            "description": "Get corporation information"
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/icons",
+          "description": "Get corporation icon URLs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/icons",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "icons"
+              ]
+            },
+            "description": "Get corporation icon URLs"
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/alliancehistory",
+          "description": "Get corporation alliance history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/alliancehistory",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "alliancehistory"
+              ]
+            },
+            "description": "Get corporation alliance history"
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/members",
+          "description": "Get corporation members (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/members",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "members"
+              ]
+            },
+            "description": "Get corporation members (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/membertracking",
+          "description": "Get corporation member tracking (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/membertracking",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "membertracking"
+              ]
+            },
+            "description": "Get corporation member tracking (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/roles",
+          "description": "Get corporation member roles (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/roles",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "roles"
+              ]
+            },
+            "description": "Get corporation member roles (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/structures",
+          "description": "Get corporation structures (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/structures",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "structures"
+              ]
+            },
+            "description": "Get corporation structures (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/standings",
+          "description": "Get corporation standings (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/standings",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "standings"
+              ]
+            },
+            "description": "Get corporation standings (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /corporation/Corporation/wallets",
+          "description": "Get corporation wallets (requires auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/corporation/{{corporation_id}}/wallets",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "corporation",
+                "{{corporation_id}}",
+                "wallets"
+              ]
+            },
+            "description": "Get corporation wallets (requires auth)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /sde/status",
+          "description": "Get SDE service status and statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "status"
+              ]
+            },
+            "description": "Get SDE service status and statistics"
+          }
+        },
+        {
+          "name": "GET /sde/agent/Agent",
+          "description": "Get agent information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/agent/{{agent_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "agent",
+                "{{agent_id}}"
+              ]
+            },
+            "description": "Get agent information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/category/Category",
+          "description": "Get category information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/category/{{category_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "category",
+                "{{category_id}}"
+              ]
+            },
+            "description": "Get category information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/blueprint/Blueprint",
+          "description": "Get blueprint information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/blueprint/{{blueprint_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "blueprint",
+                "{{blueprint_id}}"
+              ]
+            },
+            "description": "Get blueprint information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/agents/location/Location",
+          "description": "Get agents by location from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/agents/location/{{location_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "agents",
+                "location",
+                "{{location_id}}"
+              ]
+            },
+            "description": "Get agents by location from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/blueprints",
+          "description": "Get all available blueprint IDs from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/blueprints",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "blueprints"
+              ]
+            },
+            "description": "Get all available blueprint IDs from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/marketgroup/MarketGroup",
+          "description": "Get market group information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/marketgroup/{{market_group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "marketgroup",
+                "{{market_group_id}}"
+              ]
+            },
+            "description": "Get market group information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/marketgroups",
+          "description": "Get all market groups from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/marketgroups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "marketgroups"
+              ]
+            },
+            "description": "Get all market groups from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/metagroup/MetaGroup",
+          "description": "Get meta group information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/metagroup/{{meta_group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "metagroup",
+                "{{meta_group_id}}"
+              ]
+            },
+            "description": "Get meta group information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/metagroups",
+          "description": "Get all meta groups from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/metagroups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "metagroups"
+              ]
+            },
+            "description": "Get all meta groups from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorp/NPCCorp",
+          "description": "Get NPC corporation information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorp/{{npc_corp_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorp",
+                "{{npc_corp_id}}"
+              ]
+            },
+            "description": "Get NPC corporation information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorps",
+          "description": "Get all NPC corporations from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorps",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorps"
+              ]
+            },
+            "description": "Get all NPC corporations from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/npccorps/faction/Faction",
+          "description": "Get NPC corporations by faction from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/npccorps/faction/{{faction_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "npccorps",
+                "faction",
+                "{{faction_id}}"
+              ]
+            },
+            "description": "Get NPC corporations by faction from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/typeid/Type",
+          "description": "Get type ID information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/typeid/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "typeid",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type ID information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/type/Type",
+          "description": "Get type information from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/type/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "type",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type information from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types",
+          "description": "Get all types from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types"
+              ]
+            },
+            "description": "Get all types from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types/published",
+          "description": "Get all published types from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types/published",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types",
+                "published"
+              ]
+            },
+            "description": "Get all published types from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/types/group/Group",
+          "description": "Get types by group ID from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/types/group/{{group_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "types",
+                "group",
+                "{{group_id}}"
+              ]
+            },
+            "description": "Get types by group ID from SDE"
+          }
+        },
+        {
+          "name": "GET /sde/typematerials/Type",
+          "description": "Get type materials from SDE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/sde/typematerials/{{type_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "sde",
+                "typematerials",
+                "{{type_id}}"
+              ]
+            },
+            "description": "Get type materials from SDE"
+          }
+        },
+        {
+          "name": "GET /services",
+          "description": "List available development services",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/services",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "services"
+              ]
+            },
+            "description": "List available development services"
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Get module status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/dev/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "dev",
+                "status"
+              ]
+            },
+            "description": "Get module status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users Module",
+      "description": "Endpoints for the users module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Users module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "health"
+              ]
+            },
+            "description": "Users module health check"
+          }
+        },
+        {
+          "name": "GET /stats",
+          "description": "Get user statistics (public endpoint)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/stats",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "stats"
+              ]
+            },
+            "description": "Get user statistics (public endpoint)"
+          }
+        },
+        {
+          "name": "GET /",
+          "description": "List users with pagination and filtering (requires users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "List users with pagination and filtering (requires users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /Character",
+          "description": "Get user by character ID (requires users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Get user by character ID (requires users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /Character",
+          "description": "Update user status and settings (requires users:write permission)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/users/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Update user status and settings (requires users:write permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /by-user-id/User/characters",
+          "description": "List characters for a user (requires authentication, self-access or users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/by-user-id/{{user_id}}/characters",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "by-user-id",
+                "{{user_id}}",
+                "characters"
+              ]
+            },
+            "description": "List characters for a user (requires authentication, self-access or users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "Notifications Module",
       "description": "Endpoints for the notifications module",
@@ -24,12 +1435,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/notifications/health",
+              "raw": "{{gateway_url}}/notifications/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "notifications",
                 "health"
               ]
@@ -50,12 +1460,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/notifications/",
+              "raw": "{{gateway_url}}/notifications/",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "notifications"
               ]
             },
@@ -94,12 +1503,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/notifications/",
+              "raw": "{{gateway_url}}/notifications/",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "notifications"
               ]
             },
@@ -138,12 +1546,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/notifications/{{id}}",
+              "raw": "{{gateway_url}}/notifications/{{id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "notifications",
                 "{{id}}"
               ]
@@ -180,12 +1587,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/health",
+              "raw": "{{gateway_url}}/scheduler/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "health"
               ]
@@ -206,12 +1612,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks",
+              "raw": "{{gateway_url}}/scheduler/tasks",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks"
               ]
@@ -251,12 +1656,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks",
+              "raw": "{{gateway_url}}/scheduler/tasks",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks"
               ]
@@ -287,12 +1691,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}"
@@ -333,12 +1736,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}"
@@ -370,12 +1772,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}"
@@ -416,12 +1817,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/start",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/start",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -463,12 +1863,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/stop",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/stop",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -510,12 +1909,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/pause",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/pause",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -557,12 +1955,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/resume",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/resume",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -595,12 +1992,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/history",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/history",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -633,12 +2029,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/tasks/{{task_id}}/executions/{{execution_id}}",
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/executions/{{execution_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "tasks",
                 "{{task_id}}",
@@ -672,12 +2067,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/stats",
+              "raw": "{{gateway_url}}/scheduler/stats",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "stats"
               ]
@@ -707,12 +2101,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/reload",
+              "raw": "{{gateway_url}}/scheduler/reload",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "reload"
               ]
@@ -743,12 +2136,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/scheduler/status",
+              "raw": "{{gateway_url}}/scheduler/status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "scheduler",
                 "status"
               ]
@@ -805,12 +2197,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/health",
+              "raw": "{{gateway_url}}/auth/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "health"
               ]
@@ -840,12 +2231,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/auth/login",
+              "raw": "{{gateway_url}}/auth/login",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "login"
               ]
@@ -885,12 +2275,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/auth/register",
+              "raw": "{{gateway_url}}/auth/register",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "register"
               ]
@@ -921,12 +2310,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/status",
+              "raw": "{{gateway_url}}/auth/status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "status"
               ]
@@ -947,12 +2335,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/eve/login",
+              "raw": "{{gateway_url}}/auth/eve/login",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "eve",
                 "login"
@@ -974,12 +2361,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/eve/callback",
+              "raw": "{{gateway_url}}/auth/eve/callback",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "eve",
                 "callback"
@@ -1010,12 +2396,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/auth/eve/refresh",
+              "raw": "{{gateway_url}}/auth/eve/refresh",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "eve",
                 "refresh"
@@ -1047,12 +2432,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/eve/verify",
+              "raw": "{{gateway_url}}/auth/eve/verify",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "eve",
                 "verify"
@@ -1084,12 +2468,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/profile/public",
+              "raw": "{{gateway_url}}/auth/profile/public",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "profile",
                 "public"
@@ -1121,12 +2504,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/user",
+              "raw": "{{gateway_url}}/auth/user",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "user"
               ]
@@ -1157,12 +2539,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/status",
+              "raw": "{{gateway_url}}/auth/status",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "status"
               ]
@@ -1192,12 +2573,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/auth/logout",
+              "raw": "{{gateway_url}}/auth/logout",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "logout"
               ]
@@ -1228,12 +2608,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/auth/profile",
+              "raw": "{{gateway_url}}/auth/profile",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "profile"
               ]
@@ -1273,12 +2652,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/auth/profile/refresh",
+              "raw": "{{gateway_url}}/auth/profile/refresh",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "profile",
                 "refresh"
@@ -1316,12 +2694,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/health",
+              "raw": "{{gateway_url}}/health",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "health"
               ]
             },
@@ -1341,12 +2718,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/groups",
+              "raw": "{{gateway_url}}/groups",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "groups"
               ]
             },
@@ -1385,12 +2761,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/groups",
+              "raw": "{{gateway_url}}/groups",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "groups"
               ]
             },
@@ -1429,12 +2804,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}",
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "groups",
                 "{{group_id_groups}}"
               ]
@@ -1465,12 +2839,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}",
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "groups",
                 "{{group_id_groups}}"
               ]
@@ -1501,12 +2874,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}/members",
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "groups",
                 "{{group_id_groups}}",
                 "members"
@@ -1547,12 +2919,11 @@
               "raw": "{\n  // Add request body here\n}"
             },
             "url": {
-              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}/members",
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "groups",
                 "{{group_id_groups}}",
                 "members"
@@ -1584,16 +2955,15 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/groups/{{group_id_groups}}/members/{{{character_id}}}",
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members/{{character_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "groups",
                 "{{group_id_groups}}",
                 "members",
-                "{{{character_id}}}"
+                "{{character_id}}"
               ]
             },
             "description": "Remove a member from a group (admin only)",
@@ -1622,12 +2992,11 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/permissions/check",
+              "raw": "{{gateway_url}}/permissions/check",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "permissions",
                 "check"
               ]
@@ -1658,1476 +3027,16 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/permissions/user",
+              "raw": "{{gateway_url}}/permissions/user",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
-                "api",
                 "permissions",
                 "user"
               ]
             },
             "description": "Get user's complete permission matrix",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Dev Module",
-      "description": "Endpoints for the dev module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Dev module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "health"
-              ]
-            },
-            "description": "Dev module health check"
-          }
-        },
-        {
-          "name": "GET /esi-status",
-          "description": "Get EVE Online server status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/esi-status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "esi-status"
-              ]
-            },
-            "description": "Get EVE Online server status"
-          }
-        },
-        {
-          "name": "GET /character/Character",
-          "description": "Get character information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/character/{{{character_id}}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "character",
-                "{{{character_id}}}"
-              ]
-            },
-            "description": "Get character information"
-          }
-        },
-        {
-          "name": "GET /character/Character/portrait",
-          "description": "Get character portrait URLs",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/character/{{{character_id}}}/portrait",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "character",
-                "{{{character_id}}}",
-                "portrait"
-              ]
-            },
-            "description": "Get character portrait URLs"
-          }
-        },
-        {
-          "name": "GET /universe/system/System",
-          "description": "Get solar system information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/universe/system/{{system_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "universe",
-                "system",
-                "{{system_id}}"
-              ]
-            },
-            "description": "Get solar system information"
-          }
-        },
-        {
-          "name": "GET /universe/station/Station",
-          "description": "Get station information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/universe/station/{{station_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "universe",
-                "station",
-                "{{station_id}}"
-              ]
-            },
-            "description": "Get station information"
-          }
-        },
-        {
-          "name": "GET /alliances",
-          "description": "Get all active alliances",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/alliances",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "alliances"
-              ]
-            },
-            "description": "Get all active alliances"
-          }
-        },
-        {
-          "name": "GET /alliance/Alliance",
-          "description": "Get alliance information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "alliance",
-                "{{alliance_id}}"
-              ]
-            },
-            "description": "Get alliance information"
-          }
-        },
-        {
-          "name": "GET /alliance/Alliance/contacts",
-          "description": "Get alliance contacts (requires auth)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}/contacts",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "alliance",
-                "{{alliance_id}}",
-                "contacts"
-              ]
-            },
-            "description": "Get alliance contacts (requires auth)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /alliance/Alliance/contacts/labels",
-          "description": "Get alliance contact labels (requires auth)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}/contacts/labels",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "alliance",
-                "{{alliance_id}}",
-                "contacts",
-                "labels"
-              ]
-            },
-            "description": "Get alliance contact labels (requires auth)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /alliance/Alliance/corporations",
-          "description": "Get alliance member corporations",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}/corporations",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "alliance",
-                "{{alliance_id}}",
-                "corporations"
-              ]
-            },
-            "description": "Get alliance member corporations"
-          }
-        },
-        {
-          "name": "GET /alliance/Alliance/icons",
-          "description": "Get alliance icon URLs",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/alliance/{{alliance_id}}/icons",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "alliance",
-                "{{alliance_id}}",
-                "icons"
-              ]
-            },
-            "description": "Get alliance icon URLs"
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation",
-          "description": "Get corporation information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}"
-              ]
-            },
-            "description": "Get corporation information"
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation/icons",
-          "description": "Get corporation icon URLs",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/icons",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}",
-                "icons"
-              ]
-            },
-            "description": "Get corporation icon URLs"
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation/alliancehistory",
-          "description": "Get corporation alliance history",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/alliancehistory",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}",
-                "alliancehistory"
-              ]
-            },
-            "description": "Get corporation alliance history"
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation/members",
-          "description": "Get corporation members (requires auth)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/members",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}",
-                "members"
-              ]
-            },
-            "description": "Get corporation members (requires auth)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation/membertracking",
-          "description": "Get corporation member tracking (requires auth)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/membertracking",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}",
-                "membertracking"
-              ]
-            },
-            "description": "Get corporation member tracking (requires auth)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation/roles",
-          "description": "Get corporation member roles (requires auth)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/roles",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}",
-                "roles"
-              ]
-            },
-            "description": "Get corporation member roles (requires auth)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation/structures",
-          "description": "Get corporation structures (requires auth)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/structures",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}",
-                "structures"
-              ]
-            },
-            "description": "Get corporation structures (requires auth)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation/standings",
-          "description": "Get corporation standings (requires auth)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/standings",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}",
-                "standings"
-              ]
-            },
-            "description": "Get corporation standings (requires auth)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /corporation/Corporation/wallets",
-          "description": "Get corporation wallets (requires auth)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/corporation/{{corporation_id}}/wallets",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "corporation",
-                "{{corporation_id}}",
-                "wallets"
-              ]
-            },
-            "description": "Get corporation wallets (requires auth)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /sde/status",
-          "description": "Get SDE service status and statistics",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "status"
-              ]
-            },
-            "description": "Get SDE service status and statistics"
-          }
-        },
-        {
-          "name": "GET /sde/agent/Agent",
-          "description": "Get agent information from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/agent/{{agent_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "agent",
-                "{{agent_id}}"
-              ]
-            },
-            "description": "Get agent information from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/category/Category",
-          "description": "Get category information from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/category/{{category_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "category",
-                "{{category_id}}"
-              ]
-            },
-            "description": "Get category information from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/blueprint/Blueprint",
-          "description": "Get blueprint information from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/blueprint/{{blueprint_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "blueprint",
-                "{{blueprint_id}}"
-              ]
-            },
-            "description": "Get blueprint information from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/agents/location/Location",
-          "description": "Get agents by location from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/agents/location/{{location_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "agents",
-                "location",
-                "{{location_id}}"
-              ]
-            },
-            "description": "Get agents by location from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/blueprints",
-          "description": "Get all available blueprint IDs from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/blueprints",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "blueprints"
-              ]
-            },
-            "description": "Get all available blueprint IDs from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/marketgroup/MarketGroup",
-          "description": "Get market group information from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/marketgroup/{{market_group_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "marketgroup",
-                "{{market_group_id}}"
-              ]
-            },
-            "description": "Get market group information from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/marketgroups",
-          "description": "Get all market groups from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/marketgroups",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "marketgroups"
-              ]
-            },
-            "description": "Get all market groups from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/metagroup/MetaGroup",
-          "description": "Get meta group information from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/metagroup/{{meta_group_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "metagroup",
-                "{{meta_group_id}}"
-              ]
-            },
-            "description": "Get meta group information from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/metagroups",
-          "description": "Get all meta groups from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/metagroups",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "metagroups"
-              ]
-            },
-            "description": "Get all meta groups from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/npccorp/NPCCorp",
-          "description": "Get NPC corporation information from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/npccorp/{{npc_corp_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "npccorp",
-                "{{npc_corp_id}}"
-              ]
-            },
-            "description": "Get NPC corporation information from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/npccorps",
-          "description": "Get all NPC corporations from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/npccorps",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "npccorps"
-              ]
-            },
-            "description": "Get all NPC corporations from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/npccorps/faction/Faction",
-          "description": "Get NPC corporations by faction from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/npccorps/faction/{{faction_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "npccorps",
-                "faction",
-                "{{faction_id}}"
-              ]
-            },
-            "description": "Get NPC corporations by faction from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/typeid/Type",
-          "description": "Get type ID information from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/typeid/{{type_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "typeid",
-                "{{type_id}}"
-              ]
-            },
-            "description": "Get type ID information from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/type/Type",
-          "description": "Get type information from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/type/{{type_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "type",
-                "{{type_id}}"
-              ]
-            },
-            "description": "Get type information from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/types",
-          "description": "Get all types from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/types",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "types"
-              ]
-            },
-            "description": "Get all types from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/types/published",
-          "description": "Get all published types from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/types/published",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "types",
-                "published"
-              ]
-            },
-            "description": "Get all published types from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/types/group/Group",
-          "description": "Get types by group ID from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/types/group/{{group_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "types",
-                "group",
-                "{{group_id}}"
-              ]
-            },
-            "description": "Get types by group ID from SDE"
-          }
-        },
-        {
-          "name": "GET /sde/typematerials/Type",
-          "description": "Get type materials from SDE",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/sde/typematerials/{{type_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "sde",
-                "typematerials",
-                "{{type_id}}"
-              ]
-            },
-            "description": "Get type materials from SDE"
-          }
-        },
-        {
-          "name": "GET /services",
-          "description": "List available development services",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/services",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "services"
-              ]
-            },
-            "description": "List available development services"
-          }
-        },
-        {
-          "name": "GET /status",
-          "description": "Get module status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/dev/status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "dev",
-                "status"
-              ]
-            },
-            "description": "Get module status"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Users Module",
-      "description": "Endpoints for the users module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Users module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "health"
-              ]
-            },
-            "description": "Users module health check"
-          }
-        },
-        {
-          "name": "GET /stats",
-          "description": "Get user statistics (public endpoint)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/stats",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "stats"
-              ]
-            },
-            "description": "Get user statistics (public endpoint)"
-          }
-        },
-        {
-          "name": "GET /",
-          "description": "List users with pagination and filtering (requires users:read permission)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users"
-              ]
-            },
-            "description": "List users with pagination and filtering (requires users:read permission)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /Character",
-          "description": "Get user by character ID (requires users:read permission)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/{{character_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "{{character_id}}"
-              ]
-            },
-            "description": "Get user by character ID (requires users:read permission)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "PUT /Character",
-          "description": "Update user status and settings (requires users:write permission)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/users/{{character_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "{{character_id}}"
-              ]
-            },
-            "description": "Update user status and settings (requires users:write permission)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /by-user-id/User/characters",
-          "description": "List characters for a user (requires authentication, self-access or users:read permission)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/users/by-user-id/{{user_id}}/characters",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "by-user-id",
-                "{{user_id}}",
-                "characters"
-              ]
-            },
-            "description": "List characters for a user (requires authentication, self-access or users:read permission)",
             "auth": {
               "type": "bearer",
               "bearer": [

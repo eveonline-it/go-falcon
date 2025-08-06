@@ -32,7 +32,7 @@ func main() {
 	fmt.Printf("Health Check Response: %+v\n", healthResponse)
 
 	// Auth status check
-	resp, err = http.Get("http://localhost:8080/api/auth/status")
+	resp, err = http.Get("http://localhost:8080/auth/status")
 	if err != nil {
 		fmt.Printf("Error making auth status request: %v\n", err)
 		return

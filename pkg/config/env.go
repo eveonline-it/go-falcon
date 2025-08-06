@@ -44,11 +44,18 @@ func MustGetEnv(key string) string {
 
 // GetAPIPrefix returns the API prefix from environment or default
 func GetAPIPrefix() string {
-	prefix := GetEnv("API_PREFIX", "")
-	if prefix == "" {
-		return "/api" // Default to /api if no prefix is set
+	// Check if API_PREFIX is explicitly set (even if empty)
+	if prefix, exists := os.LookupEnv("API_PREFIX"); exists {
+		if prefix == "" {
+			return "" // No prefix if explicitly set to empty
+		}
+		if !strings.HasPrefix(prefix, "/") {
+			return "/" + prefix
+		}
+		return prefix
 	}
-	return "/" + prefix
+	// Default to /api if not set at all
+	return "/api"
 }
 
 // EVE Online SSO Configuration

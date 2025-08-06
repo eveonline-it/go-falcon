@@ -87,7 +87,7 @@ When you save any `.go` file, Air will:
 
 # Terminal 2: Test your changes
 curl http://localhost:8080/health
-curl http://localhost:8080/api/auth/status
+curl http://localhost:8080/auth/status
 
 # Note: Infrastructure services run in Docker,
 # but the application runs locally with hot reload
@@ -225,13 +225,13 @@ go test ./internal/auth
 make test
 
 # Test API endpoints while developing
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"password"}'
 
 # Test health endpoints
 curl http://localhost:8080/health
-curl http://localhost:8080/api/auth/health
+curl http://localhost:8080/auth/health
 ```
 
 ### Why This Setup?

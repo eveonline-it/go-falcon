@@ -132,16 +132,16 @@ health-infra: ## Check infrastructure health
 # Development tools
 postman: ## Generate Postman collection for all gateway endpoints
 	@echo "📋 Generating Postman collection..."
-	@go run ./cmd/postman
-	@echo "✅ Postman collection generated: go-falcon-gateway-endpoints.postman_collection.json"
+	@set -a && [ -f .env ] && . ./.env && set +a && go run ./cmd/postman
+	@echo "✅ Postman collection generated."
 
 postman-build: ## Build and run postman exporter
 	@echo "🔨 Building postman exporter..."
 	@mkdir -p bin
 	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
 	@echo "📋 Generating Postman collection..."
-	@./bin/postman
-	@echo "✅ Postman collection generated: go-falcon-gateway-endpoints.postman_collection.json"
+	@set -a && [ -f .env ] && . ./.env && set +a && ./bin/postman
+	@echo "✅ Postman collection generated."
 
 sde: ## Download and convert EVE Online SDE data to JSON
 	@echo "📊 Processing EVE Online SDE data..."

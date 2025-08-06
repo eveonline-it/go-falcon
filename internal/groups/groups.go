@@ -637,6 +637,12 @@ func (m *Module) GetGroupService() *GroupService {
 	return m.groupService
 }
 
+// GetUserPermissions retrieves the complete permission matrix for a user
+// This is a public interface for other modules to access user permissions
+func (m *Module) GetUserPermissions(ctx context.Context, characterID int) (*UserPermissionMatrix, error) {
+	return m.permissionService.GetUserPermissions(ctx, characterID)
+}
+
 // IsSuperAdmin checks if a character is the configured super admin
 func (m *Module) IsSuperAdmin(characterID int) bool {
 	superAdminCharID := config.GetSuperAdminCharacterID()

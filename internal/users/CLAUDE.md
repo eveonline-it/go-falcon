@@ -2,15 +2,16 @@
 
 ## Overview
 
-The users module provides user management functionality integrated with EVE Online SSO authentication. It handles user registration, token management, and user state tracking with comprehensive administrative controls for user lifecycle management.
+The users module provides user management functionality.
+An user can have multiple characters with different scopes and groups (so permissions)
+Each user has his own refresh and access token
 
 ## Architecture
 
 ### Core Components
 
-- **User Management**: Complete user lifecycle from registration to deactivation
-- **SSO Integration**: Seamless integration with EVE Online authentication flow
-- **Token Management**: Access and refresh token storage and updates
+- **User Management**: User management
+- **Character Management**: List all characters
 - **User State Control**: Enable/disable, ban/unban, and validation status management
 - **Administrative Tools**: User search, filtering, and bulk operations
 
@@ -27,7 +28,7 @@ internal/users/
 
 ## User Data Model
 
-### Database Schema (MongoDB Collection: `users`)
+### Database Schema (MongoDB Collection shared with Auth module: `user_profiles`)
 
 ```go
 type User struct {
@@ -60,321 +61,236 @@ type User struct {
 - **position**: Numerical position for ranking/hierarchy (0 = default)
 - **notes**: Free-form administrative notes for user management
 
-## SSO Integration Flow
-
-### User Registration/Login Process
-
-1. **EVE SSO Authentication**: User completes EVE Online SSO flow
-2. **Character ID Check**: System checks if `character_id` exists in database
-3. **User Update**: If user exists, update tokens and login timestamp
-4. **User Creation**: If new user, create complete user record
-5. **Status Validation**: Check enabled/banned status before granting access
-
-### Database Operations
-
-#### Existing User (Update Flow)
-```go
-// Update existing user tokens and login time
-filter := bson.M{"character_id": characterID}
-update := bson.M{
-    "$set": bson.M{
-        "access_token":  newAccessToken,
-        "refresh_token": newRefreshToken,
-        "last_login":    time.Now(),
-        "updated_at":    time.Now(),
-        "scopes":        updatedScopes,
-    },
-}
-```
-
-#### New User (Insert Flow)
-```go
-// Create new user document
-newUser := User{
-    CharacterID:  characterID,
-    UserID:       uuid.New().String(),
-    AccessToken:  accessToken,
-    RefreshToken: refreshToken,
-    Enabled:      true,          // Default enabled
-    Banned:       false,         // Default not banned
-    Invalid:      false,         // Default valid
-    Scopes:       ssoScopes,
-    Position:     0,             // Default position
-    Notes:        "",            // Empty notes
-    CreatedAt:    now,
-    UpdatedAt:    now,
-    LastLogin:    now,
-}
-```
-
 ## API Endpoints
-
-### User Management Endpoints
-
-| Endpoint | Method | Description | Auth Required | Admin Only |
-|----------|--------|-------------|---------------|------------|
-| `/users` | GET | List all users with filtering | ✅ | ✅ |
-| `/users/{userID}` | GET | Get specific user details | ✅ | ✅ |
-| `/users/{userID}` | PUT | Update user information | ✅ | ✅ |
-| `/users/{userID}/enable` | POST | Enable user account | ✅ | ✅ |
-| `/users/{userID}/disable` | POST | Disable user account | ✅ | ✅ |
-| `/users/{userID}/ban` | POST | Ban user account | ✅ | ✅ |
-| `/users/{userID}/unban` | POST | Unban user account | ✅ | ✅ |
-| `/users/{userID}/invalidate` | POST | Mark user tokens as invalid | ✅ | ✅ |
-| `/users/{userID}/validate` | POST | Mark user as valid | ✅ | ✅ |
-| `/users/{userID}/notes` | PUT | Update administrative notes | ✅ | ✅ |
-| `/users/search` | GET | Search users by criteria | ✅ | ✅ |
-| `/users/stats` | GET | User statistics and counts | ✅ | ✅ |
 
 ### Public Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/profile` | GET | Get current user's profile | ✅ |
-| `/profile` | PUT | Update current user's profile | ✅ |
-| `/profile/tokens/refresh` | POST | Refresh user's EVE tokens | ✅ |
+#### Get User Statistics
+```
+GET /api/users/stats
+```
+Returns aggregate statistics about users in the system.
 
-## User Status Management
-
-### User States
-
-1. **Active User**: `enabled: true, banned: false, invalid: false`
-2. **Disabled User**: `enabled: false` (temporary suspension)
-3. **Banned User**: `banned: true` (permanent ban)
-4. **Invalid User**: `invalid: true` (token/data issues)
-
-### State Transitions
-
-```go
-// Enable user
-func (s *Service) EnableUser(userID string) error {
-    return s.updateUserStatus(userID, bson.M{
-        "enabled": true,
-        "updated_at": time.Now(),
-    })
-}
-
-// Ban user
-func (s *Service) BanUser(userID string, reason string) error {
-    return s.updateUserStatus(userID, bson.M{
-        "banned": true,
-        "enabled": false,
-        "notes": fmt.Sprintf("BANNED: %s", reason),
-        "updated_at": time.Now(),
-    })
+**Response:**
+```json
+{
+  "total_users": 1250,
+  "enabled_users": 1180,
+  "disabled_users": 70,
+  "banned_users": 15,
+  "invalid_users": 25
 }
 ```
 
-## Administrative Features
+### Administrative Endpoints
 
-### User Search and Filtering
+All administrative endpoints require JWT authentication and appropriate permissions.
 
-```go
-// Search parameters
-type UserSearchParams struct {
-    CharacterName string `json:"character_name"`
-    Enabled       *bool  `json:"enabled"`
-    Banned        *bool  `json:"banned"`
-    Invalid       *bool  `json:"invalid"`
-    MinPosition   *int   `json:"min_position"`
-    MaxPosition   *int   `json:"max_position"`
-    CreatedAfter  *time.Time `json:"created_after"`
-    CreatedBefore *time.Time `json:"created_before"`
-    HasScopes     []string `json:"has_scopes"`
+#### List Users
+```
+GET /api/users?page=1&page_size=20&query=search&enabled=true&banned=false
+```
+**Authentication:** Required  
+**Permission:** `users:read`
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `page_size`: Items per page (default: 20, max: 100)
+- `query`: Search by character name or ID
+- `enabled`: Filter by enabled status (true/false)
+- `banned`: Filter by banned status (true/false)
+- `invalid`: Filter by invalid status (true/false)
+- `position`: Filter by position value
+- `sort_by`: Sort field (character_name, created_at, last_login, position)
+- `sort_order`: Sort order (asc, desc)
+
+**Response:**
+```json
+{
+  "users": [...],
+  "total": 1250,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 63
 }
 ```
 
-### Bulk Operations
+#### Get User Details
+```
+GET /api/users/{character_id}
+```
+**Authentication:** Required  
+**Permission:** `users:read`
 
-- **Bulk Enable/Disable**: Mass user account control
-- **Bulk Token Refresh**: Refresh tokens for multiple users
-- **Bulk Status Updates**: Update user positions or notes
-- **Export Functions**: User data export for analysis
+**Response:** Complete user object with all fields.
 
-### User Statistics
+#### Update User
+```
+PUT /api/users/{character_id}
+```
+**Authentication:** Required  
+**Permission:** `users:write`
 
-```go
-type UserStats struct {
-    TotalUsers    int `json:"total_users"`
-    ActiveUsers   int `json:"active_users"`
-    DisabledUsers int `json:"disabled_users"`
-    BannedUsers   int `json:"banned_users"`
-    InvalidUsers  int `json:"invalid_users"`
-    RecentLogins  int `json:"recent_logins_24h"`
+**Request Body:**
+```json
+{
+  "enabled": true,
+  "banned": false,
+  "invalid": false,
+  "position": 5,
+  "notes": "Administrative notes"
 }
 ```
 
-## Security Features
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User updated successfully",
+  "user": {...}
+}
+```
 
-### Token Security
 
-- **Encrypted Storage**: Access and refresh tokens encrypted at rest
-- **Secure Transmission**: HTTPS-only for all token operations
-- **Token Rotation**: Automatic refresh token updates
-- **Token Validation**: Regular token validity checks
+### User Management Endpoints
 
-### Access Control
+#### List User Characters
+```
+GET /api/users/by-user-id/{user_id}/characters
+```
+**Authentication:** Required  
+**Permission:** Self-access or `users:read`
 
-- **Admin-Only Endpoints**: User management restricted to administrators
-- **User Self-Service**: Users can manage their own profiles
-- **Permission Scopes**: EVE Online scope validation
-- **Audit Logging**: All administrative actions logged
+Users can always view their own characters. Admin users with `users:read` permission can view any user's characters.
 
-### Data Protection
-
-- **PII Handling**: Secure handling of character information
-- **Token Isolation**: Tokens never exposed in API responses
-- **Database Security**: Proper indexing and access controls
-- **Backup Security**: Encrypted backups with token exclusion
-
-## Integration Points
-
-### Authentication Module
-
-```go
-// Called during EVE SSO callback
-func (s *Service) ProcessSSOLogin(characterID int, tokens *SSOTokens) (*User, error) {
-    existingUser, err := s.GetUserByCharacterID(characterID)
-    if err == nil {
-        // Update existing user
-        return s.UpdateUserTokens(existingUser.UserID, tokens)
+**Response:**
+```json
+{
+  "user_id": "uuid-string",
+  "characters": [
+    {
+      "character_id": 123456,
+      "character_name": "Character Name",
+      "user_id": "uuid-string",
+      "enabled": true,
+      "banned": false,
+      "position": 0,
+      "last_login": "2024-01-01T12:00:00Z"
     }
-    
-    // Create new user
-    return s.CreateUser(characterID, tokens)
+  ],
+  "count": 1
 }
 ```
 
-### Profile Module Integration
+## Authentication and Authorization
 
-- **Profile Enrichment**: Add user status to profile data
-- **Token Management**: Coordinate token refresh across modules
-- **Status Checks**: Validate user status before profile operations
+The Users module integrates with the authentication and authorization system using JWT tokens and group-based permissions.
 
-## Background Tasks
+### Required Permissions
 
-### Token Maintenance
+The following permissions should be configured in the Groups module:
 
-- **Token Refresh**: Periodic refresh of expiring tokens
-- **Token Validation**: Regular validation of stored tokens
-- **Cleanup**: Remove invalid or expired tokens
+#### Resource: `users`
+- **read**: View user information, list users, get user details
+- **write**: Update user status, modify user settings
 
-### User Analytics
+### Permission Requirements by Endpoint
 
-- **Login Tracking**: Monitor user login patterns
-- **Usage Statistics**: Track user activity and engagement
-- **Health Monitoring**: Monitor user account health
+| Endpoint | Method | Authentication | Permission Required | Description |
+|----------|--------|---------------|-------------------|-------------|
+| `/api/users/stats` | GET | No | Public | Get user statistics |
+| `/api/users` | GET | Yes | `users:read` | List and search users |
+| `/api/users/{character_id}` | GET | Yes | `users:read` | Get specific user details |
+| `/api/users/{character_id}` | PUT | Yes | `users:write` | Update user status and settings |
+| `/api/users/by-user-id/{user_id}/characters` | GET | Yes | Self or `users:read` | List characters for a user |
 
-### Maintenance Tasks
+### Authorization Logic
 
-- **Data Cleanup**: Remove old or unused user data
-- **Status Auditing**: Regular user status validation
-- **Performance Optimization**: Database index maintenance
+#### Self-Access vs Admin Access
+- **Character Lists**: Users can always view their own characters (when `user_id` matches authenticated user's `user_id`)
+- **Admin Override**: Users with `users:read` permission can view any user's characters
+- **Status Updates**: Only users with `users:write` permission can modify user status
 
-## Configuration
+#### Required Group Configuration
 
-### Required Environment Variables
+The following groups should have users module permissions:
 
-```bash
-# User management settings
-USER_DEFAULT_ENABLED=true
-USER_AUTO_BAN_INVALID_TOKENS=false
-USER_TOKEN_REFRESH_INTERVAL=3600
-USER_CLEANUP_INTERVAL=86400
-
-# Administrative settings  
-ADMIN_USERS=character_id_1,character_id_2
-ADMIN_NOTIFICATIONS_ENABLED=true
+##### Administrators Group
+```json
+{
+  "name": "administrators", 
+  "permissions": {
+    "users": ["read", "write"]
+  }
+}
 ```
 
-### Database Configuration
-
-```go
-// MongoDB indexes for performance
-db.users.createIndex({ "character_id": 1 }, { unique: true })
-db.users.createIndex({ "user_id": 1 }, { unique: true })
-db.users.createIndex({ "enabled": 1, "banned": 1 })
-db.users.createIndex({ "created_at": 1 })
-db.users.createIndex({ "last_login": 1 })
+##### User Managers Group (Optional)
+```json
+{
+  "name": "user_managers",
+  "permissions": {
+    "users": ["read", "write"]
+  }
+}
 ```
+
+##### Support Staff Group (Optional)  
+```json
+{
+  "name": "support_staff",
+  "permissions": {
+    "users": ["read"]
+  }
+}
+```
+
+### Integration with Auth Module
+
+- **JWT Middleware**: All protected endpoints require valid JWT tokens
+- **Context Access**: Authenticated user information via `auth.GetAuthenticatedUser(r)`
+- **Token Types**: Supports both cookie-based (web) and Bearer token (mobile) authentication
+
+### Security Features
+
+- **Data Privacy**: User tokens (access/refresh) are never exposed in JSON responses
+- **Admin Actions**: All administrative actions are logged with operator information  
+- **Permission Checking**: Fine-grained permission checks prevent unauthorized access
+- **Self-Service**: Users can view their own character information without admin permissions
+- **Audit Trail**: User status changes include timestamp and administrative notes
 
 ## Error Handling
 
-### Common Error Scenarios
+### Common HTTP Status Codes
 
-- **Duplicate Character ID**: Handle EVE character already registered
-- **Invalid Tokens**: Process expired or revoked EVE tokens
-- **Database Errors**: Graceful handling of connection issues
-- **Permission Errors**: Proper access control validation
+- **200 OK**: Successful operation
+- **400 Bad Request**: Invalid request parameters or malformed JSON
+- **401 Unauthorized**: Missing or invalid authentication token
+- **403 Forbidden**: Insufficient permissions for requested operation  
+- **404 Not Found**: User not found
+- **500 Internal Server Error**: Database or server error
 
-### Error Responses
+### Error Response Format
 
 ```json
 {
-  "error": "user_not_found",
-  "message": "User with character ID 123456789 not found",
-  "code": 404
+  "error": "permission_denied",
+  "message": "Insufficient permissions for this operation"
 }
 ```
 
-## Performance Considerations
+## Database Integration
 
-### Database Optimization
+The Users module shares the `user_profiles` MongoDB collection with the Auth module, providing a unified user management system while maintaining separation of concerns.
 
-- **Proper Indexing**: Optimized queries for user lookups
-- **Connection Pooling**: Efficient database connections
-- **Query Optimization**: Minimize database round trips
-- **Data Pagination**: Large user lists with pagination
+### Indexes
 
-### Caching Strategy
+Recommended database indexes for optimal performance:
+- `character_id` (unique)
+- `user_id`  
+- `enabled`
+- `banned`
+- `character_name` (text index for search)
+- `created_at`
+- `last_login`
 
-- **User Cache**: Frequently accessed user data
-- **Token Cache**: Short-term token caching
-- **Statistics Cache**: User statistics caching
-- **Search Cache**: Common search results
-
-## Monitoring and Observability
-
-### Metrics
-
-- **User Registration Rate**: New user creation tracking
-- **Login Frequency**: User activity monitoring
-- **Token Refresh Rate**: Token management health
-- **Administrative Actions**: Admin operation tracking
-
-### Logging
-
-- **User Operations**: All user CRUD operations
-- **Status Changes**: Enable/disable/ban operations
-- **Token Operations**: Token refresh and validation
-- **Administrative Actions**: Admin user management
-
-### Alerts
-
-- **Failed Token Refresh**: Alert on token refresh failures
-- **Suspicious Activity**: Unusual user activity patterns
-- **Database Issues**: User data access problems
-- **Administrative Notifications**: Important user status changes
-
-## Best Practices
-
-### User Management
-
-- **Regular Audits**: Periodic review of user accounts
-- **Token Hygiene**: Regular token validation and cleanup
-- **Status Monitoring**: Monitor user account health
-- **Documentation**: Keep administrative notes updated
-
-### Security
-
-- **Principle of Least Privilege**: Minimal required permissions
-- **Regular Security Reviews**: Audit user access patterns
-- **Token Security**: Secure token storage and transmission
-- **Admin Access Control**: Strict admin permission management
-
-### Performance
-
-- **Database Optimization**: Regular index and query optimization
-- **Caching Strategy**: Implement appropriate caching
-- **Bulk Operations**: Efficient mass user operations
-- **Resource Management**: Monitor resource usage patterns

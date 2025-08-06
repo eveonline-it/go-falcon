@@ -167,9 +167,9 @@ The new development setup provides:
 
 ### Application Health Endpoints
 - Application: `http://localhost:8080/health`
-- Auth Module: `http://localhost:8080/api/auth/health`
-- Users Module: `http://localhost:8080/api/users/health`
-- Notifications Module: `http://localhost:8080/api/notifications/health`
+- Auth Module: `http://localhost:8080/auth/health`
+- Users Module: `http://localhost:8080/users/health`
+- Notifications Module: `http://localhost:8080/notifications/health`
 
 ### Infrastructure Health Checks
 ```bash
