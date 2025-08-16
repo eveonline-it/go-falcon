@@ -37,9 +37,11 @@ internal/sde/
 ### Data Processing
 - **Download**: Automated download of SDE zip files from CCP servers
 - **Extraction**: Zip file extraction with progress tracking
-- **YAML to JSON**: Conversion of YAML files to JSON format
+- **Comprehensive YAML Discovery**: Recursive scanning of `bsd` and `fsd` directories for all YAML files
+- **YAML to JSON**: Conversion of all discovered YAML files to JSON format
 - **Redis JSON Storage**: Individual Redis JSON keys for each SDE entity with granular access
 - **File Management**: Temporary file handling with cleanup
+- **Dynamic Processing**: Automatically adapts to new SDE files without code changes
 
 ### Integration
 - **Scheduler**: Background checking every 6 hours via system task
@@ -143,6 +145,9 @@ curl http://localhost:8080/sde/entities/categories
 7. **Finalize**: Update status and cleanup temporary files
 
 ### Processed SDE Files
+The SDE module now processes **ALL** YAML files found in both the `bsd` and `fsd` directories recursively, including:
+
+**Core FSD Files:**
 - `agents.yaml` → `agents.json`
 - `blueprints.yaml` → `blueprints.json`
 - `categories.yaml` → `categories.json`
@@ -152,6 +157,20 @@ curl http://localhost:8080/sde/entities/categories
 - `types.yaml` → `types.json`
 - `typeDogma.yaml` → `typeDogma.json`
 - `typeMaterials.yaml` → `typeMaterials.json`
+
+**Additional Files:**
+- All other YAML files in `fsd/` subdirectories
+- All YAML files in `bsd/` directory and subdirectories
+- Dynamic processing ensures all EVE Online SDE data is captured
+
+**Processing Features:**
+- **Recursive Discovery**: Automatically finds all `.yaml` and `.yml` files
+- **Directory Scanning**: Processes both `bsd` and `fsd` directories completely
+- **Dynamic Naming**: JSON output files maintain original YAML base names
+- **Multi-Format Support**: Handles both map-based and array-based YAML structures
+- **Smart ID Extraction**: Automatically identifies suitable ID fields for array data
+- **Error Tolerance**: Failed file conversions don't stop the entire process
+- **Progress Tracking**: Real-time progress updates show file conversion status
 
 ### Progress Stages
 - **0.1**: Download started
@@ -187,6 +206,50 @@ The scheduler calls `CheckSDEUpdate(ctx)` method which:
 2. Compares with current stored hash
 3. Sends notifications if update available
 4. Optionally triggers automatic update
+
+## Data Format Handling
+
+### Supported YAML Structures
+
+The SDE module automatically handles different YAML data structures found in EVE Online SDE files:
+
+**Map-Based Format** (Key-Value pairs):
+```yaml
+1000001:
+  activities:
+    1:
+      materials:
+        - materialTypeID: 587
+          quantity: 1
+  blueprintTypeID: 1000001
+  maxProductionLimit: 1
+```
+
+**Array-Based Format** (List of objects):
+```yaml
+- flagID: 0
+  flagName: None
+  flagText: None
+  orderID: 0
+- flagID: 1
+  flagName: Wallet
+  flagText: Wallet
+  orderID: 10
+```
+
+### ID Extraction Strategy
+
+For array-based data, the system automatically extracts suitable IDs using:
+
+1. **Primary ID Fields**: `flagID`, `typeID`, `itemID`, `groupID`, etc.
+2. **Secondary ID Fields**: `corporationID`, `systemID`, `blueprintID`, etc.
+3. **Fallback Strategy**: Uses first available numeric/string field
+4. **Index Fallback**: Uses array index if no suitable ID found
+
+**Generated Redis Keys Examples:**
+- Map data: `sde:blueprints:1000001`
+- Array data with flagID: `sde:flags:0`, `sde:flags:1`
+- Array data without ID: `sde:unknowntype:index_0`
 
 ## Redis JSON Storage
 
@@ -308,12 +371,15 @@ The SDE module provides comprehensive web-based management:
 ### Core Functions
 Key functions for SDE management:
 - `unzipFile()`: Archive extraction with progress tracking
-- `convertYAMLToJSON()`: YAML to JSON format conversion
+- `collectYAMLFiles()`: Recursively discover all YAML files in directories
+- `convertYAMLFiles()`: Process all discovered YAML files from bsd and fsd directories
+- `convertYAMLToJSON()`: Individual YAML to JSON format conversion
 - `downloadFileWithProgress()`: HTTP downloads with progress reporting
-- `storeSDEFileAsIndividualKeys()`: Store SDE data as individual Redis JSON keys
+- `storeSDEFileAsIndividualKeys()`: Store SDE data as individual Redis JSON keys (supports both map and array formats)
+- `extractEntityID()`: Smart ID extraction from array-based SDE data using common field patterns
 - `GetSDEEntityFromRedis()`: Retrieve single entity by type and ID
 - `GetSDEEntitiesByType()`: Retrieve all entities of a specific type
-- `CleanupOldSDEData()`: Remove old SDE keys before updates
+- `CleanupOldSDEData()`: Remove all old SDE keys before updates (dynamic cleanup)
 
 ### Thread Safety
 - Mutex protection for concurrent operations
@@ -361,6 +427,8 @@ curl http://localhost:8080/sde/entities/categories
 - **Validation**: Verify data integrity after processing
 - **Compression**: Compress Redis data for efficiency
 - **Metrics**: Detailed update statistics and timing
+- **Selective Processing**: Option to process only specific directories or file patterns
+- **Schema Validation**: Validate YAML structure before processing
 
 ### API Enhancements
 - WebSocket endpoint for real-time progress

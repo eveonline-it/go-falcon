@@ -368,21 +368,30 @@ func (m *Module) downloadFile(filepath string, url string) error {
 }
 
 
-// convertYAMLFiles converts YAML files to JSON
+// convertYAMLFiles converts all YAML files from bsd and fsd directories to JSON
 func (m *Module) convertYAMLFiles(extractDir string) error {
-	yamlFiles := []string{
-		"fsd/agents.yaml",
-		"fsd/blueprints.yaml",
-		"fsd/categories.yaml",
-		"fsd/marketGroups.yaml",
-		"fsd/metaGroups.yaml",
-		"fsd/npcCorporations.yaml",
-		"fsd/types.yaml",
-		"fsd/typeDogma.yaml",
-		"fsd/typeMaterials.yaml",
+	jsonDir := "data/sde"
+	
+	// Directories to scan for YAML files
+	scanDirs := []string{"bsd", "fsd"}
+	
+	// Collect all YAML files from both directories
+	var yamlFiles []string
+	for _, dir := range scanDirs {
+		dirPath := filepath.Join(extractDir, dir)
+		files, err := collectYAMLFiles(dirPath)
+		if err != nil {
+			slog.Warn("Failed to collect YAML files from directory", "dir", dirPath, "error", err)
+			continue
+		}
+		yamlFiles = append(yamlFiles, files...)
 	}
 	
-	jsonDir := "data/sde"
+	if len(yamlFiles) == 0 {
+		return fmt.Errorf("no YAML files found in bsd or fsd directories")
+	}
+	
+	slog.Info("Found YAML files to process", "count", len(yamlFiles))
 	totalFiles := len(yamlFiles)
 	
 	for i, yamlFile := range yamlFiles {
@@ -390,7 +399,7 @@ func (m *Module) convertYAMLFiles(extractDir string) error {
 		
 		// Update progress
 		progress := 0.5 + (0.2 * float64(i) / float64(totalFiles))
-		m.updateProgress(progress, fmt.Sprintf("Converting %s...", filepath.Base(yamlFile)))
+		m.updateProgress(progress, fmt.Sprintf("Converting %s... (%d/%d)", filepath.Base(yamlFile), i+1, totalFiles))
 		
 		if err := convertYAMLToJSON(fullPath, jsonDir); err != nil {
 			slog.Error("Failed to convert YAML file", "file", fullPath, "error", err)
@@ -433,6 +442,7 @@ func (m *Module) storeInRedis(ctx context.Context) error {
 }
 
 // storeSDEFileAsIndividualKeys stores a single SDE file as individual Redis JSON entries
+// Handles both map[string]interface{} and []interface{} formats
 func (m *Module) storeSDEFileAsIndividualKeys(ctx context.Context, filePath, dataType string) error {
 	redisClient := m.Redis()
 	
@@ -441,29 +451,64 @@ func (m *Module) storeSDEFileAsIndividualKeys(ctx context.Context, filePath, dat
 		return fmt.Errorf("failed to read file %s: %w", filePath, err)
 	}
 	
-	// Parse JSON as map to get individual entries
-	var dataMap map[string]interface{}
-	if err := json.Unmarshal(data, &dataMap); err != nil {
+	// Parse JSON to determine structure
+	var parsedData interface{}
+	if err := json.Unmarshal(data, &parsedData); err != nil {
 		return fmt.Errorf("failed to unmarshal %s: %w", filePath, err)
 	}
 	
 	// Use Redis pipeline for batch operations
 	pipe := redisClient.Client.Pipeline()
+	storedCount := 0
 	
-	// Store each entry as individual Redis JSON key
-	for entityID, entityData := range dataMap {
-		key := fmt.Sprintf("sde:%s:%s", dataType, entityID)
-		
-		// Convert entity data to JSON
-		entityJSON, err := json.Marshal(entityData)
-		if err != nil {
-			slog.Warn("Failed to marshal entity", "type", dataType, "id", entityID, "error", err)
-			continue
+	switch data := parsedData.(type) {
+	case map[string]interface{}:
+		// Handle map format (key-value pairs)
+		for entityID, entityData := range data {
+			key := fmt.Sprintf("sde:%s:%s", dataType, entityID)
+			
+			entityJSON, err := json.Marshal(entityData)
+			if err != nil {
+				slog.Warn("Failed to marshal entity", "type", dataType, "id", entityID, "error", err)
+				continue
+			}
+			
+			pipe.Do(ctx, "JSON.SET", key, "$", entityJSON)
+			slog.Debug("Storing individual SDE entity", "key", key, "size", len(entityJSON))
+			storedCount++
 		}
 		
-		// Store as Redis JSON
-		pipe.Do(ctx, "JSON.SET", key, "$", entityJSON)
-		slog.Debug("Storing individual SDE entity", "key", key, "size", len(entityJSON))
+	case []interface{}:
+		// Handle array format (list of objects)
+		for i, item := range data {
+			itemMap, ok := item.(map[string]interface{})
+			if !ok {
+				slog.Warn("Array item is not an object", "type", dataType, "index", i)
+				continue
+			}
+			
+			// Try to find a suitable ID field
+			entityID := m.extractEntityID(itemMap, i)
+			key := fmt.Sprintf("sde:%s:%s", dataType, entityID)
+			
+			entityJSON, err := json.Marshal(itemMap)
+			if err != nil {
+				slog.Warn("Failed to marshal array entity", "type", dataType, "id", entityID, "error", err)
+				continue
+			}
+			
+			pipe.Do(ctx, "JSON.SET", key, "$", entityJSON)
+			slog.Debug("Storing individual SDE array entity", "key", key, "size", len(entityJSON))
+			storedCount++
+		}
+		
+	default:
+		return fmt.Errorf("unsupported data format for %s: expected map or array, got %T", dataType, parsedData)
+	}
+	
+	if storedCount == 0 {
+		slog.Warn("No entities stored", "type", dataType, "file", filePath)
+		return nil
 	}
 	
 	// Execute pipeline
@@ -474,10 +519,61 @@ func (m *Module) storeSDEFileAsIndividualKeys(ctx context.Context, filePath, dat
 	
 	slog.Info("Stored SDE data type as individual keys", 
 		"type", dataType, 
-		"count", len(dataMap),
+		"count", storedCount,
 		"pattern", fmt.Sprintf("sde:%s:*", dataType))
 	
 	return nil
+}
+
+// extractEntityID attempts to extract a suitable ID from an entity object
+// For array-based data, tries common ID fields or falls back to index
+func (m *Module) extractEntityID(entity map[string]interface{}, fallbackIndex int) string {
+	// Common ID field names in EVE SDE data
+	idFields := []string{
+		"id", "ID", "itemID", "typeID", "flagID", "groupID", 
+		"categoryID", "marketGroupID", "corporationID", "factionID",
+		"agentID", "stationID", "systemID", "regionID", "blueprintID",
+		"materialTypeID", "activityID", "raceID", "bloodlineID",
+		"ancestryID", "attributeID", "unitID", "iconID", "graphicID",
+	}
+	
+	// Try to find a suitable ID field
+	for _, field := range idFields {
+		if value, exists := entity[field]; exists {
+			// Convert to string
+			switch v := value.(type) {
+			case int:
+				return fmt.Sprintf("%d", v)
+			case int64:
+				return fmt.Sprintf("%d", v)
+			case float64:
+				return fmt.Sprintf("%.0f", v)
+			case string:
+				if v != "" {
+					return v
+				}
+			}
+		}
+	}
+	
+	// If no ID field found, try using the first string/number field as identifier
+	for key, value := range entity {
+		switch v := value.(type) {
+		case int:
+			return fmt.Sprintf("%s_%d", key, v)
+		case int64:
+			return fmt.Sprintf("%s_%d", key, v)
+		case float64:
+			return fmt.Sprintf("%s_%.0f", key, v)
+		case string:
+			if v != "" && len(v) < 50 { // Reasonable length for an ID
+				return fmt.Sprintf("%s_%s", key, v)
+			}
+		}
+	}
+	
+	// Last resort: use array index
+	return fmt.Sprintf("index_%d", fallbackIndex)
 }
 
 // calculateFileHash calculates MD5 hash of a file
@@ -694,32 +790,55 @@ func (m *Module) GetSDEEntitiesByType(ctx context.Context, dataType string) (map
 	return entities, nil
 }
 
-// CleanupOldSDEData removes old SDE data keys before storing new ones
+// CleanupOldSDEData removes all old SDE data keys before storing new ones
 func (m *Module) CleanupOldSDEData(ctx context.Context) error {
 	redis := m.Redis()
 	
-	// SDE data types to clean
-	dataTypes := []string{
-		"agents", "categories", "blueprints", "marketGroups", 
-		"metaGroups", "npcCorporations", "types", "typeDogma", "typeMaterials",
+	// Get all existing SDE keys using pattern matching
+	pattern := "sde:*"
+	keys, err := redis.Client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get SDE keys for cleanup: %w", err)
 	}
 	
-	for _, dataType := range dataTypes {
-		pattern := fmt.Sprintf("sde:%s:*", dataType)
-		keys, err := redis.Client.Keys(ctx, pattern).Result()
-		if err != nil {
-			slog.Warn("Failed to get keys for cleanup", "pattern", pattern, "error", err)
-			continue
+	if len(keys) == 0 {
+		slog.Info("No existing SDE data to cleanup")
+		return nil
+	}
+	
+	// Filter out metadata keys that should not be deleted
+	var dataKeys []string
+	metadataKeys := map[string]bool{
+		redisHashKey:    true,
+		redisStatusKey:  true,
+		redisProgressKey: true,
+	}
+	
+	for _, key := range keys {
+		if !metadataKeys[key] {
+			dataKeys = append(dataKeys, key)
 		}
-		
-		if len(keys) > 0 {
-			deleted, err := redis.Client.Del(ctx, keys...).Result()
+	}
+	
+	if len(dataKeys) > 0 {
+		// Delete data keys in batches to avoid large delete operations
+		batchSize := 1000
+		for i := 0; i < len(dataKeys); i += batchSize {
+			end := i + batchSize
+			if end > len(dataKeys) {
+				end = len(dataKeys)
+			}
+			
+			batch := dataKeys[i:end]
+			deleted, err := redis.Client.Del(ctx, batch...).Result()
 			if err != nil {
-				slog.Warn("Failed to delete old SDE keys", "pattern", pattern, "error", err)
+				slog.Warn("Failed to delete SDE data keys batch", "error", err, "batch_start", i)
 			} else {
-				slog.Info("Cleaned up old SDE data", "type", dataType, "deleted", deleted)
+				slog.Info("Cleaned up SDE data keys batch", "deleted", deleted, "batch_start", i)
 			}
 		}
+		
+		slog.Info("Completed SDE data cleanup", "total_deleted_keys", len(dataKeys))
 	}
 	
 	return nil

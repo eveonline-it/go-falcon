@@ -178,3 +178,39 @@ func (m *Module) downloadFileWithProgress(filepath string, url string) error {
 
 	return os.Rename(filepath+".tmp", filepath)
 }
+
+// collectYAMLFiles recursively collects all YAML files from a directory
+func collectYAMLFiles(dirPath string) ([]string, error) {
+	var yamlFiles []string
+	
+	// Check if directory exists
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		return yamlFiles, nil // Return empty list if directory doesn't exist
+	}
+	
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+		
+		// Check for YAML files
+		ext := filepath.Ext(path)
+		if ext == ".yaml" || ext == ".yml" {
+			// Get relative path from extract directory
+			relPath, err := filepath.Rel(filepath.Dir(dirPath), path)
+			if err != nil {
+				return err
+			}
+			yamlFiles = append(yamlFiles, relPath)
+		}
+		
+		return nil
+	})
+	
+	return yamlFiles, err
+}
