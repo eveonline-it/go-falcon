@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-utils clean test install-tools help version postman postman-build sde lint fmt tidy dev-setup quick-test
+.PHONY: dev build build-all build-utils clean test install-tools help version postman postman-build openapi openapi-build sde lint fmt tidy dev-setup quick-test
 
 # Version variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -37,30 +37,33 @@ build: ## Build the falcon application
 	@go build $(LDFLAGS) -o bin/falcon ./cmd/gateway
 	@echo "✅ Build complete: bin/falcon"
 
-build-all: ## Build all applications (gateway, backup, restore, postman)
+build-all: ## Build all applications (gateway, backup, restore, postman, openapi)
 	@echo "🔨 Building all applications..."
 	@mkdir -p bin
 	@go build $(LDFLAGS) -o bin/falcon ./cmd/gateway
 	@go build $(LDFLAGS) -o bin/backup ./cmd/backup
 	@go build $(LDFLAGS) -o bin/restore ./cmd/restore
 	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
-	@echo "✅ Build complete: bin/falcon, bin/backup, bin/restore, bin/postman"
+	@go build $(LDFLAGS) -o bin/openapi ./cmd/openapi
+	@echo "✅ Build complete: bin/falcon, bin/backup, bin/restore, bin/postman, bin/openapi"
 
-build-utils: ## Build utility applications (backup, restore, postman)
+build-utils: ## Build utility applications (backup, restore, postman, openapi)
 	@echo "🔨 Building utility applications..."
 	@mkdir -p bin
 	@go build $(LDFLAGS) -o bin/backup ./cmd/backup
 	@go build $(LDFLAGS) -o bin/restore ./cmd/restore
 	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
-	@echo "✅ Build complete: bin/backup, bin/restore, bin/postman"
+	@go build $(LDFLAGS) -o bin/openapi ./cmd/openapi
+	@echo "✅ Build complete: bin/backup, bin/restore, bin/postman, bin/openapi"
 
 clean: ## Clean build artifacts and temporary files
 	@echo "🧹 Cleaning build artifacts..."
 	@rm -rf bin/
 	@rm -rf tmp/
 	@rm -rf data/sde
-	@rm -f falcon gateway backup restore postman sde
+	@rm -f falcon gateway backup restore postman openapi sde
 	@rm -f *.postman_collection.json
+	@rm -f falcon-openapi.json
 	@echo "✅ Clean complete"
 
 test: ## Run tests
@@ -135,6 +138,19 @@ postman-build: ## Build and run postman exporter
 	@echo "📋 Generating Postman collection..."
 	@set -a && [ -f .env ] && . ./.env && set +a && ./bin/postman
 	@echo "✅ Postman collection generated."
+
+openapi: ## Generate OpenAPI 3.1 specification for all gateway endpoints
+	@echo "📋 Generating OpenAPI 3.1 specification..."
+	@set -a && [ -f .env ] && . ./.env && set +a && go run ./cmd/openapi
+	@echo "✅ OpenAPI specification generated."
+
+openapi-build: ## Build and run openapi exporter
+	@echo "🔨 Building openapi exporter..."
+	@mkdir -p bin
+	@go build $(LDFLAGS) -o bin/openapi ./cmd/openapi
+	@echo "📋 Generating OpenAPI 3.1 specification..."
+	@set -a && [ -f .env ] && . ./.env && set +a && ./bin/openapi
+	@echo "✅ OpenAPI specification generated."
 
 # SDE management is now handled via the web interface
 # Use: curl -X POST http://localhost:8080/sde/update
