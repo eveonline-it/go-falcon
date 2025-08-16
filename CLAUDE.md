@@ -174,7 +174,7 @@ The project provides comprehensive EVE Online SDE management through both in-mem
 ### SDE Management Endpoints
 - `GET /sde/status` - Current SDE version and status
 - `POST /sde/check` - Check for new SDE versions
-- `POST /sde/update` - Initiate SDE update process (processes ALL YAML files in bsd and fsd directories)
+- `POST /sde/update` - Initiate SDE update process (processes ALL YAML files in bsd, fsd, and universe directories)
 - `GET /sde/progress` - Real-time update progress
 - `GET /sde/entity/{type}/{id}` - Get individual SDE entity
 - `GET /sde/entities/{type}` - Get all entities of a specific type

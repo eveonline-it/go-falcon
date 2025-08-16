@@ -1,15 +1,19 @@
 package dev
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"go-falcon/pkg/handlers"
 
 	"github.com/go-chi/chi/v5"
+	goredis "github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -543,10 +547,10 @@ func (m *Module) sdeNPCCorpHandler(w http.ResponseWriter, r *http.Request) {
 	span.SetAttributes(
 		attribute.Bool("dev.success", true),
 		attribute.String("sde.npc_corp_id", corpID),
-		attribute.String("sde.npc_corp_ticker", npcCorp.TickerName),
+		attribute.String("sde.npc_corp_ticker", npcCorp.TickerName.String()),
 	)
 
-	slog.InfoContext(r.Context(), "Dev: SDE NPC corporation retrieved", "corp_id", corpID, "ticker", npcCorp.TickerName)
+	slog.InfoContext(r.Context(), "Dev: SDE NPC corporation retrieved", "corp_id", corpID, "ticker", npcCorp.TickerName.String())
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -949,6 +953,705 @@ func (m *Module) sdeTypeMaterialsHandler(w http.ResponseWriter, r *http.Request)
 		"module":    m.Name(),
 		"count":     len(materials),
 		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// getSdeDataFromRedis retrieves SDE data directly from Redis JSON
+func (m *Module) getSdeDataFromRedis(ctx context.Context, key string) (interface{}, error) {
+	redis := m.Redis()
+	
+	result, err := redis.Client.Do(ctx, "JSON.GET", key, "$").Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SDE data from Redis: %w", err)
+	}
+	
+	if result == nil {
+		return nil, fmt.Errorf("SDE data not found for key: %s", key)
+	}
+	
+	// Redis JSON.GET returns a JSON string, parse it
+	var data []interface{}
+	if err := json.Unmarshal([]byte(result.(string)), &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal SDE data: %w", err)
+	}
+	
+	if len(data) == 0 {
+		return nil, fmt.Errorf("empty SDE data for key: %s", key)
+	}
+	
+	return data[0], nil
+}
+
+// getSdeDataByPattern retrieves multiple SDE keys matching a pattern
+func (m *Module) getSdeDataByPattern(ctx context.Context, pattern string) (map[string]interface{}, error) {
+	redis := m.Redis()
+	
+	// Get all keys matching the pattern
+	keys, err := redis.Client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get keys for pattern %s: %w", pattern, err)
+	}
+	
+	if len(keys) == 0 {
+		return make(map[string]interface{}), nil
+	}
+	
+	// Use pipeline to get all data
+	pipe := redis.Client.Pipeline()
+	for _, key := range keys {
+		pipe.Do(ctx, "JSON.GET", key, "$")
+	}
+	
+	results, err := pipe.Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute pipeline: %w", err)
+	}
+	
+	data := make(map[string]interface{})
+	for i, result := range results {
+		if result.Err() != nil {
+			slog.Warn("Failed to get SDE data", "key", keys[i], "error", result.Err())
+			continue
+		}
+		
+		// Parse JSON result
+		cmd := result.(*goredis.Cmd)
+		resultStr, err := cmd.Text()
+		if err != nil {
+			slog.Warn("Failed to get text from result", "key", keys[i], "error", err)
+			continue
+		}
+		
+		var jsonData []interface{}
+		if err := json.Unmarshal([]byte(resultStr), &jsonData); err != nil {
+			slog.Warn("Failed to unmarshal data", "key", keys[i], "error", err)
+			continue
+		}
+		
+		if len(jsonData) > 0 {
+			data[keys[i]] = jsonData[0]
+		}
+	}
+	
+	return data, nil
+}
+
+// sdeRedisEntityHandler gets a specific SDE entity from Redis
+func (m *Module) sdeRedisEntityHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.sdeRedisEntityHandler",
+		attribute.String("dev.operation", "sde_redis_entity"),
+		attribute.String("dev.service", "redis"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	entityType := chi.URLParam(r, "type")
+	entityID := chi.URLParam(r, "id")
+	
+	slog.InfoContext(r.Context(), "Dev: SDE Redis entity request", "type", entityType, "id", entityID)
+
+	key := fmt.Sprintf("sde:%s:%s", entityType, entityID)
+	data, err := m.getSdeDataFromRedis(r.Context(), key)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Failed to get SDE entity from Redis", "key", key, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error":"Entity not found","details":"` + err.Error() + `"}`))
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.String("sde.entity_type", entityType),
+		attribute.String("sde.entity_id", entityID),
+		attribute.String("sde.redis_key", key),
+	)
+
+	slog.InfoContext(r.Context(), "Dev: SDE entity retrieved from Redis", "type", entityType, "id", entityID)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":    "Redis SDE",
+		"status":    "success",
+		"data":      data,
+		"module":    m.Name(),
+		"redis_key": key,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// sdeRedisEntitiesByTypeHandler gets all entities of a specific type from Redis
+func (m *Module) sdeRedisEntitiesByTypeHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.sdeRedisEntitiesByTypeHandler",
+		attribute.String("dev.operation", "sde_redis_entities_by_type"),
+		attribute.String("dev.service", "redis"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	entityType := chi.URLParam(r, "type")
+	
+	slog.InfoContext(r.Context(), "Dev: SDE Redis entities by type request", "type", entityType)
+
+	pattern := fmt.Sprintf("sde:%s:*", entityType)
+	data, err := m.getSdeDataByPattern(r.Context(), pattern)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Failed to get SDE entities from Redis", "pattern", pattern, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error":"Failed to retrieve entities","details":"` + err.Error() + `"}`))
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.String("sde.entity_type", entityType),
+		attribute.String("sde.redis_pattern", pattern),
+		attribute.Int("sde.entities_count", len(data)),
+	)
+
+	slog.InfoContext(r.Context(), "Dev: SDE entities retrieved from Redis", "type", entityType, "count", len(data))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":       "Redis SDE",
+		"status":       "success",
+		"data":         data,
+		"module":       m.Name(),
+		"redis_pattern": pattern,
+		"count":        len(data),
+		"timestamp":    time.Now().Format(time.RFC3339),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// sdeUniverseRegionSystemsHandler gets all solar systems from a region
+func (m *Module) sdeUniverseRegionSystemsHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.sdeUniverseRegionSystemsHandler",
+		attribute.String("dev.operation", "sde_universe_region_systems"),
+		attribute.String("dev.service", "redis"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	universeType := chi.URLParam(r, "universeType")
+	regionName := chi.URLParam(r, "regionName")
+	
+	slog.InfoContext(r.Context(), "Dev: SDE universe region systems request", "universe_type", universeType, "region", regionName)
+
+	// Pattern to match all systems in the region: sde:universe:{type}:{region}:*:*
+	pattern := fmt.Sprintf("sde:universe:%s:%s:*:*", universeType, regionName)
+	data, err := m.getSdeDataByPattern(r.Context(), pattern)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Failed to get region systems from Redis", "pattern", pattern, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error":"Failed to retrieve region systems","details":"` + err.Error() + `"}`))
+		return
+	}
+
+	// Filter to only include system-level data (6 segments total: sde:universe:type:region:constellation:system)
+	systemData := make(map[string]interface{})
+	for key, value := range data {
+		keyParts := strings.Split(key, ":")
+		if len(keyParts) == 6 && !strings.HasSuffix(key, ":constellation.yaml") { // sde:universe:type:region:constellation:system
+			systemData[key] = value
+		}
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.String("sde.universe_type", universeType),
+		attribute.String("sde.region_name", regionName),
+		attribute.String("sde.redis_pattern", pattern),
+		attribute.Int("sde.systems_count", len(systemData)),
+	)
+
+	slog.InfoContext(r.Context(), "Dev: SDE region systems retrieved from Redis", 
+		"universe_type", universeType, "region", regionName, "systems_count", len(systemData))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":        "Redis SDE",
+		"status":        "success",
+		"data":          systemData,
+		"module":        m.Name(),
+		"universe_type": universeType,
+		"region_name":   regionName,
+		"redis_pattern": pattern,
+		"systems_count": len(systemData),
+		"timestamp":     time.Now().Format(time.RFC3339),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// sdeUniverseConstellationSystemsHandler gets all solar systems from a constellation
+func (m *Module) sdeUniverseConstellationSystemsHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.sdeUniverseConstellationSystemsHandler",
+		attribute.String("dev.operation", "sde_universe_constellation_systems"),
+		attribute.String("dev.service", "redis"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	universeType := chi.URLParam(r, "universeType")
+	regionName := chi.URLParam(r, "regionName")
+	constellationName := chi.URLParam(r, "constellationName")
+	
+	slog.InfoContext(r.Context(), "Dev: SDE universe constellation systems request", 
+		"universe_type", universeType, "region", regionName, "constellation", constellationName)
+
+	// Pattern to match all systems in the constellation: sde:universe:{type}:{region}:{constellation}:*
+	pattern := fmt.Sprintf("sde:universe:%s:%s:%s:*", universeType, regionName, constellationName)
+	data, err := m.getSdeDataByPattern(r.Context(), pattern)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Failed to get constellation systems from Redis", "pattern", pattern, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error":"Failed to retrieve constellation systems","details":"` + err.Error() + `"}`))
+		return
+	}
+
+	// Filter to only include system-level data (6 segments total: sde:universe:type:region:constellation:system)
+	systemData := make(map[string]interface{})
+	for key, value := range data {
+		keyParts := strings.Split(key, ":")
+		if len(keyParts) == 6 && !strings.HasSuffix(key, ":constellation.yaml") { // sde:universe:type:region:constellation:system
+			systemData[key] = value
+		}
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.String("sde.universe_type", universeType),
+		attribute.String("sde.region_name", regionName),
+		attribute.String("sde.constellation_name", constellationName),
+		attribute.String("sde.redis_pattern", pattern),
+		attribute.Int("sde.systems_count", len(systemData)),
+	)
+
+	slog.InfoContext(r.Context(), "Dev: SDE constellation systems retrieved from Redis", 
+		"universe_type", universeType, "region", regionName, "constellation", constellationName, "systems_count", len(systemData))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":            "Redis SDE",
+		"status":            "success",
+		"data":              systemData,
+		"module":            m.Name(),
+		"universe_type":     universeType,
+		"region_name":       regionName,
+		"constellation_name": constellationName,
+		"redis_pattern":     pattern,
+		"systems_count":     len(systemData),
+		"timestamp":         time.Now().Format(time.RFC3339),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// sdeUniverseDataHandler gets specific universe data (region, constellation, or system)
+func (m *Module) sdeUniverseDataHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.sdeUniverseDataHandler",
+		attribute.String("dev.operation", "sde_universe_data"),
+		attribute.String("dev.service", "redis"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	universeType := chi.URLParam(r, "universeType")
+	regionName := chi.URLParam(r, "regionName")
+	constellationName := chi.URLParam(r, "constellationName")
+	systemName := chi.URLParam(r, "systemName")
+	
+	// Build Redis key based on provided parameters
+	var key string
+	var level string
+	
+	if systemName != "" {
+		key = fmt.Sprintf("sde:universe:%s:%s:%s:%s", universeType, regionName, constellationName, systemName)
+		level = "system"
+	} else if constellationName != "" {
+		key = fmt.Sprintf("sde:universe:%s:%s:%s:constellation.yaml", universeType, regionName, constellationName)
+		level = "constellation"
+	} else {
+		key = fmt.Sprintf("sde:universe:%s:%s:region.yaml:region", universeType, regionName)
+		level = "region"
+	}
+	
+	slog.InfoContext(r.Context(), "Dev: SDE universe data request", 
+		"universe_type", universeType, "region", regionName, "constellation", constellationName, "system", systemName, "level", level, "key", key)
+
+	data, err := m.getSdeDataFromRedis(r.Context(), key)
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Failed to get universe data from Redis", "key", key, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error":"Universe data not found","details":"` + err.Error() + `"}`))
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.String("sde.universe_type", universeType),
+		attribute.String("sde.region_name", regionName),
+		attribute.String("sde.constellation_name", constellationName),
+		attribute.String("sde.system_name", systemName),
+		attribute.String("sde.level", level),
+		attribute.String("sde.redis_key", key),
+	)
+
+	slog.InfoContext(r.Context(), "Dev: SDE universe data retrieved from Redis", 
+		"universe_type", universeType, "level", level, "key", key)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":        "Redis SDE",
+		"status":        "success",
+		"data":          data,
+		"module":        m.Name(),
+		"universe_type": universeType,
+		"region_name":   regionName,
+		"constellation_name": constellationName,
+		"system_name":   systemName,
+		"level":         level,
+		"redis_key":     key,
+		"timestamp":     time.Now().Format(time.RFC3339),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// sdeManagementStatusHandler gets the SDE management module status (like internal/sde module)
+func (m *Module) sdeManagementStatusHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.sdeManagementStatusHandler",
+		attribute.String("dev.operation", "sde_management_status"),
+		attribute.String("dev.service", "sde_management"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	slog.InfoContext(r.Context(), "Dev: SDE management status request", slog.String("remote_addr", r.RemoteAddr))
+
+	// Get SDE management status from Redis (same keys as internal/sde module)
+	redis := m.Redis()
+	ctx := r.Context()
+
+	// Get current hash
+	currentHash, _ := redis.Client.Get(ctx, "sde:current_hash").Result()
+
+	// Get stored status
+	statusJSON, _ := redis.Client.Get(ctx, "sde:status").Result()
+	var sdeStatus map[string]interface{}
+	if statusJSON != "" {
+		json.Unmarshal([]byte(statusJSON), &sdeStatus)
+	} else {
+		sdeStatus = make(map[string]interface{})
+	}
+
+	// Get progress
+	progressJSON, _ := redis.Client.Get(ctx, "sde:progress").Result()
+	var progressData map[string]interface{}
+	if progressJSON != "" {
+		json.Unmarshal([]byte(progressJSON), &progressData)
+	} else {
+		progressData = make(map[string]interface{})
+	}
+
+	// Build comprehensive status
+	status := map[string]interface{}{
+		"current_hash":     currentHash,
+		"sde_status":       sdeStatus,
+		"progress_info":    progressData,
+		"management_type":  "web_based",
+		"redis_keys": map[string]interface{}{
+			"hash_key":     "sde:current_hash",
+			"status_key":   "sde:status",
+			"progress_key": "sde:progress",
+		},
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.String("sde.current_hash", currentHash),
+		attribute.Bool("sde.has_status", statusJSON != ""),
+		attribute.Bool("sde.has_progress", progressJSON != ""),
+	)
+
+	slog.InfoContext(r.Context(), "Dev: SDE management status retrieved", "has_hash", currentHash != "", "has_status", statusJSON != "")
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":    "SDE Management",
+		"status":    "success",
+		"data":      status,
+		"module":    m.Name(),
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// sdeComprehensiveStatusHandler provides comprehensive view of both SDE service and management
+func (m *Module) sdeComprehensiveStatusHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.sdeComprehensiveStatusHandler",
+		attribute.String("dev.operation", "sde_comprehensive_status"),
+		attribute.String("dev.service", "comprehensive"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	slog.InfoContext(r.Context(), "Dev: Comprehensive SDE status request")
+
+	// Get in-memory SDE service status
+	sdeService := m.SDEService()
+	isLoaded := sdeService.IsLoaded()
+
+	var memoryStats map[string]interface{}
+	if isLoaded {
+		// Get data counts from memory service
+		agents, _ := sdeService.GetAllAgents()
+		categories, _ := sdeService.GetAllCategories()
+		blueprints, _ := sdeService.GetAllBlueprints()
+		marketGroups, _ := sdeService.GetAllMarketGroups()
+		metaGroups, _ := sdeService.GetAllMetaGroups()
+		npcCorporations, _ := sdeService.GetAllNPCCorporations()
+		typeIDs, _ := sdeService.GetAllTypeIDs()
+		types, _ := sdeService.GetAllTypes()
+
+		memoryStats = map[string]interface{}{
+			"loaded":                true,
+			"agents_count":          len(agents),
+			"categories_count":      len(categories),
+			"blueprints_count":      len(blueprints),
+			"market_groups_count":   len(marketGroups),
+			"meta_groups_count":     len(metaGroups),
+			"npc_corporations_count": len(npcCorporations),
+			"type_ids_count":        len(typeIDs),
+			"types_count":           len(types),
+			"data_source":           "memory",
+		}
+	} else {
+		memoryStats = map[string]interface{}{
+			"loaded":      false,
+			"note":        "SDE data will be loaded on first access",
+			"data_source": "memory",
+		}
+	}
+
+	// Get Redis-based SDE management status
+	redis := m.Redis()
+	ctx := r.Context()
+
+	currentHash, _ := redis.Client.Get(ctx, "sde:current_hash").Result()
+	statusJSON, _ := redis.Client.Get(ctx, "sde:status").Result()
+	progressJSON, _ := redis.Client.Get(ctx, "sde:progress").Result()
+
+	var sdeStatus map[string]interface{}
+	if statusJSON != "" {
+		json.Unmarshal([]byte(statusJSON), &sdeStatus)
+	} else {
+		sdeStatus = make(map[string]interface{})
+	}
+
+	var progressData map[string]interface{}
+	if progressJSON != "" {
+		json.Unmarshal([]byte(progressJSON), &progressData)
+	} else {
+		progressData = make(map[string]interface{})
+	}
+
+	// Get sample Redis SDE entity counts for verification
+	redisStats := map[string]interface{}{
+		"current_hash": currentHash,
+		"status":       sdeStatus,
+		"progress":     progressData,
+		"data_source":  "redis_individual_keys",
+	}
+
+	// Try to get entity counts from Redis pattern matching
+	entityTypes := []string{"agents", "categories", "blueprints", "marketGroups", "metaGroups", "npcCorporations", "typeIDs", "types"}
+	entityCounts := make(map[string]int)
+
+	for _, entityType := range entityTypes {
+		pattern := fmt.Sprintf("sde:%s:*", entityType)
+		keys, err := redis.Client.Keys(ctx, pattern).Result()
+		if err == nil {
+			entityCounts[entityType+"_count"] = len(keys)
+		}
+	}
+
+	if len(entityCounts) > 0 {
+		redisStats["entity_counts"] = entityCounts
+	}
+
+	// Check for universe data
+	universeKeys, err := redis.Client.Keys(ctx, "sde:universe:*").Result()
+	if err == nil {
+		redisStats["universe_entities_count"] = len(universeKeys)
+	}
+
+	comprehensiveStatus := map[string]interface{}{
+		"memory_service": memoryStats,
+		"redis_management": redisStats,
+		"comparison": map[string]interface{}{
+			"memory_loaded": isLoaded,
+			"redis_has_data": currentHash != "",
+			"sources_available": []string{"memory", "redis"},
+		},
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.Bool("sde.memory_loaded", isLoaded),
+		attribute.Bool("sde.redis_has_data", currentHash != ""),
+		attribute.Int("sde.universe_entities", len(universeKeys)),
+	)
+
+	slog.InfoContext(r.Context(), "Dev: Comprehensive SDE status retrieved", 
+		"memory_loaded", isLoaded, "redis_has_data", currentHash != "", "universe_entities", len(universeKeys))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":    "Comprehensive SDE",
+		"status":    "success",
+		"data":      comprehensiveStatus,
+		"module":    m.Name(),
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// sdeAllEntityTypesHandler lists all available SDE entity types from Redis
+func (m *Module) sdeAllEntityTypesHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "dev.sdeAllEntityTypesHandler",
+		attribute.String("dev.operation", "sde_all_entity_types"),
+		attribute.String("dev.service", "redis"),
+		attribute.String("http.route", r.URL.Path),
+		attribute.String("http.method", r.Method),
+	)
+	defer span.End()
+
+	slog.InfoContext(r.Context(), "Dev: SDE all entity types request")
+
+	redis := m.Redis()
+	ctx := r.Context()
+
+	// Get all SDE keys
+	keys, err := redis.Client.Keys(ctx, "sde:*").Result()
+	if err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("dev.success", false))
+		slog.ErrorContext(r.Context(), "Dev: Failed to get SDE keys", "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error":"Failed to retrieve SDE keys","details":"` + err.Error() + `"}`))
+		return
+	}
+
+	// Parse keys to extract entity types
+	entityTypes := make(map[string]int)
+	metadataKeys := []string{"sde:current_hash", "sde:status", "sde:progress"}
+	metadataCount := 0
+
+	for _, key := range keys {
+		// Skip metadata keys
+		isMetadata := false
+		for _, metaKey := range metadataKeys {
+			if key == metaKey {
+				isMetadata = true
+				metadataCount++
+				break
+			}
+		}
+		if isMetadata {
+			continue
+		}
+
+		// Parse key pattern: sde:{type}:{id} or sde:universe:{type}:...
+		parts := strings.Split(key, ":")
+		if len(parts) >= 3 {
+			if parts[1] == "universe" && len(parts) >= 4 {
+				// Universe data: sde:universe:{type}:...
+				entityType := fmt.Sprintf("universe_%s", parts[2])
+				entityTypes[entityType]++
+			} else {
+				// Regular entity: sde:{type}:{id}
+				entityType := parts[1]
+				entityTypes[entityType]++
+			}
+		}
+	}
+
+	// Prepare response
+	var typesList []string
+	for entityType := range entityTypes {
+		typesList = append(typesList, entityType)
+	}
+
+	span.SetAttributes(
+		attribute.Bool("dev.success", true),
+		attribute.Int("sde.total_keys", len(keys)),
+		attribute.Int("sde.entity_types_count", len(entityTypes)),
+		attribute.Int("sde.metadata_keys", metadataCount),
+	)
+
+	slog.InfoContext(r.Context(), "Dev: SDE entity types retrieved", 
+		"total_keys", len(keys), "entity_types", len(entityTypes), "metadata_keys", metadataCount)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"source":              "Redis SDE",
+		"status":              "success",
+		"data": map[string]interface{}{
+			"entity_types":        typesList,
+			"entity_counts":       entityTypes,
+			"total_keys":          len(keys),
+			"metadata_keys":       metadataCount,
+			"data_keys":           len(keys) - metadataCount,
+		},
+		"module":              m.Name(),
+		"timestamp":           time.Now().Format(time.RFC3339),
 	}
 
 	json.NewEncoder(w).Encode(response)

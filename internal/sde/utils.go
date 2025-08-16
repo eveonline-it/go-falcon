@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -63,7 +64,7 @@ func (m *Module) unzipFile(src, dest string) error {
 	return nil
 }
 
-// convertYAMLToJSON converts a YAML file to JSON
+// convertYAMLToJSON converts a YAML file to JSON, preserving path context for universe files
 func convertYAMLToJSON(src, destDir string) error {
 	// Read the YAML file
 	yamlData, err := os.ReadFile(src)
@@ -91,10 +92,8 @@ func convertYAMLToJSON(src, destDir string) error {
 		return fmt.Errorf("failed to create destination directory %s: %w", destDir, err)
 	}
 
-	// Write the JSON data to a new file
-	baseName := filepath.Base(src)
-	ext := filepath.Ext(baseName)
-	jsonFileName := fmt.Sprintf("%s.json", baseName[0:len(baseName)-len(ext)])
+	// Generate JSON filename preserving universe path context
+	jsonFileName := generateJSONFileName(src)
 	destFile := filepath.Join(destDir, jsonFileName)
 
 	if err := os.WriteFile(destFile, jsonData, 0644); err != nil {
@@ -213,4 +212,79 @@ func collectYAMLFiles(dirPath string) ([]string, error) {
 	})
 	
 	return yamlFiles, err
+}
+
+// generateJSONFileName generates appropriate JSON filename from YAML source path
+// For universe files, preserves hierarchical path information in the filename
+func generateJSONFileName(src string) string {
+	// Normalize path separators
+	normalizedPath := filepath.ToSlash(src)
+	
+	// Check if this is a universe file
+	if strings.Contains(normalizedPath, "/universe/") {
+		// Extract universe path components
+		parts := strings.Split(normalizedPath, "/")
+		
+		// Find universe directory index
+		universeIndex := -1
+		for i, part := range parts {
+			if part == "universe" {
+				universeIndex = i
+				break
+			}
+		}
+		
+		if universeIndex >= 0 && len(parts) > universeIndex+1 {
+			// Extract components: universe/{type}/{region}/{constellation}/{system}/{filename}
+			universeParts := parts[universeIndex+1:]
+			
+			// Build filename: universe_{type}_{region}_{constellation}_{system}_{originalname}.json
+			if len(universeParts) >= 4 {
+				// Get original filename without extension
+				originalName := universeParts[len(universeParts)-1]
+				ext := filepath.Ext(originalName)
+				nameWithoutExt := originalName[:len(originalName)-len(ext)]
+				
+				// Build hierarchical filename
+				prefix := fmt.Sprintf("universe_%s_%s_%s_%s_%s", 
+					universeParts[0], // type
+					universeParts[1], // region
+					universeParts[2], // constellation  
+					universeParts[3], // system
+					nameWithoutExt)   // original filename
+				
+				return prefix + ".json"
+			} else if len(universeParts) >= 3 {
+				// Constellation level
+				originalName := universeParts[len(universeParts)-1]
+				ext := filepath.Ext(originalName)
+				nameWithoutExt := originalName[:len(originalName)-len(ext)]
+				
+				prefix := fmt.Sprintf("universe_%s_%s_%s_%s",
+					universeParts[0], // type
+					universeParts[1], // region
+					universeParts[2], // constellation
+					nameWithoutExt)   // original filename
+				
+				return prefix + ".json"
+			} else if len(universeParts) >= 2 {
+				// Region level
+				originalName := universeParts[len(universeParts)-1]
+				ext := filepath.Ext(originalName)
+				nameWithoutExt := originalName[:len(originalName)-len(ext)]
+				
+				prefix := fmt.Sprintf("universe_%s_%s_%s",
+					universeParts[0], // type
+					universeParts[1], // region
+					nameWithoutExt)   // original filename
+				
+				return prefix + ".json"
+			}
+		}
+	}
+	
+	// For non-universe files, use standard naming
+	baseName := filepath.Base(src)
+	ext := filepath.Ext(baseName)
+	return fmt.Sprintf("%s.json", baseName[:len(baseName)-len(ext)])
 }

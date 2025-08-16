@@ -56,6 +56,33 @@ internal/dev/
 #### Status Endpoints
 TODO
 
+### SDE Endpoints
+
+#### Memory-Based SDE (pkg/sde service)
+| Endpoint | Method | Description | Purpose |
+|----------|--------|-------------|---------|
+| `/sde/status` | GET | SDE service status and statistics | Health |
+| `/sde/agent/{agentID}` | GET | Get specific agent data | Testing |
+| `/sde/category/{categoryID}` | GET | Get category information | Testing |
+| `/sde/blueprint/{blueprintID}` | GET | Get blueprint data | Testing |
+| `/sde/types` | GET | Get all types | Testing |
+| `/sde/types/published` | GET | Get published types only | Testing |
+
+#### Redis-Based SDE (Direct Redis access)
+| Endpoint | Method | Description | Purpose |
+|----------|--------|-------------|---------|
+| `/sde/redis/{type}/{id}` | GET | Get specific SDE entity from Redis | Testing |
+| `/sde/redis/{type}` | GET | Get all entities of type from Redis | Testing |
+
+#### Universe SDE Data
+| Endpoint | Method | Description | Purpose |
+|----------|--------|-------------|---------|
+| `/sde/universe/{type}/{region}/systems` | GET | Get all solar systems in region | Analysis |
+| `/sde/universe/{type}/{region}/{constellation}/systems` | GET | Get all solar systems in constellation | Analysis |
+| `/sde/universe/{type}/{region}` | GET | Get region data | Testing |
+| `/sde/universe/{type}/{region}/{constellation}` | GET | Get constellation data | Testing |
+| `/sde/universe/{type}/{region}/{constellation}/{system}` | GET | Get system data | Testing |
+
 ### Utility Endpoints
 
 | Endpoint | Method | Description | Purpose |
@@ -185,6 +212,58 @@ attribute.Bool("dev.success", true)
 
 ### Testing SDE Integration
 
+#### Memory-Based SDE (pkg/sde service)
+All existing SDE endpoints continue to work with the in-memory SDE service:
+
+```bash
+# Get SDE status and statistics
+curl http://localhost:8080/dev/sde/status
+
+# Get specific entities
+curl http://localhost:8080/dev/sde/agent/3008416
+curl http://localhost:8080/dev/sde/type/587
+curl http://localhost:8080/dev/sde/blueprint/1000001
+
+# Get collections
+curl http://localhost:8080/dev/sde/types/published
+curl http://localhost:8080/dev/sde/marketgroups
+```
+
+#### Redis-Based SDE (Direct Redis access)
+New endpoints for direct Redis SDE data access:
+
+```bash
+# Get specific SDE entity from Redis
+curl http://localhost:8080/dev/sde/redis/agents/3008416
+curl http://localhost:8080/dev/sde/redis/types/587
+curl http://localhost:8080/dev/sde/redis/flags/0
+
+# Get all entities of a type from Redis
+curl http://localhost:8080/dev/sde/redis/agents
+curl http://localhost:8080/dev/sde/redis/categories
+curl http://localhost:8080/dev/sde/redis/types
+```
+
+#### Universe SDE Data
+Access EVE Online universe data with hierarchical structure:
+
+```bash
+# Get all solar systems in a region
+curl http://localhost:8080/dev/sde/universe/eve/Derelik/systems
+
+# Get all solar systems in a constellation
+curl http://localhost:8080/dev/sde/universe/eve/Derelik/Kador/systems
+
+# Get specific universe data
+curl http://localhost:8080/dev/sde/universe/eve/Derelik                    # Region data
+curl http://localhost:8080/dev/sde/universe/eve/Derelik/Kador             # Constellation data
+curl http://localhost:8080/dev/sde/universe/eve/Derelik/Kador/Amarr       # System data
+
+# Other universe types
+curl http://localhost:8080/dev/sde/universe/abyssal/RegionName/systems
+curl http://localhost:8080/dev/sde/universe/wormhole/RegionName/ConstellationName/systems
+```
+
 ## Performance Characteristics
 
 ### ESI Endpoints
@@ -194,10 +273,12 @@ attribute.Bool("dev.success", true)
 - **Error Handling**: <10ms for validation errors
 
 ### SDE Endpoints
-- **Memory Access**: Nanosecond to microsecond response times
-- **No Network Calls**: All data served from memory
+- **Memory Access**: Nanosecond to microsecond response times (pkg/sde service)
+- **Redis Access**: Sub-millisecond response times for individual entities
+- **Universe Queries**: Millisecond response for regional system collections
+- **No Network Calls**: All data served from memory or local Redis
 - **Consistent Performance**: Not affected by network conditions
-- **Large Datasets**: Millisecond response for complete type lists
+- **Large Datasets**: Efficient retrieval of complete type collections
 
 ## Configuration
 

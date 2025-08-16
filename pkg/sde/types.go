@@ -113,7 +113,7 @@ type NPCCorporation struct {
 	CeoID                      int               `json:"ceoID,omitempty"`
 	Deleted                    bool              `json:"deleted,omitempty"`
 	DescriptionID              map[string]string `json:"descriptionID,omitempty"`
-	Extent                     string            `json:"extent,omitempty"`
+	Extent                     FlexibleString    `json:"extent,omitempty"`
 	FactionID                  int               `json:"factionID,omitempty"`
 	HasPlayerPersonnelManager  bool              `json:"hasPlayerPersonnelManager,omitempty"`
 	IconID                     int               `json:"iconID,omitempty"`
@@ -130,7 +130,7 @@ type NPCCorporation struct {
 	SolarSystemID              int               `json:"solarSystemID,omitempty"`
 	StationID                  int               `json:"stationID,omitempty"`
 	TaxRate                    float64           `json:"taxRate,omitempty"`
-	TickerName                 string            `json:"tickerName,omitempty"`
+	TickerName                 FlexibleString    `json:"tickerName,omitempty"`
 	UniqueName                 bool              `json:"uniqueName,omitempty"`
 }
 

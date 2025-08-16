@@ -104,6 +104,19 @@ func (m *Module) Routes(r chi.Router) {
 	r.Get("/sde/types/published", m.sdePublishedTypesHandler)
 	r.Get("/sde/types/group/{groupID}", m.sdeTypesByGroupHandler)
 	r.Get("/sde/typematerials/{typeID}", m.sdeTypeMaterialsHandler)
+	// Redis SDE endpoints
+	r.Get("/sde/redis/{type}/{id}", m.sdeRedisEntityHandler)
+	r.Get("/sde/redis/{type}", m.sdeRedisEntitiesByTypeHandler)
+	// Universe endpoints
+	r.Get("/sde/universe/{universeType}/{regionName}/systems", m.sdeUniverseRegionSystemsHandler)
+	r.Get("/sde/universe/{universeType}/{regionName}/{constellationName}/systems", m.sdeUniverseConstellationSystemsHandler)
+	r.Get("/sde/universe/{universeType}/{regionName}", m.sdeUniverseDataHandler)
+	r.Get("/sde/universe/{universeType}/{regionName}/{constellationName}", m.sdeUniverseDataHandler)
+	r.Get("/sde/universe/{universeType}/{regionName}/{constellationName}/{systemName}", m.sdeUniverseDataHandler)
+	// New comprehensive SDE management endpoints
+	r.Get("/sde/management/status", m.sdeManagementStatusHandler)
+	r.Get("/sde/comprehensive/status", m.sdeComprehensiveStatusHandler)
+	r.Get("/sde/entity-types", m.sdeAllEntityTypesHandler)
 	r.Get("/services", m.servicesHandler)
 	r.Get("/status", m.statusHandler)
 }
