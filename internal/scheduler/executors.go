@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+
 // HTTPExecutor executes HTTP tasks
 type HTTPExecutor struct{}
 
@@ -330,15 +331,17 @@ func parseFunctionConfig(config map[string]interface{}) (*FunctionTaskConfig, er
 
 // SystemExecutor executes system tasks
 type SystemExecutor struct {
-	authModule AuthModule
-	sdeModule  SDEModule
+	authModule   AuthModule
+	sdeModule    SDEModule
+	groupsModule GroupsModule
 }
 
 // NewSystemExecutor creates a new system executor with dependencies
-func NewSystemExecutor(authModule AuthModule, sdeModule SDEModule) *SystemExecutor {
+func NewSystemExecutor(authModule AuthModule, sdeModule SDEModule, groupsModule GroupsModule) *SystemExecutor {
 	return &SystemExecutor{
-		authModule: authModule,
-		sdeModule:  sdeModule,
+		authModule:   authModule,
+		sdeModule:    sdeModule,
+		groupsModule: groupsModule,
 	}
 }
 
@@ -386,6 +389,14 @@ func (e *SystemExecutor) executeSystemTask(ctx context.Context, config *SystemTa
 		return e.taskCleanupTask(ctx, config.Parameters)
 	case "sde_check":
 		return e.sdeCheckTask(ctx, config.Parameters)
+	case "corporate_validation":
+		return e.corporateValidationTask(ctx, config.Parameters)
+	case "group_cleanup":
+		return e.groupCleanupTask(ctx, config.Parameters)
+	case "discord_sync":
+		return e.discordSyncTask(ctx, config.Parameters)
+	case "group_integrity":
+		return e.groupIntegrityTask(ctx, config.Parameters)
 	default:
 		return nil, fmt.Errorf("unknown system task: %s", config.TaskName)
 	}
@@ -641,6 +652,141 @@ func (e *SystemExecutor) sdeCheckTask(ctx context.Context, params map[string]int
 			"auto_update": autoUpdate,
 			"notify":      notify,
 			"duration":    duration.String(),
+		},
+	}, nil
+}
+
+// Groups-related system task implementations
+
+func (e *SystemExecutor) corporateValidationTask(ctx context.Context, params map[string]interface{}) (*TaskResult, error) {
+	if e.groupsModule == nil {
+		return &TaskResult{
+			Success: false,
+			Error:   "Groups module not available",
+		}, nil
+	}
+
+	startTime := time.Now()
+	slog.Info("Starting corporate membership validation")
+
+	err := e.groupsModule.ValidateCorporateMemberships(ctx)
+	if err != nil {
+		return &TaskResult{
+			Success: false,
+			Error:   fmt.Sprintf("Corporate validation failed: %v", err),
+			Metadata: map[string]interface{}{
+				"task":     "corporate_validation",
+				"duration": time.Since(startTime).String(),
+			},
+		}, nil
+	}
+
+	return &TaskResult{
+		Success: true,
+		Output:  "Corporate membership validation completed successfully",
+		Metadata: map[string]interface{}{
+			"task":     "corporate_validation",
+			"duration": time.Since(startTime).String(),
+		},
+	}, nil
+}
+
+func (e *SystemExecutor) groupCleanupTask(ctx context.Context, params map[string]interface{}) (*TaskResult, error) {
+	if e.groupsModule == nil {
+		return &TaskResult{
+			Success: false,
+			Error:   "Groups module not available",
+		}, nil
+	}
+
+	startTime := time.Now()
+	slog.Info("Starting group membership cleanup")
+
+	cleanedCount, err := e.groupsModule.CleanupExpiredMemberships(ctx)
+	if err != nil {
+		return &TaskResult{
+			Success: false,
+			Error:   fmt.Sprintf("Group cleanup failed: %v", err),
+			Metadata: map[string]interface{}{
+				"task":     "group_cleanup",
+				"duration": time.Since(startTime).String(),
+			},
+		}, nil
+	}
+
+	return &TaskResult{
+		Success: true,
+		Output:  fmt.Sprintf("Group cleanup completed: removed %d expired memberships", cleanedCount),
+		Metadata: map[string]interface{}{
+			"task":          "group_cleanup",
+			"cleaned_count": cleanedCount,
+			"duration":      time.Since(startTime).String(),
+		},
+	}, nil
+}
+
+func (e *SystemExecutor) discordSyncTask(ctx context.Context, params map[string]interface{}) (*TaskResult, error) {
+	if e.groupsModule == nil {
+		return &TaskResult{
+			Success: false,
+			Error:   "Groups module not available",
+		}, nil
+	}
+
+	startTime := time.Now()
+	slog.Info("Starting Discord role synchronization")
+
+	err := e.groupsModule.SyncDiscordRoles(ctx)
+	if err != nil {
+		return &TaskResult{
+			Success: false,
+			Error:   fmt.Sprintf("Discord sync failed: %v", err),
+			Metadata: map[string]interface{}{
+				"task":     "discord_sync",
+				"duration": time.Since(startTime).String(),
+			},
+		}, nil
+	}
+
+	return &TaskResult{
+		Success: true,
+		Output:  "Discord role synchronization completed successfully",
+		Metadata: map[string]interface{}{
+			"task":     "discord_sync",
+			"duration": time.Since(startTime).String(),
+		},
+	}, nil
+}
+
+func (e *SystemExecutor) groupIntegrityTask(ctx context.Context, params map[string]interface{}) (*TaskResult, error) {
+	if e.groupsModule == nil {
+		return &TaskResult{
+			Success: false,
+			Error:   "Groups module not available",
+		}, nil
+	}
+
+	startTime := time.Now()
+	slog.Info("Starting group integrity validation")
+
+	err := e.groupsModule.ValidateGroupIntegrity(ctx)
+	if err != nil {
+		return &TaskResult{
+			Success: false,
+			Error:   fmt.Sprintf("Group integrity check failed: %v", err),
+			Metadata: map[string]interface{}{
+				"task":     "group_integrity",
+				"duration": time.Since(startTime).String(),
+			},
+		}, nil
+	}
+
+	return &TaskResult{
+		Success: true,
+		Output:  "Group integrity validation completed successfully",
+		Metadata: map[string]interface{}{
+			"task":     "group_integrity",
+			"duration": time.Since(startTime).String(),
 		},
 	}, nil
 }

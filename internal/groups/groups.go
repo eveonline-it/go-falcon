@@ -100,7 +100,15 @@ func (m *Module) StartBackgroundTasks(ctx context.Context) {
 }
 
 func (m *Module) initializeGroupsAndSuperAdmin(ctx context.Context) {
-	// First initialize default groups
+	// First initialize database indexes
+	slog.Info("Initializing groups database indexes")
+	
+	if err := m.groupService.InitializeIndexes(ctx); err != nil {
+		slog.Error("Failed to initialize groups database indexes", slog.String("error", err.Error()))
+		return
+	}
+	
+	// Initialize default groups
 	slog.Info("Initializing default groups")
 	
 	if err := m.groupService.InitializeDefaultGroups(ctx); err != nil {
@@ -681,4 +689,30 @@ func (m *Module) AssignUserToDefaultGroups(ctx context.Context, characterID int,
 	}
 
 	return nil
+}
+
+// Methods for scheduler integration - implement GroupsModule interface
+
+// ValidateCorporateMemberships validates corporate group memberships against ESI
+func (m *Module) ValidateCorporateMemberships(ctx context.Context) error {
+	groupTask := NewGroupTask(m.groupService, m.permissionService)
+	return groupTask.ValidateCorporateMemberships(ctx)
+}
+
+// CleanupExpiredMemberships removes expired group memberships
+func (m *Module) CleanupExpiredMemberships(ctx context.Context) (int, error) {
+	groupTask := NewGroupTask(m.groupService, m.permissionService)
+	return groupTask.CleanupExpiredMemberships(ctx)
+}
+
+// SyncDiscordRoles synchronizes group memberships with Discord roles
+func (m *Module) SyncDiscordRoles(ctx context.Context) error {
+	groupTask := NewGroupTask(m.groupService, m.permissionService)
+	return groupTask.SyncDiscordRoles(ctx)
+}
+
+// ValidateGroupIntegrity validates group data integrity
+func (m *Module) ValidateGroupIntegrity(ctx context.Context) error {
+	groupTask := NewGroupTask(m.groupService, m.permissionService)
+	return groupTask.ValidateGroupIntegrity(ctx)
 }

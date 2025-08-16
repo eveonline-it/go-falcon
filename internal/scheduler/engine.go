@@ -19,6 +19,14 @@ type AuthModule interface {
 	RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error)
 }
 
+// GroupsModule interface defines the methods needed from the groups module
+type GroupsModule interface {
+	ValidateCorporateMemberships(ctx context.Context) error
+	CleanupExpiredMemberships(ctx context.Context) (int, error)
+	SyncDiscordRoles(ctx context.Context) error
+	ValidateGroupIntegrity(ctx context.Context) error
+}
+
 // Engine handles task scheduling and execution
 type Engine struct {
 	repository *Repository
@@ -67,7 +75,7 @@ type TaskResult struct {
 }
 
 // NewEngine creates a new scheduler engine
-func NewEngine(repository *Repository, redis *database.Redis, authModule AuthModule, sdeModule SDEModule) *Engine {
+func NewEngine(repository *Repository, redis *database.Redis, authModule AuthModule, sdeModule SDEModule, groupsModule GroupsModule) *Engine {
 	// Create cron scheduler with second precision
 	cronScheduler := cron.New(cron.WithSeconds())
 	
@@ -86,7 +94,7 @@ func NewEngine(repository *Repository, redis *database.Redis, authModule AuthMod
 	}
 	
 	// Register default executors
-	engine.registerDefaultExecutors(authModule, sdeModule)
+	engine.registerDefaultExecutors(authModule, sdeModule, groupsModule)
 	
 	return engine
 }
@@ -600,10 +608,10 @@ func (e *Engine) releaseLock(ctx context.Context, key, value string) error {
 }
 
 // registerDefaultExecutors registers the default task executors
-func (e *Engine) registerDefaultExecutors(authModule AuthModule, sdeModule SDEModule) {
+func (e *Engine) registerDefaultExecutors(authModule AuthModule, sdeModule SDEModule, groupsModule GroupsModule) {
 	e.executors[TaskTypeHTTP] = &HTTPExecutor{}
 	e.executors[TaskTypeFunction] = &FunctionExecutor{}
-	e.executors[TaskTypeSystem] = NewSystemExecutor(authModule, sdeModule)
+	e.executors[TaskTypeSystem] = NewSystemExecutor(authModule, sdeModule, groupsModule)
 }
 
 // RegisterExecutor registers a custom task executor

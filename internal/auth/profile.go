@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -113,6 +114,16 @@ func (m *Module) CreateOrUpdateUserProfile(ctx context.Context, charInfo *EVECha
 		slog.Int("character_id", updatedProfile.CharacterID),
 		slog.String("character_name", updatedProfile.CharacterName),
 		slog.String("user_id", updatedProfile.UserID))
+
+	// Automatically assign user to appropriate groups if this is a new character
+	if isCreate && m.groupsModule != nil {
+		if err := m.assignUserToGroups(ctx, &updatedProfile, charInfo); err != nil {
+			// Log error but don't fail the profile creation
+			slog.Warn("Failed to assign user to default groups", 
+				slog.String("error", err.Error()),
+				slog.Int("character_id", updatedProfile.CharacterID))
+		}
+	}
 
 	return &updatedProfile, nil
 }
@@ -280,6 +291,49 @@ func (m *Module) RefreshExpiringTokens(ctx context.Context, batchSize int) (succ
 		slog.Int("total_users", len(users)))
 
 	return successCount, failureCount, nil
+}
+
+// assignUserToGroups assigns a user to appropriate default groups based on their profile
+func (m *Module) assignUserToGroups(ctx context.Context, profile *UserProfile, charInfo *EVECharacterInfo) error {
+	if m.groupsModule == nil {
+		return fmt.Errorf("groups module not available")
+	}
+
+	// Use reflection to call the groups module method
+	// This avoids circular imports between auth and groups modules
+	groupsModuleValue := reflect.ValueOf(m.groupsModule)
+	method := groupsModuleValue.MethodByName("AssignUserToDefaultGroups")
+	
+	if !method.IsValid() {
+		return fmt.Errorf("AssignUserToDefaultGroups method not found in groups module")
+	}
+
+	// For now, we'll pass nil for corporation and alliance IDs since they're not in charInfo
+	// The groups module can fetch this information via ESI if needed
+	var corporationID, allianceID *int
+
+	// Prepare arguments for reflection call
+	args := []reflect.Value{
+		reflect.ValueOf(ctx),
+		reflect.ValueOf(profile.CharacterID),
+		reflect.ValueOf(corporationID),
+		reflect.ValueOf(allianceID),
+	}
+
+	// Call the method
+	results := method.Call(args)
+	
+	// Check if there was an error
+	if len(results) > 0 && !results[0].IsNil() {
+		err := results[0].Interface().(error)
+		return fmt.Errorf("groups assignment failed: %w", err)
+	}
+
+	slog.Info("Successfully assigned user to default groups",
+		slog.Int("character_id", profile.CharacterID),
+		slog.String("character_name", profile.CharacterName))
+
+	return nil
 }
 
 // Profile handler endpoints

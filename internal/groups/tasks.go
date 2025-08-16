@@ -17,6 +17,7 @@ import (
 type GroupTask struct {
 	groupService      *GroupService
 	permissionService *PermissionService
+	discordService    *DiscordService
 	eveClient         *evegateway.Client
 }
 
@@ -24,6 +25,7 @@ func NewGroupTask(groupService *GroupService, permissionService *PermissionServi
 	return &GroupTask{
 		groupService:      groupService,
 		permissionService: permissionService,
+		discordService:    NewDiscordService(),
 		eveClient:         evegateway.NewClient(),
 	}
 }
@@ -170,12 +172,12 @@ func (gt *GroupTask) updateMembershipValidation(ctx context.Context, characterID
 }
 
 // CleanupExpiredMemberships removes all expired group memberships
-func (gt *GroupTask) CleanupExpiredMemberships(ctx context.Context) error {
+func (gt *GroupTask) CleanupExpiredMemberships(ctx context.Context) (int, error) {
 	slog.Info("Starting expired membership cleanup task")
 
 	count, err := gt.groupService.CleanupExpiredMemberships(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to cleanup expired memberships: %w", err)
+		return 0, fmt.Errorf("failed to cleanup expired memberships: %w", err)
 	}
 
 	// Invalidate all user permission caches after cleanup
@@ -185,16 +187,15 @@ func (gt *GroupTask) CleanupExpiredMemberships(ctx context.Context) error {
 	}
 
 	slog.Info("Expired membership cleanup completed", slog.Int("cleaned_up", count))
-	return nil
+	return count, nil
 }
 
 // SyncDiscordRoles synchronizes group memberships with Discord roles
 func (gt *GroupTask) SyncDiscordRoles(ctx context.Context) error {
 	slog.Info("Starting Discord role synchronization task")
 
-	discordServiceURL := config.GetEnv("DISCORD_SERVICE_URL", "")
-	if discordServiceURL == "" {
-		slog.Info("Discord service URL not configured, skipping Discord sync")
+	if !gt.discordService.IsDiscordEnabled() {
+		slog.Info("Discord service not configured, skipping Discord sync")
 		return nil
 	}
 
@@ -204,66 +205,31 @@ func (gt *GroupTask) SyncDiscordRoles(ctx context.Context) error {
 		return fmt.Errorf("failed to get groups for Discord sync: %w", err)
 	}
 
-	syncCount := 0
-	errorCount := 0
-
+	// Filter groups that have Discord roles
+	var groupsWithDiscord []Group
 	for _, group := range groups {
-		if len(group.DiscordRoles) == 0 {
-			continue // No Discord roles configured for this group
-		}
-
-		// Get members of this group
-		members, err := gt.groupService.ListGroupMembers(ctx, group.ID.Hex())
-		if err != nil {
-			slog.Error("Failed to get group members for Discord sync",
-				slog.String("group", group.Name),
-				slog.String("error", err.Error()))
-			errorCount++
-			continue
-		}
-
-		// Sync roles for each member across all servers
-		for _, member := range members {
-			err := gt.syncMemberDiscordRoles(ctx, member.CharacterID, group.DiscordRoles, discordServiceURL)
-			if err != nil {
-				slog.Warn("Failed to sync Discord roles for member",
-					slog.Int("character_id", member.CharacterID),
-					slog.String("group", group.Name),
-					slog.String("error", err.Error()))
-				errorCount++
-			} else {
-				syncCount++
-			}
+		if len(group.DiscordRoles) > 0 {
+			groupsWithDiscord = append(groupsWithDiscord, group)
 		}
 	}
 
-	slog.Info("Discord role synchronization completed",
-		slog.Int("synced", syncCount),
-		slog.Int("errors", errorCount))
+	if len(groupsWithDiscord) == 0 {
+		slog.Info("No groups have Discord roles configured")
+		return nil
+	}
+
+	// Use batch processing for efficiency
+	err = gt.discordService.BatchProcessGroupRoles(ctx, groupsWithDiscord, gt.groupService)
+	if err != nil {
+		return fmt.Errorf("failed to batch process Discord roles: %w", err)
+	}
 
 	return nil
 }
 
 // syncMemberDiscordRoles syncs Discord roles for a single member across multiple servers
-func (gt *GroupTask) syncMemberDiscordRoles(ctx context.Context, characterID int, roles []DiscordRole, serviceURL string) error {
-	// This would call the Discord service API to assign roles
-	// The actual implementation would depend on the Discord service API structure
-	
-	slog.Debug("Syncing Discord roles for character",
-		slog.Int("character_id", characterID),
-		slog.Int("role_count", len(roles)))
-
-	// TODO: Implement actual Discord API calls based on the Discord service API
-	// For now, just simulate the sync
-	
-	for _, role := range roles {
-		slog.Debug("Would assign Discord role",
-			slog.Int("character_id", characterID),
-			slog.String("server_id", role.ServerID),
-			slog.String("role_name", role.RoleName))
-	}
-
-	return nil
+func (gt *GroupTask) syncMemberDiscordRoles(ctx context.Context, characterID int, roles []DiscordRole) error {
+	return gt.discordService.syncMemberRoles(ctx, characterID, roles)
 }
 
 // AutoAssignNewUsers automatically assigns users to appropriate groups based on their profile

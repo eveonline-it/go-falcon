@@ -142,7 +142,7 @@ func main() {
 	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
 	// Initialize SDE module
 	sdeModule := sde.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, sdeModule)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, sdeModule, groupsModule)
 	
 	modules = append(modules, authModule, groupsModule, devModule, usersModule, notificationsModule, schedulerModule, sdeModule)
 	

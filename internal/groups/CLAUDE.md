@@ -22,24 +22,37 @@ The Groups module follows the standard Go Falcon module architecture:
 
 ## Default Groups
 
-### Guest
-- **Purpose**: Unauthenticated users and limited access
+### Login
+- **Purpose**: Authenticated users and limited access
 - **Permissions**: Read-only access to public resources
 - **Assignment**: Automatic for unauthenticated requests
-- **Discord Role**: None
+- **Discord Role**: Optional
 
 ### Full
-- **Purpose**: Authenticated EVE Online characters with standard access
-- **Permissions**: Read/write access to user-specific resources
+- **Purpose**: Authenticated EVE Online characters with full ESI scopes
+- **Permissions**: Read-only access to public resources
 - **Assignment**: Automatic upon successful EVE SSO authentication
-- **Discord Roles**: Multiple roles across servers (e.g., "Member" on Server A, "Authenticated" on Server B)
+- **Discord Roles**: Optional
+
+### Personal
+- **Purpose**: Member that is manually approved
+- **Permissions**: Access to personal resources and channels
+- **Assignment**: Automatic upon successful EVE SSO authentication
+- **Discord Roles**: Optional
 
 ### Corporate
-- **Purpose**: Members of enabled EVE Online corporations or alliances
-- **Permissions**: Access to corporation/alliance-specific resources and channels
-- **Assignment**: Automatic when character belongs to enabled corporation or alliance
-- **Discord Roles**: Multiple roles across servers (e.g., "Corporate Member" on main server, "Alliance" on corp server)
-- **Validation**: Checked via scheduled tasks using ESI corporation and alliance membership
+- **Purpose**: Members of enabled EVE Online corporations
+- **Permissions**: Access to corporation resources and channels
+- **Assignment**: Automatic when character belongs to enabled corporation
+- **Discord Roles**: Multiple roles across servers (e.g., "Corporate Member" on main server)
+- **Validation**: Checked via scheduled tasks using ESI corporation membership
+
+### Alliance
+- **Purpose**: Members of enabled EVE Online alliances
+- **Permissions**: Access to alliance-specific resources and channels
+- **Assignment**: Automatic when character belongs to enabled alliance
+- **Discord Roles**: Multiple roles across servers (e.g., "Alliance" on corp server)
+- **Validation**: Checked via scheduled tasks using ESI alliance membership
 
 ### Administrators
 - **Purpose**: Application administrators with elevated privileges
