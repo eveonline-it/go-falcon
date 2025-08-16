@@ -12,7 +12,7 @@ The SDE (Static Data Export) module provides web-based management of EVE Online 
 - **Background Processing**: Automated download, conversion, and storage
 - **Progress Tracking**: Real-time progress updates stored in Redis
 - **Hash Verification**: MD5 hash checking for update detection
-- **Redis Storage**: SDE data stored in Redis for fast access
+- **Redis JSON Storage**: SDE data stored as individual Redis JSON keys for granular access
 - **Scheduler Integration**: Background update checking via system tasks
 
 ### Files Structure
@@ -38,7 +38,7 @@ internal/sde/
 - **Download**: Automated download of SDE zip files from CCP servers
 - **Extraction**: Zip file extraction with progress tracking
 - **YAML to JSON**: Conversion of YAML files to JSON format
-- **Redis Storage**: Efficient storage of processed data in Redis
+- **Redis JSON Storage**: Individual Redis JSON keys for each SDE entity with granular access
 - **File Management**: Temporary file handling with cleanup
 
 ### Integration
@@ -56,6 +56,10 @@ internal/sde/
 | `/sde/update` | POST | Start SDE update process |
 | `/sde/progress` | GET | Get real-time update progress |
 | `/sde/health` | GET | Module health check |
+| `/sde/entity/{type}/{id}` | GET | Get individual SDE entity by type and ID |
+| `/sde/entities/{type}` | GET | Get all entities of a specific type |
+| `/sde/test/store-sample` | POST | Store sample test data for development |
+| `/sde/test/verify` | GET | Verify individual key storage functionality |
 
 ### Status Response Format
 ```json
@@ -88,6 +92,45 @@ internal/sde/
 }
 ```
 
+### Individual Entity Access
+
+**Get Single Entity:**
+```bash
+curl http://localhost:8080/sde/entity/agents/3008416
+```
+
+**Response:**
+```json
+{
+  "agentTypeID": 2,
+  "corporationID": 1000002,
+  "divisionID": 1,
+  "isLocator": false,
+  "level": 1,
+  "locationID": 60000004,
+  "quality": 0
+}
+```
+
+**Get All Entities by Type:**
+```bash
+curl http://localhost:8080/sde/entities/categories
+```
+
+**Response:**
+```json
+{
+  "1": {
+    "name": {"en": "System"},
+    "published": true
+  },
+  "2": {
+    "name": {"en": "Celestial"},
+    "published": true
+  }
+}
+```
+
 ## Background Processing
 
 ### Update Workflow
@@ -95,8 +138,9 @@ internal/sde/
 2. **Download**: Download SDE zip file with progress tracking
 3. **Extract**: Extract zip contents to temporary directory
 4. **Convert**: Convert YAML files to JSON format
-5. **Store**: Save processed data to Redis
-6. **Finalize**: Update status and cleanup temporary files
+5. **Cleanup**: Remove old SDE data from Redis
+6. **Store**: Save processed data as individual Redis JSON keys
+7. **Finalize**: Update status and cleanup temporary files
 
 ### Processed SDE Files
 - `agents.yaml` → `agents.json`
@@ -113,8 +157,8 @@ internal/sde/
 - **0.1**: Download started
 - **0.3**: Download completed, extraction started
 - **0.5**: Extraction completed, conversion started
-- **0.7**: Conversion completed, Redis storage started
-- **0.9**: Storage completed, finalizing
+- **0.7**: Conversion completed, cleanup and Redis storage started
+- **0.9**: Individual key storage completed, finalizing
 - **1.0**: Update completed successfully
 
 ## Scheduler Integration
@@ -144,22 +188,38 @@ The scheduler calls `CheckSDEUpdate(ctx)` method which:
 3. Sends notifications if update available
 4. Optionally triggers automatic update
 
-## Redis Storage
+## Redis JSON Storage
 
-### Key Structure
+### Individual Key Structure
+Instead of storing entire datasets, each SDE entity is stored as an individual Redis JSON key:
+
+**Pattern:** `sde:{type}:{id}`
+
+**Examples:**
+- `sde:agents:3008416` → Individual agent object
+- `sde:agents:3008417` → Another agent object  
+- `sde:categories:1` → Category object for ID 1
+- `sde:blueprints:1000001` → Blueprint object for ID 1000001
+- `sde:types:587` → Type object for ID 587
+
+### Metadata Keys
 - `sde:current_hash`: Current SDE version hash
 - `sde:status`: JSON-encoded status information
 - `sde:progress`: Real-time progress data
-- `sde:data:agents`: Processed agents data
-- `sde:data:categories`: Processed categories data
-- `sde:data:blueprints`: Processed blueprints data
-- *[additional data keys for each SDE file]*
 
-### Data Access
-SDE data stored in Redis can be accessed by:
-- **pkg/sde Service**: Loads from `data/sde/*.json` files
-- **Direct Redis Access**: For real-time applications
-- **API Endpoints**: Via the SDE module's REST API
+### Storage Benefits
+- **Granular Access**: Retrieve individual entities without loading entire datasets
+- **Memory Efficiency**: Load only needed data
+- **Better Caching**: Individual TTLs and cache strategies per entity
+- **Parallel Processing**: Concurrent access to different entities
+- **Redis JSON Features**: Leverage JSON path queries and partial updates
+
+### Data Access Methods
+SDE data can be accessed through:
+- **Individual Entity API**: `GET /sde/entity/{type}/{id}`
+- **Bulk Type API**: `GET /sde/entities/{type}`
+- **Direct Redis Access**: Using Redis JSON commands
+- **pkg/sde Service**: Loads from `data/sde/*.json` files (legacy)
 
 ## Notification System
 
@@ -233,8 +293,8 @@ const (
 - Progress updates to Redis are minimal
 
 ### Storage Requirements
-- **Temporary**: ~1GB during processing
-- **Redis**: ~50-500MB for processed data
+- **Temporary**: ~1GB during processing  
+- **Redis**: ~50-500MB for individual JSON keys (same total size, different structure)
 - **Persistent**: JSON files in `data/sde/` directory
 
 ## Development Notes
@@ -245,11 +305,15 @@ The SDE module provides comprehensive web-based management:
 - **Automated Processing**: Background scheduling and execution
 - **Benefits**: Real-time status, progress tracking, full integration
 
-### Utility Functions
-Core processing functions for SDE management:
+### Core Functions
+Key functions for SDE management:
 - `unzipFile()`: Archive extraction with progress tracking
 - `convertYAMLToJSON()`: YAML to JSON format conversion
 - `downloadFileWithProgress()`: HTTP downloads with progress reporting
+- `storeSDEFileAsIndividualKeys()`: Store SDE data as individual Redis JSON keys
+- `GetSDEEntityFromRedis()`: Retrieve single entity by type and ID
+- `GetSDEEntitiesByType()`: Retrieve all entities of a specific type
+- `CleanupOldSDEData()`: Remove old SDE keys before updates
 
 ### Thread Safety
 - Mutex protection for concurrent operations
@@ -273,6 +337,14 @@ curl -X POST http://localhost:8080/sde/update \
 
 # Monitor progress
 curl http://localhost:8080/sde/progress
+
+# Test individual key storage
+curl -X POST http://localhost:8080/sde/test/store-sample
+curl http://localhost:8080/sde/test/verify
+
+# Access individual entities
+curl http://localhost:8080/sde/entity/agents/3008416
+curl http://localhost:8080/sde/entities/categories
 ```
 
 ### Integration Testing

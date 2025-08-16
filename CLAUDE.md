@@ -155,7 +155,7 @@ The project provides comprehensive EVE Online SDE management through both in-mem
 - **Web-Based Management**: `internal/sde` module provides REST API for SDE operations
 - **Background Processing**: Automated download, conversion, and storage of SDE data
 - **Scheduler Integration**: System task checks for updates every 6 hours
-- **Redis Storage**: Processed SDE data stored in Redis for distributed access
+- **Redis JSON Storage**: Individual SDE entities stored as separate Redis JSON keys for granular access
 - **Progress Tracking**: Real-time progress updates during SDE processing
 
 ### SDE Service (pkg/sde)
@@ -167,7 +167,7 @@ The project provides comprehensive EVE Online SDE management through both in-mem
 
 ### Data Sources and Processing
 - **Source Data**: Downloaded automatically from CCP's SDE distribution
-- **Processing Pipeline**: YAML → JSON conversion with Redis storage
+- **Processing Pipeline**: YAML → JSON conversion with individual Redis JSON key storage
 - **Update Detection**: MD5 hash comparison for new version detection
 - **Web Management**: RESTful API for manual updates and status monitoring
 
@@ -176,6 +176,8 @@ The project provides comprehensive EVE Online SDE management through both in-mem
 - `POST /sde/check` - Check for new SDE versions
 - `POST /sde/update` - Initiate SDE update process
 - `GET /sde/progress` - Real-time update progress
+- `GET /sde/entity/{type}/{id}` - Get individual SDE entity
+- `GET /sde/entities/{type}` - Get all entities of a specific type
 
 ### Usage Patterns
 ```go
@@ -189,6 +191,12 @@ agents := sdeService.GetAgentsByLocation(60000004)
 categories := sdeService.GetPublishedCategories()
 ```
 
+```bash
+# Direct API access to individual entities
+curl http://localhost:8080/sde/entity/agents/3008416
+curl http://localhost:8080/sde/entities/categories
+```
+
 ### Scheduler Integration
 - **System Task**: `system-sde-check` runs every 6 hours
 - **Automatic Detection**: Checks for new SDE versions and notifies
@@ -197,7 +205,7 @@ categories := sdeService.GetPublishedCategories()
 
 ### Performance Characteristics
 - **Memory Usage**: ~50-500MB for in-memory data
-- **Redis Storage**: ~50-500MB for processed SDE data
+- **Redis Storage**: ~50-500MB for individual JSON keys (same total, different structure)
 - **Access Speed**: Direct map/slice lookups (O(1) or O(log n))
 - **Update Processing**: 2-5 minutes for full SDE conversion
 - **Network Efficient**: Only downloads when updates are available
@@ -314,7 +322,7 @@ The following modules have detailed CLAUDE.md documentation files with comprehen
 ### SDE Module
 - **Location**: `internal/sde/CLAUDE.md`
 - **Coverage**: Web-based EVE Online SDE management with automated processing, progress tracking, and scheduler integration
-- **Key Features**: REST API for SDE operations, background processing, hash-based update detection, Redis storage, real-time progress updates
+- **Key Features**: REST API for SDE operations, individual Redis JSON key storage, background processing, hash-based update detection, granular entity access, real-time progress updates
 
 ### Package Documentation
 
