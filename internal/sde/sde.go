@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	pkgsde "go-falcon/pkg/sde"
 
 	"github.com/go-chi/chi/v5"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 const (
@@ -65,6 +67,14 @@ func (m *Module) Routes(r chi.Router) {
 	r.Post("/check", m.handleCheckForUpdates)
 	r.Post("/update", m.handleStartUpdate)
 	r.Get("/progress", m.handleGetProgress)
+	
+	// Individual SDE entity access endpoints
+	r.Get("/entity/{type}/{id}", m.handleGetEntity)
+	r.Get("/entities/{type}", m.handleGetEntitiesByType)
+	
+	// Test endpoints for individual key storage
+	r.Post("/test/store-sample", m.handleTestStoreSample)
+	r.Get("/test/verify", m.handleTestVerify)
 }
 
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
@@ -307,6 +317,11 @@ func (m *Module) processSDEUpdate(ctx context.Context, forceUpdate bool) {
 	// Update progress
 	m.updateProgress(0.7, "Storing data in Redis...")
 	
+	// Clean up old SDE data first
+	if err := m.CleanupOldSDEData(ctx); err != nil {
+		slog.Warn("Failed to cleanup old SDE data", "error", err)
+	}
+	
 	// Store data in Redis
 	if err := m.storeInRedis(ctx); err != nil {
 		m.setError(fmt.Errorf("failed to store data in Redis: %w", err))
@@ -389,9 +404,8 @@ func (m *Module) convertYAMLFiles(extractDir string) error {
 	return nil
 }
 
-// storeInRedis stores SDE data in Redis
+// storeInRedis stores SDE data in Redis as individual JSON entries
 func (m *Module) storeInRedis(ctx context.Context) error {
-	redis := m.Redis()
 	jsonDir := "data/sde"
 	
 	files, err := os.ReadDir(jsonDir)
@@ -399,31 +413,69 @@ func (m *Module) storeInRedis(ctx context.Context) error {
 		return fmt.Errorf("failed to read JSON directory: %w", err)
 	}
 	
-	pipe := redis.Client.Pipeline()
-	
+	// Process each SDE file type
 	for _, file := range files {
 		if filepath.Ext(file.Name()) != ".json" {
 			continue
 		}
 		
 		filePath := filepath.Join(jsonDir, file.Name())
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to read file %s: %w", filePath, err)
-		}
-		
-		// Store in Redis with appropriate key structure
 		baseName := file.Name()[:len(file.Name())-5] // Remove .json
-		key := fmt.Sprintf("sde:data:%s", baseName)
 		
-		pipe.Set(ctx, key, data, 0)
-		slog.Debug("Storing SDE data in Redis", "key", key, "size", len(data))
+		slog.Info("Processing SDE file for individual storage", "file", baseName)
+		
+		if err := m.storeSDEFileAsIndividualKeys(ctx, filePath, baseName); err != nil {
+			return fmt.Errorf("failed to store %s as individual keys: %w", baseName, err)
+		}
 	}
 	
+	return nil
+}
+
+// storeSDEFileAsIndividualKeys stores a single SDE file as individual Redis JSON entries
+func (m *Module) storeSDEFileAsIndividualKeys(ctx context.Context, filePath, dataType string) error {
+	redisClient := m.Redis()
+	
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+	
+	// Parse JSON as map to get individual entries
+	var dataMap map[string]interface{}
+	if err := json.Unmarshal(data, &dataMap); err != nil {
+		return fmt.Errorf("failed to unmarshal %s: %w", filePath, err)
+	}
+	
+	// Use Redis pipeline for batch operations
+	pipe := redisClient.Client.Pipeline()
+	
+	// Store each entry as individual Redis JSON key
+	for entityID, entityData := range dataMap {
+		key := fmt.Sprintf("sde:%s:%s", dataType, entityID)
+		
+		// Convert entity data to JSON
+		entityJSON, err := json.Marshal(entityData)
+		if err != nil {
+			slog.Warn("Failed to marshal entity", "type", dataType, "id", entityID, "error", err)
+			continue
+		}
+		
+		// Store as Redis JSON
+		pipe.Do(ctx, "JSON.SET", key, "$", entityJSON)
+		slog.Debug("Storing individual SDE entity", "key", key, "size", len(entityJSON))
+	}
+	
+	// Execute pipeline
 	_, err = pipe.Exec(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to execute Redis pipeline: %w", err)
+		return fmt.Errorf("failed to execute Redis pipeline for %s: %w", dataType, err)
 	}
+	
+	slog.Info("Stored SDE data type as individual keys", 
+		"type", dataType, 
+		"count", len(dataMap),
+		"pattern", fmt.Sprintf("sde:%s:*", dataType))
 	
 	return nil
 }
@@ -540,4 +592,294 @@ func (m *Module) CheckSDEUpdate(ctx context.Context) error {
 	}
 	
 	return nil
+}
+
+// GetSDEEntityFromRedis retrieves a single SDE entity from Redis by type and ID
+func (m *Module) GetSDEEntityFromRedis(ctx context.Context, dataType, entityID string) (map[string]interface{}, error) {
+	redis := m.Redis()
+	key := fmt.Sprintf("sde:%s:%s", dataType, entityID)
+	
+	result, err := redis.Client.Do(ctx, "JSON.GET", key, "$").Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SDE entity %s: %w", key, err)
+	}
+	
+	if result == nil {
+		return nil, fmt.Errorf("SDE entity not found: %s", key)
+	}
+	
+	// Redis JSON.GET returns a JSON string, parse it
+	var entities []interface{}
+	if err := json.Unmarshal([]byte(result.(string)), &entities); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal SDE entity: %w", err)
+	}
+	
+	if len(entities) == 0 {
+		return nil, fmt.Errorf("SDE entity not found: %s", key)
+	}
+	
+	entity, ok := entities[0].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid SDE entity format: %s", key)
+	}
+	
+	return entity, nil
+}
+
+// GetSDEEntitiesByType retrieves all entities of a specific type from Redis
+func (m *Module) GetSDEEntitiesByType(ctx context.Context, dataType string) (map[string]interface{}, error) {
+	redis := m.Redis()
+	pattern := fmt.Sprintf("sde:%s:*", dataType)
+	
+	// Get all keys matching the pattern
+	keys, err := redis.Client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get keys for pattern %s: %w", pattern, err)
+	}
+	
+	if len(keys) == 0 {
+		return make(map[string]interface{}), nil
+	}
+	
+	// Use pipeline to get all entities
+	pipe := redis.Client.Pipeline()
+	for _, key := range keys {
+		pipe.Do(ctx, "JSON.GET", key, "$")
+	}
+	
+	results, err := pipe.Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute pipeline for %s: %w", dataType, err)
+	}
+	
+	entities := make(map[string]interface{})
+	for i, result := range results {
+		if result.Err() != nil {
+			slog.Warn("Failed to get SDE entity", "key", keys[i], "error", result.Err())
+			continue
+		}
+		
+		// Extract entity ID from key (sde:type:id -> id)
+		keyParts := strings.Split(keys[i], ":")
+		if len(keyParts) != 3 {
+			continue
+		}
+		entityID := keyParts[2]
+		
+		// Parse JSON result - handle the Redis command result  
+		if result.Err() != nil {
+			slog.Warn("Failed to get SDE entity", "key", keys[i], "error", result.Err())
+			continue
+		}
+		
+		// Cast to proper Redis command and get string result
+		cmd := result.(*goredis.Cmd)
+		resultStr, err := cmd.Text()
+		if err != nil {
+			slog.Warn("Failed to get text from SDE entity result", "key", keys[i], "error", err)
+			continue
+		}
+		
+		var entityArray []interface{}
+		if err := json.Unmarshal([]byte(resultStr), &entityArray); err != nil {
+			slog.Warn("Failed to unmarshal SDE entity", "key", keys[i], "error", err)
+			continue
+		}
+		
+		if len(entityArray) > 0 {
+			entities[entityID] = entityArray[0]
+		}
+	}
+	
+	return entities, nil
+}
+
+// CleanupOldSDEData removes old SDE data keys before storing new ones
+func (m *Module) CleanupOldSDEData(ctx context.Context) error {
+	redis := m.Redis()
+	
+	// SDE data types to clean
+	dataTypes := []string{
+		"agents", "categories", "blueprints", "marketGroups", 
+		"metaGroups", "npcCorporations", "types", "typeDogma", "typeMaterials",
+	}
+	
+	for _, dataType := range dataTypes {
+		pattern := fmt.Sprintf("sde:%s:*", dataType)
+		keys, err := redis.Client.Keys(ctx, pattern).Result()
+		if err != nil {
+			slog.Warn("Failed to get keys for cleanup", "pattern", pattern, "error", err)
+			continue
+		}
+		
+		if len(keys) > 0 {
+			deleted, err := redis.Client.Del(ctx, keys...).Result()
+			if err != nil {
+				slog.Warn("Failed to delete old SDE keys", "pattern", pattern, "error", err)
+			} else {
+				slog.Info("Cleaned up old SDE data", "type", dataType, "deleted", deleted)
+			}
+		}
+	}
+	
+	return nil
+}
+
+// handleGetEntity retrieves a single SDE entity by type and ID
+func (m *Module) handleGetEntity(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	dataType := chi.URLParam(r, "type")
+	entityID := chi.URLParam(r, "id")
+	
+	if dataType == "" || entityID == "" {
+		http.Error(w, "Type and ID are required", http.StatusBadRequest)
+		return
+	}
+	
+	entity, err := m.GetSDEEntityFromRedis(ctx, dataType, entityID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, fmt.Sprintf("Entity not found: %s/%s", dataType, entityID), http.StatusNotFound)
+		} else {
+			http.Error(w, fmt.Sprintf("Failed to get entity: %v", err), http.StatusInternalServerError)
+		}
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entity)
+}
+
+// handleGetEntitiesByType retrieves all entities of a specific type
+func (m *Module) handleGetEntitiesByType(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	dataType := chi.URLParam(r, "type")
+	
+	if dataType == "" {
+		http.Error(w, "Type is required", http.StatusBadRequest)
+		return
+	}
+	
+	entities, err := m.GetSDEEntitiesByType(ctx, dataType)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get entities: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entities)
+}
+
+// handleTestStoreSample stores some sample SDE data for testing individual key storage
+func (m *Module) handleTestStoreSample(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	redis := m.Redis()
+	
+	// Sample test data
+	testData := map[string]interface{}{
+		"agents": map[string]interface{}{
+			"3008416": map[string]interface{}{
+				"agentTypeID":     2,
+				"corporationID":   1000002,
+				"divisionID":      1,
+				"isLocator":       false,
+				"level":           1,
+				"locationID":      60000004,
+				"quality":         0,
+			},
+			"3008417": map[string]interface{}{
+				"agentTypeID":     2,
+				"corporationID":   1000002,
+				"divisionID":      1,
+				"isLocator":       false,
+				"level":           2,
+				"locationID":      60000004,
+				"quality":         10,
+			},
+		},
+		"categories": map[string]interface{}{
+			"1": map[string]interface{}{
+				"name": map[string]interface{}{
+					"en": "System",
+				},
+				"published": true,
+			},
+			"2": map[string]interface{}{
+				"name": map[string]interface{}{
+					"en": "Celestial",
+				},
+				"published": true,
+			},
+		},
+	}
+	
+	// Store test data using individual keys
+	pipe := redis.Client.Pipeline()
+	stored := 0
+	
+	for dataType, entities := range testData {
+		for entityID, entityData := range entities.(map[string]interface{}) {
+			key := fmt.Sprintf("sde:%s:%s", dataType, entityID)
+			entityJSON, _ := json.Marshal(entityData)
+			pipe.Do(ctx, "JSON.SET", key, "$", entityJSON)
+			stored++
+		}
+	}
+	
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to store test data: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Test data stored successfully",
+		"stored":  stored,
+		"types":   []string{"agents", "categories"},
+	})
+}
+
+// handleTestVerify verifies that individual key storage works
+func (m *Module) handleTestVerify(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Test individual entity retrieval
+	agent, err := m.GetSDEEntityFromRedis(ctx, "agents", "3008416")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get test agent: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	category, err := m.GetSDEEntityFromRedis(ctx, "categories", "1")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get test category: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Test bulk retrieval
+	agents, err := m.GetSDEEntitiesByType(ctx, "agents")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get all agents: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	categories, err := m.GetSDEEntitiesByType(ctx, "categories")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get all categories: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "success",
+		"individual_retrieval": map[string]interface{}{
+			"agent_3008416": agent,
+			"category_1":    category,
+		},
+		"bulk_retrieval": map[string]interface{}{
+			"agents_count":     len(agents),
+			"categories_count": len(categories),
+		},
+	})
 }
