@@ -12,8 +12,8 @@ EVE Online Static Data Export (SDE) in-memory service providing ultra-fast acces
 
 ## Data Sources
 - **Source Files**: `data/sde/*.json` converted from CCP's YAML format
-- **Conversion Tool**: `cmd/sde/main.go` for SDE data processing
-- **Update Process**: Manual update when CCP releases new static data
+- **Processing System**: Web-based SDE management via `internal/sde` module
+- **Update Process**: Automated detection and web-based management of new static data
 
 ## Available Data Types
 - **Agents**: Mission agents with location and corporation info

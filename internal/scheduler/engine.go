@@ -67,7 +67,7 @@ type TaskResult struct {
 }
 
 // NewEngine creates a new scheduler engine
-func NewEngine(repository *Repository, redis *database.Redis, authModule AuthModule) *Engine {
+func NewEngine(repository *Repository, redis *database.Redis, authModule AuthModule, sdeModule SDEModule) *Engine {
 	// Create cron scheduler with second precision
 	cronScheduler := cron.New(cron.WithSeconds())
 	
@@ -86,7 +86,7 @@ func NewEngine(repository *Repository, redis *database.Redis, authModule AuthMod
 	}
 	
 	// Register default executors
-	engine.registerDefaultExecutors(authModule)
+	engine.registerDefaultExecutors(authModule, sdeModule)
 	
 	return engine
 }
@@ -600,10 +600,10 @@ func (e *Engine) releaseLock(ctx context.Context, key, value string) error {
 }
 
 // registerDefaultExecutors registers the default task executors
-func (e *Engine) registerDefaultExecutors(authModule AuthModule) {
+func (e *Engine) registerDefaultExecutors(authModule AuthModule, sdeModule SDEModule) {
 	e.executors[TaskTypeHTTP] = &HTTPExecutor{}
 	e.executors[TaskTypeFunction] = &FunctionExecutor{}
-	e.executors[TaskTypeSystem] = NewSystemExecutor(authModule)
+	e.executors[TaskTypeSystem] = NewSystemExecutor(authModule, sdeModule)
 }
 
 // RegisterExecutor registers a custom task executor

@@ -331,12 +331,14 @@ func parseFunctionConfig(config map[string]interface{}) (*FunctionTaskConfig, er
 // SystemExecutor executes system tasks
 type SystemExecutor struct {
 	authModule AuthModule
+	sdeModule  SDEModule
 }
 
 // NewSystemExecutor creates a new system executor with dependencies
-func NewSystemExecutor(authModule AuthModule) *SystemExecutor {
+func NewSystemExecutor(authModule AuthModule, sdeModule SDEModule) *SystemExecutor {
 	return &SystemExecutor{
 		authModule: authModule,
+		sdeModule:  sdeModule,
 	}
 }
 
@@ -382,6 +384,8 @@ func (e *SystemExecutor) executeSystemTask(ctx context.Context, config *SystemTa
 		return e.healthCheckTask(ctx, config.Parameters)
 	case "task_cleanup":
 		return e.taskCleanupTask(ctx, config.Parameters)
+	case "sde_check":
+		return e.sdeCheckTask(ctx, config.Parameters)
 	default:
 		return nil, fmt.Errorf("unknown system task: %s", config.TaskName)
 	}
@@ -582,6 +586,61 @@ func (e *SystemExecutor) taskCleanupTask(ctx context.Context, params map[string]
 			"retention_days": retentionDays,
 			"batch_size":     batchSize,
 			"deleted_count":  deletedCount,
+		},
+	}, nil
+}
+
+func (e *SystemExecutor) sdeCheckTask(ctx context.Context, params map[string]interface{}) (*TaskResult, error) {
+	startTime := time.Now()
+	
+	// Parse parameters
+	autoUpdate := false
+	if auto, ok := params["auto_update"].(bool); ok {
+		autoUpdate = auto
+	}
+	
+	notify := true
+	if notifyParam, ok := params["notify"].(bool); ok {
+		notify = notifyParam
+	}
+	
+	slog.Info("Starting SDE update check", 
+		slog.Bool("auto_update", autoUpdate),
+		slog.Bool("notify", notify))
+	
+	// Check for SDE updates using the SDE module
+	err := e.sdeModule.CheckSDEUpdate(ctx)
+	duration := time.Since(startTime)
+	
+	if err != nil {
+		return &TaskResult{
+			Success: false,
+			Error:   fmt.Sprintf("SDE check failed: %v", err),
+			Metadata: map[string]interface{}{
+				"task":        "sde_check",
+				"auto_update": autoUpdate,
+				"notify":      notify,
+				"duration":    duration.String(),
+				"error_detail": err.Error(),
+			},
+		}, nil
+	}
+	
+	output := "SDE update check completed successfully"
+	if autoUpdate {
+		output += " (auto-update enabled)"
+	} else {
+		output += " (check only)"
+	}
+	
+	return &TaskResult{
+		Success: true,
+		Output:  output,
+		Metadata: map[string]interface{}{
+			"task":        "sde_check",
+			"auto_update": autoUpdate,
+			"notify":      notify,
+			"duration":    duration.String(),
 		},
 	}, nil
 }

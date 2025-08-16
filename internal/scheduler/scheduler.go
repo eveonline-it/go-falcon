@@ -24,6 +24,11 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
+// SDEModule interface defines the methods needed from the SDE module for scheduler integration
+type SDEModule interface {
+	CheckSDEUpdate(ctx context.Context) error
+}
+
 type Module struct {
 	*module.BaseModule
 	engine     *Engine
@@ -31,9 +36,9 @@ type Module struct {
 }
 
 // New creates a new scheduler module
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule AuthModule) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule AuthModule, sdeModule SDEModule) *Module {
 	repository := NewRepository(mongodb)
-	engine := NewEngine(repository, redis, authModule)
+	engine := NewEngine(repository, redis, authModule, sdeModule)
 
 	return &Module{
 		BaseModule: module.NewBaseModule("scheduler", mongodb, redis, sdeService),

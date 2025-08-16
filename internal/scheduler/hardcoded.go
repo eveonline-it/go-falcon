@@ -133,6 +133,37 @@ func getSystemTasks() []*Task {
 			UpdatedAt: now,
 			CreatedBy: "system",
 		},
+
+		// SDE Update Check - Regular check for new EVE Online SDE versions
+		{
+			ID:          "system-sde-check",
+			Name:        "SDE Update Check",
+			Description: "Check for new EVE Online SDE versions and notify if updates are available",
+			Type:        TaskTypeSystem,
+			Schedule:    "0 0 */6 * * *", // Every 6 hours
+			Status:      TaskStatusPending,
+			Priority:    TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "sde_check",
+				"parameters": map[string]interface{}{
+					"auto_update": false, // Only check, don't auto-update
+					"notify":      true,
+				},
+			},
+			Metadata: TaskMetadata{
+				MaxRetries:    3,
+				RetryInterval: 30 * time.Minute,
+				Timeout:       15 * time.Minute,
+				Tags:          []string{"system", "sde", "update", "eve"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
 	}
 }
 
@@ -172,5 +203,12 @@ var SystemTaskDefinitions = map[string]struct {
 		Schedule:    "Daily at 2 AM",
 		Purpose:     "Maintains database performance by removing old execution logs",
 		Priority:    "Low",
+	},
+	"system-sde-check": {
+		Name:        "SDE Update Check",
+		Description: "Check for new EVE Online SDE versions and notify if updates are available",
+		Schedule:    "Every 6 hours",
+		Purpose:     "Keeps EVE Online static data current for game features",
+		Priority:    "Normal",
 	},
 }

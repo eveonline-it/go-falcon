@@ -37,21 +37,14 @@ build: ## Build the falcon application
 	@go build $(LDFLAGS) -o bin/falcon ./cmd/gateway
 	@echo "✅ Build complete: bin/falcon"
 
-build-all: ## Build all applications (gateway, backup, restore, postman, sde)
+build-all: ## Build all applications (gateway, backup, restore, postman)
 	@echo "🔨 Building all applications..."
 	@mkdir -p bin
 	@go build $(LDFLAGS) -o bin/falcon ./cmd/gateway
 	@go build $(LDFLAGS) -o bin/backup ./cmd/backup
 	@go build $(LDFLAGS) -o bin/restore ./cmd/restore
 	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
-	@go build $(LDFLAGS) -o bin/sde ./cmd/sde
-	@echo "✅ Build complete: bin/falcon, bin/backup, bin/restore, bin/postman, bin/sde"
-
-build-sde: ## Build the sde application
-	@echo "🔨 Building sde application..."
-	@mkdir -p bin
-	@go build $(LDFLAGS) -o bin/sde ./cmd/sde
-	@echo "✅ Build complete: bin/sde"
+	@echo "✅ Build complete: bin/falcon, bin/backup, bin/restore, bin/postman"
 
 build-utils: ## Build utility applications (backup, restore, postman)
 	@echo "🔨 Building utility applications..."
@@ -143,10 +136,8 @@ postman-build: ## Build and run postman exporter
 	@set -a && [ -f .env ] && . ./.env && set +a && ./bin/postman
 	@echo "✅ Postman collection generated."
 
-sde: ## Download and convert EVE Online SDE data to JSON
-	@echo "📊 Processing EVE Online SDE data..."
-	@go run ./cmd/sde
-	@echo "✅ SDE data conversion completed: data/sde/*.json"
+# SDE management is now handled via the web interface
+# Use: curl -X POST http://localhost:8080/sde/update
 
 # Linting and code quality
 lint: ## Run linter

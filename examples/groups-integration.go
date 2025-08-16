@@ -31,7 +31,7 @@ func main() {
 	r := chi.NewRouter()
 
 	// Example: Public endpoint that shows different content based on permissions
-	r.Get("/content", groupsModule.OptionalPermissionMiddleware(publicContentHandler))
+	r.With(groupsModule.OptionalPermissionMiddleware).Get("/content", publicContentHandler)
 
 	// Example: Admin-only endpoint
 	r.With(authModule.JWTMiddleware, groupsModule.RequirePermission("groups", "admin")).
@@ -48,7 +48,7 @@ func main() {
 	// Example: Resource owner or admin access
 	ownerExtractor := func(r *http.Request) int {
 		// Extract user ID from URL parameter
-		userIDStr := chi.URLParam(r, "userID")
+		// userIDStr := chi.URLParam(r, "userID") // Would be used in real implementation
 		// In real implementation, convert to int
 		return 12345 // placeholder
 	}

@@ -34,12 +34,12 @@ The project's code is organized into several directories:
   - backup: backup application for MongoDb and Redis
   - restore: a restore application for MongoDb and Redis
   - postman: export all the endpoints of the gateway
-  - sde: convert SDE to JSON files stored in data/sde
 - internal: private packages
   - auth: authentication service module with EVE Online SSO integration
   - dev: development module for testing and calling other services
   - notifications: notification service module
   - scheduler: comprehensive task scheduling and management service
+  - sde: web-based SDE management with automated processing and scheduler integration
   - users: user management service module
 - pkg: shared libraries
   - app: application initialization and context management
@@ -149,19 +149,33 @@ if lastModified != "" {
 
 ## EVE Online SDE (Static Data Export) Integration
 
-The `pkg/sde` package provides in-memory access to EVE Online's Static Data Export, offering fast lookups for game data like agents, categories, blueprints, and more.
+The project provides comprehensive EVE Online SDE management through both in-memory access (`pkg/sde`) and web-based management (`internal/sde`).
 
-### Architecture Overview
+### SDE Management Architecture
+- **Web-Based Management**: `internal/sde` module provides REST API for SDE operations
+- **Background Processing**: Automated download, conversion, and storage of SDE data
+- **Scheduler Integration**: System task checks for updates every 6 hours
+- **Redis Storage**: Processed SDE data stored in Redis for distributed access
+- **Progress Tracking**: Real-time progress updates during SDE processing
+
+### SDE Service (pkg/sde)
 - **Single Instance**: One SDE service instance shared across all modules in the monolith
 - **In-Memory Storage**: Data loaded at startup for ultra-fast access (nanosecond lookups)
 - **Type-Safe Access**: Structured Go types with proper JSON unmarshaling
 - **Lazy Loading**: Data loaded on first access to optimize startup time
 - **Thread-Safe**: Concurrent access via read-write mutexes
 
-### Data Sources
-- **Source Data**: `data/sde/*.json` files converted from CCP's YAML format
-- **Conversion Tool**: `cmd/sde/main.go` downloads and converts SDE data
-- **Update Process**: Run SDE tool when CCP releases new static data
+### Data Sources and Processing
+- **Source Data**: Downloaded automatically from CCP's SDE distribution
+- **Processing Pipeline**: YAML → JSON conversion with Redis storage
+- **Update Detection**: MD5 hash comparison for new version detection
+- **Web Management**: RESTful API for manual updates and status monitoring
+
+### SDE Management Endpoints
+- `GET /sde/status` - Current SDE version and status
+- `POST /sde/check` - Check for new SDE versions
+- `POST /sde/update` - Initiate SDE update process
+- `GET /sde/progress` - Real-time update progress
 
 ### Usage Patterns
 ```go
@@ -175,24 +189,27 @@ agents := sdeService.GetAgentsByLocation(60000004)
 categories := sdeService.GetPublishedCategories()
 ```
 
-### Integration with Modules
-- **Initialization**: SDE service initialized in `pkg/app/init.go`
-- **Module Access**: Available through base module interface
-- **ESI Enrichment**: Combines with `pkg/evegateway` for live + static data
-- **Internationalization**: Supports multiple languages from SDE data
+### Scheduler Integration
+- **System Task**: `system-sde-check` runs every 6 hours
+- **Automatic Detection**: Checks for new SDE versions and notifies
+- **Background Updates**: Optional automatic SDE processing
+- **Status Monitoring**: Comprehensive update status tracking
 
 ### Performance Characteristics
-- **Memory Usage**: ~50-500MB depending on SDE data size
+- **Memory Usage**: ~50-500MB for in-memory data
+- **Redis Storage**: ~50-500MB for processed SDE data
 - **Access Speed**: Direct map/slice lookups (O(1) or O(log n))
-- **Startup Impact**: 1-2 second initial load time
-- **No External Dependencies**: No Redis/database calls for SDE data
+- **Update Processing**: 2-5 minutes for full SDE conversion
+- **Network Efficient**: Only downloads when updates are available
 
 ### Data Types Available
 Current SDE data includes:
 - **Agents**: Mission agents with location and corporation info
 - **Categories**: Item categories with internationalized names
 - **Blueprints**: Manufacturing blueprints with material requirements
-- **Extensible**: Easy to add more SDE data types as needed
+- **Market Groups**: Market categorization and hierarchy
+- **Types**: Complete item database with attributes
+- **NPC Corporations**: Corporation data with faction information
 
 ## OpenTelemetry Logging
 
@@ -293,6 +310,11 @@ The following modules have detailed CLAUDE.md documentation files with comprehen
 - **Location**: `internal/scheduler/CLAUDE.md`
 - **Coverage**: Complete task scheduling and management system with cron scheduling, worker pool execution, distributed locking, and comprehensive API
 - **Key Features**: HTTP/Function/System task types, Redis-based distributed locking, execution history, monitoring capabilities, hardcoded system tasks
+
+### SDE Module
+- **Location**: `internal/sde/CLAUDE.md`
+- **Coverage**: Web-based EVE Online SDE management with automated processing, progress tracking, and scheduler integration
+- **Key Features**: REST API for SDE operations, background processing, hash-based update detection, Redis storage, real-time progress updates
 
 ### Package Documentation
 
