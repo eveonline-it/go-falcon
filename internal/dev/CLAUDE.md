@@ -11,17 +11,20 @@ The development module provides comprehensive testing and debugging utilities fo
 - **ESI Client Integration**: Full EVE Online ESI API access with caching
 - **SDE Service Integration**: Static Data Export testing and validation
 - **Cache Management**: Intelligent caching with expiration tracking
-- **Telemetry Integration**: OpenTelemetry tracing and structured logging
+- **Telemetry Integration**: OpenTelemetry tracing and structured logging (if ENABLE_TELEMETRY=true)
 - **Development Utilities**: Service discovery and status monitoring
 
 ### Files Structure
 
 ```
 internal/dev/
-├── dev.go              # Main module with route registration and initialization
-├── handlers_esi.go     # EVE Online ESI API endpoint handlers
-├── handlers_sde.go     # Static Data Export endpoint handlers
-└── handlers_utils.go   # Utility handlers and helper functions
+├── dev.go                    # Main module with route registration and initialization
+├── handlers_esi-alliance.go  # EVE Online ESI API alliance endpoint handlers
+├── handlers_esi-assets.go    # EVE Online ESI API assets endpoint handlers
+├── handlers_esi-calendar.go  # EVE Online ESI API calendar endpoint handlers
+├── handlers_esi-?.go         # EVE Online ESI API other handlers (take the list from openapi.json)
+├── handlers_sde.go           # Static Data Export endpoint handlers
+└── handlers_utils.go         # Utility handlers and helper functions
 ```
 
 ## ESI Integration Features
@@ -51,68 +54,7 @@ internal/dev/
 ### ESI Testing Endpoints
 
 #### Status Endpoints
-| Endpoint | Method | Description | Cache | Telemetry |
-|----------|--------|-------------|-------|-----------|
-| `/esi-status` | GET | EVE Online server status | ✅ | ✅ |
-
-#### Character Endpoints
-| Endpoint | Method | Description | Cache | Telemetry |
-|----------|--------|-------------|-------|-----------|
-| `/character/{characterID}` | GET | Character information | ✅ | ✅ |
-| `/character/{characterID}/portrait` | GET | Character portrait URLs | ✅ | ✅ |
-
-#### Universe Endpoints
-| Endpoint | Method | Description | Cache | Telemetry |
-|----------|--------|-------------|-------|-----------|
-| `/universe/system/{systemID}` | GET | Solar system information | ✅ | ✅ |
-| `/universe/station/{stationID}` | GET | Station information | ✅ | ✅ |
-
-#### Alliance Endpoints
-| Endpoint | Method | Description | Cache | Auth | Telemetry |
-|----------|--------|-------------|-------|------|--------|
-| `/alliances` | GET | All active alliances | ✅ | ❌ | ✅ |
-| `/alliance/{allianceID}` | GET | Alliance information | ✅ | ❌ | ✅ |
-| `/alliance/{allianceID}/contacts` | GET | Alliance contacts | ✅ | ✅ | ✅ |
-| `/alliance/{allianceID}/contacts/labels` | GET | Alliance contact labels | ✅ | ✅ | ✅ |
-| `/alliance/{allianceID}/corporations` | GET | Alliance member corporations | ✅ | ❌ | ✅ |
-| `/alliance/{allianceID}/icons` | GET | Alliance icon URLs | ✅ | ❌ | ✅ |
-
-#### Corporation Endpoints
-| Endpoint | Method | Description | Cache | Auth | Telemetry |
-|----------|--------|-------------|-------|------|--------|
-| `/corporation/{corporationID}` | GET | Corporation information | ✅ | ❌ | ✅ |
-| `/corporation/{corporationID}/icons` | GET | Corporation icon URLs | ✅ | ❌ | ✅ |
-| `/corporation/{corporationID}/alliancehistory` | GET | Corporation alliance history | ✅ | ❌ | ✅ |
-| `/corporation/{corporationID}/members` | GET | Corporation members | ✅ | ✅ | ✅ |
-| `/corporation/{corporationID}/membertracking` | GET | Member tracking information | ✅ | ✅ | ✅ |
-| `/corporation/{corporationID}/roles` | GET | Member roles | ✅ | ✅ | ✅ |
-| `/corporation/{corporationID}/structures` | GET | Corporation structures | ✅ | ✅ | ✅ |
-| `/corporation/{corporationID}/standings` | GET | Corporation standings | ✅ | ✅ | ✅ |
-| `/corporation/{corporationID}/wallets` | GET | Corporation wallets | ✅ | ✅ | ✅ |
-
-### SDE Testing Endpoints
-
-| Endpoint | Method | Description | Source | Performance |
-|----------|--------|-------------|---------|-------------|
-| `/sde/status` | GET | SDE service status and statistics | Memory | Instant |
-| `/sde/agent/{agentID}` | GET | Agent information | Memory | Nanoseconds |
-| `/sde/category/{categoryID}` | GET | Item category information | Memory | Nanoseconds |
-| `/sde/blueprint/{blueprintID}` | GET | Blueprint information | Memory | Nanoseconds |
-| `/sde/agents/location/{locationID}` | GET | Agents by location | Memory | Microseconds |
-| `/sde/blueprints` | GET | All blueprint IDs | Memory | Microseconds |
-| `/sde/marketgroup/{marketGroupID}` | GET | Market group information | Memory | Nanoseconds |
-| `/sde/marketgroups` | GET | All market groups | Memory | Microseconds |
-| `/sde/metagroup/{metaGroupID}` | GET | Meta group information | Memory | Nanoseconds |
-| `/sde/metagroups` | GET | All meta groups | Memory | Microseconds |
-| `/sde/npccorp/{corpID}` | GET | NPC corporation information | Memory | Nanoseconds |
-| `/sde/npccorps` | GET | All NPC corporations | Memory | Microseconds |
-| `/sde/npccorps/faction/{factionID}` | GET | NPC corporations by faction | Memory | Microseconds |
-| `/sde/typeid/{typeID}` | GET | Type ID information | Memory | Nanoseconds |
-| `/sde/type/{typeID}` | GET | Type information | Memory | Nanoseconds |
-| `/sde/types` | GET | All types | Memory | Milliseconds |
-| `/sde/types/published` | GET | Published types only | Memory | Milliseconds |
-| `/sde/types/group/{groupID}` | GET | Types by group | Memory | Microseconds |
-| `/sde/typematerials/{typeID}` | GET | Type materials | Memory | Nanoseconds |
+TODO
 
 ### Utility Endpoints
 
@@ -129,7 +71,8 @@ All endpoints return a consistent JSON structure:
 ```json
 {
   "source": "EVE Online ESI" | "Static Data Export",
-  "endpoint": "/original/esi/endpoint", 
+  "endpoint": "/original/esi/endpoint",
+  "reponse_time_ms": 33, 
   "status": "success" | "error",
   "data": { /* actual response data */ },
   "module": "dev",
@@ -214,6 +157,7 @@ attribute.Bool("dev.success", true)
   "source": "EVE Online ESI",
   "endpoint": "/characters/123456789/",
   "status": "success",
+  "reponse_time_ms": 33, 
   "data": {
     "name": "Character Name",
     "corporation_id": 1000001
@@ -237,59 +181,15 @@ attribute.Bool("dev.success", true)
 ## Development Usage
 
 ### Testing ESI Integration
-```bash
-# Test server status
-curl http://localhost:3000/dev/esi-status
 
-# Test character information
-curl http://localhost:3000/dev/character/2112625428
-curl http://localhost:3000/dev/character/2112625428/portrait
-
-# Test alliance information
-curl http://localhost:3000/dev/alliance/99005065
-curl http://localhost:3000/dev/alliances
-
-# Test corporation information (public)
-curl http://localhost:3000/dev/corporation/1000001
-curl http://localhost:3000/dev/corporation/1000001/icons
-curl http://localhost:3000/dev/corporation/1000001/alliancehistory
-
-# Test authenticated corporation endpoints (requires valid token)
-curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/members
-curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/membertracking
-curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/roles
-curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/structures
-curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/standings
-curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/corporation/1000001/wallets
-
-# Test authenticated alliance endpoints (requires valid token)
-curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/alliance/99005065/contacts
-curl -H "Authorization: Bearer <token>" http://localhost:3000/dev/alliance/99005065/contacts/labels
-```
 
 ### Testing SDE Integration
-```bash
-# Get SDE status and statistics
-curl http://localhost:3000/dev/sde/status
-
-# Test agent lookup
-curl http://localhost:3000/dev/sde/agent/3008416
-
-# Test blueprint information
-curl http://localhost:3000/dev/sde/blueprint/1000001
-```
-
-### Service Discovery
-```bash
-# List all available endpoints
-curl http://localhost:3000/dev/services
-```
 
 ## Performance Characteristics
 
 ### ESI Endpoints
 - **First Call**: Network latency + ESI response time
-- **Cached Calls**: <1ms response time
+- **Cached Calls**: <3ms response time
 - **Cache Duration**: Based on ESI expires header
 - **Error Handling**: <10ms for validation errors
 
@@ -323,10 +223,7 @@ ESI_USER_AGENT=go-falcon/1.0.0 contact@example.com
 ### Authenticated Endpoints
 Some ESI endpoints require valid EVE Online access tokens:
 
-- **Corporation Members**: Requires corporation director roles or higher
-- **Corporation Structures**: Requires corporation manager roles or higher  
-- **Corporation Finances**: Requires corporation accountant roles or higher
-- **Alliance Contacts**: Requires alliance executor corporation roles
+check openapi.json
 
 ### Token Format
 Provide access tokens via Authorization header:
@@ -352,29 +249,6 @@ curl -H "Authorization: Bearer <access_token>" <endpoint>
 - **Startup**: Initialize ESI clients and cache managers
 - **Runtime**: Process requests, maintain caches, and validate tokens
 - **Shutdown**: Clean up resources and connections
-
-## Integration Examples
-
-### Using in Development
-```go
-// Example of accessing dev module endpoints programmatically
-resp, err := http.Get("http://localhost:3000/dev/character/2112625428")
-if err != nil {
-    log.Fatal(err)
-}
-
-var result map[string]interface{}
-json.NewDecoder(resp.Body).Decode(&result)
-fmt.Printf("Character: %v\n", result["data"])
-```
-
-### Cache Testing
-```go
-// First call - from ESI
-resp1, _ := http.Get("http://localhost:3000/dev/esi-status")
-// Second call - from cache
-resp2, _ := http.Get("http://localhost:3000/dev/esi-status")
-```
 
 ## Monitoring and Debugging
 
@@ -431,16 +305,3 @@ resp2, _ := http.Get("http://localhost:3000/dev/esi-status")
 
 ## Future Enhancements
 
-### Planned Features
-- **Character Assets**: Character-owned items and locations
-- **Character Skills**: Skill information and training queues
-- **Market Data**: Market orders, history, and pricing
-- **Industry**: Manufacturing jobs and blueprints  
-- **Mail System**: EVE Online in-game mail
-- **Contracts**: Public and corporation contracts
-- **Killmails**: Combat records and statistics
-- **Batch Operations**: Multi-request handling
-- **Advanced Caching**: Distributed cache support  
-- **WebSocket Integration**: Real-time data streaming
-- **Performance Metrics**: Detailed performance analytics
-- **Token Management**: Automatic token refresh and validation

@@ -14,7 +14,7 @@ This is a GO architecture project featuring:
 - Websocket using Socket.io via Redis Adapter
 - OpenAPI 3.1.1 compliance
 - Internationalization/Translations (I18N) 
-- OpenTelemetry logs and tracing
+- OpenTelemetry logs and tracing (check env ENABLE_TELEMETRY variable)
 - EVE Online SSO authentication with JWT tokens
 
 ## Project details
