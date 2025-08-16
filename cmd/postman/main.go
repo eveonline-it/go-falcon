@@ -171,6 +171,7 @@ func discoverRoutes() ([]RouteInfo, error) {
 		"users": getUsersRoutes(),
 		"notifications": getNotificationsRoutes(),
 		"scheduler": getSchedulerRoutes(),
+		"sde": getSdeRoutes(),
 	}
 	
 	// Collect routes from all modules
@@ -341,6 +342,18 @@ func getSchedulerRoutes() []RouteInfo {
 		{Method: "GET", Path: "/stats", ModuleName: "scheduler", HandlerName: "getStatsHandler", Description: "Get scheduler statistics and metrics"},
 		{Method: "POST", Path: "/reload", ModuleName: "scheduler", HandlerName: "reloadTasksHandler", Description: "Reload scheduler configuration"},
 		{Method: "GET", Path: "/status", ModuleName: "scheduler", HandlerName: "getStatusHandler", Description: "Get scheduler service status"},
+	}
+}
+
+// getSdeRoutes returns static route definitions for the sde module
+func getSdeRoutes() []RouteInfo {
+	return []RouteInfo{
+		{Method: "GET", Path: "/health", ModuleName: "sde", HandlerName: "HealthHandler", Description: "SDE module health check"},
+		// SDE Management endpoints
+		{Method: "GET", Path: "/status", ModuleName: "sde", HandlerName: "handleGetStatus", Description: "Get current SDE version and status"},
+		{Method: "POST", Path: "/check", ModuleName: "sde", HandlerName: "handleCheckForUpdates", Description: "Check for new SDE versions"},
+		{Method: "POST", Path: "/update", ModuleName: "sde", HandlerName: "handleStartUpdate", Description: "Initiate SDE update process"},
+		{Method: "GET", Path: "/progress", ModuleName: "sde", HandlerName: "handleGetProgress", Description: "Get real-time SDE update progress"},
 	}
 }
 
