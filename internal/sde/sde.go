@@ -29,6 +29,7 @@ const (
 	redisHashKey    = "sde:current_hash"
 	redisStatusKey  = "sde:status"
 	redisProgressKey = "sde:progress"
+	solarSystemIndexKey = "sde:index:solarsystems"
 )
 
 type Module struct {
@@ -74,6 +75,9 @@ func (m *Module) Routes(r chi.Router) {
 	
 	// Search endpoints
 	r.Get("/search/solarsystem", m.handleSearchSolarSystem)
+	
+	// Index management endpoints
+	r.Post("/index/rebuild", m.handleRebuildIndex)
 	
 	// Test endpoints for individual key storage
 	r.Post("/test/store-sample", m.handleTestStoreSample)
@@ -329,6 +333,13 @@ func (m *Module) processSDEUpdate(ctx context.Context, forceUpdate bool) {
 	if err := m.storeInRedis(ctx); err != nil {
 		m.setError(fmt.Errorf("failed to store data in Redis: %w", err))
 		return
+	}
+	
+	// Build solar system search index
+	m.updateProgress(0.8, "Building search indexes...")
+	if err := m.buildSolarSystemIndex(ctx); err != nil {
+		slog.Warn("Failed to build solar system index", "error", err)
+		// Don't fail the entire update for index building
 	}
 	
 	// Update progress
@@ -1007,8 +1018,264 @@ func (m *Module) GetSDEEntitiesByType(ctx context.Context, dataType string) (map
 	return entities, nil
 }
 
-// searchSolarSystemsByName searches for solar systems by name
+// searchSolarSystemsByName searches for solar systems by name using fast index
 func (m *Module) searchSolarSystemsByName(ctx context.Context, query string) ([]map[string]interface{}, error) {
+	// Use fast indexed search
+	return m.searchSolarSystemsByNameFast(ctx, query)
+}
+
+// searchSolarSystemsByNameOriginal is the original implementation (moved to slow)
+func (m *Module) searchSolarSystemsByNameOriginal(ctx context.Context, query string) ([]map[string]interface{}, error) {
+	redis := m.Redis()
+	
+	// Get all universe keys that represent solar systems
+	pattern := "sde:universe:*"
+	keys, err := redis.Client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get universe keys: %w", err)
+	}
+	
+	var results []map[string]interface{}
+	query = strings.ToLower(query)
+	
+	// Use pipeline to get multiple systems efficiently
+	pipe := redis.Client.Pipeline()
+	keyCommands := make(map[string]*goredis.Cmd)
+	
+	for _, key := range keys {
+		// Only process keys that look like solar systems (not constellation.yaml)
+		if strings.Contains(key, "constellation.yaml") || strings.Contains(key, "region.yaml") {
+			continue
+		}
+		
+		keyCommands[key] = pipe.Do(ctx, "JSON.GET", key, "$")
+	}
+	
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute pipeline: %w", err)
+	}
+	
+	// Process results
+	for key, cmd := range keyCommands {
+		if cmd.Err() != nil {
+			continue
+		}
+		
+		resultStr, err := cmd.Text()
+		if err != nil {
+			continue
+		}
+		
+		var systemArray []interface{}
+		if err := json.Unmarshal([]byte(resultStr), &systemArray); err != nil {
+			continue
+		}
+		
+		if len(systemArray) == 0 {
+			continue
+		}
+		
+		system, ok := systemArray[0].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		
+		// Extract solar system name from the key path
+		// Format: sde:universe:{type}:{region}:{constellation}:{system}
+		keyParts := strings.Split(key, ":")
+		if len(keyParts) >= 6 {
+			systemName := keyParts[len(keyParts)-1]
+			
+			// Check if system name matches query (case-insensitive partial match)
+			if strings.Contains(strings.ToLower(systemName), query) {
+				// Add system info to results
+				result := map[string]interface{}{
+					"systemName":     systemName,
+					"region":         keyParts[3],
+					"constellation":  keyParts[4],
+					"universeType":   keyParts[2],
+					"redisKey":       key,
+				}
+				
+				// Add solar system ID if available
+				if solarSystemID, exists := system["solarSystemID"]; exists {
+					result["solarSystemID"] = solarSystemID
+				}
+				
+				// Add security status if available
+				if security, exists := system["security"]; exists {
+					result["security"] = security
+				}
+				
+				// Add solar system name ID if available
+				if nameID, exists := system["solarSystemNameID"]; exists {
+					result["solarSystemNameID"] = nameID
+				}
+				
+				results = append(results, result)
+			}
+		}
+	}
+	
+	return results, nil
+}
+
+// buildSolarSystemIndex creates a search index for solar systems to speed up name-based searches
+func (m *Module) buildSolarSystemIndex(ctx context.Context) error {
+	redis := m.Redis()
+	
+	// Get all universe solar system keys
+	pattern := "sde:universe:*"
+	keys, err := redis.Client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get universe keys: %w", err)
+	}
+	
+	// Clear existing index
+	redis.Client.Del(ctx, solarSystemIndexKey)
+	
+	// Build index with system name -> Redis key mapping
+	pipe := redis.Client.Pipeline()
+	indexedCount := 0
+	
+	for _, key := range keys {
+		// Skip constellation and region files
+		if strings.Contains(key, "constellation.yaml") || strings.Contains(key, "region.yaml") {
+			continue
+		}
+		
+		// Extract system name from key: sde:universe:{type}:{region}:{constellation}:{system}
+		keyParts := strings.Split(key, ":")
+		if len(keyParts) >= 6 {
+			systemName := strings.ToLower(keyParts[len(keyParts)-1])
+			
+			// Store in Redis hash: field = system name, value = Redis key
+			pipe.HSet(ctx, solarSystemIndexKey, systemName, key)
+			indexedCount++
+		}
+	}
+	
+	// Execute pipeline
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build solar system index: %w", err)
+	}
+	
+	slog.Info("Built solar system search index", "systems_indexed", indexedCount)
+	return nil
+}
+
+// searchSolarSystemsByNameFast uses the Redis index for fast name-based searches
+func (m *Module) searchSolarSystemsByNameFast(ctx context.Context, query string) ([]map[string]interface{}, error) {
+	redis := m.Redis()
+	query = strings.ToLower(query)
+	
+	// Get all system names from index
+	systemNames, err := redis.Client.HKeys(ctx, solarSystemIndexKey).Result()
+	if err != nil {
+		// Fallback to slow search if index doesn't exist
+		slog.Warn("Solar system index not found, falling back to slow search")
+		return m.searchSolarSystemsByNameSlow(ctx, query)
+	}
+	
+	// Find matching system names
+	var matchingKeys []string
+	for _, systemName := range systemNames {
+		if strings.Contains(systemName, query) {
+			// Get Redis key for this system
+			redisKey, err := redis.Client.HGet(ctx, solarSystemIndexKey, systemName).Result()
+			if err == nil {
+				matchingKeys = append(matchingKeys, redisKey)
+			}
+		}
+	}
+	
+	if len(matchingKeys) == 0 {
+		return []map[string]interface{}{}, nil
+	}
+	
+	// Fetch system data for matching keys
+	return m.fetchSystemDataBatch(ctx, matchingKeys, query)
+}
+
+// fetchSystemDataBatch efficiently fetches system data for multiple keys
+func (m *Module) fetchSystemDataBatch(ctx context.Context, keys []string, query string) ([]map[string]interface{}, error) {
+	redis := m.Redis()
+	
+	// Use pipeline for batch fetching
+	pipe := redis.Client.Pipeline()
+	keyCommands := make(map[string]*goredis.Cmd)
+	
+	for _, key := range keys {
+		keyCommands[key] = pipe.Do(ctx, "JSON.GET", key, "$")
+	}
+	
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch system data: %w", err)
+	}
+	
+	var results []map[string]interface{}
+	
+	// Process results
+	for key, cmd := range keyCommands {
+		if cmd.Err() != nil {
+			continue
+		}
+		
+		resultStr, err := cmd.Text()
+		if err != nil {
+			continue
+		}
+		
+		var systemArray []interface{}
+		if err := json.Unmarshal([]byte(resultStr), &systemArray); err != nil {
+			continue
+		}
+		
+		if len(systemArray) == 0 {
+			continue
+		}
+		
+		system, ok := systemArray[0].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		
+		// Extract system info from key
+		keyParts := strings.Split(key, ":")
+		if len(keyParts) >= 6 {
+			systemName := keyParts[len(keyParts)-1]
+			
+			result := map[string]interface{}{
+				"systemName":     systemName,
+				"region":         keyParts[3],
+				"constellation":  keyParts[4],
+				"universeType":   keyParts[2],
+				"redisKey":       key,
+			}
+			
+			// Add system properties
+			if solarSystemID, exists := system["solarSystemID"]; exists {
+				result["solarSystemID"] = solarSystemID
+			}
+			if security, exists := system["security"]; exists {
+				result["security"] = security
+			}
+			if nameID, exists := system["solarSystemNameID"]; exists {
+				result["solarSystemNameID"] = nameID
+			}
+			
+			results = append(results, result)
+		}
+	}
+	
+	return results, nil
+}
+
+// searchSolarSystemsByNameSlow is the original slow implementation (fallback)
+func (m *Module) searchSolarSystemsByNameSlow(ctx context.Context, query string) ([]map[string]interface{}, error) {
 	redis := m.Redis()
 	
 	// Get all universe keys that represent solar systems
@@ -1123,9 +1390,10 @@ func (m *Module) CleanupOldSDEData(ctx context.Context) error {
 	// Filter out metadata keys that should not be deleted
 	var dataKeys []string
 	metadataKeys := map[string]bool{
-		redisHashKey:    true,
-		redisStatusKey:  true,
-		redisProgressKey: true,
+		redisHashKey:        true,
+		redisStatusKey:      true,
+		redisProgressKey:    true,
+		solarSystemIndexKey: true,
 	}
 	
 	for _, key := range keys {
@@ -1225,6 +1493,24 @@ func (m *Module) handleSearchSolarSystem(w http.ResponseWriter, r *http.Request)
 		"query":   query,
 		"results": results,
 		"count":   len(results),
+	})
+}
+
+// handleRebuildIndex manually rebuilds the solar system search index
+func (m *Module) handleRebuildIndex(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	start := time.Now()
+	if err := m.buildSolarSystemIndex(ctx); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to rebuild index: %v", err), http.StatusInternalServerError)
+		return
+	}
+	duration := time.Since(start)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":     "Solar system index rebuilt successfully",
+		"duration_ms": duration.Milliseconds(),
 	})
 }
 
