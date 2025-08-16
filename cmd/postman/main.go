@@ -289,6 +289,15 @@ func getDevRoutes() []RouteInfo {
 		{Method: "GET", Path: "/sde/types/published", ModuleName: "dev", HandlerName: "sdePublishedTypesHandler", Description: "Get all published types from SDE"},
 		{Method: "GET", Path: "/sde/types/group/{groupID}", ModuleName: "dev", HandlerName: "sdeTypesByGroupHandler", Description: "Get types by group ID from SDE"},
 		{Method: "GET", Path: "/sde/typematerials/{typeID}", ModuleName: "dev", HandlerName: "sdeTypeMaterialsHandler", Description: "Get type materials from SDE"},
+		// Redis SDE endpoints
+		{Method: "GET", Path: "/sde/redis/{type}/{id}", ModuleName: "dev", HandlerName: "sdeRedisEntityHandler", Description: "Get specific SDE entity from Redis"},
+		{Method: "GET", Path: "/sde/redis/{type}", ModuleName: "dev", HandlerName: "sdeRedisEntitiesByTypeHandler", Description: "Get all entities of type from Redis"},
+		// Universe SDE endpoints
+		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}/systems", ModuleName: "dev", HandlerName: "sdeUniverseRegionSystemsHandler", Description: "Get all solar systems in region"},
+		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}/{constellationName}/systems", ModuleName: "dev", HandlerName: "sdeUniverseConstellationSystemsHandler", Description: "Get all solar systems in constellation"},
+		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}", ModuleName: "dev", HandlerName: "sdeUniverseDataHandler", Description: "Get region data from universe SDE"},
+		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}/{constellationName}", ModuleName: "dev", HandlerName: "sdeUniverseDataHandler", Description: "Get constellation data from universe SDE"},
+		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}/{constellationName}/{systemName}", ModuleName: "dev", HandlerName: "sdeUniverseDataHandler", Description: "Get system data from universe SDE"},
 		// Service endpoints
 		{Method: "GET", Path: "/services", ModuleName: "dev", HandlerName: "servicesHandler", Description: "List available development services"},
 		{Method: "GET", Path: "/status", ModuleName: "dev", HandlerName: "statusHandler", Description: "Get module status"},
@@ -357,6 +366,8 @@ func getSdeRoutes() []RouteInfo {
 		// Individual SDE entity access endpoints
 		{Method: "GET", Path: "/entity/{type}/{id}", ModuleName: "sde", HandlerName: "handleGetEntity", Description: "Get individual SDE entity by type and ID"},
 		{Method: "GET", Path: "/entities/{type}", ModuleName: "sde", HandlerName: "handleGetEntitiesByType", Description: "Get all entities of a specific type"},
+		// Search endpoints
+		{Method: "GET", Path: "/search/solarsystem", ModuleName: "sde", HandlerName: "handleSearchSolarSystem", Description: "Search for solar systems by name (query param: name)"},
 		// Test endpoints for individual key storage
 		{Method: "POST", Path: "/test/store-sample", ModuleName: "sde", HandlerName: "handleTestStoreSample", Description: "Store sample test data for development"},
 		{Method: "GET", Path: "/test/verify", ModuleName: "sde", HandlerName: "handleTestVerify", Description: "Verify individual key storage functionality"},
@@ -500,6 +511,31 @@ func generatePostmanCollection(routes []RouteInfo) *PostmanCollection {
 				Value:       "3008416",
 				Description: "Example SDE entity ID for individual entity access",
 			},
+			{
+				Key:         "universe_type",
+				Value:       "eve",
+				Description: "Example universe type (eve, abyssal, hidden, void, wormhole)",
+			},
+			{
+				Key:         "region_name",
+				Value:       "Derelik",
+				Description: "Example region name for universe SDE data",
+			},
+			{
+				Key:         "constellation_name",
+				Value:       "Kador",
+				Description: "Example constellation name for universe SDE data",
+			},
+			{
+				Key:         "system_name",
+				Value:       "Amarr",
+				Description: "Example system name for universe SDE data",
+			},
+			{
+				Key:         "search_name",
+				Value:       "Jita",
+				Description: "Example search query for solar system search",
+			},
 		},
 		Event: []PostmanEvent{
 			{
@@ -633,6 +669,17 @@ func createPostmanRequest(route RouteInfo) PostmanRequest {
 		}
 	}
 	
+	// Add query parameters for specific endpoints
+	if route.Path == "/search/solarsystem" {
+		request.URL.Query = []PostmanQuery{
+			{
+				Key:         "name",
+				Value:       "{{search_name}}",
+				Description: "Solar system name to search for (supports partial matching)",
+			},
+		}
+	}
+
 	// Add request body for POST/PUT/PATCH requests
 	if route.Method == "POST" || route.Method == "PUT" || route.Method == "PATCH" {
 		request.Body = &PostmanBody{
@@ -663,7 +710,6 @@ func processPathParameters(path string) string {
 		"{stationID}":      "{{station_id}}",
 		"{userID}":         "{{user_id}}",
 		"{user_id}":        "{{user_id}}",
-		"{id}":             "{{id}}",
 		"{agentID}":        "{{agent_id}}",
 		"{categoryID}":     "{{category_id}}",
 		"{blueprintID}":    "{{blueprint_id}}",
@@ -679,6 +725,11 @@ func processPathParameters(path string) string {
 		"{executionID}":    "{{execution_id}}",
 		"{groupsID}":       "{{group_id_groups}}",
 		"{type}":           "{{sde_type}}",
+		"{id}":             "{{sde_entity_id}}",
+		"{universeType}":   "{{universe_type}}",
+		"{regionName}":     "{{region_name}}",
+		"{constellationName}": "{{constellation_name}}",
+		"{systemName}":     "{{system_name}}",
 	}
 	
 	for old, new := range paramMappings {
@@ -700,7 +751,8 @@ func needsAuth(path string) bool {
 		"/corporation/", // public corporation info endpoints  
 		"/universe/",
 		"/character/", // public character info endpoints
-		"/sde/",
+		"/sde/", // SDE endpoints are generally public for read access
+		"/search/", // Search endpoints are generally public
 		"/services",
 		"/status",
 		"/eve/login",

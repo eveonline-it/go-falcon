@@ -72,6 +72,9 @@ func (m *Module) Routes(r chi.Router) {
 	r.Get("/entity/{type}/{id}", m.handleGetEntity)
 	r.Get("/entities/{type}", m.handleGetEntitiesByType)
 	
+	// Search endpoints
+	r.Get("/search/solarsystem", m.handleSearchSolarSystem)
+	
 	// Test endpoints for individual key storage
 	r.Post("/test/store-sample", m.handleTestStoreSample)
 	r.Get("/test/verify", m.handleTestVerify)
@@ -368,14 +371,14 @@ func (m *Module) downloadFile(filepath string, url string) error {
 }
 
 
-// convertYAMLFiles converts all YAML files from bsd and fsd directories to JSON
+// convertYAMLFiles converts all YAML files from bsd, fsd, and universe directories to JSON
 func (m *Module) convertYAMLFiles(extractDir string) error {
 	jsonDir := "data/sde"
 	
-	// Directories to scan for YAML files
+	// Standard directories to scan for YAML files
 	scanDirs := []string{"bsd", "fsd"}
 	
-	// Collect all YAML files from both directories
+	// Collect all YAML files from standard directories
 	var yamlFiles []string
 	for _, dir := range scanDirs {
 		dirPath := filepath.Join(extractDir, dir)
@@ -387,8 +390,16 @@ func (m *Module) convertYAMLFiles(extractDir string) error {
 		yamlFiles = append(yamlFiles, files...)
 	}
 	
+	// Process universe directory with special handling
+	universeFiles, err := m.collectUniverseYAMLFiles(extractDir)
+	if err != nil {
+		slog.Warn("Failed to collect universe YAML files", "error", err)
+	} else {
+		yamlFiles = append(yamlFiles, universeFiles...)
+	}
+	
 	if len(yamlFiles) == 0 {
-		return fmt.Errorf("no YAML files found in bsd or fsd directories")
+		return fmt.Errorf("no YAML files found in bsd, fsd, or universe directories")
 	}
 	
 	slog.Info("Found YAML files to process", "count", len(yamlFiles))
@@ -413,6 +424,92 @@ func (m *Module) convertYAMLFiles(extractDir string) error {
 	return nil
 }
 
+// collectUniverseYAMLFiles collects YAML files from universe directory with hierarchical structure
+// Structure: universe/{type}/{region}/{constellation}/{system}/
+// Processes: abyssal, eve, hidden, void, and wormhole subdirectories
+// Excludes: landmarks directory
+func (m *Module) collectUniverseYAMLFiles(extractDir string) ([]string, error) {
+	universeDir := filepath.Join(extractDir, "universe")
+	
+	// Check if universe directory exists
+	if _, err := os.Stat(universeDir); os.IsNotExist(err) {
+		return []string{}, nil // Return empty list if universe directory doesn't exist
+	}
+	
+	// Allowed universe subdirectories
+	allowedDirs := []string{"abyssal", "eve", "hidden", "void", "wormhole"}
+	var universeFiles []string
+	
+	for _, universeType := range allowedDirs {
+		universeTypeDir := filepath.Join(universeDir, universeType)
+		
+		// Check if universe type directory exists
+		if _, err := os.Stat(universeTypeDir); os.IsNotExist(err) {
+			slog.Debug("Universe type directory not found", "type", universeType)
+			continue
+		}
+		
+		// Collect files from this universe type with hierarchical structure
+		typeFiles, err := m.collectUniverseTypeFiles(universeTypeDir, universeType)
+		if err != nil {
+			slog.Warn("Failed to collect universe type files", "type", universeType, "error", err)
+			continue
+		}
+		
+		universeFiles = append(universeFiles, typeFiles...)
+		slog.Info("Collected universe type files", "type", universeType, "count", len(typeFiles))
+	}
+	
+	slog.Info("Total universe YAML files collected", "count", len(universeFiles))
+	return universeFiles, nil
+}
+
+// collectUniverseTypeFiles collects YAML files from a universe type directory
+// Handles hierarchical structure: {type}/{region}/{constellation}/{system}/
+func (m *Module) collectUniverseTypeFiles(universeTypeDir, universeType string) ([]string, error) {
+	var files []string
+	
+	// Walk through the hierarchical structure
+	err := filepath.Walk(universeTypeDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+		
+		// Check for YAML files
+		ext := filepath.Ext(path)
+		if ext == ".yaml" || ext == ".yml" {
+			// Get relative path from the extract directory root
+			relPath, err := filepath.Rel(filepath.Dir(filepath.Dir(universeTypeDir)), path)
+			if err != nil {
+				slog.Warn("Failed to get relative path", "path", path, "error", err)
+				return nil // Continue processing other files
+			}
+			
+			files = append(files, relPath)
+			
+			// Log hierarchical info for debugging
+			pathParts := strings.Split(strings.TrimPrefix(relPath, "universe/"), string(filepath.Separator))
+			if len(pathParts) >= 4 {
+				slog.Debug("Found universe YAML file", 
+					"type", pathParts[0], 
+					"region", pathParts[1], 
+					"constellation", pathParts[2], 
+					"system", pathParts[3],
+					"file", filepath.Base(path))
+			}
+		}
+		
+		return nil
+	})
+	
+	return files, err
+}
+
 // storeInRedis stores SDE data in Redis as individual JSON entries
 func (m *Module) storeInRedis(ctx context.Context) error {
 	jsonDir := "data/sde"
@@ -433,12 +530,130 @@ func (m *Module) storeInRedis(ctx context.Context) error {
 		
 		slog.Info("Processing SDE file for individual storage", "file", baseName)
 		
-		if err := m.storeSDEFileAsIndividualKeys(ctx, filePath, baseName); err != nil {
+		// Determine data type and context from file path
+		dataType, pathContext := m.determineDataTypeAndContext(baseName, filePath)
+		
+		if err := m.storeSDEFileAsIndividualKeysWithContext(ctx, filePath, dataType, pathContext); err != nil {
 			return fmt.Errorf("failed to store %s as individual keys: %w", baseName, err)
 		}
 	}
 	
 	return nil
+}
+
+// determineDataTypeAndContext determines the data type and hierarchical context from file path
+func (m *Module) determineDataTypeAndContext(baseName, filePath string) (string, map[string]string) {
+	pathContext := make(map[string]string)
+	
+	// Check if this is a universe file by examining the base name
+	if strings.Contains(baseName, "universe") {
+		// Parse universe path: universe_{type}_{region}_{constellation}_{system}_{filename}
+		// or try to extract from the original YAML path structure
+		parts := strings.Split(baseName, "_")
+		if len(parts) >= 2 && parts[0] == "universe" {
+			pathContext["universe_type"] = parts[1]
+			if len(parts) >= 3 {
+				pathContext["region"] = parts[2]
+			}
+			if len(parts) >= 4 {
+				pathContext["constellation"] = parts[3]
+			}
+			if len(parts) >= 5 {
+				pathContext["system"] = parts[4]
+			}
+			
+			// Determine what kind of universe data this is based on filename
+			fileName := parts[len(parts)-1]
+			if strings.Contains(fileName, "region") {
+				return "universe_regions", pathContext
+			} else if strings.Contains(fileName, "constellation") {
+				return "universe_constellations", pathContext
+			} else if strings.Contains(fileName, "system") || strings.Contains(fileName, "solarsystem") {
+				return "universe_systems", pathContext
+			} else {
+				return "universe_objects", pathContext
+			}
+		}
+	}
+	
+	// For non-universe files, use the base name as data type
+	return baseName, pathContext
+}
+
+// storeSDEFileAsIndividualKeysWithContext stores SDE data with hierarchical context awareness
+func (m *Module) storeSDEFileAsIndividualKeysWithContext(ctx context.Context, filePath, dataType string, pathContext map[string]string) error {
+	// For backwards compatibility, if no context, use the original method
+	if len(pathContext) == 0 {
+		return m.storeSDEFileAsIndividualKeys(ctx, filePath, dataType)
+	}
+	
+	redisClient := m.Redis()
+	
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+	
+	// For universe files, store the complete JSON as a single Redis key
+	if _, isUniverse := pathContext["universe_type"]; isUniverse {
+		key := m.generateUniverseRedisKey(dataType, "", pathContext)
+		
+		// Store the complete JSON file content
+		err = redisClient.Client.Do(ctx, "JSON.SET", key, "$", data).Err()
+		if err != nil {
+			return fmt.Errorf("failed to store universe file %s: %w", key, err)
+		}
+		
+		slog.Info("Stored complete universe file", 
+			"key", key, 
+			"size", len(data),
+			"context", pathContext)
+		
+		return nil
+	}
+	
+	// For non-universe files with context, fall back to individual entity storage
+	return m.storeSDEFileAsIndividualKeys(ctx, filePath, dataType)
+}
+
+// generateUniverseRedisKey generates Redis keys for universe data with hierarchical context
+func (m *Module) generateUniverseRedisKey(dataType, entityID string, pathContext map[string]string) string {
+	// For universe data, include hierarchical information in the key
+	if universeType, exists := pathContext["universe_type"]; exists {
+		if region, hasRegion := pathContext["region"]; hasRegion {
+			if constellation, hasConstellation := pathContext["constellation"]; hasConstellation {
+				if system, hasSystem := pathContext["system"]; hasSystem {
+					// Full path for complete file: sde:universe:{type}:{region}:{constellation}:{system}
+					if entityID == "" {
+						return fmt.Sprintf("sde:universe:%s:%s:%s:%s", universeType, region, constellation, system)
+					}
+					// Individual entity: sde:universe:{type}:{region}:{constellation}:{system}:{entityID}
+					return fmt.Sprintf("sde:universe:%s:%s:%s:%s:%s", universeType, region, constellation, system, entityID)
+				}
+				// Constellation level
+				if entityID == "" {
+					return fmt.Sprintf("sde:universe:%s:%s:%s", universeType, region, constellation)
+				}
+				return fmt.Sprintf("sde:universe:%s:%s:%s:%s", universeType, region, constellation, entityID)
+			}
+			// Region level
+			if entityID == "" {
+				return fmt.Sprintf("sde:universe:%s:%s", universeType, region)
+			}
+			return fmt.Sprintf("sde:universe:%s:%s:%s", universeType, region, entityID)
+		}
+		// Type level
+		if entityID == "" {
+			return fmt.Sprintf("sde:universe:%s", universeType)
+		}
+		return fmt.Sprintf("sde:universe:%s:%s", universeType, entityID)
+	}
+	
+	// Fallback to standard format
+	if entityID == "" {
+		return fmt.Sprintf("sde:%s", dataType)
+	}
+	return fmt.Sprintf("sde:%s:%s", dataType, entityID)
 }
 
 // storeSDEFileAsIndividualKeys stores a single SDE file as individual Redis JSON entries
@@ -535,6 +750,8 @@ func (m *Module) extractEntityID(entity map[string]interface{}, fallbackIndex in
 		"agentID", "stationID", "systemID", "regionID", "blueprintID",
 		"materialTypeID", "activityID", "raceID", "bloodlineID",
 		"ancestryID", "attributeID", "unitID", "iconID", "graphicID",
+		"constellationID", "solarSystemID", "planetID", "moonID", "starID",
+		"belt", "asteroid", "gate", "deadspaceID", "wormholeID",
 	}
 	
 	// Try to find a suitable ID field
@@ -790,6 +1007,103 @@ func (m *Module) GetSDEEntitiesByType(ctx context.Context, dataType string) (map
 	return entities, nil
 }
 
+// searchSolarSystemsByName searches for solar systems by name
+func (m *Module) searchSolarSystemsByName(ctx context.Context, query string) ([]map[string]interface{}, error) {
+	redis := m.Redis()
+	
+	// Get all universe keys that represent solar systems
+	pattern := "sde:universe:*"
+	keys, err := redis.Client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get universe keys: %w", err)
+	}
+	
+	var results []map[string]interface{}
+	query = strings.ToLower(query)
+	
+	// Use pipeline to get multiple systems efficiently
+	pipe := redis.Client.Pipeline()
+	keyCommands := make(map[string]*goredis.Cmd)
+	
+	for _, key := range keys {
+		// Only process keys that look like solar systems (not constellation.yaml)
+		if strings.Contains(key, "constellation.yaml") || strings.Contains(key, "region.yaml") {
+			continue
+		}
+		
+		keyCommands[key] = pipe.Do(ctx, "JSON.GET", key, "$")
+	}
+	
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute pipeline: %w", err)
+	}
+	
+	// Process results
+	for key, cmd := range keyCommands {
+		if cmd.Err() != nil {
+			continue
+		}
+		
+		resultStr, err := cmd.Text()
+		if err != nil {
+			continue
+		}
+		
+		var systemArray []interface{}
+		if err := json.Unmarshal([]byte(resultStr), &systemArray); err != nil {
+			continue
+		}
+		
+		if len(systemArray) == 0 {
+			continue
+		}
+		
+		system, ok := systemArray[0].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		
+		// Extract solar system name from the key path
+		// Format: sde:universe:{type}:{region}:{constellation}:{system}
+		keyParts := strings.Split(key, ":")
+		if len(keyParts) >= 6 {
+			systemName := keyParts[len(keyParts)-1]
+			
+			// Check if system name matches query (case-insensitive partial match)
+			if strings.Contains(strings.ToLower(systemName), query) {
+				// Add system info to results
+				result := map[string]interface{}{
+					"systemName":     systemName,
+					"region":         keyParts[3],
+					"constellation":  keyParts[4],
+					"universeType":   keyParts[2],
+					"redisKey":       key,
+				}
+				
+				// Add solar system ID if available
+				if solarSystemID, exists := system["solarSystemID"]; exists {
+					result["solarSystemID"] = solarSystemID
+				}
+				
+				// Add security status if available
+				if security, exists := system["security"]; exists {
+					result["security"] = security
+				}
+				
+				// Add solar system name ID if available
+				if nameID, exists := system["solarSystemNameID"]; exists {
+					result["solarSystemNameID"] = nameID
+				}
+				
+				results = append(results, result)
+			}
+		}
+	}
+	
+	return results, nil
+}
+
 // CleanupOldSDEData removes all old SDE data keys before storing new ones
 func (m *Module) CleanupOldSDEData(ctx context.Context) error {
 	redis := m.Redis()
@@ -887,6 +1201,31 @@ func (m *Module) handleGetEntitiesByType(w http.ResponseWriter, r *http.Request)
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(entities)
+}
+
+// handleSearchSolarSystem searches for solar systems by name
+func (m *Module) handleSearchSolarSystem(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Get query parameter
+	query := r.URL.Query().Get("name")
+	if query == "" {
+		http.Error(w, "Query parameter 'name' is required", http.StatusBadRequest)
+		return
+	}
+	
+	results, err := m.searchSolarSystemsByName(ctx, query)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to search solar systems: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"query":   query,
+		"results": results,
+		"count":   len(results),
+	})
 }
 
 // handleTestStoreSample stores some sample SDE data for testing individual key storage

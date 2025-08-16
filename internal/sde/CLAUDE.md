@@ -37,7 +37,8 @@ internal/sde/
 ### Data Processing
 - **Download**: Automated download of SDE zip files from CCP servers
 - **Extraction**: Zip file extraction with progress tracking
-- **Comprehensive YAML Discovery**: Recursive scanning of `bsd` and `fsd` directories for all YAML files
+- **Comprehensive YAML Discovery**: Recursive scanning of `bsd`, `fsd`, and `universe` directories for all YAML files
+- **Universe Directory Filtering**: Selective processing of universe subdirectories excluding landmarks
 - **YAML to JSON**: Conversion of all discovered YAML files to JSON format
 - **Redis JSON Storage**: Individual Redis JSON keys for each SDE entity with granular access
 - **File Management**: Temporary file handling with cleanup
@@ -60,6 +61,7 @@ internal/sde/
 | `/sde/health` | GET | Module health check |
 | `/sde/entity/{type}/{id}` | GET | Get individual SDE entity by type and ID |
 | `/sde/entities/{type}` | GET | Get all entities of a specific type |
+| `/sde/search/solarsystem` | GET | Search for solar systems by name (query param: name) |
 | `/sde/test/store-sample` | POST | Store sample test data for development |
 | `/sde/test/verify` | GET | Verify individual key storage functionality |
 
@@ -133,6 +135,31 @@ curl http://localhost:8080/sde/entities/categories
 }
 ```
 
+**Search Solar Systems by Name:**
+```bash
+curl "http://localhost:8080/sde/search/solarsystem?name=Jita"
+```
+
+**Response:**
+```json
+{
+  "query": "Jita",
+  "count": 1,
+  "results": [
+    {
+      "systemName": "Jita",
+      "region": "TheForge",
+      "constellation": "Kimotoro",
+      "universeType": "eve",
+      "redisKey": "sde:universe:eve:TheForge:Kimotoro:Jita",
+      "solarSystemID": 30000142,
+      "security": 0.945913116665,
+      "solarSystemNameID": 269099
+    }
+  ]
+}
+```
+
 ## Background Processing
 
 ### Update Workflow
@@ -161,14 +188,36 @@ The SDE module now processes **ALL** YAML files found in both the `bsd` and `fsd
 **Additional Files:**
 - All other YAML files in `fsd/` subdirectories
 - All YAML files in `bsd/` directory and subdirectories
+- Universe directory files from: `abyssal`, `eve`, `hidden`, `void`, and `wormhole` subdirectories
 - Dynamic processing ensures all EVE Online SDE data is captured
+
+**Universe Directory Structure:**
+The universe directory follows a strict hierarchical structure:
+```
+universe/{type}/{region}/{constellation}/{system}/
+```
+
+**Processed Universe Types:**
+- `universe/abyssal/{region}/{constellation}/{system}/` - Abyssal space data
+- `universe/eve/{region}/{constellation}/{system}/` - New Eden universe data
+- `universe/hidden/{region}/{constellation}/{system}/` - Hidden regions data
+- `universe/void/{region}/{constellation}/{system}/` - Void space data  
+- `universe/wormhole/{region}/{constellation}/{system}/` - Wormhole space data
+- **Excluded**: `universe/landmarks/` (not processed per requirements)
+
+**YAML File Locations:**
+- **Region YAML**: Located in region directories (e.g., `region.yaml`)
+- **Constellation YAML**: Located in constellation directories (e.g., `constellation.yaml`)
+- **System YAML**: Located in system directories (e.g., `solarsystem.yaml`, other objects)
 
 **Processing Features:**
 - **Recursive Discovery**: Automatically finds all `.yaml` and `.yml` files
-- **Directory Scanning**: Processes both `bsd` and `fsd` directories completely
+- **Comprehensive Directory Scanning**: Processes `bsd`, `fsd`, and `universe` directories
+- **Universe Filtering**: Selectively processes only `abyssal`, `eve`, `hidden`, `void`, and `wormhole` subdirectories
+- **Hierarchical Structure Support**: Handles region/constellation universe data structure
 - **Dynamic Naming**: JSON output files maintain original YAML base names
 - **Multi-Format Support**: Handles both map-based and array-based YAML structures
-- **Smart ID Extraction**: Automatically identifies suitable ID fields for array data
+- **Smart ID Extraction**: Automatically identifies suitable ID fields including universe-specific IDs
 - **Error Tolerance**: Failed file conversions don't stop the entire process
 - **Progress Tracking**: Real-time progress updates show file conversion status
 
@@ -249,7 +298,40 @@ For array-based data, the system automatically extracts suitable IDs using:
 **Generated Redis Keys Examples:**
 - Map data: `sde:blueprints:1000001`
 - Array data with flagID: `sde:flags:0`, `sde:flags:1`
+- Universe region file: `sde:universe:eve:Derelik`
+- Universe constellation file: `sde:universe:eve:Derelik:Kador`
+- Universe system file: `sde:universe:eve:Derelik:Kador:Amarr`
 - Array data without ID: `sde:unknowntype:index_0`
+
+## Universe Data Processing
+
+### Hierarchical Structure Handling
+
+The SDE module processes universe data respecting the EVE Online universe hierarchy while storing complete files:
+
+**File Path Processing:**
+1. **Discovery**: Walk through `universe/{type}/{region}/{constellation}/{system}/` structure
+2. **Path Preservation**: Maintain hierarchical context during conversion
+3. **Filename Generation**: Create descriptive filenames like `universe_eve_10000001_20000001_30000001_solarsystem.json`
+4. **Complete File Storage**: Store entire YAML file content as single Redis JSON entries
+
+**Data Level Classification:**
+- **Region Level**: Files directly in region directories (e.g., `region.yaml`)
+- **Constellation Level**: Files in constellation directories (e.g., `constellation.yaml`)  
+- **System Level**: Files in system directories (e.g., `solarsystem.yaml`, objects)
+
+**Redis Key Structure (Complete Files):**
+```
+sde:universe:{type}:{region}                               # Region data file
+sde:universe:{type}:{region}:{constellation}               # Constellation data file  
+sde:universe:{type}:{region}:{constellation}:{system}      # System data file
+```
+
+**Benefits:**
+- **Complete Data Access**: Retrieve entire file content in single operation
+- **Hierarchical Organization**: Spatial hierarchy preserved in Redis keys
+- **Simplified Storage**: No data splitting, maintains original file structure
+- **Easy Querying**: Direct access to complete region/constellation/system data
 
 ## Redis JSON Storage
 
@@ -264,6 +346,7 @@ Instead of storing entire datasets, each SDE entity is stored as an individual R
 - `sde:categories:1` → Category object for ID 1
 - `sde:blueprints:1000001` → Blueprint object for ID 1000001
 - `sde:types:587` → Type object for ID 587
+- `sde:universe:eve:Derelik:Kador:Amarr` → Complete Amarr system file
 
 ### Metadata Keys
 - `sde:current_hash`: Current SDE version hash
@@ -372,11 +455,17 @@ The SDE module provides comprehensive web-based management:
 Key functions for SDE management:
 - `unzipFile()`: Archive extraction with progress tracking
 - `collectYAMLFiles()`: Recursively discover all YAML files in directories
-- `convertYAMLFiles()`: Process all discovered YAML files from bsd and fsd directories
-- `convertYAMLToJSON()`: Individual YAML to JSON format conversion
+- `collectUniverseYAMLFiles()`: Hierarchical collection from universe subdirectories with type filtering
+- `collectUniverseTypeFiles()`: Walk universe type directories respecting region/constellation/system structure
+- `convertYAMLFiles()`: Process all discovered YAML files from bsd, fsd, and universe directories
+- `convertYAMLToJSON()`: Individual YAML to JSON format conversion with path context preservation
+- `generateJSONFileName()`: Generate context-aware filenames for universe data preserving hierarchy
 - `downloadFileWithProgress()`: HTTP downloads with progress reporting
+- `determineDataTypeAndContext()`: Extract universe hierarchical context from filenames
+- `storeSDEFileAsIndividualKeysWithContext()`: Context-aware storage for universe data
+- `generateUniverseRedisKey()`: Generate hierarchical Redis keys for universe data
 - `storeSDEFileAsIndividualKeys()`: Store SDE data as individual Redis JSON keys (supports both map and array formats)
-- `extractEntityID()`: Smart ID extraction from array-based SDE data using common field patterns
+- `extractEntityID()`: Smart ID extraction including universe-specific IDs (systemID, constellationID, etc.)
 - `GetSDEEntityFromRedis()`: Retrieve single entity by type and ID
 - `GetSDEEntitiesByType()`: Retrieve all entities of a specific type
 - `CleanupOldSDEData()`: Remove all old SDE keys before updates (dynamic cleanup)
@@ -411,6 +500,10 @@ curl http://localhost:8080/sde/test/verify
 # Access individual entities
 curl http://localhost:8080/sde/entity/agents/3008416
 curl http://localhost:8080/sde/entities/categories
+
+# Search solar systems
+curl "http://localhost:8080/sde/search/solarsystem?name=Jita"
+curl "http://localhost:8080/sde/search/solarsystem?name=Ama"  # Partial match
 ```
 
 ### Integration Testing
