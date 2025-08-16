@@ -354,6 +354,12 @@ func getSdeRoutes() []RouteInfo {
 		{Method: "POST", Path: "/check", ModuleName: "sde", HandlerName: "handleCheckForUpdates", Description: "Check for new SDE versions"},
 		{Method: "POST", Path: "/update", ModuleName: "sde", HandlerName: "handleStartUpdate", Description: "Initiate SDE update process"},
 		{Method: "GET", Path: "/progress", ModuleName: "sde", HandlerName: "handleGetProgress", Description: "Get real-time SDE update progress"},
+		// Individual SDE entity access endpoints
+		{Method: "GET", Path: "/entity/{type}/{id}", ModuleName: "sde", HandlerName: "handleGetEntity", Description: "Get individual SDE entity by type and ID"},
+		{Method: "GET", Path: "/entities/{type}", ModuleName: "sde", HandlerName: "handleGetEntitiesByType", Description: "Get all entities of a specific type"},
+		// Test endpoints for individual key storage
+		{Method: "POST", Path: "/test/store-sample", ModuleName: "sde", HandlerName: "handleTestStoreSample", Description: "Store sample test data for development"},
+		{Method: "GET", Path: "/test/verify", ModuleName: "sde", HandlerName: "handleTestVerify", Description: "Verify individual key storage functionality"},
 	}
 }
 
@@ -483,6 +489,16 @@ func generatePostmanCollection(routes []RouteInfo) *PostmanCollection {
 				Key:         "group_id_groups",
 				Value:       "507f1f77bcf86cd799439011",
 				Description: "Example group ID (MongoDB ObjectID) for groups testing",
+			},
+			{
+				Key:         "sde_type",
+				Value:       "types",
+				Description: "Example SDE data type (types, agents, categories, blueprints, etc.)",
+			},
+			{
+				Key:         "sde_entity_id",
+				Value:       "3008416",
+				Description: "Example SDE entity ID for individual entity access",
 			},
 		},
 		Event: []PostmanEvent{
@@ -662,6 +678,7 @@ func processPathParameters(path string) string {
 		"{taskID}":         "{{task_id}}",
 		"{executionID}":    "{{execution_id}}",
 		"{groupsID}":       "{{group_id_groups}}",
+		"{type}":           "{{sde_type}}",
 	}
 	
 	for old, new := range paramMappings {
@@ -738,6 +755,7 @@ func createRequestName(route RouteInfo) string {
 	name = strings.ReplaceAll(name, "{taskID}", "Task")
 	name = strings.ReplaceAll(name, "{executionID}", "Execution")
 	name = strings.ReplaceAll(name, "{groupsID}", "Group")
+	name = strings.ReplaceAll(name, "{type}", "Type")
 	
 	return name
 }
