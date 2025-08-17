@@ -2,11 +2,979 @@
   "info": {
     "_postman_id": "go-falcon-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-17T09:03:02Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-17T19:01:28Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
   "item": [
+    {
+      "name": "Users Module",
+      "description": "Endpoints for the users module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Users module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "health"
+              ]
+            },
+            "description": "Users module health check"
+          }
+        },
+        {
+          "name": "GET /stats",
+          "description": "Get user statistics (public endpoint)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/stats",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "stats"
+              ]
+            },
+            "description": "Get user statistics (public endpoint)"
+          }
+        },
+        {
+          "name": "GET /",
+          "description": "List users with pagination and filtering (requires users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "List users with pagination and filtering (requires users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /Character",
+          "description": "Get user by character ID (requires users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Get user by character ID (requires users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /Character",
+          "description": "Update user status and settings (requires users:write permission)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/users/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Update user status and settings (requires users:write permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /by-user-id/User/characters",
+          "description": "List characters for a user (requires authentication, self-access or users:read permission)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/users/by-user-id/{{user_id}}/characters",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "users",
+                "by-user-id",
+                "{{user_id}}",
+                "characters"
+              ]
+            },
+            "description": "List characters for a user (requires authentication, self-access or users:read permission)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications Module",
+      "description": "Endpoints for the notifications module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Notifications module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/notifications/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications",
+                "health"
+              ]
+            },
+            "description": "Notifications module health check"
+          }
+        },
+        {
+          "name": "GET /",
+          "description": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/notifications/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            },
+            "description": "List notifications",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /",
+          "description": "Send a new notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/notifications/",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            },
+            "description": "Send a new notification",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /ID",
+          "description": "Mark notification as read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/notifications/{{sde_entity_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{{sde_entity_id}}"
+              ]
+            },
+            "description": "Mark notification as read",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scheduler Module",
+      "description": "Endpoints for the scheduler module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Scheduler module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "health"
+              ]
+            },
+            "description": "Scheduler module health check"
+          }
+        },
+        {
+          "name": "GET /tasks",
+          "description": "List all scheduled tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks"
+              ]
+            },
+            "description": "List all scheduled tasks",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks",
+          "description": "Create a new scheduled task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks"
+              ]
+            },
+            "description": "Create a new scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /tasks/Task",
+          "description": "Get task details by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": "Get task details by ID",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /tasks/Task",
+          "description": "Update task configuration",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": "Update task configuration",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /tasks/Task",
+          "description": "Delete scheduled task",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": "Delete scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/Task/start",
+          "description": "Start/enable scheduled task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/start",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "start"
+              ]
+            },
+            "description": "Start/enable scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/Task/stop",
+          "description": "Stop/disable scheduled task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/stop",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "stop"
+              ]
+            },
+            "description": "Stop/disable scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/Task/pause",
+          "description": "Pause scheduled task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/pause",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "pause"
+              ]
+            },
+            "description": "Pause scheduled task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/Task/resume",
+          "description": "Resume paused task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/resume",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "resume"
+              ]
+            },
+            "description": "Resume paused task",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /tasks/Task/history",
+          "description": "Get task execution history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/history",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "history"
+              ]
+            },
+            "description": "Get task execution history",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /tasks/Task/executions/Execution",
+          "description": "Get specific execution details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/executions/{{execution_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "tasks",
+                "{{task_id}}",
+                "executions",
+                "{{execution_id}}"
+              ]
+            },
+            "description": "Get specific execution details",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /stats",
+          "description": "Get scheduler statistics and metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/stats",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "stats"
+              ]
+            },
+            "description": "Get scheduler statistics and metrics"
+          }
+        },
+        {
+          "name": "POST /reload",
+          "description": "Reload scheduler configuration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/reload",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "reload"
+              ]
+            },
+            "description": "Reload scheduler configuration",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Get scheduler service status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/scheduler/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "scheduler",
+                "status"
+              ]
+            },
+            "description": "Get scheduler service status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateway Module",
+      "description": "Endpoints for the gateway module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Gateway health check with version information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Gateway health check with version information"
+          }
+        }
+      ]
+    },
     {
       "name": "Sde Module",
       "description": "Endpoints for the sde module",
@@ -374,36 +1342,6 @@
       ]
     },
     {
-      "name": "Gateway Module",
-      "description": "Endpoints for the gateway module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Gateway health check with version information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Gateway health check with version information"
-          }
-        }
-      ]
-    },
-    {
       "name": "Auth Module",
       "description": "Endpoints for the auth module",
       "item": [
@@ -451,7 +1389,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"username\": \"string\",\n  \"password\": \"string\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/auth/login",
@@ -495,7 +1433,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"username\": \"string\",\n  \"email\": \"user@example.com\",\n  \"password\": \"string\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/auth/register",
@@ -616,7 +1554,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"refresh_token\": \"string\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/auth/eve/refresh",
@@ -872,7 +1810,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"force_refresh\": false\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/auth/profile/refresh",
@@ -1016,7 +1954,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"name\": \"string\",\n  \"description\": \"string\",\n  \"is_default\": false,\n  \"discord_roles\": [{\"role_name\": \"string\", \"server_id\": \"string\", \"server_name\": \"string\"}],\n  \"auto_assignment_rules\": {\"min_security_status\": 0.0, \"corporation_ids\": [0], \"alliance_ids\": [0]}\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/groups",
@@ -1352,7 +2290,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"description\": \"string\",\n  \"resources\": [{\"description\": \"string\", \"actions\": [\"string\"], \"enabled\": false, \"name\": \"string\", \"display_name\": \"string\"}],\n  \"name\": \"string\",\n  \"display_name\": \"string\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/admin/permissions/services",
@@ -1414,7 +2352,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"display_name\": \"string\",\n  \"description\": \"string\",\n  \"resources\": [{\"actions\": [\"string\"], \"enabled\": false, \"name\": \"string\", \"display_name\": \"string\", \"description\": \"string\"}],\n  \"enabled\": false\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/admin/permissions/services/{{service_name}}",
@@ -1513,7 +2451,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"service\": \"string\",\n  \"resource\": \"string\",\n  \"action\": \"string\",\n  \"subject_type\": \"string\",\n  \"subject_id\": \"string\",\n  \"expires_at\": \"2024-01-01T00:00:00Z\",\n  \"reason\": \"string\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/admin/permissions/assignments",
@@ -1558,7 +2496,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"assignments\": [{\"subject_id\": \"string\", \"expires_at\": \"2024-01-01T00:00:00Z\", \"reason\": \"string\", \"service\": \"string\", \"resource\": \"string\", \"action\": \"string\", \"subject_type\": \"string\"}]\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/admin/permissions/assignments/bulk",
@@ -1641,7 +2579,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
+              "raw": "{\n  \"action\": \"string\",\n  \"character_id\": 0,\n  \"service\": \"string\",\n  \"resource\": \"string\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/admin/permissions/check",
@@ -1680,7 +2618,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/admin/permissions/check/user/{{{character_id}}}",
+              "raw": "{{gateway_url}}/admin/permissions/check/user/{{character_id}}",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -1689,7 +2627,7 @@
                 "permissions",
                 "check",
                 "user",
-                "{{{character_id}}}"
+                "{{character_id}}"
               ]
             },
             "description": "Get comprehensive permission summary for user (super admin only)",
@@ -1922,14 +2860,14 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/character/{{character_id}}",
+              "raw": "{{gateway_url}}/dev/character/{{{character_id}}}",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
                 "dev",
                 "character",
-                "{{character_id}}"
+                "{{{character_id}}}"
               ]
             },
             "description": "Get character information"
@@ -1948,14 +2886,14 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/dev/character/{{{character_id}}}/portrait",
+              "raw": "{{gateway_url}}/dev/character/{{character_id}}/portrait",
               "host": [
                 "{{gateway_url}}"
               ],
               "path": [
                 "dev",
                 "character",
-                "{{{character_id}}}",
+                "{{character_id}}",
                 "portrait"
               ]
             },
@@ -3257,944 +4195,6 @@
               ]
             },
             "description": "Get module status"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Users Module",
-      "description": "Endpoints for the users module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Users module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "health"
-              ]
-            },
-            "description": "Users module health check"
-          }
-        },
-        {
-          "name": "GET /stats",
-          "description": "Get user statistics (public endpoint)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/stats",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "stats"
-              ]
-            },
-            "description": "Get user statistics (public endpoint)"
-          }
-        },
-        {
-          "name": "GET /",
-          "description": "List users with pagination and filtering (requires users:read permission)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users"
-              ]
-            },
-            "description": "List users with pagination and filtering (requires users:read permission)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /Character",
-          "description": "Get user by character ID (requires users:read permission)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/{{character_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "{{character_id}}"
-              ]
-            },
-            "description": "Get user by character ID (requires users:read permission)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "PUT /Character",
-          "description": "Update user status and settings (requires users:write permission)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/users/{{character_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "{{character_id}}"
-              ]
-            },
-            "description": "Update user status and settings (requires users:write permission)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /by-user-id/User/characters",
-          "description": "List characters for a user (requires authentication, self-access or users:read permission)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/users/by-user-id/{{user_id}}/characters",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "users",
-                "by-user-id",
-                "{{user_id}}",
-                "characters"
-              ]
-            },
-            "description": "List characters for a user (requires authentication, self-access or users:read permission)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Notifications Module",
-      "description": "Endpoints for the notifications module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Notifications module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/notifications/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications",
-                "health"
-              ]
-            },
-            "description": "Notifications module health check"
-          }
-        },
-        {
-          "name": "GET /",
-          "description": "List notifications",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/notifications/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications"
-              ]
-            },
-            "description": "List notifications",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /",
-          "description": "Send a new notification",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/notifications/",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications"
-              ]
-            },
-            "description": "Send a new notification",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "PUT /ID",
-          "description": "Mark notification as read",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/notifications/{{sde_entity_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "notifications",
-                "{{sde_entity_id}}"
-              ]
-            },
-            "description": "Mark notification as read",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Scheduler Module",
-      "description": "Endpoints for the scheduler module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Scheduler module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "health"
-              ]
-            },
-            "description": "Scheduler module health check"
-          }
-        },
-        {
-          "name": "GET /tasks",
-          "description": "List all scheduled tasks",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks"
-              ]
-            },
-            "description": "List all scheduled tasks",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /tasks",
-          "description": "Create a new scheduled task",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks"
-              ]
-            },
-            "description": "Create a new scheduled task",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /tasks/Task",
-          "description": "Get task details by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}"
-              ]
-            },
-            "description": "Get task details by ID",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "PUT /tasks/Task",
-          "description": "Update task configuration",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}"
-              ]
-            },
-            "description": "Update task configuration",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "DELETE /tasks/Task",
-          "description": "Delete scheduled task",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}"
-              ]
-            },
-            "description": "Delete scheduled task",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /tasks/Task/start",
-          "description": "Start/enable scheduled task",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/start",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}",
-                "start"
-              ]
-            },
-            "description": "Start/enable scheduled task",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /tasks/Task/stop",
-          "description": "Stop/disable scheduled task",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/stop",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}",
-                "stop"
-              ]
-            },
-            "description": "Stop/disable scheduled task",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /tasks/Task/pause",
-          "description": "Pause scheduled task",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/pause",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}",
-                "pause"
-              ]
-            },
-            "description": "Pause scheduled task",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /tasks/Task/resume",
-          "description": "Resume paused task",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/resume",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}",
-                "resume"
-              ]
-            },
-            "description": "Resume paused task",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /tasks/Task/history",
-          "description": "Get task execution history",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/history",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}",
-                "history"
-              ]
-            },
-            "description": "Get task execution history",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /tasks/Task/executions/Execution",
-          "description": "Get specific execution details",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/tasks/{{task_id}}/executions/{{execution_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "tasks",
-                "{{task_id}}",
-                "executions",
-                "{{execution_id}}"
-              ]
-            },
-            "description": "Get specific execution details",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /stats",
-          "description": "Get scheduler statistics and metrics",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/stats",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "stats"
-              ]
-            },
-            "description": "Get scheduler statistics and metrics"
-          }
-        },
-        {
-          "name": "POST /reload",
-          "description": "Reload scheduler configuration",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/reload",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "reload"
-              ]
-            },
-            "description": "Reload scheduler configuration",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /status",
-          "description": "Get scheduler service status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/scheduler/status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "scheduler",
-                "status"
-              ]
-            },
-            "description": "Get scheduler service status"
           }
         }
       ]

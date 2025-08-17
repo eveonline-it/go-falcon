@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Go-Falcon Gateway API",
-    "description": "Complete OpenAPI 3.1 specification for the Go-Falcon API Gateway.\n\nThis specification covers all endpoints across multiple modules including authentication, user management, EVE Online integration, static data access, and task scheduling.\n\nVersion: dev\nGenerated: 2025-08-17T13:46:24Z",
+    "description": "Complete OpenAPI 3.1 specification for the Go-Falcon API Gateway.\n\nThis specification covers all endpoints across multiple modules including authentication, user management, EVE Online integration, static data access, and task scheduling.\n\nVersion: dev\nGenerated: 2025-08-17T19:01:29Z",
     "contact": {
       "name": "Go-Falcon Team",
       "url": "https://github.com/go-falcon/go-falcon"
@@ -42,15 +42,62 @@
                   "properties": {
                     "assignments": {
                       "type": "array",
-                      "description": "Array of assignments",
                       "items": {
                         "type": "object",
-                        "description": "Resource item"
+                        "properties": {
+                          "action": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "granted_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "granted_by": {
+                            "type": "integer"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "resource": {
+                            "type": "string"
+                          },
+                          "service": {
+                            "type": "string"
+                          },
+                          "subject_id": {
+                            "type": "string"
+                          },
+                          "subject_name": {
+                            "type": "string"
+                          },
+                          "subject_type": {
+                            "type": "string"
+                          }
+                        }
                       }
                     },
-                    "count": {
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    },
+                    "total": {
                       "type": "integer",
-                      "description": "Total number of items"
+                      "format": "int64"
+                    },
+                    "total_pages": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -124,32 +171,39 @@
                 "properties": {
                   "action": {
                     "type": "string",
-                    "description": "Action name (read, write, delete, admin)"
+                    "enum": [
+                      "read",
+                      "write",
+                      "delete",
+                      "admin"
+                    ]
                   },
                   "expires_at": {
                     "type": "string",
-                    "format": "date-time",
-                    "description": "Optional expiration timestamp"
+                    "format": "date-time"
                   },
                   "reason": {
                     "type": "string",
-                    "description": "Business justification for permission grant"
+                    "minLength": 10,
+                    "maxLength": 500
                   },
                   "resource": {
-                    "type": "string",
-                    "description": "Resource name"
+                    "type": "string"
                   },
                   "service": {
-                    "type": "string",
-                    "description": "Service name"
+                    "type": "string"
                   },
                   "subject_id": {
-                    "type": "string",
-                    "description": "Subject identifier"
+                    "type": "string"
                   },
                   "subject_type": {
                     "type": "string",
-                    "description": "Subject type (group, member, corporation, alliance)"
+                    "enum": [
+                      "group",
+                      "member",
+                      "corporation",
+                      "alliance"
+                    ]
                   }
                 },
                 "required": [
@@ -172,11 +226,44 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "action": {
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "granted_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "granted_by": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "resource": {
+                      "type": "string"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "subject_id": {
+                      "type": "string"
+                    },
+                    "subject_name": {
+                      "type": "string"
+                    },
+                    "subject_type": {
+                      "type": "string"
                     }
                   }
                 }
@@ -189,11 +276,44 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "action": {
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "granted_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "granted_by": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "resource": {
+                      "type": "string"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "subject_id": {
+                      "type": "string"
+                    },
+                    "subject_name": {
+                      "type": "string"
+                    },
+                    "subject_type": {
+                      "type": "string"
                     }
                   }
                 }
@@ -267,43 +387,62 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "action": {
-                    "type": "string",
-                    "description": "Action name (read, write, delete, admin)"
-                  },
-                  "expires_at": {
-                    "type": "string",
-                    "format": "date-time",
-                    "description": "Optional expiration timestamp"
-                  },
-                  "reason": {
-                    "type": "string",
-                    "description": "Business justification for permission grant"
-                  },
-                  "resource": {
-                    "type": "string",
-                    "description": "Resource name"
-                  },
-                  "service": {
-                    "type": "string",
-                    "description": "Service name"
-                  },
-                  "subject_id": {
-                    "type": "string",
-                    "description": "Subject identifier"
-                  },
-                  "subject_type": {
-                    "type": "string",
-                    "description": "Subject type (group, member, corporation, alliance)"
+                  "assignments": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "action": {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "write",
+                            "delete",
+                            "admin"
+                          ]
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 10,
+                          "maxLength": 500
+                        },
+                        "resource": {
+                          "type": "string"
+                        },
+                        "service": {
+                          "type": "string"
+                        },
+                        "subject_id": {
+                          "type": "string"
+                        },
+                        "subject_type": {
+                          "type": "string",
+                          "enum": [
+                            "group",
+                            "member",
+                            "corporation",
+                            "alliance"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "service",
+                        "resource",
+                        "action",
+                        "subject_type",
+                        "subject_id",
+                        "reason"
+                      ]
+                    },
+                    "minItems": 1
                   }
                 },
                 "required": [
-                  "service",
-                  "resource",
-                  "action",
-                  "subject_type",
-                  "subject_id",
-                  "reason"
+                  "assignments"
                 ]
               }
             }
@@ -317,11 +456,27 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "failed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "failure_count": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "success_count": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -334,11 +489,27 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "failed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "failure_count": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "success_count": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -504,11 +675,65 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "action": {
+                            "type": "string"
+                          },
+                          "actor_id": {
+                            "type": "integer"
+                          },
+                          "actor_name": {
+                            "type": "string"
+                          },
+                          "details": {
+                            "type": "object"
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "byte"
+                          },
+                          "ip_address": {
+                            "type": "string"
+                          },
+                          "resource": {
+                            "type": "string"
+                          },
+                          "service": {
+                            "type": "string"
+                          },
+                          "subject_id": {
+                            "type": "string"
+                          },
+                          "subject_type": {
+                            "type": "string"
+                          },
+                          "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "user_agent": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_pages": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -581,13 +806,27 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Request data varies by endpoint",
                 "properties": {
-                  "data": {
-                    "type": "object",
-                    "description": "Request payload"
+                  "action": {
+                    "type": "string"
+                  },
+                  "character_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "resource": {
+                    "type": "string"
+                  },
+                  "service": {
+                    "type": "string"
                   }
-                }
+                },
+                "required": [
+                  "service",
+                  "resource",
+                  "action",
+                  "character_id"
+                ]
               }
             }
           },
@@ -600,11 +839,22 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "last_updated": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "permissions": {
+                      "type": "object"
                     }
                   }
                 }
@@ -617,11 +867,22 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "last_updated": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "permissions": {
+                      "type": "object"
                     }
                   }
                 }
@@ -706,11 +967,61 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "assignments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "action": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "granted_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "granted_by": {
+                            "type": "integer"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "resource": {
+                            "type": "string"
+                          },
+                          "service": {
+                            "type": "string"
+                          },
+                          "subject_id": {
+                            "type": "string"
+                          },
+                          "subject_name": {
+                            "type": "string"
+                          },
+                          "subject_type": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "resources": {
+                      "type": "object"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "total": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -795,11 +1106,28 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "character_name": {
+                      "type": "string"
+                    },
+                    "granular_permissions": {
+                      "type": "object"
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "last_updated": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "total_permissions": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -874,17 +1202,81 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "count": {
-                      "type": "integer",
-                      "description": "Total number of items"
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
                     },
                     "services": {
                       "type": "array",
-                      "description": "Array of services",
                       "items": {
                         "type": "object",
-                        "description": "Resource item"
+                        "properties": {
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "resources": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "actions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "minItems": 1
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "display_name": {
+                                  "type": "string"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "display_name",
+                                "actions"
+                              ]
+                            }
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
                       }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_pages": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -931,44 +1323,58 @@
                 "properties": {
                   "description": {
                     "type": "string",
-                    "description": "Service description"
+                    "minLength": 10,
+                    "maxLength": 500
                   },
                   "display_name": {
                     "type": "string",
-                    "description": "Human-readable service name"
+                    "minLength": 3,
+                    "maxLength": 100
                   },
                   "name": {
                     "type": "string",
-                    "description": "Service name (unique identifier)"
+                    "minLength": 2,
+                    "maxLength": 50,
+                    "pattern": "^[a-zA-Z0-9]+$"
                   },
                   "resources": {
                     "type": "array",
-                    "description": "Service resources",
                     "items": {
                       "type": "object",
                       "properties": {
                         "actions": {
                           "type": "array",
-                          "description": "Available actions for this resource",
                           "items": {
                             "type": "string"
-                          }
+                          },
+                          "minItems": 1
+                        },
+                        "description": {
+                          "type": "string"
                         },
                         "display_name": {
-                          "type": "string",
-                          "description": "Human-readable resource name"
+                          "type": "string"
+                        },
+                        "enabled": {
+                          "type": "boolean"
                         },
                         "name": {
-                          "type": "string",
-                          "description": "Resource name"
+                          "type": "string"
                         }
-                      }
-                    }
+                      },
+                      "required": [
+                        "name",
+                        "display_name",
+                        "actions"
+                      ]
+                    },
+                    "minItems": 1
                   }
                 },
                 "required": [
                   "name",
                   "display_name",
+                  "description",
                   "resources"
                 ]
               }
@@ -983,11 +1389,61 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "created_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "resources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "minItems": 1
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "display_name",
+                          "actions"
+                        ]
+                      }
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -1000,11 +1456,61 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "created_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "resources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "minItems": 1
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "display_name",
+                          "actions"
+                        ]
+                      }
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -1126,17 +1632,60 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "count": {
-                      "type": "integer",
-                      "description": "Total number of items"
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
                     },
-                    "services": {
+                    "description": {
+                      "type": "string"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "resources": {
                       "type": "array",
-                      "description": "Array of services",
                       "items": {
                         "type": "object",
-                        "description": "Resource item"
+                        "properties": {
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "minItems": 1
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "display_name",
+                          "actions"
+                        ]
                       }
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -1191,11 +1740,52 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Request data varies by endpoint",
                 "properties": {
-                  "data": {
-                    "type": "object",
-                    "description": "Request payload"
+                  "description": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 500
+                  },
+                  "display_name": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 100
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "resources": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "actions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "minItems": 1
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "display_name": {
+                          "type": "string"
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "display_name",
+                        "actions"
+                      ]
+                    },
+                    "minItems": 1
                   }
                 }
               }
@@ -1210,11 +1800,61 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "created_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "resources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "minItems": 1
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "display_name",
+                          "actions"
+                        ]
+                      }
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -1261,11 +1901,27 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "subjects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "format": "int64"
                     }
                   }
                 }
@@ -1417,11 +2073,13 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "token": {
+                      "type": "string"
                     }
                   }
                 }
@@ -1468,11 +2126,12 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "auth_url": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
                     }
                   }
                 }
@@ -1518,13 +2177,14 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Request data varies by endpoint",
                 "properties": {
-                  "data": {
-                    "type": "object",
-                    "description": "Request payload"
+                  "refresh_token": {
+                    "type": "string"
                   }
-                }
+                },
+                "required": [
+                  "refresh_token"
+                ]
               }
             }
           },
@@ -1537,11 +2197,19 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "expires_in": {
+                      "type": "integer"
+                    },
+                    "refresh_token": {
+                      "type": "string"
                     }
                   }
                 }
@@ -1554,11 +2222,19 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "expires_in": {
+                      "type": "integer"
+                    },
+                    "refresh_token": {
+                      "type": "string"
                     }
                   }
                 }
@@ -1768,13 +2444,21 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Request data varies by endpoint",
                 "properties": {
-                  "data": {
-                    "type": "object",
-                    "description": "Request payload"
+                  "password": {
+                    "type": "string",
+                    "minLength": 6
+                  },
+                  "username": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 50
                   }
-                }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
               }
             }
           },
@@ -1787,11 +2471,13 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "token": {
+                      "type": "string"
                     }
                   }
                 }
@@ -1804,11 +2490,13 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "token": {
+                      "type": "string"
                     }
                   }
                 }
@@ -1900,11 +2588,12 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
                     "message": {
-                      "type": "string",
-                      "description": "Response message"
+                      "type": "string"
+                    },
+                    "success": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -1917,11 +2606,12 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
                     "message": {
-                      "type": "string",
-                      "description": "Response message"
+                      "type": "string"
+                    },
+                    "success": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -1997,24 +2687,54 @@
                   "type": "object",
                   "properties": {
                     "alliance_id": {
-                      "type": "integer",
-                      "description": "EVE alliance ID"
+                      "type": "integer"
+                    },
+                    "alliance_name": {
+                      "type": "string"
+                    },
+                    "birthday": {
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "character_id": {
-                      "type": "integer",
-                      "description": "EVE character ID"
+                      "type": "integer"
                     },
                     "character_name": {
-                      "type": "string",
-                      "description": "EVE character name"
+                      "type": "string"
                     },
                     "corporation_id": {
-                      "type": "integer",
-                      "description": "EVE corporation ID"
+                      "type": "integer"
+                    },
+                    "corporation_name": {
+                      "type": "string"
+                    },
+                    "last_login": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "metadata": {
+                      "type": "object"
+                    },
+                    "profile_updated": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "scopes": {
+                      "type": "string"
+                    },
+                    "security_status": {
+                      "type": "number",
+                      "format": "double"
+                    },
+                    "token_expiry": {
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "user_id": {
-                      "type": "string",
-                      "description": "Internal user ID"
+                      "type": "string"
+                    },
+                    "valid": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -2090,24 +2810,26 @@
                   "type": "object",
                   "properties": {
                     "alliance_id": {
-                      "type": "integer",
-                      "description": "EVE alliance ID"
+                      "type": "integer"
+                    },
+                    "alliance_name": {
+                      "type": "string"
                     },
                     "character_id": {
-                      "type": "integer",
-                      "description": "EVE character ID"
+                      "type": "integer"
                     },
                     "character_name": {
-                      "type": "string",
-                      "description": "EVE character name"
+                      "type": "string"
                     },
                     "corporation_id": {
-                      "type": "integer",
-                      "description": "EVE corporation ID"
+                      "type": "integer"
                     },
-                    "user_id": {
-                      "type": "string",
-                      "description": "Internal user ID"
+                    "corporation_name": {
+                      "type": "string"
+                    },
+                    "security_status": {
+                      "type": "number",
+                      "format": "double"
                     }
                   }
                 }
@@ -2180,11 +2902,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Request data varies by endpoint",
                 "properties": {
-                  "data": {
-                    "type": "object",
-                    "description": "Request payload"
+                  "force_refresh": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -2201,24 +2921,54 @@
                   "type": "object",
                   "properties": {
                     "alliance_id": {
-                      "type": "integer",
-                      "description": "EVE alliance ID"
+                      "type": "integer"
+                    },
+                    "alliance_name": {
+                      "type": "string"
+                    },
+                    "birthday": {
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "character_id": {
-                      "type": "integer",
-                      "description": "EVE character ID"
+                      "type": "integer"
                     },
                     "character_name": {
-                      "type": "string",
-                      "description": "EVE character name"
+                      "type": "string"
                     },
                     "corporation_id": {
-                      "type": "integer",
-                      "description": "EVE corporation ID"
+                      "type": "integer"
+                    },
+                    "corporation_name": {
+                      "type": "string"
+                    },
+                    "last_login": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "metadata": {
+                      "type": "object"
+                    },
+                    "profile_updated": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "scopes": {
+                      "type": "string"
+                    },
+                    "security_status": {
+                      "type": "number",
+                      "format": "double"
+                    },
+                    "token_expiry": {
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "user_id": {
-                      "type": "string",
-                      "description": "Internal user ID"
+                      "type": "string"
+                    },
+                    "valid": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -2233,24 +2983,54 @@
                   "type": "object",
                   "properties": {
                     "alliance_id": {
-                      "type": "integer",
-                      "description": "EVE alliance ID"
+                      "type": "integer"
+                    },
+                    "alliance_name": {
+                      "type": "string"
+                    },
+                    "birthday": {
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "character_id": {
-                      "type": "integer",
-                      "description": "EVE character ID"
+                      "type": "integer"
                     },
                     "character_name": {
-                      "type": "string",
-                      "description": "EVE character name"
+                      "type": "string"
                     },
                     "corporation_id": {
-                      "type": "integer",
-                      "description": "EVE corporation ID"
+                      "type": "integer"
+                    },
+                    "corporation_name": {
+                      "type": "string"
+                    },
+                    "last_login": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "metadata": {
+                      "type": "object"
+                    },
+                    "profile_updated": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "scopes": {
+                      "type": "string"
+                    },
+                    "security_status": {
+                      "type": "number",
+                      "format": "double"
+                    },
+                    "token_expiry": {
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "user_id": {
-                      "type": "string",
-                      "description": "Internal user ID"
+                      "type": "string"
+                    },
+                    "valid": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -2323,13 +3103,26 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Request data varies by endpoint",
                 "properties": {
-                  "data": {
-                    "type": "object",
-                    "description": "Request payload"
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6
+                  },
+                  "username": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 50
                   }
-                }
+                },
+                "required": [
+                  "username",
+                  "email",
+                  "password"
+                ]
               }
             }
           },
@@ -2342,11 +3135,13 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "token": {
+                      "type": "string"
                     }
                   }
                 }
@@ -2359,11 +3154,13 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "token": {
+                      "type": "string"
                     }
                   }
                 }
@@ -2437,11 +3234,30 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "character_name": {
+                      "type": "string"
+                    },
+                    "characters": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "user_id": {
+                      "type": "string"
                     }
                   }
                 }
@@ -2488,11 +3304,13 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "expires_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "token": {
+                      "type": "string"
                     }
                   }
                 }
@@ -2566,11 +3384,21 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "character_name": {
+                      "type": "string"
+                    },
+                    "expires_at": {
+                      "type": "string"
+                    },
+                    "scopes": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "type": "string"
                     }
                   }
                 }
@@ -5689,11 +6517,30 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "character_name": {
+                      "type": "string"
+                    },
+                    "characters": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "user_id": {
+                      "type": "string"
                     }
                   }
                 }
@@ -5864,11 +6711,130 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "auto_assignment_rules": {
+                            "type": "object",
+                            "properties": {
+                              "alliance_ids": {
+                                "type": "array",
+                                "items": {
+                                  "type": "integer"
+                                }
+                              },
+                              "corporation_ids": {
+                                "type": "array",
+                                "items": {
+                                  "type": "integer"
+                                }
+                              },
+                              "min_security_status": {
+                                "type": "number",
+                                "format": "double"
+                              }
+                            }
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "created_by": {
+                            "type": "integer"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "discord_roles": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "role_name": {
+                                  "type": "string"
+                                },
+                                "server_id": {
+                                  "type": "string"
+                                },
+                                "server_name": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "is_default": {
+                            "type": "boolean"
+                          },
+                          "is_member": {
+                            "type": "boolean"
+                          },
+                          "member_count": {
+                            "type": "integer"
+                          },
+                          "members": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "assigned_at": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "assignment_metadata": {
+                                  "type": "object"
+                                },
+                                "assignment_source": {
+                                  "type": "string"
+                                },
+                                "character_id": {
+                                  "type": "integer"
+                                },
+                                "expires_at": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "last_validated": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "validation_status": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "page_size": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "total_pages": {
+                          "type": "integer"
+                        }
+                      }
                     }
                   }
                 }
@@ -5939,13 +6905,64 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Request data varies by endpoint",
                 "properties": {
-                  "data": {
+                  "auto_assignment_rules": {
                     "type": "object",
-                    "description": "Request payload"
+                    "properties": {
+                      "alliance_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        }
+                      },
+                      "corporation_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        }
+                      },
+                      "min_security_status": {
+                        "type": "number",
+                        "format": "double"
+                      }
+                    }
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 500
+                  },
+                  "discord_roles": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role_name": {
+                          "type": "string"
+                        },
+                        "server_id": {
+                          "type": "string"
+                        },
+                        "server_name": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "is_default": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 50,
+                    "pattern": "^[a-zA-Z0-9]+$"
                   }
-                }
+                },
+                "required": [
+                  "name",
+                  "description"
+                ]
               }
             }
           },
@@ -5958,11 +6975,105 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "auto_assignment_rules": {
+                      "type": "object",
+                      "properties": {
+                        "alliance_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "corporation_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "min_security_status": {
+                          "type": "number",
+                          "format": "double"
+                        }
+                      }
+                    },
+                    "created_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "integer"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "discord_roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role_name": {
+                            "type": "string"
+                          },
+                          "server_id": {
+                            "type": "string"
+                          },
+                          "server_name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "is_default": {
+                      "type": "boolean"
+                    },
+                    "is_member": {
+                      "type": "boolean"
+                    },
+                    "member_count": {
+                      "type": "integer"
+                    },
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "assigned_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "assignment_metadata": {
+                            "type": "object"
+                          },
+                          "assignment_source": {
+                            "type": "string"
+                          },
+                          "character_id": {
+                            "type": "integer"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "last_validated": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "validation_status": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -5975,11 +7086,105 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "auto_assignment_rules": {
+                      "type": "object",
+                      "properties": {
+                        "alliance_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "corporation_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "min_security_status": {
+                          "type": "number",
+                          "format": "double"
+                        }
+                      }
+                    },
+                    "created_at": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "integer"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "discord_roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role_name": {
+                            "type": "string"
+                          },
+                          "server_id": {
+                            "type": "string"
+                          },
+                          "server_name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "is_default": {
+                      "type": "boolean"
+                    },
+                    "is_member": {
+                      "type": "boolean"
+                    },
+                    "member_count": {
+                      "type": "integer"
+                    },
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "assigned_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "assignment_metadata": {
+                            "type": "object"
+                          },
+                          "assignment_source": {
+                            "type": "string"
+                          },
+                          "character_id": {
+                            "type": "integer"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "last_validated": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "validation_status": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -6976,11 +8181,22 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "last_updated": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "permissions": {
+                      "type": "object"
                     }
                   }
                 }
@@ -7054,11 +8270,22 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "last_updated": {
                       "type": "string",
-                      "description": "Response message"
+                      "format": "date-time"
+                    },
+                    "permissions": {
+                      "type": "object"
                     }
                   }
                 }
@@ -7355,11 +8582,30 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Response data varies by endpoint",
                   "properties": {
-                    "message": {
-                      "type": "string",
-                      "description": "Response message"
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "character_id": {
+                      "type": "integer"
+                    },
+                    "character_name": {
+                      "type": "string"
+                    },
+                    "characters": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "user_id": {
+                      "type": "string"
                     }
                   }
                 }
@@ -9348,18 +10594,29 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "last_update": {
-                      "type": "string",
-                      "format": "date-time",
-                      "description": "Last update timestamp"
+                    "authenticated": {
+                      "type": "boolean"
                     },
-                    "status": {
-                      "type": "string",
-                      "description": "SDE status"
+                    "character_id": {
+                      "type": "integer"
                     },
-                    "version": {
-                      "type": "string",
-                      "description": "Current SDE version"
+                    "character_name": {
+                      "type": "string"
+                    },
+                    "characters": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "user_id": {
+                      "type": "string"
                     }
                   }
                 }
@@ -10273,10 +11530,6 @@
   ],
   "tags": [
     {
-      "name": "Sde",
-      "description": "EVE Online Static Data Export management endpoints"
-    },
-    {
       "name": "Auth",
       "description": "Authentication and authorization endpoints using EVE Online SSO"
     },
@@ -10293,6 +11546,10 @@
       "description": "User management and profile endpoints"
     },
     {
+      "name": "Gateway",
+      "description": "Gateway health and status endpoints"
+    },
+    {
       "name": "Notifications",
       "description": "Notification system endpoints"
     },
@@ -10301,8 +11558,8 @@
       "description": "Task scheduling and management endpoints"
     },
     {
-      "name": "Gateway",
-      "description": "Gateway health and status endpoints"
+      "name": "Sde",
+      "description": "EVE Online Static Data Export management endpoints"
     }
   ],
   "externalDocs": {
