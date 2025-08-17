@@ -58,13 +58,16 @@ func (rt *Routes) registerGroupRoutes(r chi.Router) {
 	// Health check (public)
 	r.Get("/health", rt.HealthCheck)
 
+	// Public endpoints (no authentication required)
+	r.Group(func(r chi.Router) {
+		// List groups with optional filtering (public access)
+		r.With(rt.middleware.ValidateQueryParams).Get("/", rt.ListGroups)
+	})
+
 	// Legacy Group Management (requires authentication)
 	r.Group(func(r chi.Router) {
 		// Require basic authentication for all group operations
 		r.Use(rt.middleware.RequireLegacyPermission("groups", "read"))
-
-		// List groups with optional filtering
-		r.With(rt.middleware.ValidateQueryParams).Get("/", rt.ListGroups)
 		
 		// Get specific group details
 		r.Get("/{groupID}", rt.GetGroup)
