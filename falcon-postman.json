@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "go-falcon-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-17T03:17:49Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-17T05:30:32Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
@@ -1178,7 +1178,7 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members/{{character_id}}",
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members/{{{character_id}}}",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -1186,7 +1186,7 @@
                 "groups",
                 "{{group_id_groups}}",
                 "members",
-                "{{character_id}}"
+                "{{{character_id}}}"
               ]
             },
             "description": "Remove a member from a group (admin only)",
@@ -1204,7 +1204,7 @@
         },
         {
           "name": "GET /permissions/check",
-          "description": "Check if user has specific permission",
+          "description": "Check if user has specific permission (legacy system)",
           "request": {
             "method": "GET",
             "header": [
@@ -1224,7 +1224,7 @@
                 "check"
               ]
             },
-            "description": "Check if user has specific permission",
+            "description": "Check if user has specific permission (legacy system)",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1239,7 +1239,7 @@
         },
         {
           "name": "GET /permissions/user",
-          "description": "Get user's complete permission matrix",
+          "description": "Get user's complete permission matrix (legacy system)",
           "request": {
             "method": "GET",
             "header": [
@@ -1259,7 +1259,553 @@
                 "user"
               ]
             },
-            "description": "Get user's complete permission matrix",
+            "description": "Get user's complete permission matrix (legacy system)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /admin/permissions/services",
+          "description": "List all permission services (super admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/services",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "services"
+              ]
+            },
+            "description": "List all permission services (super admin only)"
+          }
+        },
+        {
+          "name": "POST /admin/permissions/services",
+          "description": "Create a new permission service (super admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/services",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "services"
+              ]
+            },
+            "description": "Create a new permission service (super admin only)"
+          }
+        },
+        {
+          "name": "GET /admin/permissions/services/{serviceName}",
+          "description": "Get specific permission service details (super admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/services/{{service_name}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "services",
+                "{{service_name}}"
+              ]
+            },
+            "description": "Get specific permission service details (super admin only)"
+          }
+        },
+        {
+          "name": "PUT /admin/permissions/services/{serviceName}",
+          "description": "Update permission service configuration (super admin only)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/services/{{service_name}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "services",
+                "{{service_name}}"
+              ]
+            },
+            "description": "Update permission service configuration (super admin only)"
+          }
+        },
+        {
+          "name": "DELETE /admin/permissions/services/{serviceName}",
+          "description": "Delete permission service and all assignments (super admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/services/{{service_name}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "services",
+                "{{service_name}}"
+              ]
+            },
+            "description": "Delete permission service and all assignments (super admin only)"
+          }
+        },
+        {
+          "name": "GET /admin/permissions/assignments",
+          "description": "List permission assignments with filtering (super admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/assignments",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "assignments"
+              ]
+            },
+            "description": "List permission assignments with filtering (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /admin/permissions/assignments",
+          "description": "Grant a granular permission to a subject (super admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/assignments",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "assignments"
+              ]
+            },
+            "description": "Grant a granular permission to a subject (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /admin/permissions/assignments/bulk",
+          "description": "Grant multiple permissions in bulk (super admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/assignments/bulk",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "assignments",
+                "bulk"
+              ]
+            },
+            "description": "Grant multiple permissions in bulk (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/permissions/assignments/{assignmentID}",
+          "description": "Revoke a specific permission assignment (super admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/assignments/{{assignment_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "assignments",
+                "{{assignment_id}}"
+              ]
+            },
+            "description": "Revoke a specific permission assignment (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /admin/permissions/check",
+          "description": "Check granular permission for any user (super admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/check",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "check"
+              ]
+            },
+            "description": "Check granular permission for any user (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /admin/permissions/check/user/Character",
+          "description": "Get comprehensive permission summary for user (super admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/check/user/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "check",
+                "user",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Get comprehensive permission summary for user (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /admin/permissions/check/service/{serviceName}",
+          "description": "Get all permissions for a specific service (super admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/check/service/{{service_name}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "check",
+                "service",
+                "{{service_name}}"
+              ]
+            },
+            "description": "Get all permissions for a specific service (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /admin/permissions/subjects/groups",
+          "description": "List available groups for permission assignment (super admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/subjects/groups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "subjects",
+                "groups"
+              ]
+            },
+            "description": "List available groups for permission assignment (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /admin/permissions/subjects/validate",
+          "description": "Validate if a subject exists for permission assignment (super admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/subjects/validate",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "subjects",
+                "validate"
+              ]
+            },
+            "description": "Validate if a subject exists for permission assignment (super admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /admin/permissions/audit",
+          "description": "Get permission audit logs with filtering (super admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/admin/permissions/audit",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "admin",
+                "permissions",
+                "audit"
+              ]
+            },
+            "description": "Get permission audit logs with filtering (super admin only)",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3806,6 +4352,36 @@
       "key": "search_name",
       "value": "Jita",
       "description": "Example search query for solar system search"
+    },
+    {
+      "key": "service_name",
+      "value": "sde",
+      "description": "Example service name for granular permission system"
+    },
+    {
+      "key": "resource_name",
+      "value": "entities",
+      "description": "Example resource name for granular permission system"
+    },
+    {
+      "key": "action_name",
+      "value": "read",
+      "description": "Example action name for granular permission system (read, write, delete, admin)"
+    },
+    {
+      "key": "subject_type",
+      "value": "group",
+      "description": "Example subject type for granular permission system (group, member, corporation, alliance)"
+    },
+    {
+      "key": "subject_id",
+      "value": "507f1f77bcf86cd799439011",
+      "description": "Example subject ID for granular permission system"
+    },
+    {
+      "key": "assignment_id",
+      "value": "507f1f77bcf86cd799439012",
+      "description": "Example assignment ID for granular permission system"
     }
   ]
 }

@@ -22,27 +22,30 @@ import (
 
 type Module struct {
 	*module.BaseModule
-	permissionService *PermissionService
-	groupService      *GroupService
-	authModule        *auth.Module
+	permissionService        *PermissionService
+	granularPermissionService *GranularPermissionService
+	groupService             *GroupService
+	authModule               *auth.Module
 }
 
 func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule *auth.Module) *Module {
 	groupService := NewGroupService(mongodb)
 	permissionService := NewPermissionService(mongodb, redis, groupService)
+	granularPermissionService := NewGranularPermissionService(mongodb, redis, groupService)
 	
 	return &Module{
-		BaseModule:        module.NewBaseModule("groups", mongodb, redis, sdeService),
-		permissionService: permissionService,
-		groupService:      groupService,
-		authModule:        authModule,
+		BaseModule:               module.NewBaseModule("groups", mongodb, redis, sdeService),
+		permissionService:        permissionService,
+		granularPermissionService: granularPermissionService,
+		groupService:             groupService,
+		authModule:               authModule,
 	}
 }
 
 func (m *Module) Routes(r chi.Router) {
 	m.RegisterHealthRoute(r)
 	
-	// Group management endpoints
+	// Group management endpoints (legacy system)
 	r.Route("/groups", func(r chi.Router) {
 		r.With(m.authModule.OptionalJWTMiddleware).Get("/", m.listGroupsHandler)
 		r.With(m.authModule.JWTMiddleware, m.RequirePermission("groups", "admin")).Post("/", m.createGroupHandler)
@@ -58,12 +61,15 @@ func (m *Module) Routes(r chi.Router) {
 		})
 	})
 	
-	// Permission checking endpoints
+	// Permission checking endpoints (legacy system)
 	r.Route("/permissions", func(r chi.Router) {
 		r.Use(m.authModule.OptionalJWTMiddleware)
 		r.Get("/check", m.checkPermissionHandler)
 		r.Get("/user", m.getUserPermissionsHandler)
 	})
+	
+	// New granular permission system admin routes
+	m.AdminRoutes(r)
 }
 
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
@@ -108,6 +114,14 @@ func (m *Module) initializeGroupsAndSuperAdmin(ctx context.Context) {
 		return
 	}
 	
+	// Initialize granular permission system indexes
+	slog.Info("Initializing granular permission system indexes")
+	
+	if err := m.granularPermissionService.InitializeIndexes(ctx); err != nil {
+		slog.Error("Failed to initialize granular permission system indexes", slog.String("error", err.Error()))
+		return
+	}
+	
 	// Initialize default groups
 	slog.Info("Initializing default groups")
 	
@@ -122,15 +136,6 @@ func (m *Module) initializeGroupsAndSuperAdmin(ctx context.Context) {
 	m.initializeSuperAdmin(ctx)
 }
 
-func (m *Module) initializeDefaultGroups(ctx context.Context) {
-	slog.Info("Initializing default groups")
-	
-	if err := m.groupService.InitializeDefaultGroups(ctx); err != nil {
-		slog.Error("Failed to initialize default groups", slog.String("error", err.Error()))
-	} else {
-		slog.Info("Default groups initialized successfully")
-	}
-}
 
 func (m *Module) initializeSuperAdmin(ctx context.Context) {
 	superAdminCharID := config.GetSuperAdminCharacterID()
@@ -212,7 +217,7 @@ func (m *Module) runMembershipValidation(ctx context.Context) {
 	}
 }
 
-func (m *Module) validateCorporateMemberships(ctx context.Context) error {
+func (m *Module) validateCorporateMemberships(_ context.Context) error {
 	slog.Info("Starting corporate membership validation")
 	
 	// This will be implemented as part of the scheduler integration
@@ -262,7 +267,7 @@ func (m *Module) listGroupsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"groups": groups,
+		"groups": ToResponseSlice(groups),
 		"count":  len(groups),
 	})
 }
@@ -320,7 +325,7 @@ func (m *Module) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(group)
+	json.NewEncoder(w).Encode(group.ToResponse())
 }
 
 func (m *Module) updateGroupHandler(w http.ResponseWriter, r *http.Request) {
@@ -363,7 +368,7 @@ func (m *Module) updateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(group)
+	json.NewEncoder(w).Encode(group.ToResponse())
 }
 
 func (m *Module) deleteGroupHandler(w http.ResponseWriter, r *http.Request) {
@@ -670,9 +675,16 @@ func (m *Module) AssignUserToDefaultGroups(ctx context.Context, characterID int,
 	}
 
 	// Assign to corporate group if applicable
-	if (corporationID != nil && *corporationID > 0) || (allianceID != nil && *allianceID > 0) {
+	if corporationID != nil && *corporationID > 0 {
 		if err := m.groupService.AssignToDefaultGroup(ctx, characterID, "corporate"); err != nil {
 			slog.Warn("Failed to assign to corporate group", slog.String("error", err.Error()))
+		}
+	}
+
+	// Assign to alliance group if applicable
+	if allianceID != nil && *allianceID > 0 {
+		if err := m.groupService.AssignToDefaultGroup(ctx, characterID, "alliance"); err != nil {
+			slog.Warn("Failed to assign to alliance group", slog.String("error", err.Error()))
 		}
 	}
 

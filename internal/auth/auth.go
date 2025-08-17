@@ -665,7 +665,6 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"authenticated": false,
-			"permissions": []string{},
 		})
 		return
 	}
@@ -678,7 +677,6 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"authenticated": false,
-			"permissions": []string{},
 		})
 		return
 	}
@@ -689,8 +687,7 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 		characterID = int(charIDFloat)
 	}
 
-	// Get user permissions and groups from groups module
-	var permissions []string
+	// Get user groups from groups module (legacy permissions hidden)
 	var groups []string
 	if m.groupsModule != nil && characterID > 0 {
 		// Use reflection to call GetUserPermissions method
@@ -706,20 +703,7 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 				// Use reflection to access fields
 				permsValue := reflect.ValueOf(userPerms).Elem()
 				
-				// Get permissions
-				permissionsField := permsValue.FieldByName("Permissions")
-				if permissionsField.IsValid() {
-					permsMap := permissionsField.Interface().(map[string]map[string]bool)
-					for resource, actions := range permsMap {
-						for action, allowed := range actions {
-							if allowed {
-								permissions = append(permissions, resource+":"+action)
-							}
-						}
-					}
-				}
-				
-				// Get groups
+				// Get groups only (legacy permissions hidden from API responses)
 				groupsField := permsValue.FieldByName("Groups")
 				if groupsField.IsValid() {
 					groupsList := groupsField.Interface().([]string)
@@ -732,7 +716,6 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 	// Valid token, user is authenticated
 	response := map[string]interface{}{
 		"authenticated": true,
-		"permissions": permissions,
 		"groups": groups,
 	}
 	

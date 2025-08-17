@@ -2,7 +2,323 @@
 
 ## Overview
 
-The Groups module provides comprehensive authorization and role management functionality for the Go Falcon application. It implements a flexible group-based permission system that integrates with EVE Online authentication, Discord roles, and automated validation through scheduled tasks.
+The Groups module provides comprehensive authorization and role management functionality for the Go Falcon application with **TWO PERMISSION SYSTEMS**:
+
+1. **Legacy Group-Based System**: Traditional group permissions for backward compatibility
+2. **NEW Granular Permission System**: Administrator-controlled, service-level permissions with fine-grained access control
+
+**⚠️ IMPORTANT**: The new granular permission system is the recommended approach for all new implementations. Administrators can manually control permissions for every service and resource.
+
+## New Granular Permission System
+
+### Core Concepts
+
+#### Services
+Each module/service in the system (e.g., "sde", "auth", "scheduler") that can have permissions assigned.
+
+#### Resources  
+Specific entities within services (e.g., "entities" in SDE, "users" in auth, "tasks" in scheduler).
+
+#### Actions
+Operations that can be performed on resources:
+- **read**: View/access the resource
+- **write**: Modify the resource  
+- **delete**: Remove the resource
+- **admin**: Full administrative control
+
+#### Subjects
+Who can receive permissions:
+- **group**: Existing group (from legacy system)
+- **member**: Individual EVE character
+- **corporation**: EVE Online corporation
+- **alliance**: EVE Online alliance
+
+### Database Schema
+
+#### Services Collection
+```json
+{
+  "_id": "ObjectId",
+  "name": "sde",
+  "display_name": "Static Data Export", 
+  "description": "EVE Online static data management",
+  "resources": [
+    {
+      "name": "entities",
+      "display_name": "SDE Entities",
+      "actions": ["read", "write", "delete", "admin"],
+      "enabled": true
+    }
+  ],
+  "enabled": true,
+  "created_at": "timestamp",
+  "updated_at": "timestamp"
+}
+```
+
+#### Permission Assignments Collection
+```json
+{
+  "_id": "ObjectId",
+  "service": "sde",
+  "resource": "entities",
+  "action": "read",
+  "subject_type": "group", 
+  "subject_id": "group_object_id",
+  "granted_by": "admin_character_id",
+  "granted_at": "timestamp",
+  "expires_at": "timestamp (optional)",
+  "reason": "Business justification",
+  "enabled": true
+}
+```
+
+### Admin API Endpoints
+
+#### Service Management
+```bash
+# List all services
+GET /admin/permissions/services
+
+# Create a new service
+POST /admin/permissions/services
+{
+  "name": "my_service",
+  "display_name": "My Service",
+  "description": "Custom service description",
+  "resources": [
+    {
+      "name": "items",
+      "display_name": "Service Items", 
+      "actions": ["read", "write", "delete"]
+    }
+  ]
+}
+
+# Get specific service
+GET /admin/permissions/services/{serviceName}
+
+# Update service
+PUT /admin/permissions/services/{serviceName}
+{
+  "description": "Updated description",
+  "resources": [...]
+}
+
+# Delete service (removes all associated permissions)
+DELETE /admin/permissions/services/{serviceName}
+```
+
+#### Permission Assignment
+```bash
+# Grant permission
+POST /admin/permissions/assignments
+{
+  "service": "sde",
+  "resource": "entities", 
+  "action": "read",
+  "subject_type": "group",
+  "subject_id": "group_object_id",
+  "expires_at": "2024-12-31T23:59:59Z",
+  "reason": "Business requirement"
+}
+
+# Revoke permission  
+DELETE /admin/permissions/assignments/{assignmentID}
+?service=sde&resource=entities&action=read&subject_type=group&subject_id=group_id
+
+# Check permission
+POST /admin/permissions/check
+{
+  "service": "sde",
+  "resource": "entities",
+  "action": "read", 
+  "character_id": 123456789
+}
+```
+
+#### Utility Endpoints
+```bash
+# List available groups for assignment
+GET /admin/permissions/subjects/groups
+
+# Validate subject exists
+GET /admin/permissions/subjects/validate?type=group&id=group_id
+
+# Get audit logs
+GET /admin/permissions/audit
+
+# Get user permission summary
+GET /admin/permissions/check/user/{characterID}
+
+# Get service-specific permissions
+GET /admin/permissions/check/service/{serviceName}
+```
+
+### Middleware Usage
+
+#### Basic Permission Checking
+```go
+// Require specific permission
+r.With(groupsModule.RequireGranularPermission("sde", "entities", "read")).Get("/sde/data", handler)
+
+// Optional permission (adds to context)
+r.With(groupsModule.OptionalGranularPermission("sde", "entities", "write")).Get("/sde/info", handler)
+
+// Check permission in handler
+func handler(w http.ResponseWriter, r *http.Request) {
+    result, err := groupsModule.CheckGranularPermissionInHandler(r, "sde", "entities", "admin")
+    if err != nil || !result.Allowed {
+        // Handle permission denial
+    }
+}
+```
+
+#### Advanced Middleware
+```go
+// Require any of multiple permissions
+permissions := []groups.GranularPermissionCheck{
+    groups.SDEReadPermission,
+    groups.SDEAdminPermission,
+}
+r.With(groupsModule.RequireAnyGranularPermission(permissions)).Get("/sde/data", handler)
+
+// Resource owner OR permission
+r.With(groupsModule.ResourceOwnerOrGranularPermission(
+    func(r *http.Request) int { return extractUserID(r) },
+    "auth", "users", "read"
+)).Get("/users/{id}", handler)
+
+// Conditional permission
+r.With(groupsModule.ConditionalGranularPermission(
+    func(r *http.Request) bool { return r.URL.Query().Get("admin") == "true" },
+    "system", "admin", "read"
+)).Get("/admin", handler)
+
+// Audit logging
+r.With(groupsModule.LogGranularPermissions("sde", "entities", "write")).Post("/sde/update", handler)
+```
+
+#### Pre-defined Permission Checks
+```go
+// Common permissions available as constants
+groups.SDEReadPermission      // sde.entities.read
+groups.SDEWritePermission     // sde.entities.write  
+groups.SDEAdminPermission     // sde.entities.admin
+groups.AuthReadPermission     // auth.users.read
+groups.AuthWritePermission    // auth.users.write
+groups.GroupsAdminPermission  // groups.management.admin
+groups.SchedulerAdminPermission // scheduler.tasks.admin
+```
+
+### Implementation Examples
+
+#### 1. Granting Permissions to a Group
+```bash
+# Grant SDE read access to the "corporate" group
+curl -X POST /admin/permissions/assignments \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "service": "sde",
+    "resource": "entities",
+    "action": "read", 
+    "subject_type": "group",
+    "subject_id": "corporate_group_object_id",
+    "reason": "Corporate members need SDE access"
+  }'
+```
+
+#### 2. Granting Direct Member Access
+```bash
+# Grant auth admin access to specific character
+curl -X POST /admin/permissions/assignments \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "service": "auth", 
+    "resource": "users",
+    "action": "admin",
+    "subject_type": "member",
+    "subject_id": "123456789",
+    "expires_at": "2024-12-31T23:59:59Z",
+    "reason": "Temporary admin access for user management"
+  }'
+```
+
+#### 3. Corporation-Level Permissions
+```bash
+# Grant corporation-wide scheduler access
+curl -X POST /admin/permissions/assignments \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "service": "scheduler",
+    "resource": "tasks", 
+    "action": "write",
+    "subject_type": "corporation",
+    "subject_id": "98000001",
+    "reason": "Corporation officers can manage scheduled tasks"
+  }'
+```
+
+### Security Features
+
+#### Access Control
+- **Super Admin Only**: Only super admins can manage the granular permission system
+- **Audit Logging**: All permission changes logged with actor, timestamp, and reason
+- **Permission Validation**: Services and resources must exist before permissions can be granted
+- **Subject Validation**: Subjects (groups, members, corps, alliances) validated before assignment
+
+#### Performance Optimization
+- **MongoDB Indexes**: Optimized compound indexes for fast permission checking
+- **Redis Caching**: Future implementation for permission result caching
+- **Efficient Queries**: Permission checks use optimized aggregation queries
+
+### Migration Guide
+
+#### From Legacy to Granular System
+
+1. **Identify Current Permissions**: Review existing group permissions and middleware usage
+2. **Define Services**: Create service definitions for each module/area that needs permissions
+3. **Map Resources**: Define resources within each service  
+4. **Create Permission Assignments**: Grant granular permissions to replace group-based ones
+5. **Update Middleware**: Replace legacy middleware with granular permission middleware
+6. **Test & Validate**: Ensure all endpoints work with new permission system
+
+#### Migration Example
+```go
+// OLD: Legacy group permission
+r.With(m.RequirePermission("groups", "admin")).Post("/create", handler)
+
+// NEW: Granular permission  
+r.With(m.RequireGranularPermission("groups", "management", "write")).Post("/create", handler)
+```
+
+### Best Practices
+
+#### Service Design
+- **Single Responsibility**: Each service should represent one functional area
+- **Logical Resources**: Group related functionality into meaningful resources
+- **Consistent Naming**: Use clear, consistent naming conventions
+- **Minimal Actions**: Only define actions that are actually needed
+
+#### Permission Assignment
+- **Principle of Least Privilege**: Grant minimum necessary permissions
+- **Group-Based Assignment**: Prefer group assignments over individual assignments when possible  
+- **Document Reasons**: Always provide business justification for permission grants
+- **Regular Review**: Periodically review and clean up unused permissions
+- **Expiration Dates**: Use expiration for temporary access grants
+
+#### Security Considerations
+- **Validate Inputs**: Always validate service, resource, and action parameters
+- **Audit Everything**: Log all permission checks and changes
+- **Monitor Usage**: Track permission usage patterns for anomaly detection
+- **Separate Concerns**: Keep permission logic separate from business logic
+
+## Legacy Group-Based System
+
+The original group-based system remains available for backward compatibility:
 
 ### Key Features
 - **Default Group System**: Predefined groups for common access levels

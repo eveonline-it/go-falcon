@@ -21,13 +21,56 @@ type Group struct {
 	Name                string                `bson:"name" json:"name"`
 	Description         string                `bson:"description" json:"description"`
 	IsDefault           bool                  `bson:"is_default" json:"is_default"`
-	Permissions         map[string][]string   `bson:"permissions" json:"permissions"`
+	Permissions         map[string][]string   `bson:"permissions" json:"-"` // Hidden from API responses - use granular permission system
 	DiscordRoles        []DiscordRole         `bson:"discord_roles" json:"discord_roles"`
 	AutoAssignmentRules *AutoAssignmentRules  `bson:"auto_assignment_rules,omitempty" json:"auto_assignment_rules,omitempty"`
 	CreatedAt           time.Time             `bson:"created_at" json:"created_at"`
 	UpdatedAt           time.Time             `bson:"updated_at" json:"updated_at"`
 	CreatedBy           int                   `bson:"created_by" json:"created_by"`
 	IsMember            bool                  `bson:"-" json:"is_member"` // Runtime field, not stored
+}
+
+// GroupResponse represents a group in API responses (without legacy permissions)
+type GroupResponse struct {
+	ID                  primitive.ObjectID    `json:"id"`
+	Name                string                `json:"name"`
+	Description         string                `json:"description"`
+	IsDefault           bool                  `json:"is_default"`
+	DiscordRoles        []DiscordRole         `json:"discord_roles"`
+	AutoAssignmentRules *AutoAssignmentRules  `json:"auto_assignment_rules,omitempty"`
+	CreatedAt           time.Time             `json:"created_at"`
+	UpdatedAt           time.Time             `json:"updated_at"`
+	CreatedBy           int                   `json:"created_by"`
+	IsMember            bool                  `json:"is_member"`
+	
+	// Note: Legacy permissions are not included. Use the granular permission system:
+	// POST /admin/permissions/assignments to grant permissions
+	// GET /admin/permissions/check/user/{characterID} to check permissions
+}
+
+// ToResponse converts a Group to a GroupResponse (excluding legacy permissions)
+func (g *Group) ToResponse() GroupResponse {
+	return GroupResponse{
+		ID:                  g.ID,
+		Name:                g.Name,
+		Description:         g.Description,
+		IsDefault:           g.IsDefault,
+		DiscordRoles:        g.DiscordRoles,
+		AutoAssignmentRules: g.AutoAssignmentRules,
+		CreatedAt:           g.CreatedAt,
+		UpdatedAt:           g.UpdatedAt,
+		CreatedBy:           g.CreatedBy,
+		IsMember:            g.IsMember,
+	}
+}
+
+// ToResponseSlice converts a slice of Groups to GroupResponses
+func ToResponseSlice(groups []Group) []GroupResponse {
+	responses := make([]GroupResponse, len(groups))
+	for i, group := range groups {
+		responses[i] = group.ToResponse()
+	}
+	return responses
 }
 
 // DiscordRole represents a Discord role assignment for a group
@@ -102,7 +145,7 @@ type AddMemberRequest struct {
 type UserPermissionMatrix struct {
 	CharacterID int                            `json:"character_id"`
 	Groups      []string                       `json:"groups"`
-	Permissions map[string]map[string]bool     `json:"permissions"` // resource -> action -> allowed
+	Permissions map[string]map[string]bool     `json:"-"` // Hidden from API responses - use granular permission system
 	IsGuest     bool                           `json:"is_guest"`
 }
 
@@ -185,11 +228,10 @@ func (gs *GroupService) InitializeDefaultGroups(ctx context.Context) error {
 		},
 		{
 			Name:        "login",
-			Description: "Basic authenticated EVE Online characters without scopes",
+			Description: "Authenticated users and limited access",
 			IsDefault:   true,
 			Permissions: map[string][]string{
 				"public": {"read"},
-				"user":   {"read"},
 			},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -197,12 +239,23 @@ func (gs *GroupService) InitializeDefaultGroups(ctx context.Context) error {
 		},
 		{
 			Name:        "full",
-			Description: "Authenticated EVE Online characters with standard access",
+			Description: "Authenticated EVE Online characters with full ESI scopes",
+			IsDefault:   true,
+			Permissions: map[string][]string{
+				"public": {"read"},
+			},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			CreatedBy: 0,
+		},
+		{
+			Name:        "personal",
+			Description: "Member that is manually approved",
 			IsDefault:   true,
 			Permissions: map[string][]string{
 				"public":  {"read"},
-				"user":    {"read", "write"},
-				"profile": {"read", "write"},
+				"user":    {"read"},
+				"profile": {"read"},
 			},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -210,18 +263,29 @@ func (gs *GroupService) InitializeDefaultGroups(ctx context.Context) error {
 		},
 		{
 			Name:        "corporate",
-			Description: "Members of enabled EVE Online corporations or alliances",
+			Description: "Members of enabled EVE Online corporations",
 			IsDefault:   true,
 			Permissions: map[string][]string{
 				"public":      {"read"},
-				"user":        {"read", "write"},
-				"profile":     {"read", "write"},
 				"corporation": {"read"},
-				"alliance":    {"read"},
 			},
 			AutoAssignmentRules: &AutoAssignmentRules{
 				CorporationIDs: []int{}, // Will be populated via configuration
-				AllianceIDs:    []int{}, // Will be populated via configuration
+			},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			CreatedBy: 0,
+		},
+		{
+			Name:        "alliance",
+			Description: "Members of enabled EVE Online alliances",
+			IsDefault:   true,
+			Permissions: map[string][]string{
+				"public":   {"read"},
+				"alliance": {"read"},
+			},
+			AutoAssignmentRules: &AutoAssignmentRules{
+				AllianceIDs: []int{}, // Will be populated via configuration
 			},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),

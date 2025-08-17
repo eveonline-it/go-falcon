@@ -224,20 +224,45 @@ func getGroupsRoutes() []RouteInfo {
 	return []RouteInfo{
 		{Method: "GET", Path: "/health", ModuleName: "groups", HandlerName: "HealthHandler", Description: "Groups module health check"},
 		
-		// Group Management endpoints
+		// Legacy Group Management endpoints
 		{Method: "GET", Path: "/groups", ModuleName: "groups", HandlerName: "listGroupsHandler", Description: "List all groups with user's membership status"},
 		{Method: "POST", Path: "/groups", ModuleName: "groups", HandlerName: "createGroupHandler", Description: "Create a new custom group (admin only)"},
 		{Method: "PUT", Path: "/groups/{groupsID}", ModuleName: "groups", HandlerName: "updateGroupHandler", Description: "Update an existing group (admin only)"},
 		{Method: "DELETE", Path: "/groups/{groupsID}", ModuleName: "groups", HandlerName: "deleteGroupHandler", Description: "Delete a custom group (admin only)"},
 		
-		// Group Membership endpoints
+		// Legacy Group Membership endpoints
 		{Method: "GET", Path: "/groups/{groupsID}/members", ModuleName: "groups", HandlerName: "listMembersHandler", Description: "List all members of a group (admin only)"},
 		{Method: "POST", Path: "/groups/{groupsID}/members", ModuleName: "groups", HandlerName: "addMemberHandler", Description: "Add a member to a group (admin only)"},
 		{Method: "DELETE", Path: "/groups/{groupsID}/members/{characterID}", ModuleName: "groups", HandlerName: "removeMemberHandler", Description: "Remove a member from a group (admin only)"},
 		
-		// Permission endpoints
-		{Method: "GET", Path: "/permissions/check", ModuleName: "groups", HandlerName: "checkPermissionHandler", Description: "Check if user has specific permission"},
-		{Method: "GET", Path: "/permissions/user", ModuleName: "groups", HandlerName: "getUserPermissionsHandler", Description: "Get user's complete permission matrix"},
+		// Legacy Permission endpoints
+		{Method: "GET", Path: "/permissions/check", ModuleName: "groups", HandlerName: "checkPermissionHandler", Description: "Check if user has specific permission (legacy system)"},
+		{Method: "GET", Path: "/permissions/user", ModuleName: "groups", HandlerName: "getUserPermissionsHandler", Description: "Get user's complete permission matrix (legacy system)"},
+		
+		// NEW Granular Permission System - Service Management
+		{Method: "GET", Path: "/admin/permissions/services", ModuleName: "groups", HandlerName: "listServicesHandler", Description: "List all permission services (super admin only)"},
+		{Method: "POST", Path: "/admin/permissions/services", ModuleName: "groups", HandlerName: "createServiceHandler", Description: "Create a new permission service (super admin only)"},
+		{Method: "GET", Path: "/admin/permissions/services/{serviceName}", ModuleName: "groups", HandlerName: "getServiceHandler", Description: "Get specific permission service details (super admin only)"},
+		{Method: "PUT", Path: "/admin/permissions/services/{serviceName}", ModuleName: "groups", HandlerName: "updateServiceHandler", Description: "Update permission service configuration (super admin only)"},
+		{Method: "DELETE", Path: "/admin/permissions/services/{serviceName}", ModuleName: "groups", HandlerName: "deleteServiceHandler", Description: "Delete permission service and all assignments (super admin only)"},
+		
+		// NEW Granular Permission System - Permission Assignments
+		{Method: "GET", Path: "/admin/permissions/assignments", ModuleName: "groups", HandlerName: "listPermissionAssignmentsHandler", Description: "List permission assignments with filtering (super admin only)"},
+		{Method: "POST", Path: "/admin/permissions/assignments", ModuleName: "groups", HandlerName: "grantPermissionHandler", Description: "Grant a granular permission to a subject (super admin only)"},
+		{Method: "POST", Path: "/admin/permissions/assignments/bulk", ModuleName: "groups", HandlerName: "bulkGrantPermissionsHandler", Description: "Grant multiple permissions in bulk (super admin only)"},
+		{Method: "DELETE", Path: "/admin/permissions/assignments/{assignmentID}", ModuleName: "groups", HandlerName: "revokePermissionHandler", Description: "Revoke a specific permission assignment (super admin only)"},
+		
+		// NEW Granular Permission System - Permission Checking
+		{Method: "POST", Path: "/admin/permissions/check", ModuleName: "groups", HandlerName: "adminCheckPermissionHandler", Description: "Check granular permission for any user (super admin only)"},
+		{Method: "GET", Path: "/admin/permissions/check/user/{characterID}", ModuleName: "groups", HandlerName: "getUserPermissionSummaryHandler", Description: "Get comprehensive permission summary for user (super admin only)"},
+		{Method: "GET", Path: "/admin/permissions/check/service/{serviceName}", ModuleName: "groups", HandlerName: "getServicePermissionsHandler", Description: "Get all permissions for a specific service (super admin only)"},
+		
+		// NEW Granular Permission System - Utility Endpoints
+		{Method: "GET", Path: "/admin/permissions/subjects/groups", ModuleName: "groups", HandlerName: "listGroupSubjectsHandler", Description: "List available groups for permission assignment (super admin only)"},
+		{Method: "GET", Path: "/admin/permissions/subjects/validate", ModuleName: "groups", HandlerName: "validateSubjectHandler", Description: "Validate if a subject exists for permission assignment (super admin only)"},
+		
+		// NEW Granular Permission System - Audit & Monitoring
+		{Method: "GET", Path: "/admin/permissions/audit", ModuleName: "groups", HandlerName: "getPermissionAuditLogsHandler", Description: "Get permission audit logs with filtering (super admin only)"},
 	}
 }
 
@@ -536,6 +561,36 @@ func generatePostmanCollection(routes []RouteInfo) *PostmanCollection {
 				Value:       "Jita",
 				Description: "Example search query for solar system search",
 			},
+			{
+				Key:         "service_name",
+				Value:       "sde",
+				Description: "Example service name for granular permission system",
+			},
+			{
+				Key:         "resource_name",
+				Value:       "entities",
+				Description: "Example resource name for granular permission system",
+			},
+			{
+				Key:         "action_name",
+				Value:       "read",
+				Description: "Example action name for granular permission system (read, write, delete, admin)",
+			},
+			{
+				Key:         "subject_type",
+				Value:       "group",
+				Description: "Example subject type for granular permission system (group, member, corporation, alliance)",
+			},
+			{
+				Key:         "subject_id",
+				Value:       "507f1f77bcf86cd799439011",
+				Description: "Example subject ID for granular permission system",
+			},
+			{
+				Key:         "assignment_id",
+				Value:       "507f1f77bcf86cd799439012",
+				Description: "Example assignment ID for granular permission system",
+			},
 		},
 		Event: []PostmanEvent{
 			{
@@ -730,6 +785,8 @@ func processPathParameters(path string) string {
 		"{regionName}":     "{{region_name}}",
 		"{constellationName}": "{{constellation_name}}",
 		"{systemName}":     "{{system_name}}",
+		"{serviceName}":    "{{service_name}}",
+		"{assignmentID}":   "{{assignment_id}}",
 	}
 	
 	for old, new := range paramMappings {
@@ -774,6 +831,11 @@ func needsAuth(path string) bool {
 			}
 			return false
 		}
+	}
+	
+	// All /admin paths require super admin authentication
+	if strings.Contains(path, "/admin") {
+		return true
 	}
 	
 	// All other paths require authentication

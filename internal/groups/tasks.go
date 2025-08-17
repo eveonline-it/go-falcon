@@ -30,43 +30,90 @@ func NewGroupTask(groupService *GroupService, permissionService *PermissionServi
 	}
 }
 
-// ValidateCorporateMemberships validates all corporate group memberships against ESI data
+// ValidateCorporateMemberships validates all corporate and alliance group memberships against ESI data
 func (gt *GroupTask) ValidateCorporateMemberships(ctx context.Context) error {
-	slog.Info("Starting corporate membership validation task")
+	slog.Info("Starting corporate and alliance membership validation task")
 	
-	// Get all members of the corporate group
-	corporateGroup, err := gt.groupService.GetGroupByName(ctx, "corporate")
+	// Validate corporate group
+	err := gt.validateGroupMemberships(ctx, "corporate", "ENABLED_CORPORATION_IDS", func(charInfo map[string]any, enabledIDs []int) bool {
+		corporationID, ok := charInfo["corporation_id"].(float64)
+		if !ok {
+			return false
+		}
+		for _, corpID := range enabledIDs {
+			if int(corporationID) == corpID {
+				return true
+			}
+		}
+		return false
+	})
 	if err != nil {
-		return fmt.Errorf("failed to get corporate group: %w", err)
+		slog.Error("Failed to validate corporate memberships", slog.String("error", err.Error()))
 	}
 
-	members, err := gt.groupService.ListGroupMembers(ctx, corporateGroup.ID.Hex())
+	// Validate alliance group
+	err = gt.validateGroupMemberships(ctx, "alliance", "ENABLED_ALLIANCE_IDS", func(charInfo map[string]any, enabledIDs []int) bool {
+		allianceIDVal, exists := charInfo["alliance_id"]
+		if !exists {
+			return false
+		}
+		allianceID, ok := allianceIDVal.(float64)
+		if !ok {
+			return false
+		}
+		for _, enabledAllianceID := range enabledIDs {
+			if int(allianceID) == enabledAllianceID {
+				return true
+			}
+		}
+		return false
+	})
 	if err != nil {
-		return fmt.Errorf("failed to get corporate group members: %w", err)
+		slog.Error("Failed to validate alliance memberships", slog.String("error", err.Error()))
 	}
 
-	slog.Info("Validating corporate memberships", slog.Int("member_count", len(members)))
+	return nil
+}
+
+// validateGroupMemberships validates memberships for a specific group type
+func (gt *GroupTask) validateGroupMemberships(ctx context.Context, groupName, configKey string, validator func(map[string]any, []int) bool) error {
+	// Get the group
+	group, err := gt.groupService.GetGroupByName(ctx, groupName)
+	if err != nil {
+		return fmt.Errorf("failed to get %s group: %w", groupName, err)
+	}
+
+	members, err := gt.groupService.ListGroupMembers(ctx, group.ID.Hex())
+	if err != nil {
+		return fmt.Errorf("failed to get %s group members: %w", groupName, err)
+	}
+
+	slog.Info("Validating group memberships", 
+		slog.String("group", groupName),
+		slog.Int("member_count", len(members)))
 
 	validatedCount := 0
 	invalidCount := 0
 	errorCount := 0
 
-	// Get enabled corporations and alliances from configuration
-	enabledCorps := config.GetEnvIntSlice("ENABLED_CORPORATION_IDS")
-	enabledAlliances := config.GetEnvIntSlice("ENABLED_ALLIANCE_IDS")
+	// Get enabled IDs from configuration
+	enabledIDs := config.GetEnvIntSlice(configKey)
 
 	for _, member := range members {
-		valid, err := gt.validateMemberCorporateStatus(ctx, member.CharacterID, enabledCorps, enabledAlliances)
+		// Get character info from ESI
+		charInfo, err := gt.eveClient.Character.GetCharacterInfo(ctx, member.CharacterID)
 		if err != nil {
-			slog.Warn("Failed to validate member corporate status",
+			slog.Warn("Failed to get character info from ESI",
 				slog.Int("character_id", member.CharacterID),
 				slog.String("error", err.Error()))
 			errorCount++
 			continue
 		}
 
+		valid := validator(charInfo, enabledIDs)
+
 		// Update membership validation status
-		err = gt.updateMembershipValidation(ctx, member.CharacterID, corporateGroup.ID.Hex(), valid)
+		err = gt.updateMembershipValidation(ctx, member.CharacterID, group.ID.Hex(), valid)
 		if err != nil {
 			slog.Error("Failed to update membership validation status",
 				slog.Int("character_id", member.CharacterID),
@@ -80,21 +127,24 @@ func (gt *GroupTask) ValidateCorporateMemberships(ctx context.Context) error {
 		} else {
 			invalidCount++
 			
-			// Remove invalid members from corporate group
-			err = gt.groupService.RemoveGroupMember(ctx, corporateGroup.ID.Hex(), member.CharacterID, 0) // System removal
+			// Remove invalid members from group
+			err = gt.groupService.RemoveGroupMember(ctx, group.ID.Hex(), member.CharacterID, 0) // System removal
 			if err != nil {
-				slog.Error("Failed to remove invalid corporate member",
+				slog.Error("Failed to remove invalid member from group",
+					slog.String("group", groupName),
 					slog.Int("character_id", member.CharacterID),
 					slog.String("error", err.Error()))
 				errorCount++
 			} else {
-				slog.Info("Removed invalid corporate member",
+				slog.Info("Removed invalid member from group",
+					slog.String("group", groupName),
 					slog.Int("character_id", member.CharacterID))
 			}
 		}
 	}
 
-	slog.Info("Corporate membership validation completed",
+	slog.Info("Group membership validation completed",
+		slog.String("group", groupName),
 		slog.Int("validated", validatedCount),
 		slog.Int("invalid", invalidCount),
 		slog.Int("errors", errorCount))
@@ -102,40 +152,6 @@ func (gt *GroupTask) ValidateCorporateMemberships(ctx context.Context) error {
 	return nil
 }
 
-// validateMemberCorporateStatus checks if a character is in an enabled corporation or alliance
-func (gt *GroupTask) validateMemberCorporateStatus(ctx context.Context, characterID int, enabledCorps, enabledAlliances []int) (bool, error) {
-	// Get character's current corporation and alliance from ESI
-	charInfo, err := gt.eveClient.Character.GetCharacterInfo(ctx, characterID)
-	if err != nil {
-		return false, fmt.Errorf("failed to get character info from ESI: %w", err)
-	}
-
-	// The character info is returned as map[string]any, so we need to extract the fields
-	corporationID, ok := charInfo["corporation_id"].(float64)
-	if !ok {
-		return false, fmt.Errorf("invalid corporation_id in character info")
-	}
-
-	// Check if character's corporation is in the enabled list
-	for _, corpID := range enabledCorps {
-		if int(corporationID) == corpID {
-			return true, nil
-		}
-	}
-
-	// Check if character's alliance is in the enabled list
-	if allianceIDVal, exists := charInfo["alliance_id"]; exists {
-		if allianceID, ok := allianceIDVal.(float64); ok {
-			for _, enabledAllianceID := range enabledAlliances {
-				if int(allianceID) == enabledAllianceID {
-					return true, nil
-				}
-			}
-		}
-	}
-
-	return false, nil
-}
 
 // updateMembershipValidation updates the validation status of a membership
 func (gt *GroupTask) updateMembershipValidation(ctx context.Context, characterID int, groupID string, valid bool) error {
@@ -227,10 +243,6 @@ func (gt *GroupTask) SyncDiscordRoles(ctx context.Context) error {
 	return nil
 }
 
-// syncMemberDiscordRoles syncs Discord roles for a single member across multiple servers
-func (gt *GroupTask) syncMemberDiscordRoles(ctx context.Context, characterID int, roles []DiscordRole) error {
-	return gt.discordService.syncMemberRoles(ctx, characterID, roles)
-}
 
 // AutoAssignNewUsers automatically assigns users to appropriate groups based on their profile
 func (gt *GroupTask) AutoAssignNewUsers(ctx context.Context) error {
