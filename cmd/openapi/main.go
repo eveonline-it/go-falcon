@@ -358,11 +358,11 @@ func generateOpenAPISpec(routes []RouteInfo) *OpenAPISpec {
 		},
 		Servers: []OpenAPIServer{
 			{
-				URL:         "http://localhost:8080",
+				URL:         "https://go.eveonline.it",
 				Description: "Development server",
 			},
 			{
-				URL:         "https://api.go-falcon.example.com",
+				URL:         "https://go.eveonline.it",
 				Description: "Production server",
 			},
 		},

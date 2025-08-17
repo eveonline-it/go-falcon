@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Go-Falcon Gateway API",
-    "description": "Complete OpenAPI 3.1 specification for the Go-Falcon API Gateway.\n\nThis specification covers all endpoints across multiple modules including authentication, user management, EVE Online integration, static data access, and task scheduling.\n\nVersion: dev\nGenerated: 2025-08-17T21:05:18Z",
+    "description": "Complete OpenAPI 3.1 specification for the Go-Falcon API Gateway.\n\nThis specification covers all endpoints across multiple modules including authentication, user management, EVE Online integration, static data access, and task scheduling.\n\nVersion: dev\nGenerated: 2025-08-17T21:07:23Z",
     "contact": {
       "name": "Go-Falcon Team",
       "url": "https://github.com/go-falcon/go-falcon"
@@ -15,11 +15,11 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8080",
+      "url": "https://go.eveonline.it",
       "description": "Development server"
     },
     {
-      "url": "https://api.go-falcon.example.com",
+      "url": "https://go.eveonline.it",
       "description": "Production server"
     }
   ],
@@ -12488,14 +12488,6 @@
   ],
   "tags": [
     {
-      "name": "Gateway",
-      "description": "Gateway health and status endpoints"
-    },
-    {
-      "name": "Users",
-      "description": "User management and profile endpoints"
-    },
-    {
       "name": "Notifications",
       "description": "Notification system endpoints"
     },
@@ -12518,6 +12510,14 @@
     {
       "name": "Dev",
       "description": "Development and testing endpoints for EVE Online ESI and SDE data"
+    },
+    {
+      "name": "Users",
+      "description": "User management and profile endpoints"
+    },
+    {
+      "name": "Gateway",
+      "description": "Gateway health and status endpoints"
     }
   ],
   "externalDocs": {
