@@ -410,11 +410,11 @@ func buildFullPath(route RouteInfo) string {
 		// Gateway routes don't have module prefix
 		fullPath = route.Path
 	case "groups":
-		// Groups routes are mounted at API root level (no /groups prefix)
+		// Groups routes are mounted under /groups prefix via sub-router
 		if apiPrefix != "" {
-			fullPath = apiPrefix + route.Path
+			fullPath = apiPrefix + "/groups" + route.Path
 		} else {
-			fullPath = route.Path
+			fullPath = "/groups" + route.Path
 		}
 	default:
 		// Module routes: apiPrefix + /module + route.Path
@@ -1251,9 +1251,11 @@ func getAuthRoutes() []RouteInfo {
 		{Method: "GET", Path: "/status", ModuleName: "auth", HandlerName: "statusHandler", Description: "Check authentication status"},
 		// EVE SSO endpoints  
 		{Method: "GET", Path: "/eve/login", ModuleName: "auth", HandlerName: "eveLoginHandler", Description: "Initiate EVE SSO login"},
+		{Method: "GET", Path: "/eve/register", ModuleName: "auth", HandlerName: "eveFullLoginHandler", Description: "Initiate EVE SSO registration with full scopes"},
 		{Method: "GET", Path: "/eve/callback", ModuleName: "auth", HandlerName: "eveCallbackHandler", Description: "Handle EVE SSO callback"},
 		{Method: "POST", Path: "/eve/refresh", ModuleName: "auth", HandlerName: "eveRefreshHandler", Description: "Refresh access token"},
 		{Method: "GET", Path: "/eve/verify", ModuleName: "auth", HandlerName: "eveVerifyHandler", Description: "Verify JWT token"},
+		{Method: "POST", Path: "/eve/token", ModuleName: "auth", HandlerName: "eveTokenExchangeHandler", Description: "Exchange EVE token for JWT (mobile apps)"},
 		// Profile endpoints (public)
 		{Method: "GET", Path: "/profile/public", ModuleName: "auth", HandlerName: "publicProfileHandler", Description: "Get public profile by ID"},
 		// Protected endpoints (require JWT)
@@ -1268,111 +1270,99 @@ func getAuthRoutes() []RouteInfo {
 
 // getGroupsRoutes returns static route definitions for the groups module
 func getGroupsRoutes() []RouteInfo {
+	// Only include routes that are actually implemented in internal/groups/routes/routes.go
 	return []RouteInfo{
-		{Method: "GET", Path: "/health", ModuleName: "groups", HandlerName: "HealthHandler", Description: "Groups module health check"},
+		{Method: "GET", Path: "/health", ModuleName: "groups", HandlerName: "HealthCheck", Description: "Groups module health check"},
 		
-		// Legacy Group Management endpoints
-		{Method: "GET", Path: "/groups", ModuleName: "groups", HandlerName: "listGroupsHandler", Description: "List all groups with user's membership status"},
-		{Method: "POST", Path: "/groups", ModuleName: "groups", HandlerName: "createGroupHandler", Description: "Create a new custom group (admin only)"},
-		{Method: "PUT", Path: "/groups/{groupsID}", ModuleName: "groups", HandlerName: "updateGroupHandler", Description: "Update an existing group (admin only)"},
-		{Method: "DELETE", Path: "/groups/{groupsID}", ModuleName: "groups", HandlerName: "deleteGroupHandler", Description: "Delete a custom group (admin only)"},
+		// Group management (public list, protected operations)
+		{Method: "GET", Path: "/", ModuleName: "groups", HandlerName: "ListGroups", Description: "List all groups with optional filtering"},
+		{Method: "GET", Path: "/{groupID}", ModuleName: "groups", HandlerName: "GetGroup", Description: "Get specific group details (requires groups:management:read)"},
+		{Method: "POST", Path: "/", ModuleName: "groups", HandlerName: "CreateGroup", Description: "Create a new group (requires groups:management:write)"},
+		{Method: "PUT", Path: "/{groupID}", ModuleName: "groups", HandlerName: "UpdateGroup", Description: "Update existing group (requires groups:management:write)"},
+		{Method: "DELETE", Path: "/{groupID}", ModuleName: "groups", HandlerName: "DeleteGroup", Description: "Delete group (requires groups:management:delete)"},
 		
-		// Legacy Group Membership endpoints
-		{Method: "GET", Path: "/groups/{groupsID}/members", ModuleName: "groups", HandlerName: "listMembersHandler", Description: "List all members of a group (admin only)"},
-		{Method: "POST", Path: "/groups/{groupsID}/members", ModuleName: "groups", HandlerName: "addMemberHandler", Description: "Add a member to a group (admin only)"},
-		{Method: "DELETE", Path: "/groups/{groupsID}/members/{characterID}", ModuleName: "groups", HandlerName: "removeMemberHandler", Description: "Remove a member from a group (admin only)"},
+		// Member management
+		{Method: "GET", Path: "/{groupID}/members", ModuleName: "groups", HandlerName: "GetGroupMembers", Description: "List group members (requires groups:management:read)"},
+		{Method: "POST", Path: "/{groupID}/members", ModuleName: "groups", HandlerName: "AddMember", Description: "Add member to group (requires groups:management:write)"},
+		{Method: "DELETE", Path: "/{groupID}/members/{characterID}", ModuleName: "groups", HandlerName: "RemoveMember", Description: "Remove member from group (requires groups:management:write)"},
 		
-		// Legacy Permission endpoints
-		{Method: "GET", Path: "/permissions/check", ModuleName: "groups", HandlerName: "checkPermissionHandler", Description: "Check if user has specific permission (legacy system)"},
-		{Method: "GET", Path: "/permissions/user", ModuleName: "groups", HandlerName: "getUserPermissionsHandler", Description: "Get user's complete permission matrix (legacy system)"},
+		// Permission checking (only granular check is implemented)
+		{Method: "POST", Path: "/permissions/granular/check", ModuleName: "groups", HandlerName: "CheckGranularPermission", Description: "Check granular permission for authenticated user"},
 		
-		// NEW Granular Permission System - Service Management
-		{Method: "GET", Path: "/admin/permissions/services", ModuleName: "groups", HandlerName: "listServicesHandler", Description: "List all permission services (super admin only)"},
-		{Method: "POST", Path: "/admin/permissions/services", ModuleName: "groups", HandlerName: "createServiceHandler", Description: "Create a new permission service (super admin only)"},
-		{Method: "GET", Path: "/admin/permissions/services/{serviceName}", ModuleName: "groups", HandlerName: "getServiceHandler", Description: "Get specific permission service details (super admin only)"},
-		{Method: "PUT", Path: "/admin/permissions/services/{serviceName}", ModuleName: "groups", HandlerName: "updateServiceHandler", Description: "Update permission service configuration (super admin only)"},
-		{Method: "DELETE", Path: "/admin/permissions/services/{serviceName}", ModuleName: "groups", HandlerName: "deleteServiceHandler", Description: "Delete permission service and all assignments (super admin only)"},
+		// Admin endpoints (super admin only) - Service management
+		{Method: "GET", Path: "/admin/services", ModuleName: "groups", HandlerName: "ListServices", Description: "List all permission services (super admin only)"},
+		{Method: "POST", Path: "/admin/services", ModuleName: "groups", HandlerName: "CreateService", Description: "Create new permission service (super admin only)"},
+		{Method: "GET", Path: "/admin/services/{serviceName}", ModuleName: "groups", HandlerName: "GetService", Description: "Get permission service details (super admin only)"},
+		{Method: "PUT", Path: "/admin/services/{serviceName}", ModuleName: "groups", HandlerName: "UpdateService", Description: "Update permission service (super admin only)"},
+		{Method: "DELETE", Path: "/admin/services/{serviceName}", ModuleName: "groups", HandlerName: "DeleteService", Description: "Delete permission service (super admin only)"},
 		
-		// NEW Granular Permission System - Permission Assignments
-		{Method: "GET", Path: "/admin/permissions/assignments", ModuleName: "groups", HandlerName: "listPermissionAssignmentsHandler", Description: "List permission assignments with filtering (super admin only)"},
-		{Method: "POST", Path: "/admin/permissions/assignments", ModuleName: "groups", HandlerName: "grantPermissionHandler", Description: "Grant a granular permission to a subject (super admin only)"},
-		{Method: "POST", Path: "/admin/permissions/assignments/bulk", ModuleName: "groups", HandlerName: "bulkGrantPermissionsHandler", Description: "Grant multiple permissions in bulk (super admin only)"},
-		{Method: "DELETE", Path: "/admin/permissions/assignments/{assignmentID}", ModuleName: "groups", HandlerName: "revokePermissionHandler", Description: "Revoke a specific permission assignment (super admin only)"},
+		// Admin endpoints - Permission assignment management
+		{Method: "POST", Path: "/admin/permissions", ModuleName: "groups", HandlerName: "GrantPermission", Description: "Grant permission to subject (super admin only)"},
+		{Method: "DELETE", Path: "/admin/permissions", ModuleName: "groups", HandlerName: "RevokePermission", Description: "Revoke permission from subject (super admin only)"},
+		{Method: "GET", Path: "/admin/permissions/assignments", ModuleName: "groups", HandlerName: "ListPermissionAssignments", Description: "List permission assignments (super admin only)"},
 		
-		// NEW Granular Permission System - Permission Checking
-		{Method: "POST", Path: "/admin/permissions/check", ModuleName: "groups", HandlerName: "adminCheckPermissionHandler", Description: "Check granular permission for any user (super admin only)"},
-		{Method: "GET", Path: "/admin/permissions/check/user/{characterID}", ModuleName: "groups", HandlerName: "getUserPermissionSummaryHandler", Description: "Get comprehensive permission summary for user (super admin only)"},
-		{Method: "GET", Path: "/admin/permissions/check/service/{serviceName}", ModuleName: "groups", HandlerName: "getServicePermissionsHandler", Description: "Get all permissions for a specific service (super admin only)"},
-		
-		// NEW Granular Permission System - Utility Endpoints
-		{Method: "GET", Path: "/admin/permissions/subjects/groups", ModuleName: "groups", HandlerName: "listGroupSubjectsHandler", Description: "List available groups for permission assignment (super admin only)"},
-		{Method: "GET", Path: "/admin/permissions/subjects/validate", ModuleName: "groups", HandlerName: "validateSubjectHandler", Description: "Validate if a subject exists for permission assignment (super admin only)"},
-		
-		// NEW Granular Permission System - Audit & Monitoring
-		{Method: "GET", Path: "/admin/permissions/audit", ModuleName: "groups", HandlerName: "getPermissionAuditLogsHandler", Description: "Get permission audit logs with filtering (super admin only)"},
+		// Admin endpoints - Utility
+		{Method: "GET", Path: "/admin/subjects/groups", ModuleName: "groups", HandlerName: "ListSubjectGroups", Description: "List groups for permission assignment (super admin only)"},
+		{Method: "GET", Path: "/admin/audit", ModuleName: "groups", HandlerName: "GetAuditLogs", Description: "Get permission audit logs (super admin only)"},
+		{Method: "GET", Path: "/admin/stats", ModuleName: "groups", HandlerName: "GetGroupStats", Description: "Get group statistics (super admin only)"},
 	}
 }
 
 // getDevRoutes returns static route definitions for the dev module
 func getDevRoutes() []RouteInfo {
 	return []RouteInfo{
-		{Method: "GET", Path: "/health", ModuleName: "dev", HandlerName: "HealthHandler", Description: "Dev module health check"},
-		// ESI Server and character endpoints
-		{Method: "GET", Path: "/esi-status", ModuleName: "dev", HandlerName: "esiStatusHandler", Description: "Get EVE Online server status"},
-		{Method: "GET", Path: "/character/{characterID}", ModuleName: "dev", HandlerName: "characterInfoHandler", Description: "Get character information"},
-		{Method: "GET", Path: "/character/{characterID}/portrait", ModuleName: "dev", HandlerName: "characterPortraitHandler", Description: "Get character portrait URLs"},
-		// Universe endpoints
-		{Method: "GET", Path: "/universe/system/{systemID}", ModuleName: "dev", HandlerName: "systemInfoHandler", Description: "Get solar system information"},
-		{Method: "GET", Path: "/universe/station/{stationID}", ModuleName: "dev", HandlerName: "stationInfoHandler", Description: "Get station information"},
-		// Alliance endpoints
-		{Method: "GET", Path: "/alliances", ModuleName: "dev", HandlerName: "alliancesHandler", Description: "Get all active alliances"},
-		{Method: "GET", Path: "/alliance/{allianceID}", ModuleName: "dev", HandlerName: "allianceInfoHandler", Description: "Get alliance information"},
-		{Method: "GET", Path: "/alliance/{allianceID}/contacts", ModuleName: "dev", HandlerName: "allianceContactsHandler", Description: "Get alliance contacts (requires auth)"},
-		{Method: "GET", Path: "/alliance/{allianceID}/contacts/labels", ModuleName: "dev", HandlerName: "allianceContactLabelsHandler", Description: "Get alliance contact labels (requires auth)"},
-		{Method: "GET", Path: "/alliance/{allianceID}/corporations", ModuleName: "dev", HandlerName: "allianceCorporationsHandler", Description: "Get alliance member corporations"},
-		{Method: "GET", Path: "/alliance/{allianceID}/icons", ModuleName: "dev", HandlerName: "allianceIconsHandler", Description: "Get alliance icon URLs"},
-		// Corporation endpoints
-		{Method: "GET", Path: "/corporation/{corporationID}", ModuleName: "dev", HandlerName: "corporationInfoHandler", Description: "Get corporation information"},
-		{Method: "GET", Path: "/corporation/{corporationID}/icons", ModuleName: "dev", HandlerName: "corporationIconsHandler", Description: "Get corporation icon URLs"},
-		{Method: "GET", Path: "/corporation/{corporationID}/alliancehistory", ModuleName: "dev", HandlerName: "corporationAllianceHistoryHandler", Description: "Get corporation alliance history"},
-		{Method: "GET", Path: "/corporation/{corporationID}/members", ModuleName: "dev", HandlerName: "corporationMembersHandler", Description: "Get corporation members (requires auth)"},
-		{Method: "GET", Path: "/corporation/{corporationID}/membertracking", ModuleName: "dev", HandlerName: "corporationMemberTrackingHandler", Description: "Get corporation member tracking (requires auth)"},
-		{Method: "GET", Path: "/corporation/{corporationID}/roles", ModuleName: "dev", HandlerName: "corporationMemberRolesHandler", Description: "Get corporation member roles (requires auth)"},
-		{Method: "GET", Path: "/corporation/{corporationID}/structures", ModuleName: "dev", HandlerName: "corporationStructuresHandler", Description: "Get corporation structures (requires auth)"},
-		{Method: "GET", Path: "/corporation/{corporationID}/standings", ModuleName: "dev", HandlerName: "corporationStandingsHandler", Description: "Get corporation standings (requires auth)"},
-		{Method: "GET", Path: "/corporation/{corporationID}/wallets", ModuleName: "dev", HandlerName: "corporationWalletsHandler", Description: "Get corporation wallets (requires auth)"},
-		// SDE endpoints
-		{Method: "GET", Path: "/sde/status", ModuleName: "dev", HandlerName: "sdeStatusHandler", Description: "Get SDE service status and statistics"},
-		{Method: "GET", Path: "/sde/agent/{agentID}", ModuleName: "dev", HandlerName: "sdeAgentHandler", Description: "Get agent information from SDE"},
-		{Method: "GET", Path: "/sde/category/{categoryID}", ModuleName: "dev", HandlerName: "sdeCategoryHandler", Description: "Get category information from SDE"},
-		{Method: "GET", Path: "/sde/blueprint/{blueprintID}", ModuleName: "dev", HandlerName: "sdeBlueprintHandler", Description: "Get blueprint information from SDE"},
-		{Method: "GET", Path: "/sde/agents/location/{locationID}", ModuleName: "dev", HandlerName: "sdeAgentsByLocationHandler", Description: "Get agents by location from SDE"},
-		{Method: "GET", Path: "/sde/blueprints", ModuleName: "dev", HandlerName: "sdeBlueprintIdsHandler", Description: "Get all available blueprint IDs from SDE"},
-		{Method: "GET", Path: "/sde/marketgroup/{marketGroupID}", ModuleName: "dev", HandlerName: "sdeMarketGroupHandler", Description: "Get market group information from SDE"},
-		{Method: "GET", Path: "/sde/marketgroups", ModuleName: "dev", HandlerName: "sdeMarketGroupsHandler", Description: "Get all market groups from SDE"},
-		{Method: "GET", Path: "/sde/metagroup/{metaGroupID}", ModuleName: "dev", HandlerName: "sdeMetaGroupHandler", Description: "Get meta group information from SDE"},
-		{Method: "GET", Path: "/sde/metagroups", ModuleName: "dev", HandlerName: "sdeMetaGroupsHandler", Description: "Get all meta groups from SDE"},
-		{Method: "GET", Path: "/sde/npccorp/{corpID}", ModuleName: "dev", HandlerName: "sdeNPCCorpHandler", Description: "Get NPC corporation information from SDE"},
-		{Method: "GET", Path: "/sde/npccorps", ModuleName: "dev", HandlerName: "sdeNPCCorpsHandler", Description: "Get all NPC corporations from SDE"},
-		{Method: "GET", Path: "/sde/npccorps/faction/{factionID}", ModuleName: "dev", HandlerName: "sdeNPCCorpsByFactionHandler", Description: "Get NPC corporations by faction from SDE"},
-		{Method: "GET", Path: "/sde/typeid/{typeID}", ModuleName: "dev", HandlerName: "sdeTypeIDHandler", Description: "Get type ID information from SDE"},
-		{Method: "GET", Path: "/sde/type/{typeID}", ModuleName: "dev", HandlerName: "sdeTypeHandler", Description: "Get type information from SDE"},
-		{Method: "GET", Path: "/sde/types", ModuleName: "dev", HandlerName: "sdeTypesHandler", Description: "Get all types from SDE"},
-		{Method: "GET", Path: "/sde/types/published", ModuleName: "dev", HandlerName: "sdePublishedTypesHandler", Description: "Get all published types from SDE"},
-		{Method: "GET", Path: "/sde/types/group/{groupID}", ModuleName: "dev", HandlerName: "sdeTypesByGroupHandler", Description: "Get types by group ID from SDE"},
-		{Method: "GET", Path: "/sde/typematerials/{typeID}", ModuleName: "dev", HandlerName: "sdeTypeMaterialsHandler", Description: "Get type materials from SDE"},
-		// Redis SDE endpoints
-		{Method: "GET", Path: "/sde/redis/{type}/{id}", ModuleName: "dev", HandlerName: "sdeRedisEntityHandler", Description: "Get specific SDE entity from Redis"},
-		{Method: "GET", Path: "/sde/redis/{type}", ModuleName: "dev", HandlerName: "sdeRedisEntitiesByTypeHandler", Description: "Get all entities of type from Redis"},
-		// Universe SDE endpoints
-		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}/systems", ModuleName: "dev", HandlerName: "sdeUniverseRegionSystemsHandler", Description: "Get all solar systems in region"},
-		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}/{constellationName}/systems", ModuleName: "dev", HandlerName: "sdeUniverseConstellationSystemsHandler", Description: "Get all solar systems in constellation"},
-		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}", ModuleName: "dev", HandlerName: "sdeUniverseDataHandler", Description: "Get region data from universe SDE"},
-		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}/{constellationName}", ModuleName: "dev", HandlerName: "sdeUniverseDataHandler", Description: "Get constellation data from universe SDE"},
-		{Method: "GET", Path: "/sde/universe/{universeType}/{regionName}/{constellationName}/{systemName}", ModuleName: "dev", HandlerName: "sdeUniverseDataHandler", Description: "Get system data from universe SDE"},
-		// Service endpoints
-		{Method: "GET", Path: "/services", ModuleName: "dev", HandlerName: "servicesHandler", Description: "List available development services"},
-		{Method: "GET", Path: "/status", ModuleName: "dev", HandlerName: "statusHandler", Description: "Get module status"},
+		// Public endpoints (no authentication required)
+		{Method: "GET", Path: "/health", ModuleName: "dev", HandlerName: "HealthCheck", Description: "Dev module health check"},
+		{Method: "GET", Path: "/status", ModuleName: "dev", HandlerName: "GetStatus", Description: "Module status information"},
+		{Method: "GET", Path: "/services", ModuleName: "dev", HandlerName: "GetServices", Description: "Service discovery information"},
+		
+		// ESI testing endpoints (require auth)
+		{Method: "GET", Path: "/esi/status", ModuleName: "dev", HandlerName: "GetESIStatus", Description: "Get EVE Online server status"},
+		{Method: "GET", Path: "/character/{characterID}", ModuleName: "dev", HandlerName: "GetCharacter", Description: "Get character information"},
+		{Method: "GET", Path: "/alliance/{allianceID}", ModuleName: "dev", HandlerName: "GetAlliance", Description: "Get alliance information"},
+		{Method: "GET", Path: "/corporation/{corporationID}", ModuleName: "dev", HandlerName: "GetCorporation", Description: "Get corporation information"},
+		{Method: "GET", Path: "/universe/system/{systemID}", ModuleName: "dev", HandlerName: "GetSystem", Description: "Get solar system information"},
+		{Method: "POST", Path: "/esi/test", ModuleName: "dev", HandlerName: "TestESIEndpoint", Description: "Test custom ESI endpoints"},
+		
+		// SDE testing endpoints (require auth)
+		{Method: "GET", Path: "/sde/status", ModuleName: "dev", HandlerName: "GetSDEStatus", Description: "Get SDE service status"},
+		{Method: "GET", Path: "/sde/entity/{type}/{id}", ModuleName: "dev", HandlerName: "GetSDEEntity", Description: "Get specific SDE entity"},
+		{Method: "GET", Path: "/sde/redis/{type}", ModuleName: "dev", HandlerName: "GetRedisSDEEntities", Description: "Get all Redis-based SDE entities of a type"},
+		{Method: "GET", Path: "/sde/redis/{type}/{id}", ModuleName: "dev", HandlerName: "GetRedisSDEEntity", Description: "Get specific Redis-based SDE entity"},
+		{Method: "GET", Path: "/sde/types", ModuleName: "dev", HandlerName: "GetSDETypes", Description: "Get all SDE types"},
+		{Method: "GET", Path: "/sde/types/published", ModuleName: "dev", HandlerName: "GetSDETypesPublished", Description: "Get published SDE types only"},
+		{Method: "GET", Path: "/sde/agent/{agentID}", ModuleName: "dev", HandlerName: "GetSDEAgent", Description: "Get SDE agent information"},
+		{Method: "GET", Path: "/sde/category/{categoryID}", ModuleName: "dev", HandlerName: "GetSDECategory", Description: "Get SDE category information"},
+		{Method: "GET", Path: "/sde/blueprint/{blueprintID}", ModuleName: "dev", HandlerName: "GetSDEBlueprint", Description: "Get SDE blueprint information"},
+		
+		// Universe SDE endpoints (require auth)
+		{Method: "GET", Path: "/sde/universe/{type}/{region}/systems", ModuleName: "dev", HandlerName: "GetUniverseRegionSystems", Description: "Get all systems in a region"},
+		{Method: "GET", Path: "/sde/universe/{type}/{region}/{constellation}/systems", ModuleName: "dev", HandlerName: "GetUniverseConstellationSystems", Description: "Get all systems in a constellation"},
+		{Method: "GET", Path: "/sde/universe/{type}/{region}", ModuleName: "dev", HandlerName: "GetUniverseRegion", Description: "Get region data"},
+		{Method: "GET", Path: "/sde/universe/{type}/{region}/{constellation}", ModuleName: "dev", HandlerName: "GetUniverseConstellation", Description: "Get constellation data"},
+		{Method: "GET", Path: "/sde/universe/{type}/{region}/{constellation}/{system}", ModuleName: "dev", HandlerName: "GetUniverseSystem", Description: "Get system data"},
+		
+		// Testing and validation endpoints (require auth)
+		{Method: "POST", Path: "/test/validate", ModuleName: "dev", HandlerName: "RunValidationTest", Description: "Run validation tests"},
+		{Method: "POST", Path: "/test/performance", ModuleName: "dev", HandlerName: "RunPerformanceTest", Description: "Run performance tests"},
+		{Method: "POST", Path: "/test/bulk", ModuleName: "dev", HandlerName: "RunBulkTest", Description: "Run bulk tests"},
+		
+		// Cache testing endpoints (require auth)
+		{Method: "GET", Path: "/cache/stats", ModuleName: "dev", HandlerName: "GetCacheStats", Description: "Get cache statistics"},
+		{Method: "POST", Path: "/cache/test", ModuleName: "dev", HandlerName: "TestCache", Description: "Test cache operations"},
+		{Method: "DELETE", Path: "/cache/{key}", ModuleName: "dev", HandlerName: "DeleteCacheKey", Description: "Delete cache key"},
+		
+		// Mock data generation (require auth)
+		{Method: "POST", Path: "/mock", ModuleName: "dev", HandlerName: "GenerateMockData", Description: "Generate mock data for testing"},
+		
+		// Debug endpoints (require auth)
+		{Method: "POST", Path: "/debug/session", ModuleName: "dev", HandlerName: "CreateDebugSession", Description: "Create a new debug session"},
+		{Method: "GET", Path: "/debug/session/{sessionID}", ModuleName: "dev", HandlerName: "GetDebugSession", Description: "Retrieve a debug session"},
+		{Method: "POST", Path: "/debug/session/{sessionID}/action", ModuleName: "dev", HandlerName: "PerformDebugAction", Description: "Perform a debug action"},
+		
+		// Health check endpoints (require auth)
+		{Method: "GET", Path: "/health/components", ModuleName: "dev", HandlerName: "GetComponentHealth", Description: "Get component health information"},
+		{Method: "POST", Path: "/health/check", ModuleName: "dev", HandlerName: "RunHealthCheck", Description: "Run comprehensive health checks"},
 	}
 }
 
@@ -1394,10 +1384,19 @@ func getUsersRoutes() []RouteInfo {
 // getNotificationsRoutes returns static route definitions for the notifications module
 func getNotificationsRoutes() []RouteInfo {
 	return []RouteInfo{
+		// Health check (not listed as it might be public) 
 		{Method: "GET", Path: "/health", ModuleName: "notifications", HandlerName: "HealthHandler", Description: "Notifications module health check"},
-		{Method: "GET", Path: "/", ModuleName: "notifications", HandlerName: "getNotificationsHandler", Description: "List notifications"},
-		{Method: "POST", Path: "/", ModuleName: "notifications", HandlerName: "sendNotificationHandler", Description: "Send a new notification"},
-		{Method: "PUT", Path: "/{id}", ModuleName: "notifications", HandlerName: "markReadHandler", Description: "Mark notification as read"},
+		
+		// Main notification operations (require notifications.messages.read/write)
+		{Method: "GET", Path: "/", ModuleName: "notifications", HandlerName: "GetNotifications", Description: "Get user's notifications with filtering"},
+		{Method: "GET", Path: "/stats", ModuleName: "notifications", HandlerName: "GetNotificationStats", Description: "Get notification statistics"},
+		{Method: "POST", Path: "/", ModuleName: "notifications", HandlerName: "SendNotification", Description: "Send a new notification"},
+		{Method: "POST", Path: "/bulk", ModuleName: "notifications", HandlerName: "BulkUpdateNotifications", Description: "Bulk operations on notifications"},
+		
+		// Individual notification operations
+		{Method: "GET", Path: "/{id}", ModuleName: "notifications", HandlerName: "GetNotification", Description: "Get specific notification"},
+		{Method: "PUT", Path: "/{id}", ModuleName: "notifications", HandlerName: "UpdateNotification", Description: "Update notification status"},
+		{Method: "DELETE", Path: "/{id}", ModuleName: "notifications", HandlerName: "DeleteNotification", Description: "Delete specific notification"},
 	}
 }
 
@@ -1428,20 +1427,9 @@ func getSchedulerRoutes() []RouteInfo {
 
 // getSdeRoutes returns static route definitions for the sde module
 func getSdeRoutes() []RouteInfo {
+	// SDE module currently only has minimal implementation
 	return []RouteInfo{
-		{Method: "GET", Path: "/health", ModuleName: "sde", HandlerName: "HealthHandler", Description: "SDE module health check"},
-		// SDE Management endpoints
-		{Method: "GET", Path: "/status", ModuleName: "sde", HandlerName: "handleGetStatus", Description: "Get current SDE version and status"},
-		{Method: "POST", Path: "/check", ModuleName: "sde", HandlerName: "handleCheckForUpdates", Description: "Check for new SDE versions"},
-		{Method: "POST", Path: "/update", ModuleName: "sde", HandlerName: "handleStartUpdate", Description: "Initiate SDE update process"},
-		{Method: "GET", Path: "/progress", ModuleName: "sde", HandlerName: "handleGetProgress", Description: "Get real-time SDE update progress"},
-		// Individual SDE entity access endpoints
-		{Method: "GET", Path: "/entity/{type}/{id}", ModuleName: "sde", HandlerName: "handleGetEntity", Description: "Get individual SDE entity by type and ID"},
-		{Method: "GET", Path: "/entities/{type}", ModuleName: "sde", HandlerName: "handleGetEntitiesByType", Description: "Get all entities of a specific type"},
-		// Search endpoints
-		{Method: "GET", Path: "/search/solarsystem", ModuleName: "sde", HandlerName: "handleSearchSolarSystem", Description: "Search for solar systems by name (query param: name)"},
-		// Test endpoints for individual key storage
-		{Method: "POST", Path: "/test/store-sample", ModuleName: "sde", HandlerName: "handleTestStoreSample", Description: "Store sample test data for development"},
-		{Method: "GET", Path: "/test/verify", ModuleName: "sde", HandlerName: "handleTestVerify", Description: "Verify individual key storage functionality"},
+		{Method: "GET", Path: "/health", ModuleName: "sde", HandlerName: "HealthCheck", Description: "SDE module health check"},
+		{Method: "GET", Path: "/status", ModuleName: "sde", HandlerName: "GetStatus", Description: "Get current SDE status (placeholder implementation)"},
 	}
 }

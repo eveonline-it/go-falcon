@@ -2,13 +2,14 @@
 
 ## Overview
 
-The OpenAPI 3.1 Exporter automatically generates comprehensive OpenAPI 3.1.1 specifications from Go Falcon's modular API architecture with **full type introspection** from actual DTO structures. It generates accurate, detailed API documentation with real validation constraints and type information.
+The OpenAPI 3.1 Exporter automatically generates comprehensive OpenAPI 3.1.1 specifications from Go Falcon's modular API architecture with **full type introspection** from actual DTO structures. It generates accurate, detailed API documentation with real validation constraints and type information that can be imported directly into Postman for testing.
 
 ## Key Features
 
 - **Full Type Introspection**: Automatically generates schemas from actual Go DTOs using reflection
 - **Validation Rules**: Converts Go validation tags to OpenAPI constraints (min/max length, pattern, required fields)
 - **OpenAPI 3.1.1 Compliance**: Latest OpenAPI specification with enhanced type support
+- **Postman Compatible**: Generated specs can be imported directly into Postman for immediate testing
 - **Automatic Schema Generation**: No manual schema maintenance required
 - **Module Organization**: Groups endpoints by module for better organization
 - **Authentication Detection**: Automatically identifies protected endpoints
@@ -104,6 +105,29 @@ openapi:
 - name: Generate OpenAPI Spec
   run: go run cmd/openapi/main.go
 ```
+
+### Importing into Postman
+
+The generated OpenAPI specification can be imported directly into Postman:
+
+1. **Generate the specification**:
+   ```bash
+   go run cmd/openapi/main.go
+   ```
+
+2. **Import into Postman**:
+   - Open Postman application
+   - Click "Import" button
+   - Select the generated `falcon-openapi.json` file
+   - Postman will automatically create a collection with all endpoints
+
+3. **Benefits of OpenAPI import**:
+   - ✅ Automatic request body schemas with validation
+   - ✅ Response examples and schema validation
+   - ✅ Authentication configuration
+   - ✅ Path parameters and query parameters
+   - ✅ Complete API documentation in Postman
+   - ✅ No need for separate Postman collection generation
 
 ### 3. Agent Capabilities
 

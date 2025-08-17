@@ -34,7 +34,6 @@ go-falcon/
 │   ├── gateway/           # Main API gateway
 │   ├── backup/            # MongoDB/Redis backup utility
 │   ├── restore/           # Data restoration utility
-│   ├── postman/           # Postman collection generator
 │   └── openapi/           # OpenAPI spec generator
 ├── internal/              # Private application modules
 │   ├── auth/             # EVE SSO authentication
@@ -448,8 +447,7 @@ func ValidateRequest(next http.Handler) http.Handler {
 
 2. **API Changes**
    ```bash
-   # After endpoint changes
-   go run cmd/postman/main.go
+   # After endpoint changes, regenerate OpenAPI specification
    go run cmd/openapi/main.go
    ```
 
@@ -486,21 +484,27 @@ Control the API prefix via `API_PREFIX` environment variable:
 - `API_PREFIX="/api"` → `/api/auth/health`
 - `API_PREFIX="/v1"` → `/v1/auth/health`
 
-### Documentation Generation
+### API Documentation Generation with Full Type Introspection
+
+The OpenAPI generator uses comprehensive **type introspection** from actual Go DTOs:
 
 ```bash
-# Generate Postman collection
-go run cmd/postman/main.go
-
-# Generate OpenAPI specification
+# Generate OpenAPI specification with introspected schemas
 go run cmd/openapi/main.go
 ```
 
-**Important**: Always ensure `.env` contains the correct `API_PREFIX` before generating exports.
+**Key Features:**
+- **Automatic Schema Generation**: Extracts schemas from actual Go DTOs using reflection
+- **Validation Rules**: Go validation tags are converted to OpenAPI constraints (min/max length, patterns, required fields)
+- **Real Request Bodies**: Includes realistic JSON examples with proper field types
+- **Postman Compatible**: Generated OpenAPI spec can be imported directly into Postman
+- **No Manual Maintenance**: Schemas update automatically when DTOs change
+
+**Important**: Always ensure `.env` contains the correct `API_PREFIX` before generating the OpenAPI specification.
 
 ### Available Endpoints
 
-See generated OpenAPI specification or Postman collection for complete endpoint documentation.
+See the generated OpenAPI specification for complete endpoint documentation with accurate schemas and request examples. The OpenAPI spec can be imported directly into Postman for testing.
 
 ## 🔧 Observability
 
