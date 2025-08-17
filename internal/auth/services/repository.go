@@ -45,8 +45,32 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 	
 	// Use upsert to create or update based on character_id
 	filter := bson.M{"character_id": profile.CharacterID}
+	
+	// Prepare update document - exclude created_at from $set to avoid conflict
+	updateFields := bson.M{
+		"user_id":                profile.UserID,
+		"character_id":           profile.CharacterID,
+		"character_name":         profile.CharacterName,
+		"character_owner_hash":   profile.CharacterOwnerHash,
+		"corporation_id":         profile.CorporationID,
+		"corporation_name":       profile.CorporationName,
+		"alliance_id":            profile.AllianceID,
+		"alliance_name":          profile.AllianceName,
+		"security_status":        profile.SecurityStatus,
+		"birthday":               profile.Birthday,
+		"scopes":                 profile.Scopes,
+		"access_token":           profile.AccessToken,
+		"refresh_token":          profile.RefreshToken,
+		"token_expiry":           profile.TokenExpiry,
+		"last_login":             profile.LastLogin,
+		"profile_updated":        profile.ProfileUpdated,
+		"valid":                  profile.Valid,
+		"metadata":               profile.Metadata,
+		"updated_at":             profile.UpdatedAt,
+	}
+	
 	update := bson.M{
-		"$set": profile,
+		"$set": updateFields,
 		"$setOnInsert": bson.M{
 			"created_at": now,
 		},

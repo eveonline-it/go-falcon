@@ -58,13 +58,37 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 	}
 
 	if jwtToken == "" {
-		return &dto.AuthStatusResponse{Authenticated: false}, nil
+		return &dto.AuthStatusResponse{
+			Authenticated: false,
+			UserID:        nil,
+			CharacterID:   nil,
+			CharacterName: nil,
+			Characters:    []string{},
+			Permissions:   []string{},
+		}, nil
 	}
 
-	// Validate JWT
-	_, err := s.eveService.ValidateJWT(jwtToken)
+	// Validate JWT and get user info
+	user, err := s.eveService.ValidateJWT(jwtToken)
+	if err != nil {
+		return &dto.AuthStatusResponse{
+			Authenticated: false,
+			UserID:        nil,
+			CharacterID:   nil,
+			CharacterName: nil,
+			Characters:    []string{},
+			Permissions:   []string{},
+		}, nil
+	}
+
+	// Return authenticated response with user info
 	return &dto.AuthStatusResponse{
-		Authenticated: err == nil,
+		Authenticated: true,
+		UserID:        &user.UserID,
+		CharacterID:   &user.CharacterID,
+		CharacterName: &user.CharacterName,
+		Characters:    []string{user.CharacterName}, // For now, just include current character
+		Permissions:   []string{},                   // TODO: Implement permissions system
 	}, nil
 }
 
