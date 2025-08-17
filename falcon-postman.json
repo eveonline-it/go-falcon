@@ -2,11 +2,1278 @@
   "info": {
     "_postman_id": "go-falcon-collection",
     "name": "Go-Falcon Gateway - All Endpoints",
-    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-16T16:42:50Z",
+    "description": "Complete collection of all endpoints in the Go-Falcon API Gateway. Generated automatically from route discovery.\n\nVersion: dev\nGenerated: 2025-08-17T03:17:49Z",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "go-falcon-exporter"
   },
   "item": [
+    {
+      "name": "Sde Module",
+      "description": "Endpoints for the sde module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "SDE module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/sde/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "health"
+              ]
+            },
+            "description": "SDE module health check"
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Get current SDE version and status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/sde/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "status"
+              ]
+            },
+            "description": "Get current SDE version and status"
+          }
+        },
+        {
+          "name": "POST /check",
+          "description": "Check for new SDE versions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/sde/check",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "check"
+              ]
+            },
+            "description": "Check for new SDE versions",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /update",
+          "description": "Initiate SDE update process",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/sde/update",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "update"
+              ]
+            },
+            "description": "Initiate SDE update process",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /progress",
+          "description": "Get real-time SDE update progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/sde/progress",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "progress"
+              ]
+            },
+            "description": "Get real-time SDE update progress",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /entity/Type/ID",
+          "description": "Get individual SDE entity by type and ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/sde/entity/{{sde_type}}/{{sde_entity_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "entity",
+                "{{sde_type}}",
+                "{{sde_entity_id}}"
+              ]
+            },
+            "description": "Get individual SDE entity by type and ID",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /entities/Type",
+          "description": "Get all entities of a specific type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/sde/entities/{{sde_type}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "entities",
+                "{{sde_type}}"
+              ]
+            },
+            "description": "Get all entities of a specific type",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /search/solarsystem",
+          "description": "Search for solar systems by name (query param: name)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/sde/search/solarsystem",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "search",
+                "solarsystem"
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "{{search_name}}",
+                  "description": "Solar system name to search for (supports partial matching)"
+                }
+              ]
+            },
+            "description": "Search for solar systems by name (query param: name)"
+          }
+        },
+        {
+          "name": "POST /test/store-sample",
+          "description": "Store sample test data for development",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/sde/test/store-sample",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "test",
+                "store-sample"
+              ]
+            },
+            "description": "Store sample test data for development",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /test/verify",
+          "description": "Verify individual key storage functionality",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/sde/test/verify",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "sde",
+                "test",
+                "verify"
+              ]
+            },
+            "description": "Verify individual key storage functionality",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateway Module",
+      "description": "Endpoints for the gateway module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Gateway health check with version information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Gateway health check with version information"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth Module",
+      "description": "Endpoints for the auth module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Auth module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "health"
+              ]
+            },
+            "description": "Auth module health check"
+          }
+        },
+        {
+          "name": "POST /login",
+          "description": "Basic login endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Basic login endpoint",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /register",
+          "description": "User registration endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "User registration endpoint",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Check authentication status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "status"
+              ]
+            },
+            "description": "Check authentication status"
+          }
+        },
+        {
+          "name": "GET /eve/login",
+          "description": "Initiate EVE SSO login",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/eve/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "eve",
+                "login"
+              ]
+            },
+            "description": "Initiate EVE SSO login"
+          }
+        },
+        {
+          "name": "GET /eve/callback",
+          "description": "Handle EVE SSO callback",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/eve/callback",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "eve",
+                "callback"
+              ]
+            },
+            "description": "Handle EVE SSO callback"
+          }
+        },
+        {
+          "name": "POST /eve/refresh",
+          "description": "Refresh access token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/eve/refresh",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "eve",
+                "refresh"
+              ]
+            },
+            "description": "Refresh access token",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /eve/verify",
+          "description": "Verify JWT token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/eve/verify",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "eve",
+                "verify"
+              ]
+            },
+            "description": "Verify JWT token",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /profile/public",
+          "description": "Get public profile by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/profile/public",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile",
+                "public"
+              ]
+            },
+            "description": "Get public profile by ID",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /user",
+          "description": "Get current user information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/user",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "user"
+              ]
+            },
+            "description": "Get current user information",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /status",
+          "description": "Get authentication status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/status",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "status"
+              ]
+            },
+            "description": "Get authentication status"
+          }
+        },
+        {
+          "name": "POST /logout",
+          "description": "User logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/logout",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "User logout",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /profile",
+          "description": "Get user profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/auth/profile",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
+              ]
+            },
+            "description": "Get user profile",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /profile/refresh",
+          "description": "Refresh profile from ESI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth/profile/refresh",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile",
+                "refresh"
+              ]
+            },
+            "description": "Refresh profile from ESI",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups Module",
+      "description": "Endpoints for the groups module",
+      "item": [
+        {
+          "name": "GET /health",
+          "description": "Groups module health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/health",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Groups module health check"
+          }
+        },
+        {
+          "name": "GET /groups",
+          "description": "List all groups with user's membership status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/groups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "groups"
+              ]
+            },
+            "description": "List all groups with user's membership status",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /groups",
+          "description": "Create a new custom group (admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/groups",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "groups"
+              ]
+            },
+            "description": "Create a new custom group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /groups/Group",
+          "description": "Update an existing group (admin only)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "groups",
+                "{{group_id_groups}}"
+              ]
+            },
+            "description": "Update an existing group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /groups/Group",
+          "description": "Delete a custom group (admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "groups",
+                "{{group_id_groups}}"
+              ]
+            },
+            "description": "Delete a custom group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /groups/Group/members",
+          "description": "List all members of a group (admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "groups",
+                "{{group_id_groups}}",
+                "members"
+              ]
+            },
+            "description": "List all members of a group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /groups/Group/members",
+          "description": "Add a member to a group (admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Add request body here\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "groups",
+                "{{group_id_groups}}",
+                "members"
+              ]
+            },
+            "description": "Add a member to a group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /groups/Group/members/Character",
+          "description": "Remove a member from a group (admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members/{{character_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "groups",
+                "{{group_id_groups}}",
+                "members",
+                "{{character_id}}"
+              ]
+            },
+            "description": "Remove a member from a group (admin only)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /permissions/check",
+          "description": "Check if user has specific permission",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/permissions/check",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "permissions",
+                "check"
+              ]
+            },
+            "description": "Check if user has specific permission",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /permissions/user",
+          "description": "Get user's complete permission matrix",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/permissions/user",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "permissions",
+                "user"
+              ]
+            },
+            "description": "Get user's complete permission matrix",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "Dev Module",
       "description": "Endpoints for the dev module",
@@ -2347,1273 +3614,6 @@
               ]
             },
             "description": "Get scheduler service status"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Gateway Module",
-      "description": "Endpoints for the gateway module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Gateway health check with version information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Gateway health check with version information"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Sde Module",
-      "description": "Endpoints for the sde module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "SDE module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/sde/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "health"
-              ]
-            },
-            "description": "SDE module health check"
-          }
-        },
-        {
-          "name": "GET /status",
-          "description": "Get current SDE version and status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/sde/status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "status"
-              ]
-            },
-            "description": "Get current SDE version and status"
-          }
-        },
-        {
-          "name": "POST /check",
-          "description": "Check for new SDE versions",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/sde/check",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "check"
-              ]
-            },
-            "description": "Check for new SDE versions",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /update",
-          "description": "Initiate SDE update process",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/sde/update",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "update"
-              ]
-            },
-            "description": "Initiate SDE update process",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /progress",
-          "description": "Get real-time SDE update progress",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/sde/progress",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "progress"
-              ]
-            },
-            "description": "Get real-time SDE update progress",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /entity/Type/ID",
-          "description": "Get individual SDE entity by type and ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/sde/entity/{{sde_type}}/{{sde_entity_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "entity",
-                "{{sde_type}}",
-                "{{sde_entity_id}}"
-              ]
-            },
-            "description": "Get individual SDE entity by type and ID",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /entities/Type",
-          "description": "Get all entities of a specific type",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/sde/entities/{{sde_type}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "entities",
-                "{{sde_type}}"
-              ]
-            },
-            "description": "Get all entities of a specific type",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /search/solarsystem",
-          "description": "Search for solar systems by name (query param: name)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/sde/search/solarsystem",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "search",
-                "solarsystem"
-              ],
-              "query": [
-                {
-                  "key": "name",
-                  "value": "{{search_name}}",
-                  "description": "Solar system name to search for (supports partial matching)"
-                }
-              ]
-            },
-            "description": "Search for solar systems by name (query param: name)"
-          }
-        },
-        {
-          "name": "POST /test/store-sample",
-          "description": "Store sample test data for development",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/sde/test/store-sample",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "test",
-                "store-sample"
-              ]
-            },
-            "description": "Store sample test data for development",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /test/verify",
-          "description": "Verify individual key storage functionality",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/sde/test/verify",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "sde",
-                "test",
-                "verify"
-              ]
-            },
-            "description": "Verify individual key storage functionality",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Auth Module",
-      "description": "Endpoints for the auth module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Auth module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "health"
-              ]
-            },
-            "description": "Auth module health check"
-          }
-        },
-        {
-          "name": "POST /login",
-          "description": "Basic login endpoint",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/auth/login",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Basic login endpoint",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /register",
-          "description": "User registration endpoint",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/auth/register",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "register"
-              ]
-            },
-            "description": "User registration endpoint",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /status",
-          "description": "Check authentication status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "status"
-              ]
-            },
-            "description": "Check authentication status"
-          }
-        },
-        {
-          "name": "GET /eve/login",
-          "description": "Initiate EVE SSO login",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/eve/login",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "eve",
-                "login"
-              ]
-            },
-            "description": "Initiate EVE SSO login"
-          }
-        },
-        {
-          "name": "GET /eve/callback",
-          "description": "Handle EVE SSO callback",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/eve/callback",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "eve",
-                "callback"
-              ]
-            },
-            "description": "Handle EVE SSO callback"
-          }
-        },
-        {
-          "name": "POST /eve/refresh",
-          "description": "Refresh access token",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/auth/eve/refresh",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "eve",
-                "refresh"
-              ]
-            },
-            "description": "Refresh access token",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /eve/verify",
-          "description": "Verify JWT token",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/eve/verify",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "eve",
-                "verify"
-              ]
-            },
-            "description": "Verify JWT token",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /profile/public",
-          "description": "Get public profile by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/profile/public",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "profile",
-                "public"
-              ]
-            },
-            "description": "Get public profile by ID",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /user",
-          "description": "Get current user information",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/user",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "user"
-              ]
-            },
-            "description": "Get current user information",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /status",
-          "description": "Get authentication status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "status"
-              ]
-            },
-            "description": "Get authentication status"
-          }
-        },
-        {
-          "name": "POST /logout",
-          "description": "User logout",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/auth/logout",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "logout"
-              ]
-            },
-            "description": "User logout",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /profile",
-          "description": "Get user profile",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/auth/profile",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "profile"
-              ]
-            },
-            "description": "Get user profile",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /profile/refresh",
-          "description": "Refresh profile from ESI",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/auth/profile/refresh",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "auth",
-                "profile",
-                "refresh"
-              ]
-            },
-            "description": "Refresh profile from ESI",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Groups Module",
-      "description": "Endpoints for the groups module",
-      "item": [
-        {
-          "name": "GET /health",
-          "description": "Groups module health check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Groups module health check"
-          }
-        },
-        {
-          "name": "GET /groups",
-          "description": "List all groups with user's membership status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/groups",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "groups"
-              ]
-            },
-            "description": "List all groups with user's membership status",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /groups",
-          "description": "Create a new custom group (admin only)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/groups",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "groups"
-              ]
-            },
-            "description": "Create a new custom group (admin only)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "PUT /groups/Group",
-          "description": "Update an existing group (admin only)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/groups/{{group_id_groups}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "groups",
-                "{{group_id_groups}}"
-              ]
-            },
-            "description": "Update an existing group (admin only)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "DELETE /groups/Group",
-          "description": "Delete a custom group (admin only)",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/groups/{{group_id_groups}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "groups",
-                "{{group_id_groups}}"
-              ]
-            },
-            "description": "Delete a custom group (admin only)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /groups/Group/members",
-          "description": "List all members of a group (admin only)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "groups",
-                "{{group_id_groups}}",
-                "members"
-              ]
-            },
-            "description": "List all members of a group (admin only)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "POST /groups/Group/members",
-          "description": "Add a member to a group (admin only)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Add request body here\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "groups",
-                "{{group_id_groups}}",
-                "members"
-              ]
-            },
-            "description": "Add a member to a group (admin only)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "DELETE /groups/Group/members/Character",
-          "description": "Remove a member from a group (admin only)",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/groups/{{group_id_groups}}/members/{{character_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "groups",
-                "{{group_id_groups}}",
-                "members",
-                "{{character_id}}"
-              ]
-            },
-            "description": "Remove a member from a group (admin only)",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /permissions/check",
-          "description": "Check if user has specific permission",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/permissions/check",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "permissions",
-                "check"
-              ]
-            },
-            "description": "Check if user has specific permission",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /permissions/user",
-          "description": "Get user's complete permission matrix",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/permissions/user",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "permissions",
-                "user"
-              ]
-            },
-            "description": "Get user's complete permission matrix",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            }
           }
         }
       ]

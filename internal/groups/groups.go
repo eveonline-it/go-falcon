@@ -691,6 +691,31 @@ func (m *Module) AssignUserToDefaultGroups(ctx context.Context, characterID int,
 	return nil
 }
 
+// AssignUserToBasicLoginGroup assigns a user to the basic login group for authentication without scopes
+func (m *Module) AssignUserToBasicLoginGroup(ctx context.Context, characterID int) error {
+	slog.Info("Assigning user to basic login group",
+		slog.Int("character_id", characterID))
+		
+	// Assign to "login" group for basic authenticated users without scopes
+	if err := m.groupService.AssignToDefaultGroup(ctx, characterID, "login"); err != nil {
+		return err
+	}
+
+	// Check if user should be super admin (they still get super admin even with basic login)
+	superAdminCharID := config.GetSuperAdminCharacterID()
+	if superAdminCharID > 0 && characterID == superAdminCharID {
+		if err := m.groupService.AssignToDefaultGroup(ctx, characterID, "super_admin"); err != nil {
+			slog.Error("Failed to assign super admin", 
+				slog.String("error", err.Error()),
+				slog.Int("character_id", characterID))
+		} else {
+			slog.Info("Assigned user as super admin", slog.Int("character_id", characterID))
+		}
+	}
+
+	return nil
+}
+
 // Methods for scheduler integration - implement GroupsModule interface
 
 // ValidateCorporateMemberships validates corporate group memberships against ESI

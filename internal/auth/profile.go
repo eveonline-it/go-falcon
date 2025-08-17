@@ -302,22 +302,46 @@ func (m *Module) assignUserToGroups(ctx context.Context, profile *UserProfile, c
 	// Use reflection to call the groups module method
 	// This avoids circular imports between auth and groups modules
 	groupsModuleValue := reflect.ValueOf(m.groupsModule)
-	method := groupsModuleValue.MethodByName("AssignUserToDefaultGroups")
+	
+	// Check if user has meaningful scopes (not empty or just publicData)
+	hasScopes := charInfo.Scopes != "" && charInfo.Scopes != "publicData"
+	
+	var method reflect.Value
+	var methodName string
+	
+	if hasScopes {
+		// User has scopes, assign to full groups
+		method = groupsModuleValue.MethodByName("AssignUserToDefaultGroups")
+		methodName = "AssignUserToDefaultGroups"
+	} else {
+		// User has no meaningful scopes, assign to basic login group
+		method = groupsModuleValue.MethodByName("AssignUserToBasicLoginGroup")
+		methodName = "AssignUserToBasicLoginGroup"
+	}
 	
 	if !method.IsValid() {
-		return fmt.Errorf("AssignUserToDefaultGroups method not found in groups module")
+		return fmt.Errorf("%s method not found in groups module", methodName)
 	}
 
-	// For now, we'll pass nil for corporation and alliance IDs since they're not in charInfo
-	// The groups module can fetch this information via ESI if needed
-	var corporationID, allianceID *int
-
-	// Prepare arguments for reflection call
-	args := []reflect.Value{
-		reflect.ValueOf(ctx),
-		reflect.ValueOf(profile.CharacterID),
-		reflect.ValueOf(corporationID),
-		reflect.ValueOf(allianceID),
+	var args []reflect.Value
+	if hasScopes {
+		// For now, we'll pass nil for corporation and alliance IDs since they're not in charInfo
+		// The groups module can fetch this information via ESI if needed
+		var corporationID, allianceID *int
+		
+		// Prepare arguments for AssignUserToDefaultGroups
+		args = []reflect.Value{
+			reflect.ValueOf(ctx),
+			reflect.ValueOf(profile.CharacterID),
+			reflect.ValueOf(corporationID),
+			reflect.ValueOf(allianceID),
+		}
+	} else {
+		// Prepare arguments for AssignUserToBasicLoginGroup
+		args = []reflect.Value{
+			reflect.ValueOf(ctx),
+			reflect.ValueOf(profile.CharacterID),
+		}
 	}
 
 	// Call the method
@@ -329,9 +353,17 @@ func (m *Module) assignUserToGroups(ctx context.Context, profile *UserProfile, c
 		return fmt.Errorf("groups assignment failed: %w", err)
 	}
 
-	slog.Info("Successfully assigned user to default groups",
+	slog.Info("Successfully assigned user to groups",
 		slog.Int("character_id", profile.CharacterID),
-		slog.String("character_name", profile.CharacterName))
+		slog.String("character_name", profile.CharacterName),
+		slog.String("scopes", charInfo.Scopes),
+		slog.Bool("has_scopes", hasScopes),
+		slog.String("group_type", func() string {
+			if hasScopes {
+				return "full"
+			}
+			return "basic_login"
+		}()))
 
 	return nil
 }

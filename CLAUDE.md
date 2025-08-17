@@ -33,7 +33,8 @@ The project's code is organized into several directories:
   - gateway: Main API gateway application
   - backup: backup application for MongoDb and Redis
   - restore: a restore application for MongoDb and Redis
-  - postman: export all the endpoints of the gateway
+  - postman: export all endpoints of the gateway in postman format
+  - openapi: export all endpoints in openapi 3.1 format
 - internal: private packages
   - auth: authentication service module with EVE Online SSO integration
   - dev: development module for testing and calling other services
@@ -80,6 +81,7 @@ The project's code is organized into several directories:
 3. Update documentation
 4. Use conventional commits
 5. Create feature branches for new development
+6. Use cmd/postman when removing, updating or inserting new endpoints
 
 ## Development Notes
 

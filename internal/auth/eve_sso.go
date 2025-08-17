@@ -103,6 +103,11 @@ func NewEVESSOHandler() *EVESSOHandler {
 
 // GenerateAuthURL creates the EVE Online SSO authorization URL
 func (h *EVESSOHandler) GenerateAuthURL() (string, string, error) {
+	return h.GenerateAuthURLWithScopes(h.scopes)
+}
+
+// GenerateAuthURLWithScopes creates the EVE Online SSO authorization URL with custom scopes
+func (h *EVESSOHandler) GenerateAuthURLWithScopes(scopes string) (string, string, error) {
 	state, err := h.generateState()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate state: %w", err)
@@ -118,8 +123,12 @@ func (h *EVESSOHandler) GenerateAuthURL() (string, string, error) {
 		"response_type": {"code"},
 		"redirect_uri":  {h.redirectURI},
 		"client_id":     {h.clientID},
-		"scope":         {h.scopes},
 		"state":         {state},
+	}
+
+	// Only add scope parameter if scopes are provided
+	if scopes != "" {
+		params.Set("scope", scopes)
 	}
 
 	authURL := fmt.Sprintf("%s?%s", EVEAuthURL, params.Encode())

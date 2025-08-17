@@ -184,6 +184,18 @@ func (gs *GroupService) InitializeDefaultGroups(ctx context.Context) error {
 			CreatedBy: 0, // System created
 		},
 		{
+			Name:        "login",
+			Description: "Basic authenticated EVE Online characters without scopes",
+			IsDefault:   true,
+			Permissions: map[string][]string{
+				"public": {"read"},
+				"user":   {"read"},
+			},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			CreatedBy: 0,
+		},
+		{
 			Name:        "full",
 			Description: "Authenticated EVE Online characters with standard access",
 			IsDefault:   true,

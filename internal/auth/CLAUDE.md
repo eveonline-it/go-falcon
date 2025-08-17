@@ -27,18 +27,29 @@ internal/auth/
 
 ## Authentication Flow
 
-### 1. Login Initiation
+### 1. Login Initiation (Basic - No Scopes)
 ```
 GET /auth/eve/login
 ```
 - Generates cryptographically secure state parameter
-- Creates EVE Online OAuth2 authorization URL
+- Creates EVE Online OAuth2 authorization URL without scopes
 - Sets secure state cookie for CSRF protection
 - Returns auth URL and state to frontend
 - Checks the cookie, if present, and get the user_id
+- Used for basic authentication without additional EVE permissions
+
+### 2. Registration (Full Scopes)
+```
+GET /auth/eve/register
+```
+- Generates cryptographically secure state parameter
+- Creates EVE Online OAuth2 authorization URL with full scopes from EVE_SCOPES environment variable
+- Sets secure state cookie for CSRF protection
+- Returns auth URL and state to frontend
+- Used for full registration with all required EVE permissions
 
 
-### 2. OAuth2 Callback
+### 3. OAuth2 Callback
 ```
 GET /auth/eve/callback?code=...&state=...
 ```
@@ -54,21 +65,21 @@ GET /auth/eve/callback?code=...&state=...
 - Sets secure authentication cookie
 - Redirects to frontend application
 
-### 3. Authentication Status
+### 4. Authentication Status
 ```
 GET /auth/status
 ```
 - Quick authentication check
 - Returns `{authenticated: boolean}`
 
-### 4. User Information
+### 5. User Information
 ```
 GET /auth/user
 ```
 - Returns full user details if authenticated
 - Includes character info, scopes, and expiration
 
-### 5. Mobile Token Exchange
+### 6. Mobile Token Exchange
 ```
 POST /auth/eve/token
 ```
@@ -78,7 +89,7 @@ POST /auth/eve/token
 - Returns JWT token for API access
 - Designed for mobile apps that can't use cookies
 
-### 6. Logout
+### 7. Logout
 ```
 POST /auth/logout
 ```
@@ -194,7 +205,8 @@ ESI_USER_AGENT=go-falcon/1.0.0 (contact@example.com)
 
 | Endpoint | Method | Auth Required | Description |
 |----------|--------|---------------|-------------|
-| `/auth/eve/login` | GET | No | Initiate EVE SSO login |
+| `/auth/eve/login` | GET | No | Initiate EVE SSO login (basic, no scopes) |
+| `/auth/eve/register` | GET | No | Initiate EVE SSO registration (full scopes from ENV) |
 | `/auth/eve/callback` | GET | No | OAuth2 callback handler |
 | `/auth/eve/verify` | GET | No | Verify JWT token |
 | `/auth/eve/refresh` | POST | No | Refresh access token |
@@ -231,15 +243,25 @@ fetch('/auth/status', { credentials: 'include' })
 
 ### Web Login Flow
 ```javascript
-// 1. Get auth URL from backend
+// Basic Login (no scopes)
+// 1. Get auth URL from backend for basic login
 fetch('/auth/eve/login', { credentials: 'include' })
   .then(res => res.json())
   .then(data => {
-    // 2. Redirect user to EVE Online
+    // 2. Redirect user to EVE Online for basic authentication
     window.location.href = data.auth_url;
   });
 
-// 3. Handle callback redirect (automatic)
+// Full Registration (with scopes)
+// 1. Get auth URL from backend for full registration
+fetch('/auth/eve/register', { credentials: 'include' })
+  .then(res => res.json())
+  .then(data => {
+    // 2. Redirect user to EVE Online with full scope permissions
+    window.location.href = data.auth_url;
+  });
+
+// 3. Handle callback redirect (automatic for both flows)
 // 4. User will be redirected back to frontend with auth cookie
 ```
 

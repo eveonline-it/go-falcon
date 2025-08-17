@@ -46,7 +46,8 @@ func (m *Module) Routes(r chi.Router) {
 	r.Post("/register", m.registerHandler)
 	
 	// EVE Online SSO routes (not restricted)
-	r.Get("/eve/login", m.eveLoginHandler)
+	r.Get("/eve/login", m.eveBasicLoginHandler)    // Basic login without scopes
+	r.Get("/eve/register", m.eveLoginHandler)      // Full registration with scopes
 	r.Get("/eve/callback", m.eveCallbackHandler)
 	r.Post("/eve/refresh", m.eveRefreshHandler)
 	r.Get("/eve/verify", m.eveVerifyHandler)
@@ -115,45 +116,123 @@ func (m *Module) runStateCleanup(ctx context.Context) {
 }
 
 func (m *Module) loginHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("Login attempt", slog.String("remote_addr", r.RemoteAddr), slog.String("module", m.Name()))
+	span, r := handlers.StartHTTPSpan(r, "auth.login",
+		attribute.String("service", "auth"),
+		attribute.String("operation", "login_redirect"),
+	)
+	defer span.End()
+
+	slog.Info("Login redirect to EVE SSO basic login", 
+		slog.String("remote_addr", r.RemoteAddr), 
+		slog.String("module", m.Name()))
+
+	// Generate auth URL without scopes for basic login
+	authURL, state, err := m.eveSSOHandler.GenerateAuthURLWithScopes("")
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to generate EVE login URL")
+		slog.Error("Failed to generate EVE login URL", slog.String("error", err.Error()))
+		http.Error(w, "Failed to generate auth URL", http.StatusInternalServerError)
+		return
+	}
+	
+	span.SetAttributes(
+		attribute.String("auth.state", state),
+		attribute.Bool("auth.success", true),
+		attribute.Bool("auth.basic_login", true),
+	)
+
+	// Store state in session/cookie for CSRF protection
+	http.SetCookie(w, &http.Cookie{
+		Name:     "eve_auth_state",
+		Value:    state,
+		Domain:   ".eveonline.it",
+		Path:     "/",
+		MaxAge:   900, // 15 minutes
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	response := map[string]string{
+		"auth_url": authURL,
+		"state":    state,
+		"type":     "login",
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message":"Auth module - login endpoint","status":"not_implemented"}`))
+	json.NewEncoder(w).Encode(response)
 }
 
 func (m *Module) registerHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("Registration attempt", slog.String("remote_addr", r.RemoteAddr), slog.String("module", m.Name()))
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message":"Auth module - register endpoint","status":"not_implemented"}`))
-}
+	span, r := handlers.StartHTTPSpan(r, "auth.register",
+		attribute.String("service", "auth"),
+		attribute.String("operation", "register_redirect"),
+	)
+	defer span.End()
 
-func (m *Module) statusHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Register redirect to EVE SSO with full scopes", 
+		slog.String("remote_addr", r.RemoteAddr), 
+		slog.String("module", m.Name()))
+
+	// Generate auth URL with full scopes from environment
+	authURL, state, err := m.eveSSOHandler.GenerateAuthURL()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to generate EVE register URL")
+		slog.Error("Failed to generate EVE register URL", slog.String("error", err.Error()))
+		http.Error(w, "Failed to generate auth URL", http.StatusInternalServerError)
+		return
+	}
+	
+	span.SetAttributes(
+		attribute.String("auth.state", state),
+		attribute.Bool("auth.success", true),
+		attribute.Bool("auth.full_register", true),
+	)
+
+	// Store state in session/cookie for CSRF protection
+	http.SetCookie(w, &http.Cookie{
+		Name:     "eve_auth_state",
+		Value:    state,
+		Domain:   ".eveonline.it",
+		Path:     "/",
+		MaxAge:   900, // 15 minutes
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	response := map[string]string{
+		"auth_url": authURL,
+		"state":    state,
+		"type":     "register",
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"module":"auth","status":"running","version":"1.0.0"}`))
+	json.NewEncoder(w).Encode(response)
 }
 
 // EVE Online SSO Handlers
 
 func (m *Module) eveLoginHandler(w http.ResponseWriter, r *http.Request) {
-	span, r := handlers.StartHTTPSpan(r, "auth.eve.login",
+	span, r := handlers.StartHTTPSpan(r, "auth.eve.register",
 		attribute.String("service", "auth"),
-		attribute.String("operation", "eve_login"),
+		attribute.String("operation", "eve_register"),
 	)
 	defer span.End()
 
 	authURL, state, err := m.eveSSOHandler.GenerateAuthURL()
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "Failed to generate EVE auth URL")
-		slog.Error("Failed to generate EVE auth URL", slog.String("error", err.Error()))
+		span.SetStatus(codes.Error, "Failed to generate EVE register URL")
+		slog.Error("Failed to generate EVE register URL", slog.String("error", err.Error()))
 		http.Error(w, "Failed to generate auth URL", http.StatusInternalServerError)
 		return
 	}
 	
 	// Debug logging to check URL length
-	slog.Info("Generated EVE auth URL", 
+	slog.Info("Generated EVE register URL (with scopes)", 
 		slog.Int("url_length", len(authURL)),
 		slog.String("url_preview", authURL[:min(200, len(authURL))]))
 		
@@ -168,6 +247,7 @@ func (m *Module) eveLoginHandler(w http.ResponseWriter, r *http.Request) {
 	span.SetAttributes(
 		attribute.String("auth.state", state),
 		attribute.Bool("auth.success", true),
+		attribute.Bool("auth.full_register", true),
 	)
 
 	// Store state in session/cookie for additional security if needed
@@ -185,6 +265,56 @@ func (m *Module) eveLoginHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]string{
 		"auth_url": authURL,
 		"state":    state,
+		"type":     "register",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *Module) eveBasicLoginHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "auth.eve.login",
+		attribute.String("service", "auth"),
+		attribute.String("operation", "eve_login"),
+	)
+	defer span.End()
+
+	// Generate auth URL without scopes for basic login
+	authURL, state, err := m.eveSSOHandler.GenerateAuthURLWithScopes("")
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to generate EVE login URL")
+		slog.Error("Failed to generate EVE login URL", slog.String("error", err.Error()))
+		http.Error(w, "Failed to generate auth URL", http.StatusInternalServerError)
+		return
+	}
+	
+	slog.Info("Generated EVE login URL (no scopes)", 
+		slog.Int("url_length", len(authURL)),
+		slog.String("url_preview", authURL[:min(200, len(authURL))]))
+
+	span.SetAttributes(
+		attribute.String("auth.state", state),
+		attribute.Bool("auth.success", true),
+		attribute.Bool("auth.basic_login", true),
+	)
+
+	// Store state in session/cookie for additional security
+	http.SetCookie(w, &http.Cookie{
+		Name:     "eve_auth_state",
+		Value:    state,
+		Domain:   ".eveonline.it", // Allow access from all subdomains
+		Path:     "/",
+		MaxAge:   900, // 15 minutes
+		HttpOnly: true,
+		Secure:   true, // Always secure for production
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	response := map[string]string{
+		"auth_url": authURL,
+		"state":    state,
+		"type":     "login",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -559,8 +689,9 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 		characterID = int(charIDFloat)
 	}
 
-	// Get user permissions from groups module
+	// Get user permissions and groups from groups module
 	var permissions []string
+	var groups []string
 	if m.groupsModule != nil && characterID > 0 {
 		// Use reflection to call GetUserPermissions method
 		groupsModuleValue := reflect.ValueOf(m.groupsModule)
@@ -572,8 +703,10 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 			
 			if len(results) == 2 && results[1].IsNil() { // error is nil
 				userPerms := results[0].Interface()
-				// Use reflection to access Permissions field
+				// Use reflection to access fields
 				permsValue := reflect.ValueOf(userPerms).Elem()
+				
+				// Get permissions
 				permissionsField := permsValue.FieldByName("Permissions")
 				if permissionsField.IsValid() {
 					permsMap := permissionsField.Interface().(map[string]map[string]bool)
@@ -585,6 +718,13 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 				}
+				
+				// Get groups
+				groupsField := permsValue.FieldByName("Groups")
+				if groupsField.IsValid() {
+					groupsList := groupsField.Interface().([]string)
+					groups = groupsList
+				}
 			}
 		}
 	}
@@ -593,6 +733,7 @@ func (m *Module) authStatusHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"authenticated": true,
 		"permissions": permissions,
+		"groups": groups,
 	}
 	
 	// Add user info from claims if available
