@@ -10,6 +10,8 @@ import (
 
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/version"
+	
+	"github.com/joho/godotenv"
 )
 
 // OpenAPISpec represents the OpenAPI 3.1.0 specification structure
@@ -258,7 +260,20 @@ type RouteInfo struct {
 }
 
 func main() {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		log.Printf("No .env file found or error loading it: %v", err)
+	}
+
 	fmt.Println("🚀 Go-Falcon OpenAPI 3.1 Exporter")
+	
+	// Show current API prefix configuration
+	apiPrefix := config.GetAPIPrefix()
+	if apiPrefix == "" {
+		fmt.Printf("🔗 API Prefix: (none - using root paths)\n")
+	} else {
+		fmt.Printf("🔗 API Prefix: %s\n", apiPrefix)
+	}
 	
 	versionInfo := version.Get()
 	fmt.Printf("📦 Version: %s\n", version.GetVersionString())
@@ -539,15 +554,166 @@ func generateRequestBody(route RouteInfo) *OpenAPIRequestBody {
 		Required:    true,
 		Content: map[string]OpenAPIMediaType{
 			"application/json": {
-				Schema: &OpenAPISchema{
-					Type: "object",
-					Properties: map[string]*OpenAPISchema{
-						"data": {
-							Type:        "object",
-							Description: "Request data",
+				Schema: generateRequestSchema(route),
+			},
+		},
+	}
+}
+
+// generateRequestSchema creates appropriate request schema based on route characteristics  
+func generateRequestSchema(route RouteInfo) *OpenAPISchema {
+	// User update endpoints
+	if route.ModuleName == "users" && route.Method == "PUT" {
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"enabled": {
+					Type:        "boolean",
+					Description: "Enable/disable user",
+				},
+				"banned": {
+					Type:        "boolean", 
+					Description: "Ban/unban user",
+				},
+				"invalid": {
+					Type:        "boolean",
+					Description: "Set validity status",
+				},
+				"position": {
+					Type:        "integer",
+					Description: "Update position/rank",
+				},
+				"notes": {
+					Type:        "string",
+					Description: "Update administrative notes",
+				},
+			},
+		}
+	}
+	
+	// Groups permission assignment
+	if route.ModuleName == "groups" && strings.Contains(route.Path, "/admin/permissions/assignments") && route.Method == "POST" {
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"service": {
+					Type:        "string",
+					Description: "Service name",
+				},
+				"resource": {
+					Type:        "string",
+					Description: "Resource name",
+				},
+				"action": {
+					Type:        "string", 
+					Description: "Action name (read, write, delete, admin)",
+				},
+				"subject_type": {
+					Type:        "string",
+					Description: "Subject type (group, member, corporation, alliance)",
+				},
+				"subject_id": {
+					Type:        "string",
+					Description: "Subject identifier",
+				},
+				"expires_at": {
+					Type:        "string",
+					Format:      "date-time",
+					Description: "Optional expiration timestamp",
+				},
+				"reason": {
+					Type:        "string",
+					Description: "Business justification for permission grant",
+				},
+			},
+			Required: []string{"service", "resource", "action", "subject_type", "subject_id", "reason"},
+		}
+	}
+	
+	// Groups service creation
+	if route.ModuleName == "groups" && strings.Contains(route.Path, "/admin/permissions/services") && route.Method == "POST" {
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"name": {
+					Type:        "string",
+					Description: "Service name (unique identifier)",
+				},
+				"display_name": {
+					Type:        "string",
+					Description: "Human-readable service name",
+				},
+				"description": {
+					Type:        "string",
+					Description: "Service description",
+				},
+				"resources": {
+					Type: "array",
+					Items: &OpenAPISchema{
+						Type: "object",
+						Properties: map[string]*OpenAPISchema{
+							"name": {
+								Type:        "string",
+								Description: "Resource name",
+							},
+							"display_name": {
+								Type:        "string",
+								Description: "Human-readable resource name",
+							},
+							"actions": {
+								Type: "array",
+								Items: &OpenAPISchema{
+									Type: "string",
+								},
+								Description: "Available actions for this resource",
+							},
 						},
 					},
+					Description: "Service resources",
 				},
+			},
+			Required: []string{"name", "display_name", "resources"},
+		}
+	}
+	
+	// Scheduler task creation
+	if route.ModuleName == "scheduler" && strings.Contains(route.Path, "/tasks") && route.Method == "POST" {
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"name": {
+					Type:        "string",
+					Description: "Task name",
+				},
+				"type": {
+					Type:        "string",
+					Description: "Task type (http, function, system)",
+				},
+				"schedule": {
+					Type:        "string",
+					Description: "Cron schedule expression",
+				},
+				"config": {
+					Type:        "object",
+					Description: "Task-specific configuration",
+				},
+				"enabled": {
+					Type:        "boolean",
+					Description: "Whether task is enabled",
+				},
+			},
+			Required: []string{"name", "type", "schedule"},
+		}
+	}
+	
+	// Generic request body for unspecified endpoints
+	return &OpenAPISchema{
+		Type:        "object",
+		Description: "Request data varies by endpoint",
+		Properties: map[string]*OpenAPISchema{
+			"data": {
+				Type:        "object",
+				Description: "Request payload",
 			},
 		},
 	}
@@ -560,19 +726,7 @@ func generateResponses(route RouteInfo) map[string]OpenAPIResponse {
 			Description: "Successful response",
 			Content: map[string]OpenAPIMediaType{
 				"application/json": {
-					Schema: &OpenAPISchema{
-						Type: "object",
-						Properties: map[string]*OpenAPISchema{
-							"success": {
-								Type:        "boolean",
-								Description: "Operation success status",
-							},
-							"data": {
-								Type:        "object",
-								Description: "Response data",
-							},
-						},
-					},
+					Schema: generateResponseSchema(route),
 				},
 			},
 		},
@@ -581,13 +735,8 @@ func generateResponses(route RouteInfo) map[string]OpenAPIResponse {
 			Content: map[string]OpenAPIMediaType{
 				"application/json": {
 					Schema: &OpenAPISchema{
-						Type: "object",
-						Properties: map[string]*OpenAPISchema{
-							"error": {
-								Type:        "string",
-								Description: "Error message",
-							},
-						},
+						Type:        "string",
+						Description: "Error message",
 					},
 				},
 			},
@@ -597,13 +746,8 @@ func generateResponses(route RouteInfo) map[string]OpenAPIResponse {
 			Content: map[string]OpenAPIMediaType{
 				"application/json": {
 					Schema: &OpenAPISchema{
-						Type: "object",
-						Properties: map[string]*OpenAPISchema{
-							"error": {
-								Type:        "string",
-								Description: "Error message",
-							},
-						},
+						Type:        "string", 
+						Description: "Error message",
 					},
 				},
 			},
@@ -616,17 +760,7 @@ func generateResponses(route RouteInfo) map[string]OpenAPIResponse {
 			Description: "Resource created successfully",
 			Content: map[string]OpenAPIMediaType{
 				"application/json": {
-					Schema: &OpenAPISchema{
-						Type: "object",
-						Properties: map[string]*OpenAPISchema{
-							"success": {
-								Type: "boolean",
-							},
-							"data": {
-								Type: "object",
-							},
-						},
-					},
+					Schema: generateResponseSchema(route),
 				},
 			},
 		}
@@ -645,13 +779,8 @@ func generateResponses(route RouteInfo) map[string]OpenAPIResponse {
 			Content: map[string]OpenAPIMediaType{
 				"application/json": {
 					Schema: &OpenAPISchema{
-						Type: "object",
-						Properties: map[string]*OpenAPISchema{
-							"error": {
-								Type:        "string",
-								Description: "Authentication error message",
-							},
-						},
+						Type:        "string",
+						Description: "Authentication error message",
 					},
 				},
 			},
@@ -662,13 +791,8 @@ func generateResponses(route RouteInfo) map[string]OpenAPIResponse {
 			Content: map[string]OpenAPIMediaType{
 				"application/json": {
 					Schema: &OpenAPISchema{
-						Type: "object",
-						Properties: map[string]*OpenAPISchema{
-							"error": {
-								Type:        "string",
-								Description: "Authorization error message",
-							},
-						},
+						Type:        "string",
+						Description: "Authorization error message",
 					},
 				},
 			},
@@ -676,6 +800,234 @@ func generateResponses(route RouteInfo) map[string]OpenAPIResponse {
 	}
 	
 	return responses
+}
+
+// generateResponseSchema creates appropriate response schema based on route characteristics
+func generateResponseSchema(route RouteInfo) *OpenAPISchema {
+	// Health endpoints have a specific schema
+	if route.Path == "/health" {
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"status": {
+					Type:        "string",
+					Description: "Health status",
+					Example:     "healthy",
+				},
+				"module": {
+					Type:        "string",
+					Description: "Module name",
+					Example:     route.ModuleName,
+				},
+			},
+			Required: []string{"status"},
+		}
+	}
+	
+	// Stats endpoints (users module)
+	if route.Path == "/stats" && route.ModuleName == "users" {
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"total_users": {
+					Type:        "integer",
+					Description: "Total number of users",
+				},
+				"enabled_users": {
+					Type:        "integer", 
+					Description: "Number of enabled users",
+				},
+				"disabled_users": {
+					Type:        "integer",
+					Description: "Number of disabled users",
+				},
+				"banned_users": {
+					Type:        "integer",
+					Description: "Number of banned users",
+				},
+				"invalid_users": {
+					Type:        "integer",
+					Description: "Number of invalid users",
+				},
+			},
+		}
+	}
+	
+	// List endpoints (users module)
+	if route.Path == "/" && route.ModuleName == "users" && route.Method == "GET" {
+		return &OpenAPISchema{
+			Type: "object", 
+			Properties: map[string]*OpenAPISchema{
+				"users": {
+					Type: "array",
+					Items: &OpenAPISchema{
+						Type: "object",
+						Description: "User object",
+					},
+					Description: "Array of users",
+				},
+				"total": {
+					Type:        "integer",
+					Description: "Total number of users",
+				},
+				"page": {
+					Type:        "integer",
+					Description: "Current page number",
+				},
+				"page_size": {
+					Type:        "integer", 
+					Description: "Number of items per page",
+				},
+				"total_pages": {
+					Type:        "integer",
+					Description: "Total number of pages",
+				},
+			},
+		}
+	}
+	
+	// Admin permission endpoints (groups module)
+	if route.ModuleName == "groups" && (strings.Contains(route.Path, "/admin/permissions/services") || 
+		strings.Contains(route.Path, "/admin/permissions/assignments")) {
+		if strings.Contains(route.HandlerName, "list") || route.Method == "GET" {
+			// List endpoints return {items: [], count: int} format
+			var itemName string
+			if strings.Contains(route.Path, "services") {
+				itemName = "services"
+			} else if strings.Contains(route.Path, "assignments") {
+				itemName = "assignments"
+			} else {
+				itemName = "items"
+			}
+			
+			return &OpenAPISchema{
+				Type: "object",
+				Properties: map[string]*OpenAPISchema{
+					itemName: {
+						Type: "array",
+						Items: &OpenAPISchema{
+							Type: "object",
+							Description: "Resource item",
+						},
+						Description: fmt.Sprintf("Array of %s", itemName),
+					},
+					"count": {
+						Type:        "integer",
+						Description: "Total number of items",
+					},
+				},
+			}
+		}
+	}
+	
+	// Auth profile endpoints
+	if route.ModuleName == "auth" && strings.Contains(route.Path, "/profile") {
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"character_id": {
+					Type:        "integer",
+					Description: "EVE character ID",
+				},
+				"character_name": {
+					Type:        "string", 
+					Description: "EVE character name",
+				},
+				"user_id": {
+					Type:        "string",
+					Description: "Internal user ID",
+				},
+				"corporation_id": {
+					Type:        "integer",
+					Description: "EVE corporation ID",
+				},
+				"alliance_id": {
+					Type:        "integer", 
+					Description: "EVE alliance ID",
+				},
+			},
+		}
+	}
+	
+	// SDE status endpoint
+	if route.ModuleName == "sde" && route.Path == "/status" {
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"version": {
+					Type:        "string",
+					Description: "Current SDE version",
+				},
+				"last_update": {
+					Type:        "string",
+					Format:      "date-time",
+					Description: "Last update timestamp",
+				},
+				"status": {
+					Type:        "string", 
+					Description: "SDE status",
+				},
+			},
+		}
+	}
+	
+	// Scheduler task endpoints
+	if route.ModuleName == "scheduler" && strings.Contains(route.Path, "/tasks") {
+		if route.Method == "GET" && !strings.Contains(route.Path, "{taskID}") {
+			// List tasks
+			return &OpenAPISchema{
+				Type: "object",
+				Properties: map[string]*OpenAPISchema{
+					"tasks": {
+						Type: "array",
+						Items: &OpenAPISchema{
+							Type: "object",
+							Description: "Task object",
+						},
+						Description: "Array of scheduled tasks",
+					},
+					"total": {
+						Type:        "integer",
+						Description: "Total number of tasks",
+					},
+				},
+			}
+		}
+		return &OpenAPISchema{
+			Type: "object",
+			Properties: map[string]*OpenAPISchema{
+				"id": {
+					Type:        "string",
+					Description: "Task ID",
+				},
+				"name": {
+					Type:        "string",
+					Description: "Task name",
+				},
+				"status": {
+					Type:        "string",
+					Description: "Task status",
+				},
+				"next_run": {
+					Type:        "string",
+					Format:      "date-time", 
+					Description: "Next execution time",
+				},
+			},
+		}
+	}
+	
+	// Generic response for endpoints we haven't specifically defined
+	return &OpenAPISchema{
+		Type:        "object",
+		Description: "Response data varies by endpoint",
+		Properties: map[string]*OpenAPISchema{
+			"message": {
+				Type:        "string",
+				Description: "Response message",
+			},
+		},
+	}
 }
 
 // generateComponents creates reusable components
