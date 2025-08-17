@@ -9,6 +9,7 @@ import (
 
 	"go-falcon/internal/auth/dto"
 	"go-falcon/internal/auth/models"
+	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/handlers"
@@ -81,6 +82,23 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 		}, nil
 	}
 
+	// Check if user is super admin via environment variable
+	permissions := []string{}
+	superAdminCharacterID := config.GetSuperAdminCharacterID()
+	if superAdminCharacterID != 0 && user.CharacterID == superAdminCharacterID {
+		// Grant all permissions to super admin
+		permissions = []string{
+			"super_admin",
+			"auth.users.admin",
+			"groups.management.admin",
+			"sde.entities.admin",
+			"scheduler.tasks.admin",
+			"users.profiles.admin",
+			"notifications.messages.admin",
+			"dev.tools.admin",
+		}
+	}
+
 	// Return authenticated response with user info
 	return &dto.AuthStatusResponse{
 		Authenticated: true,
@@ -88,7 +106,7 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 		CharacterID:   &user.CharacterID,
 		CharacterName: &user.CharacterName,
 		Characters:    []string{user.CharacterName}, // For now, just include current character
-		Permissions:   []string{},                   // TODO: Implement permissions system
+		Permissions:   permissions,
 	}, nil
 }
 
