@@ -185,6 +185,30 @@ func (m *Module) GetGranularPermissionService() *services.GranularPermissionServ
 	return m.granularPermissionService
 }
 
+// ValidateCorporateMemberships validates all corporate group memberships against ESI data
+func (m *Module) ValidateCorporateMemberships(ctx context.Context) error {
+	// This would be implemented to check corporation and alliance memberships
+	// For now, return nil as a placeholder
+	slog.Info("Validating corporate memberships")
+	return nil
+}
+
+// SyncDiscordRoles synchronizes group memberships with Discord roles
+func (m *Module) SyncDiscordRoles(ctx context.Context) error {
+	// This would be implemented to sync with Discord service
+	// For now, return nil as a placeholder
+	slog.Info("Syncing Discord roles")
+	return nil
+}
+
+// ValidateGroupIntegrity validates the integrity of all group assignments
+func (m *Module) ValidateGroupIntegrity(ctx context.Context) error {
+	// This would be implemented to check group integrity
+	// For now, return nil as a placeholder
+	slog.Info("Validating group integrity")
+	return nil
+}
+
 // Health check method for monitoring
 func (m *Module) HealthCheck(ctx context.Context) error {
 	// Check database connectivity

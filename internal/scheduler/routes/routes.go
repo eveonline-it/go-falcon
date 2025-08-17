@@ -30,11 +30,7 @@ func New(service *services.SchedulerService, middleware *middleware.Middleware) 
 
 // RegisterRoutes registers all scheduler routes
 func (rt *Routes) RegisterRoutes(r chi.Router) {
-	// Apply common middleware
-	r.Use(rt.middleware.RequestLogging)
-	r.Use(rt.middleware.SecurityHeaders)
-
-	// Public endpoints (read-only status)
+	// Public endpoints (read-only status) - no middleware needed for these
 	r.Get("/status", rt.getStatusHandler)
 	r.Get("/stats", rt.getStatsHandler)
 

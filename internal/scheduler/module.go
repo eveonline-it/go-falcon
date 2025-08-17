@@ -74,6 +74,10 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 
 // Routes registers all scheduler routes
 func (m *Module) Routes(r chi.Router) {
+	// Apply middleware first
+	r.Use(m.middleware.RequestLogging)
+	r.Use(m.middleware.SecurityHeaders)
+	
 	// Register health check route using base module
 	m.RegisterHealthRoute(r)
 	
