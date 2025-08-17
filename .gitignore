@@ -24,12 +24,53 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
+# Environment and configuration files
 .env
+.env.*
+config.json
+config.yaml
+config.yml
+*.env
+environment.json
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# Secrets and keys
+secrets/
+*.key
+*.pem
+*.crt
+*.p12
+*.keystore
+jwt-secret
+private-key*
+public-key*
+
+# Database and cache files
+*.db
+*.sqlite
+*.sqlite3
+redis.conf
+mongodb.conf
+backup_*
+
+# Docker secrets and configs
+docker-compose.override.yml
+.docker/
+docker/secrets/
+
+# Editor/IDE (uncommented for security)
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs and runtime data
+logs/
+*.log
+pid
+*.pid
+*.seed
+*.pid.lock
 
 # temp
 temp/
@@ -38,6 +79,29 @@ tmp/
 # SDE stuff
 *.zip
 data/
+sde_data/
+static_data/
 
 # Build artifacts
 bin/
+dist/
+build/
+
+# EVE Online specific
+eve_data/
+esi_cache/
+character_data/
+
+# Backup files
+*.backup
+*.bak
+backups/
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

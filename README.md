@@ -230,6 +230,54 @@ REDIS_URL=redis://localhost:6379
 
 ```
 
+## 🔒 Security
+
+### Environment Configuration
+**IMPORTANT**: Never commit sensitive credentials to version control.
+
+1. **Copy the environment template**:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Configure your credentials**:
+   - Set your EVE Online application credentials (register at [developers.eveonline.com](https://developers.eveonline.com/))
+   - Generate a strong JWT secret: `openssl rand -base64 64`
+   - Set your super admin character ID
+   - Configure database passwords
+
+### Required Environment Variables
+```bash
+# EVE Online SSO (required)
+EVE_CLIENT_ID=your_client_id
+EVE_CLIENT_SECRET=your_client_secret
+JWT_SECRET=your_jwt_secret
+
+# Super Admin
+SUPER_ADMIN_CHARACTER_ID=your_character_id
+
+# Database
+MONGODB_URI=mongodb://admin:your_password@localhost:27017/falcon?authSource=admin
+```
+
+### Security Features
+- **JWT Authentication**: Secure token-based authentication
+- **EVE SSO Integration**: Official EVE Online authentication
+- **Granular Permissions**: Fine-grained access control system
+- **Super Admin Controls**: Dedicated super admin management
+- **Audit Logging**: Complete audit trail for all actions
+- **CORS Configuration**: Proper cross-origin resource sharing
+- **Input Validation**: Comprehensive request validation
+
+### Production Security Checklist
+- [ ] Generate strong, unique passwords for all services
+- [ ] Set up HTTPS with valid SSL certificates
+- [ ] Configure proper CORS origins for your frontend
+- [ ] Set up proper firewall rules
+- [ ] Enable audit logging and monitoring
+- [ ] Regularly update dependencies
+- [ ] Review and rotate secrets periodically
+
 ## 📊 Observability
 
 ### OpenTelemetry Integration
