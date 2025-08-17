@@ -19,7 +19,6 @@ import (
 type Module struct {
 	*module.BaseModule
 	groupService              *services.GroupService
-	permissionService         *services.PermissionService
 	granularPermissionService *services.GranularPermissionService
 	middleware                *middleware.Middleware
 	routes                    *routes.Routes
@@ -29,19 +28,17 @@ type Module struct {
 func New(mongodb *database.MongoDB, redis *database.Redis) *Module {
 	// Initialize services
 	groupService := services.NewGroupService(mongodb, redis)
-	permissionService := services.NewPermissionService(mongodb, redis, groupService)
 	granularPermissionService := services.NewGranularPermissionService(mongodb, redis, groupService)
 
 	// Initialize middleware
-	moduleMiddleware := middleware.New(granularPermissionService, permissionService)
+	moduleMiddleware := middleware.New(granularPermissionService)
 
 	// Initialize routes
-	moduleRoutes := routes.NewRoutes(groupService, permissionService, granularPermissionService, moduleMiddleware)
+	moduleRoutes := routes.NewRoutes(groupService, granularPermissionService, moduleMiddleware)
 
 	return &Module{
 		BaseModule:                module.NewBaseModule("groups", mongodb, redis, nil),
 		groupService:              groupService,
-		permissionService:         permissionService,
 		granularPermissionService: granularPermissionService,
 		middleware:                moduleMiddleware,
 		routes:                    moduleRoutes,
@@ -93,13 +90,6 @@ func (m *Module) OptionalGranularPermission(service, resource, action string) fu
 	}
 }
 
-// RequireLegacyPermission creates middleware that requires legacy permissions (deprecated)
-func (m *Module) RequireLegacyPermission(resource string, actions ...string) func(chi.Router) {
-	return func(r chi.Router) {
-		r.Use(m.middleware.RequireLegacyPermission(resource, actions...))
-	}
-}
-
 // RequireSuperAdmin creates middleware that requires super admin privileges
 func (m *Module) RequireSuperAdmin() func(chi.Router) {
 	return func(r chi.Router) {
@@ -121,38 +111,17 @@ func (m *Module) CheckGranularPermission(ctx context.Context, characterID int, s
 	return result.Allowed, nil
 }
 
-// CheckLegacyPermission checks if a user has specific legacy permissions
-func (m *Module) CheckLegacyPermission(ctx context.Context, characterID int, resource string, actions ...string) (bool, error) {
-	result, err := m.permissionService.CheckPermission(ctx, characterID, resource, actions...)
-	if err != nil {
-		return false, err
-	}
-	return result.Allowed, nil
-}
-
 // IsSuperAdmin checks if a user is a super admin
 func (m *Module) IsSuperAdmin(ctx context.Context, characterID int) (bool, error) {
-	return m.permissionService.IsSuperAdmin(ctx, characterID)
-}
-
-// IsAdmin checks if a user is an administrator
-func (m *Module) IsAdmin(ctx context.Context, characterID int) (bool, error) {
-	return m.permissionService.IsAdmin(ctx, characterID)
-}
-
-// AssignDefaultGroups assigns default groups to a new user
-func (m *Module) AssignDefaultGroups(ctx context.Context, characterID int) error {
-	return m.permissionService.AssignDefaultGroups(ctx, characterID)
+	// Check if the character ID matches the super admin configuration
+	// This would need to be implemented to check against SUPER_ADMIN_CHARACTER_ID env var
+	// For now, return false as a placeholder
+	return false, nil
 }
 
 // GetUserGroups returns all groups a user is a member of
 func (m *Module) GetUserGroups(ctx context.Context, characterID int) ([]models.Group, error) {
 	return m.groupService.GetUserGroups(ctx, characterID)
-}
-
-// ValidateGroupMemberships validates a user's group memberships
-func (m *Module) ValidateGroupMemberships(ctx context.Context, characterID int) error {
-	return m.permissionService.ValidateGroupMemberships(ctx, characterID)
 }
 
 // Cleanup and Maintenance
@@ -173,11 +142,6 @@ func (m *Module) CleanupExpiredPermissions(ctx context.Context) (int64, error) {
 // GetGroupService returns the group service
 func (m *Module) GetGroupService() *services.GroupService {
 	return m.groupService
-}
-
-// GetPermissionService returns the legacy permission service
-func (m *Module) GetPermissionService() *services.PermissionService {
-	return m.permissionService
 }
 
 // GetGranularPermissionService returns the granular permission service

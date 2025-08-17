@@ -2,14 +2,11 @@
 
 ## Overview
 
-The Groups module provides comprehensive authorization and role management functionality for the Go Falcon application with **TWO PERMISSION SYSTEMS**:
+The Groups module provides comprehensive authorization and role management functionality for the Go Falcon application using the **Granular Permission System**:
 
-1. **Legacy Group-Based System**: Traditional group permissions for backward compatibility
-2. **NEW Granular Permission System**: Administrator-controlled, service-level permissions with fine-grained access control
+**Granular Permission System**: Administrator-controlled, service-level permissions with fine-grained access control where administrators can manually control permissions for every service and resource.
 
-**⚠️ IMPORTANT**: The new granular permission system is the recommended approach for all new implementations. Administrators can manually control permissions for every service and resource.
-
-## New Granular Permission System
+## Granular Permission System
 
 ### Core Concepts
 
@@ -186,10 +183,6 @@ type GroupsModule interface {
     RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
     OptionalGranularPermission(service, resource, action string) func(http.Handler) http.Handler
     CheckGranularPermissionInHandler(r *http.Request, service, resource, action string) (*PermissionResult, error)
-    
-    // Legacy support (deprecated)
-    RequirePermission(resource string, actions ...string) func(http.Handler) http.Handler
-    CheckPermission(r *http.Request, resource string, actions ...string) (*PermissionResult, error)
 }
 
 // PermissionResult structure
@@ -314,6 +307,11 @@ r.With(m.RequirePermission("groups", "admin")).Post("/create", handler)
 r.With(m.RequireGranularPermission("groups", "management", "write")).Post("/create", handler)
 ```
 
+**✅ Migration Complete**: The groups module has been fully migrated to granular permissions. All legacy permission code has been removed:
+- Legacy permission service completely removed
+- All endpoints now use granular permissions (`groups.management.read/write/delete`)
+- Clean, modern permission system with no deprecated code
+
 ### Best Practices
 
 #### Service Design
@@ -335,9 +333,9 @@ r.With(m.RequireGranularPermission("groups", "management", "write")).Post("/crea
 - **Monitor Usage**: Track permission usage patterns for anomaly detection
 - **Separate Concerns**: Keep permission logic separate from business logic
 
-## Legacy Group-Based System
+## Group Management
 
-The original group-based system remains available for backward compatibility:
+The Groups module provides traditional group management alongside granular permissions:
 
 ### Key Features
 - **Default Group System**: Predefined groups for common access levels

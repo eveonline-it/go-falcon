@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -17,7 +16,6 @@ import (
 // Routes handles Groups module route registration
 type Routes struct {
 	groupService            *services.GroupService
-	permissionService       *services.PermissionService
 	granularPermissionService *services.GranularPermissionService
 	middleware              *middleware.Middleware
 }
@@ -25,13 +23,11 @@ type Routes struct {
 // NewRoutes creates a new routes handler
 func NewRoutes(
 	groupService *services.GroupService,
-	permissionService *services.PermissionService,
 	granularPermissionService *services.GranularPermissionService,
 	middleware *middleware.Middleware,
 ) *Routes {
 	return &Routes{
 		groupService:            groupService,
-		permissionService:       permissionService,
 		granularPermissionService: granularPermissionService,
 		middleware:              middleware,
 	}
@@ -64,45 +60,39 @@ func (rt *Routes) registerGroupRoutes(r chi.Router) {
 		r.With(rt.middleware.ValidateQueryParams).Get("/", rt.ListGroups)
 	})
 
-	// Legacy Group Management (requires authentication)
+	// Group Management (requires granular permissions)
 	r.Group(func(r chi.Router) {
 		// Require basic authentication for all group operations
-		r.Use(rt.middleware.RequireLegacyPermission("groups", "read"))
+		r.Use(rt.middleware.RequireGranularPermission("groups", "management", "read"))
 		
 		// Get specific group details
 		r.Get("/{groupID}", rt.GetGroup)
 
-		// Group creation and management (admin only)
+		// Group creation and management (write permissions)
 		r.Group(func(r chi.Router) {
-			r.Use(rt.middleware.RequireLegacyPermission("groups", "write"))
+			r.Use(rt.middleware.RequireGranularPermission("groups", "management", "write"))
 
 			r.With(rt.middleware.GetValidationMiddleware().ValidateGroupCreateRequest).Post("/", rt.CreateGroup)
 			r.With(rt.middleware.GetValidationMiddleware().ValidateGroupUpdateRequest).Put("/{groupID}", rt.UpdateGroup)
 		})
 
-		// Group deletion (admin only)
-		r.With(rt.middleware.RequireLegacyPermission("groups", "delete")).Delete("/{groupID}", rt.DeleteGroup)
+		// Group deletion (delete permissions)
+		r.With(rt.middleware.RequireGranularPermission("groups", "management", "delete")).Delete("/{groupID}", rt.DeleteGroup)
 
 		// Membership management
 		r.Route("/{groupID}/members", func(r chi.Router) {
-			r.Use(rt.middleware.RequireLegacyPermission("groups", "read"))
+			r.Use(rt.middleware.RequireGranularPermission("groups", "management", "read"))
 			
 			r.Get("/", rt.GetGroupMembers)
 			
-			// Add/remove members (admin only)
-			r.With(rt.middleware.RequireLegacyPermission("groups", "write")).With(rt.middleware.GetValidationMiddleware().ValidateMembershipRequest).Post("/", rt.AddMember)
-			r.With(rt.middleware.RequireLegacyPermission("groups", "write")).Delete("/{characterID}", rt.RemoveMember)
+			// Add/remove members (write permissions)
+			r.With(rt.middleware.RequireGranularPermission("groups", "management", "write")).With(rt.middleware.GetValidationMiddleware().ValidateMembershipRequest).Post("/", rt.AddMember)
+			r.With(rt.middleware.RequireGranularPermission("groups", "management", "write")).Delete("/{characterID}", rt.RemoveMember)
 		})
 	})
 
 	// Permission checking endpoints
 	r.Route("/permissions", func(r chi.Router) {
-		// Legacy permission checking
-		r.Route("/legacy", func(r chi.Router) {
-			r.Post("/check", rt.CheckLegacyPermission)
-			r.Get("/user", rt.GetUserPermissions)
-		})
-
 		// Granular permission checking
 		r.Route("/granular", func(r chi.Router) {
 			r.With(rt.middleware.GetValidationMiddleware().ValidatePermissionCheckRequest).Post("/check", rt.CheckGranularPermission)
@@ -417,43 +407,6 @@ func (rt *Routes) RemoveMember(w http.ResponseWriter, r *http.Request) {
 }
 
 // Permission Checking Handlers
-
-func (rt *Routes) CheckLegacyPermission(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Resource string   `json:"resource" validate:"required"`
-		Actions  []string `json:"actions" validate:"required,min=1"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		handlers.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	result, err := rt.permissionService.CheckPermissionFromRequest(r, req.Resource, req.Actions...)
-	if err != nil {
-		handlers.ErrorResponse(w, "Permission check failed", http.StatusInternalServerError)
-		return
-	}
-
-	handlers.JSONResponse(w, result, http.StatusOK)
-}
-
-func (rt *Routes) GetUserPermissions(w http.ResponseWriter, r *http.Request) {
-	// Get character ID from auth context
-	characterID, err := handlers.GetCharacterIDFromRequest(r)
-	if err != nil {
-		handlers.ErrorResponse(w, "Authentication required", http.StatusUnauthorized)
-		return
-	}
-
-	summary, err := rt.permissionService.GetUserPermissionSummary(r.Context(), characterID)
-	if err != nil {
-		handlers.ErrorResponse(w, "Failed to get user permissions", http.StatusInternalServerError)
-		return
-	}
-
-	handlers.JSONResponse(w, summary, http.StatusOK)
-}
 
 func (rt *Routes) CheckGranularPermission(w http.ResponseWriter, r *http.Request) {
 	// Get validated request from middleware

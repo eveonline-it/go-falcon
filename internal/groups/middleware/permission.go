@@ -15,14 +15,12 @@ import (
 // PermissionMiddleware provides granular permission checking middleware
 type PermissionMiddleware struct {
 	granularService *services.GranularPermissionService
-	legacyService   *services.PermissionService
 }
 
 // NewPermissionMiddleware creates a new permission middleware
-func NewPermissionMiddleware(granularService *services.GranularPermissionService, legacyService *services.PermissionService) *PermissionMiddleware {
+func NewPermissionMiddleware(granularService *services.GranularPermissionService) *PermissionMiddleware {
 	return &PermissionMiddleware{
 		granularService: granularService,
-		legacyService:   legacyService,
 	}
 }
 
@@ -108,47 +106,6 @@ func (m *PermissionMiddleware) OptionalGranularPermission(service, resource, act
 	}
 }
 
-// RequireLegacyPermission creates middleware that requires legacy permissions (deprecated)
-func (m *PermissionMiddleware) RequireLegacyPermission(resource string, actions ...string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			span, r := handlers.StartHTTPSpan(r, "groups.legacy_permission_check",
-				attribute.String("service", "groups"),
-				attribute.String("operation", "require_legacy_permission"),
-				attribute.String("permission.resource", resource),
-				attribute.StringSlice("permission.actions", actions),
-			)
-			defer span.End()
-
-			result, err := m.legacyService.CheckPermissionFromRequest(r, resource, actions...)
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, "Legacy permission check failed")
-				handlers.ErrorResponse(w, "Permission check failed", http.StatusInternalServerError)
-				return
-			}
-
-			if !result.Allowed {
-				span.SetAttributes(
-					attribute.Bool("permission.allowed", false),
-					attribute.String("permission.reason", result.Reason),
-				)
-				span.SetStatus(codes.Error, "Permission denied")
-				handlers.ForbiddenResponse(w, result.Reason)
-				return
-			}
-
-			span.SetAttributes(
-				attribute.Bool("permission.allowed", true),
-				attribute.StringSlice("permission.groups", result.Groups),
-			)
-
-			// Add permission result to context
-			ctx := context.WithValue(r.Context(), "permission_result", result)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
 
 // RequireSuperAdmin creates middleware that requires super admin privileges
 func (m *PermissionMiddleware) RequireSuperAdmin() func(http.Handler) http.Handler {

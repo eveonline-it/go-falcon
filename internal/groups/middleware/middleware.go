@@ -17,9 +17,9 @@ type Middleware struct {
 }
 
 // New creates a new middleware instance
-func New(granularService *services.GranularPermissionService, legacyService *services.PermissionService) *Middleware {
+func New(granularService *services.GranularPermissionService) *Middleware {
 	return &Middleware{
-		permission: NewPermissionMiddleware(granularService, legacyService),
+		permission: NewPermissionMiddleware(granularService),
 		validation: NewValidationMiddleware(),
 	}
 }
@@ -136,10 +136,6 @@ func (m *Middleware) OptionalGranularPermission(service, resource, action string
 	return m.permission.OptionalGranularPermission(service, resource, action)
 }
 
-// RequireLegacyPermission is a convenience method for legacy permission checks
-func (m *Middleware) RequireLegacyPermission(resource string, actions ...string) func(http.Handler) http.Handler {
-	return m.permission.RequireLegacyPermission(resource, actions...)
-}
 
 // RequireSuperAdmin is a convenience method for super admin checks
 func (m *Middleware) RequireSuperAdmin() func(http.Handler) http.Handler {
