@@ -2,28 +2,73 @@
 
 ## Overview
 
-The Postman Collection Exporter is a command-line tool that automatically discovers all API endpoints in the Go-Falcon monolith and exports them as a comprehensive Postman Collection with OpenAPI compliance. It generates ready-to-use Postman collections for API testing, documentation, and development workflows.
+The Postman Collection Exporter automatically generates comprehensive Postman Collections from Go Falcon's modular API architecture with **full type introspection** from actual DTO structures. It creates ready-to-use collections with detailed request bodies, proper validation examples, and complete API documentation for testing and development workflows.
 
 ## Features
 
-- **Complete Endpoint Discovery**: Automatically scans all modules for API endpoints
-- **Postman Collection Generation**: Creates v2.1.0 compliant Postman collections
-- **OpenAPI Integration**: Supports OpenAPI 3.1.1 specifications where available
-- **Module Organization**: Groups endpoints by module for better organization
+- **Full Type Introspection**: Generates detailed request bodies from actual Go DTOs using reflection
+- **Smart Request Bodies**: Automatically creates realistic JSON examples with proper field types and validation constraints
+- **Postman Collection v2.1.0**: Creates fully compliant Postman collections
+- **Module Organization**: Groups endpoints by module for better organization  
 - **Authentication Support**: Automatic detection and configuration of protected endpoints
 - **Variable Management**: Pre-configured collection variables for testing
-- **Request Templates**: Includes request bodies and headers for different methods
-- **Pre/Post Scripts**: Built-in testing scripts and common headers
+- **Intelligent Examples**: Generates contextual example values (e.g., email formats, dates)
+- **Validation Awareness**: Request bodies reflect actual validation rules from DTOs
+- **Real-time Updates**: Request bodies update automatically when DTOs change
 
 ## Architecture
 
 ### Core Components
 
-- **Route Discovery Engine**: Static route definitions with module scanning capability
-- **Postman Collection Builder**: Converts discovered routes to Postman format
+- **DTO Introspection Engine**: Reflects on actual Go DTOs to extract type information and validation rules
+- **Route Discovery Engine**: Maps API routes to their corresponding request/response DTO types
+- **Smart Request Body Generator**: Creates realistic JSON examples from DTO schemas
+- **Postman Collection Builder**: Converts discovered routes to Postman format with detailed request bodies
 - **Variable Management**: Pre-configured variables for all endpoint parameters
 - **Authentication Detection**: Identifies endpoints requiring authentication
 - **Export Engine**: JSON serialization with proper formatting
+
+### Type Introspection System
+
+The exporter uses the same introspection system as the OpenAPI generator:
+
+```go
+// Generate request body from actual DTO
+registry := introspection.NewRouteRegistry()
+if routeSchema, found := registry.GetRouteSchema(route.Method, route.Path); found {
+    return generateJSONExample(routeSchema.Request)
+}
+```
+
+#### Example DTO to Request Body Generation
+
+**Go DTO:**
+```go
+type RegisterRequest struct {
+    Username string `json:"username" validate:"required,min=3,max=50"`
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=6"`
+}
+```
+
+**Generated Postman Request Body:**
+```json
+{
+  "username": "string",
+  "email": "user@example.com",  
+  "password": "string"
+}
+```
+
+#### Smart Value Generation
+The exporter generates contextually appropriate example values:
+
+- **Email fields** (`format: "email"`): `"user@example.com"`
+- **Date-time fields** (`format: "date-time"`): `"2024-01-01T00:00:00Z"`
+- **Arrays**: `[example_item]`
+- **Objects**: Nested object structures with all properties
+- **Booleans**: `false` (default)
+- **Numbers**: `0` or `0.0` based on type
 
 ### Files Structure
 

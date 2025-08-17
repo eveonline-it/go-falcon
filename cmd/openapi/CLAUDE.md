@@ -1,48 +1,108 @@
-# CLAUDE.md - OpenAPI Expert Integration
+# OpenAPI 3.1 Exporter (cmd/openapi)
 
 ## Overview
 
-This document describes how to use the OpenAPI expert agent to maintain synchronization between your Golang REST API implementation and the OpenAPI specification, which is then exported as `falcon-openapi.json` for frontend consumption.
+The OpenAPI 3.1 Exporter automatically generates comprehensive OpenAPI 3.1.1 specifications from Go Falcon's modular API architecture with **full type introspection** from actual DTO structures. It generates accurate, detailed API documentation with real validation constraints and type information.
 
-## Agent Purpose
+## Key Features
 
-The OpenAPI expert agent specializes in:
-- Analyzing your Golang API implementation in `internal/api`
-- Maintaining an accurate `openapi.yml` specification
-- Ensuring complete API documentation coverage
-- Facilitating the export to `falcon-openapi.json`
+- **Full Type Introspection**: Automatically generates schemas from actual Go DTOs using reflection
+- **Validation Rules**: Converts Go validation tags to OpenAPI constraints (min/max length, pattern, required fields)
+- **OpenAPI 3.1.1 Compliance**: Latest OpenAPI specification with enhanced type support
+- **Automatic Schema Generation**: No manual schema maintenance required
+- **Module Organization**: Groups endpoints by module for better organization
+- **Authentication Detection**: Automatically identifies protected endpoints
+- **Real-time Updates**: Schemas update automatically when DTOs change
 
-## Integration Workflow
+## Type Introspection Architecture
 
-### 1. Prerequisites
+### DTO Registry System
+The exporter uses a sophisticated DTO registry that maps API routes to their corresponding request/response types:
 
-- Ensure your Golang project structure follows the expected layout:
-  ```
-  internal/
-  ├── api/
-  │   ├── controllers/
-  │   ├── routes/
-  │   ├── dto/
-  │   │   ├── request/
-  │   │   └── response/
-  │   └── middleware/
-  ```
-- Have an existing `openapi.yml` file (or create one)
-- Your Golang OpenAPI command should be configured to read from `openapi.yml`
+```go
+// pkg/introspection/registry.go
+registry := introspection.NewRouteRegistry()
+if routeSchema, found := registry.GetRouteSchema(route.Method, route.Path); found {
+    // Use actual DTO schema with validation rules
+    return convertIntrospectionSchema(routeSchema.Request)
+}
+```
 
-### 2. Using the Agent
+### Supported Validation Tags
+The introspection system converts Go validation tags to OpenAPI constraints:
 
-When you need to update your OpenAPI specification:
+| Go Tag | OpenAPI Constraint | Example |
+|--------|-------------------|---------|
+| `validate:"required"` | `required: ["field"]` | Required field validation |
+| `validate:"min=3,max=50"` | `minLength: 3, maxLength: 50` | String length constraints |
+| `validate:"email"` | `format: "email"` | Email format validation |
+| `validate:"pattern=^[a-zA-Z0-9]+$"` | `pattern: "^[a-zA-Z0-9]+$"` | Regex pattern matching |
+| `validate:"gt=0,lte=100"` | `minimum: 0, maximum: 100` | Numeric range validation |
+| `json:",omitempty"` | Field not in required array | Optional field handling |
+
+### Example DTO to Schema Conversion
+
+**Go DTO:**
+```go
+type GroupCreateRequest struct {
+    Name        string `json:"name" validate:"required,min=3,max=50,alphanum"`
+    Description string `json:"description" validate:"required,min=10,max=500"`
+    IsDefault   bool   `json:"is_default"`
+}
+```
+
+**Generated OpenAPI Schema:**
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 50,
+      "pattern": "^[a-zA-Z0-9]+$"
+    },
+    "description": {
+      "type": "string", 
+      "minLength": 10,
+      "maxLength": 500
+    },
+    "is_default": {
+      "type": "boolean"
+    }
+  },
+  "required": ["name", "description"]
+}
+```
+
+## Usage
+
+### Running the Exporter
 
 ```bash
-# 1. First, ask the agent to analyze your API
-"Analyze all endpoints in internal/api and compare with openapi.yml"
+# Generate OpenAPI specification
+go run cmd/openapi/main.go
 
-# 2. Request specific updates
-"Update openapi.yml to include the new user authentication endpoints"
+# Output example:
+🚀 Go-Falcon OpenAPI 3.1 Exporter
+🔗 API Prefix: (none - using root paths)
+📦 Version: dev
+🔧 Build: unknown (linux/amd64)
+📋 Discovered 125 routes across 8 modules
+✅ OpenAPI 3.1 specification exported to: falcon-openapi.json
+📊 Specification contains 111 paths across 8 modules
+```
 
-# 3. After agent updates openapi.yml, run your export command
-go run cmd/openapi/main.go export falcon-openapi.json
+### Integration with Build Process
+
+```bash
+# Makefile integration
+openapi:
+	go run cmd/openapi/main.go
+
+# CI/CD integration
+- name: Generate OpenAPI Spec
+  run: go run cmd/openapi/main.go
 ```
 
 ### 3. Agent Capabilities

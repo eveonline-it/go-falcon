@@ -10,6 +10,7 @@ import (
 
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/version"
+	"go-falcon/pkg/introspection"
 	
 	"github.com/joho/godotenv"
 )
@@ -453,6 +454,49 @@ func createOperation(route RouteInfo) OpenAPIOperation {
 	return operation
 }
 
+// convertIntrospectionSchema converts an introspection schema to OpenAPI schema
+func convertIntrospectionSchema(introspectionSchema *introspection.OpenAPISchema) *OpenAPISchema {
+	if introspectionSchema == nil {
+		return nil
+	}
+	
+	schema := &OpenAPISchema{
+		Type:        introspectionSchema.Type,
+		Format:      introspectionSchema.Format,
+		Description: introspectionSchema.Description,
+		Required:    introspectionSchema.Required,
+		Example:     introspectionSchema.Example,
+		MinLength:   introspectionSchema.MinLength,
+		MaxLength:   introspectionSchema.MaxLength,
+		Pattern:     introspectionSchema.Pattern,
+		Minimum:     introspectionSchema.Minimum,
+		Maximum:     introspectionSchema.Maximum,
+		MinItems:    introspectionSchema.MinItems,
+		MaxItems:    introspectionSchema.MaxItems,
+		UniqueItems: introspectionSchema.UniqueItems,
+	}
+	
+	// Convert properties
+	if introspectionSchema.Properties != nil {
+		schema.Properties = make(map[string]*OpenAPISchema)
+		for name, prop := range introspectionSchema.Properties {
+			schema.Properties[name] = convertIntrospectionSchema(prop)
+		}
+	}
+	
+	// Convert items (for arrays)
+	if introspectionSchema.Items != nil {
+		schema.Items = convertIntrospectionSchema(introspectionSchema.Items)
+	}
+	
+	// Convert enum values
+	if introspectionSchema.Enum != nil {
+		schema.Enum = introspectionSchema.Enum
+	}
+	
+	return schema
+}
+
 // generateSummary creates a human-readable summary for the operation
 func generateSummary(route RouteInfo) string {
 	verb := strings.ToUpper(route.Method)
@@ -562,6 +606,11 @@ func generateRequestBody(route RouteInfo) *OpenAPIRequestBody {
 
 // generateRequestSchema creates appropriate request schema based on route characteristics  
 func generateRequestSchema(route RouteInfo) *OpenAPISchema {
+	// Try to get schema from introspection registry
+	registry := introspection.NewRouteRegistry()
+	if routeSchema, found := registry.GetRouteSchema(route.Method, route.Path); found && routeSchema.Request != nil {
+		return convertIntrospectionSchema(routeSchema.Request)
+	}
 	// User update endpoints
 	if route.ModuleName == "users" && route.Method == "PUT" {
 		return &OpenAPISchema{
@@ -804,6 +853,11 @@ func generateResponses(route RouteInfo) map[string]OpenAPIResponse {
 
 // generateResponseSchema creates appropriate response schema based on route characteristics
 func generateResponseSchema(route RouteInfo) *OpenAPISchema {
+	// Try to get schema from introspection registry
+	registry := introspection.NewRouteRegistry()
+	if routeSchema, found := registry.GetRouteSchema(route.Method, route.Path); found && routeSchema.Response != nil {
+		return convertIntrospectionSchema(routeSchema.Response)
+	}
 	// Health endpoints have a specific schema
 	if route.Path == "/health" {
 		return &OpenAPISchema{

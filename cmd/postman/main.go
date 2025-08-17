@@ -10,6 +10,7 @@ import (
 
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/version"
+	"go-falcon/pkg/introspection"
 )
 
 // PostmanCollection represents the top-level Postman collection structure
@@ -738,9 +739,10 @@ func createPostmanRequest(route RouteInfo) PostmanRequest {
 
 	// Add request body for POST/PUT/PATCH requests
 	if route.Method == "POST" || route.Method == "PUT" || route.Method == "PATCH" {
+		bodyContent := generateRequestBody(route)
 		request.Body = &PostmanBody{
 			Mode: "raw",
-			Raw:  "{\n  // Add request body here\n}",
+			Raw:  bodyContent,
 		}
 		request.Header = append(request.Header, PostmanHeader{
 			Key:   "Content-Type",
@@ -873,6 +875,83 @@ func createRequestName(route RouteInfo) string {
 	name = strings.ReplaceAll(name, "{type}", "Type")
 	
 	return name
+}
+
+// generateRequestBody creates a JSON request body template based on DTO introspection
+func generateRequestBody(route RouteInfo) string {
+	// Try to get schema from introspection registry
+	registry := introspection.NewRouteRegistry()
+	if routeSchema, found := registry.GetRouteSchema(route.Method, route.Path); found && routeSchema.Request != nil {
+		return generateJSONExample(routeSchema.Request)
+	}
+	
+	// Fallback to generic template
+	return "{\n  // Add request body here\n}"
+}
+
+// generateJSONExample creates a JSON example from an introspection schema
+func generateJSONExample(schema *introspection.OpenAPISchema) string {
+	if schema == nil {
+		return "{\n  // Add request body here\n}"
+	}
+	
+	if schema.Type == "object" && schema.Properties != nil {
+		result := "{\n"
+		for name, prop := range schema.Properties {
+			value := getExampleValue(prop)
+			result += fmt.Sprintf("  \"%s\": %s,\n", name, value)
+		}
+		result = strings.TrimSuffix(result, ",\n") + "\n}"
+		return result
+	}
+	
+	return "{\n  // Add request body here\n}"
+}
+
+// getExampleValue generates an example value for a schema property
+func getExampleValue(schema *introspection.OpenAPISchema) string {
+	if schema.Example != nil {
+		if str, ok := schema.Example.(string); ok {
+			return fmt.Sprintf("\"%s\"", str)
+		}
+		return fmt.Sprintf("%v", schema.Example)
+	}
+	
+	switch schema.Type {
+	case "string":
+		if schema.Format == "email" {
+			return "\"user@example.com\""
+		}
+		if schema.Format == "date-time" {
+			return "\"2024-01-01T00:00:00Z\""
+		}
+		return "\"string\""
+	case "integer":
+		return "0"
+	case "number":
+		return "0.0"
+	case "boolean":
+		return "false"
+	case "array":
+		if schema.Items != nil {
+			itemExample := getExampleValue(schema.Items)
+			return fmt.Sprintf("[%s]", itemExample)
+		}
+		return "[]"
+	case "object":
+		if schema.Properties != nil {
+			result := "{"
+			for name, prop := range schema.Properties {
+				value := getExampleValue(prop)
+				result += fmt.Sprintf("\"%s\": %s, ", name, value)
+			}
+			result = strings.TrimSuffix(result, ", ") + "}"
+			return result
+		}
+		return "{}"
+	default:
+		return "null"
+	}
 }
 
 // exportCollection writes the collection to a JSON file
