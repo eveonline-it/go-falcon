@@ -200,14 +200,22 @@ func (m *Module) runHealthMonitoring(ctx context.Context) {
 	}
 }
 
-// Shutdown gracefully shuts down the scheduler module
-func (m *Module) Shutdown() error {
-	slog.Info("Shutting down scheduler module")
+// Stop implements the Module interface - gracefully stops the module
+func (m *Module) Stop() {
+	slog.Info("Stopping scheduler module", "module", m.Name())
+	
+	// Call base module stop first
+	m.BaseModule.Stop()
 	
 	// Stop the scheduler engine
 	if err := m.schedulerService.StopEngine(); err != nil {
 		slog.Error("Error stopping scheduler engine", "error", err)
 	}
-	
+}
+
+// Shutdown gracefully shuts down the scheduler module (legacy method)
+func (m *Module) Shutdown() error {
+	// Use the new Stop method for consistency
+	m.Stop()
 	return nil
 }
