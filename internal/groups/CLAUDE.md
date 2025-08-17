@@ -75,6 +75,8 @@ Who can receive permissions:
 
 ### Admin API Endpoints
 
+**Note**: All admin endpoints require super admin privileges via `SUPER_ADMIN_CHARACTER_ID` environment variable.
+
 #### Service Management
 ```bash
 # List all services
@@ -174,29 +176,46 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-#### Advanced Middleware
+#### Interface for Other Modules
+Other modules can integrate with the groups module by implementing the following interface pattern:
+
 ```go
-// Require any of multiple permissions
-permissions := []groups.GranularPermissionCheck{
-    groups.SDEReadPermission,
-    groups.SDEAdminPermission,
+// GroupsModule interface used by other modules
+type GroupsModule interface {
+    // Main middleware functions
+    RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
+    OptionalGranularPermission(service, resource, action string) func(http.Handler) http.Handler
+    CheckGranularPermissionInHandler(r *http.Request, service, resource, action string) (*PermissionResult, error)
+    
+    // Legacy support (deprecated)
+    RequirePermission(resource string, actions ...string) func(http.Handler) http.Handler
+    CheckPermission(r *http.Request, resource string, actions ...string) (*PermissionResult, error)
 }
-r.With(groupsModule.RequireAnyGranularPermission(permissions)).Get("/sde/data", handler)
 
-// Resource owner OR permission
-r.With(groupsModule.ResourceOwnerOrGranularPermission(
-    func(r *http.Request) int { return extractUserID(r) },
-    "auth", "users", "read"
-)).Get("/users/{id}", handler)
+// PermissionResult structure
+type PermissionResult struct {
+    Allowed bool   `json:"allowed"`
+    Reason  string `json:"reason,omitempty"`
+}
+```
 
-// Conditional permission
-r.With(groupsModule.ConditionalGranularPermission(
-    func(r *http.Request) bool { return r.URL.Query().Get("admin") == "true" },
-    "system", "admin", "read"
-)).Get("/admin", handler)
+#### Example Module Integration
+```go
+// In module constructor
+func New(mongodb *database.MongoDB, redis *database.Redis, groupsModule GroupsModule) *Module {
+    return &Module{
+        BaseModule:   module.NewBaseModule("example", mongodb, redis, nil),
+        groupsModule: groupsModule,
+    }
+}
 
-// Audit logging
-r.With(groupsModule.LogGranularPermissions("sde", "entities", "write")).Post("/sde/update", handler)
+// In route registration
+func (m *Module) Routes(r chi.Router) {
+    // Protected endpoints with granular permissions
+    r.With(m.groupsModule.RequireGranularPermission("example", "items", "read")).Get("/", m.listHandler)
+    r.With(m.groupsModule.RequireGranularPermission("example", "items", "write")).Post("/", m.createHandler)
+    r.With(m.groupsModule.RequireGranularPermission("example", "items", "delete")).Delete("/{id}", m.deleteHandler)
+}
 ```
 
 #### Pre-defined Permission Checks

@@ -261,17 +261,17 @@ func (m *Module) listCharactersHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user is requesting their own characters or if they have admin permissions
 	if user.UserID != userID {
-		// User is requesting someone else's characters - check admin permission
-		allowed, err := m.groupsModule.CheckPermissionInHandler(r, "users", "read")
+		// User is requesting someone else's characters - check granular admin permission
+		result, err := m.groupsModule.CheckGranularPermissionInHandler(r, "users", "profiles", "read")
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "Permission check failed")
-			slog.Error("Permission check failed", slog.String("error", err.Error()))
+			slog.Error("Granular permission check failed", slog.String("error", err.Error()))
 			http.Error(w, "Permission check failed", http.StatusInternalServerError)
 			return
 		}
 		
-		if !allowed {
+		if !result.Allowed {
 			span.SetStatus(codes.Error, "Insufficient permissions")
 			slog.Warn("User attempted to access other user's characters",
 				slog.String("requesting_user_id", user.UserID),

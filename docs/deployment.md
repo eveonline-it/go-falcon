@@ -24,6 +24,74 @@ docker-compose -f docker-compose.prod.yml up -d
 ```
 
 
+### Post-Deployment Setup
+
+#### Granular Permission System Setup
+
+After deploying the application, you need to set up the granular permission system:
+
+1. **Set Super Admin Character ID**:
+   ```bash
+   # Add to your .env file or environment variables
+   SUPER_ADMIN_CHARACTER_ID=123456789  # Your EVE character ID
+   ```
+
+2. **Obtain Super Admin JWT Token**:
+   ```bash
+   # Log in via EVE SSO to get a JWT token
+   # Use the /auth/eve/login endpoint or frontend interface
+   # The JWT token will be needed for admin operations
+   ```
+
+3. **Run Permission Setup Script**:
+   ```bash
+   # Set your JWT token
+   export SUPER_ADMIN_JWT="your_jwt_token_here"
+   
+   # Run the setup script to create service definitions
+   ./scripts/setup-granular-permissions.sh
+   ```
+
+4. **Verify Service Creation**:
+   ```bash
+   # List all services
+   curl -H "Authorization: Bearer $SUPER_ADMIN_JWT" \
+        http://localhost:8080/admin/permissions/services
+   ```
+
+5. **Grant Initial Permissions** (example):
+   ```bash
+   # Allow general users to read SDE data
+   curl -X POST "http://localhost:8080/admin/permissions/assignments" \
+     -H "Authorization: Bearer $SUPER_ADMIN_JWT" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "service": "sde",
+       "resource": "entities", 
+       "action": "read",
+       "subject_type": "group",
+       "subject_id": "full_group_object_id",
+       "reason": "Allow authenticated users to access SDE data"
+     }'
+   ```
+
+#### Permission Testing
+
+Test the permission system setup:
+
+```bash
+# Set environment variable for testing
+export API_BASE_URL="http://localhost:8080"
+
+# Run permission tests
+./scripts/test-permissions.sh
+```
+
+The test script will verify:
+- ✅ Public endpoints are accessible without authentication
+- ✅ Protected endpoints require authentication (return 401)
+- ✅ Admin endpoints require super admin access (return 401 for regular users)
+
 ### Production Management
 
 1. **Check service status**:
@@ -153,15 +221,34 @@ The new development setup provides:
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MONGODB_URI` | MongoDB connection string | - |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
-| `ENABLE_TELEMETRY` | Enable OpenTelemetry | `true` |
-| `SERVICE_NAME` | Service name for telemetry | `gateway` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint | `localhost:4318` |
-| `LOG_LEVEL` | Logging level | `info` |
-| `ENABLE_PRETTY_LOGS` | Pretty console logs | `false` |
+### Core Configuration
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MONGODB_URI` | MongoDB connection string | - | Yes |
+| `REDIS_URL` | Redis connection string | `redis://localhost:6379` | Yes |
+| `ENABLE_TELEMETRY` | Enable OpenTelemetry | `true` | No |
+| `SERVICE_NAME` | Service name for telemetry | `gateway` | No |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint | `localhost:4318` | No |
+| `LOG_LEVEL` | Logging level | `info` | No |
+| `ENABLE_PRETTY_LOGS` | Pretty console logs | `false` | No |
+
+### Permission System
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `SUPER_ADMIN_CHARACTER_ID` | EVE character ID for super admin | - | Yes |
+
+### EVE Online Integration
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `EVE_CLIENT_ID` | EVE SSO application client ID | - | Yes |
+| `EVE_CLIENT_SECRET` | EVE SSO application client secret | - | Yes |
+| `JWT_SECRET` | Secret key for JWT token signing | - | Yes |
+| `EVE_REDIRECT_URI` | OAuth2 redirect URI | - | No |
+| `EVE_SCOPES` | Required EVE Online scopes | - | No |
+| `ESI_USER_AGENT` | User agent for ESI requests | - | No |
 
 ## Health Checks
 

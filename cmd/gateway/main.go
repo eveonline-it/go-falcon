@@ -137,11 +137,11 @@ func main() {
 	// Set cross-module dependencies after creation to avoid circular dependency issues
 	authModule.SetGroupsModule(groupsModule)
 	
-	devModule := dev.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	devModule := dev.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, groupsModule)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, groupsModule)
-	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, groupsModule)
 	// Initialize SDE module
-	sdeModule := sde.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	sdeModule := sde.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, groupsModule)
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, sdeModule, groupsModule)
 	
 	modules = append(modules, authModule, groupsModule, devModule, usersModule, notificationsModule, schedulerModule, sdeModule)

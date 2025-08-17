@@ -141,22 +141,22 @@ User-defined task executors with flexible configuration:
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/scheduler/tasks` | GET | List tasks with filtering and pagination |
-| `/scheduler/tasks` | POST | Create new task |
-| `/scheduler/tasks/{id}` | GET | Get specific task details |
-| `/scheduler/tasks/{id}` | PUT | Update task configuration |
-| `/scheduler/tasks/{id}` | DELETE | Delete task (system tasks protected) |
-| `/scheduler/tasks/{id}/start` | POST | Manually execute task immediately |
-| `/scheduler/tasks/{id}/stop` | POST | Stop currently running task |
-| `/scheduler/tasks/{id}/pause` | POST | Pause task scheduling |
-| `/scheduler/tasks/{id}/resume` | POST | Resume paused task |
-| `/scheduler/tasks/{id}/history` | GET | Get task execution history |
-| `/scheduler/tasks/{id}/executions/{exec_id}` | GET | Get specific execution details |
-| `/scheduler/stats` | GET | Get scheduler statistics |
-| `/scheduler/reload` | POST | Reload tasks from database |
-| `/scheduler/status` | GET | Get scheduler status |
+| Endpoint | Method | Description | Permission Required |
+|----------|--------|-------------|-------------------|
+| `/scheduler/status` | GET | Get scheduler status | None (public) |
+| `/scheduler/stats` | GET | Get scheduler statistics | None (public) |
+| `/scheduler/tasks` | GET | List tasks with filtering and pagination | `scheduler.tasks.read` |
+| `/scheduler/tasks` | POST | Create new task | `scheduler.tasks.write` |
+| `/scheduler/tasks/{id}` | GET | Get specific task details | `scheduler.tasks.read` |
+| `/scheduler/tasks/{id}` | PUT | Update task configuration | `scheduler.tasks.write` |
+| `/scheduler/tasks/{id}` | DELETE | Delete task (system tasks protected) | `scheduler.tasks.delete` |
+| `/scheduler/tasks/{id}/start` | POST | Manually execute task immediately | `scheduler.tasks.execute` |
+| `/scheduler/tasks/{id}/stop` | POST | Stop currently running task | `scheduler.tasks.execute` |
+| `/scheduler/tasks/{id}/pause` | POST | Pause task scheduling | `scheduler.tasks.write` |
+| `/scheduler/tasks/{id}/resume` | POST | Resume paused task | `scheduler.tasks.write` |
+| `/scheduler/tasks/{id}/history` | GET | Get task execution history | `scheduler.executions.read` |
+| `/scheduler/tasks/{id}/executions/{exec_id}` | GET | Get specific execution details | `scheduler.executions.read` |
+| `/scheduler/reload` | POST | Reload tasks from database | `scheduler.tasks.admin` |
 
 ### API Examples
 
@@ -330,6 +330,11 @@ type AuthModule interface {
     RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error)
 }
 
+// GroupsModule interface for permission checking
+type GroupsModule interface {
+    RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
+}
+
 // SystemExecutor with auth module dependency
 type SystemExecutor struct {
     authModule AuthModule
@@ -456,10 +461,69 @@ SCHEDULER_WORKER_COUNT=20
 - **Error Sanitization**: Sensitive data removed from error messages
 
 ### API Security
-- **Authentication**: Integration with auth module (planned)
-- **Authorization**: Role-based access control (planned)
+- **Authentication**: Integration with auth module and JWT middleware
+- **Authorization**: Granular permission-based access control
 - **Input Sanitization**: All API inputs validated and sanitized
-- **Rate Limiting**: API rate limiting (planned)
+- **System Task Protection**: System tasks cannot be modified via API
+
+### Granular Permission System
+
+The scheduler module implements a comprehensive granular permission system with the following permissions:
+
+#### Service: `scheduler`
+
+##### Resource: `tasks`
+- **read**: View task details and list tasks
+- **write**: Create, update, pause, and resume tasks
+- **delete**: Delete tasks (system tasks always protected)
+- **execute**: Manually trigger task execution
+- **admin**: Reload tasks from database and advanced operations
+
+##### Resource: `executions`
+- **read**: View task execution history and details
+
+### Required Group Configuration
+
+To use the scheduler module, the following groups should be configured:
+
+#### Administrators Group
+```json
+{
+  "name": "administrators",
+  "permissions": {
+    "scheduler": {
+      "tasks": ["read", "write", "delete", "execute", "admin"],
+      "executions": ["read"]
+    }
+  }
+}
+```
+
+#### Task Managers Group
+```json
+{
+  "name": "task_managers", 
+  "permissions": {
+    "scheduler": {
+      "tasks": ["read", "write", "execute"],
+      "executions": ["read"]
+    }
+  }
+}
+```
+
+#### Monitoring Group
+```json
+{
+  "name": "monitoring",
+  "permissions": {
+    "scheduler": {
+      "tasks": ["read"],
+      "executions": ["read"]
+    }
+  }
+}
+```
 
 ## Monitoring & Alerting
 

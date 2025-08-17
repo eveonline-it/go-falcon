@@ -20,6 +20,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// GroupsModule interface defines the methods needed from the groups module
+type GroupsModule interface {
+	RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
+}
+
 type Module struct {
 	*module.BaseModule
 	evegateClient     *evegateway.Client
@@ -29,9 +34,10 @@ type Module struct {
 	allianceClient    alliance.Client
 	corporationClient corporation.Client
 	cacheManager      evegateway.CacheManager
+	groupsModule      GroupsModule
 }
 
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, groupsModule GroupsModule) *Module {
 	evegateClient := evegateway.NewClient()
 	
 	// Create shared cache manager for consistency
@@ -59,66 +65,79 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 		allianceClient:    allianceClient,
 		corporationClient: corporationClient,
 		cacheManager:      cacheManager,
+		groupsModule:      groupsModule,
 	}
 }
 
 func (m *Module) Routes(r chi.Router) {
 	m.RegisterHealthRoute(r) // Use the base module health handler
-	r.Get("/esi-status", m.esiStatusHandler)
-	r.Get("/character/{characterID}", m.characterInfoHandler)
-	r.Get("/character/{characterID}/portrait", m.characterPortraitHandler)
-	r.Get("/universe/system/{systemID}", m.systemInfoHandler)
-	r.Get("/universe/station/{stationID}", m.stationInfoHandler)
-	r.Get("/alliances", m.alliancesHandler)
-	r.Get("/alliance/{allianceID}", m.allianceInfoHandler)
-	r.Get("/alliance/{allianceID}/contacts", m.allianceContactsHandler)
-	r.Get("/alliance/{allianceID}/contacts/labels", m.allianceContactLabelsHandler)
-	r.Get("/alliance/{allianceID}/corporations", m.allianceCorporationsHandler)
-	r.Get("/alliance/{allianceID}/icons", m.allianceIconsHandler)
-	// Corporation endpoints
-	r.Get("/corporation/{corporationID}", m.corporationInfoHandler)
-	r.Get("/corporation/{corporationID}/icons", m.corporationIconsHandler)
-	r.Get("/corporation/{corporationID}/alliancehistory", m.corporationAllianceHistoryHandler)
-	r.Get("/corporation/{corporationID}/members", m.corporationMembersHandler)
-	r.Get("/corporation/{corporationID}/membertracking", m.corporationMemberTrackingHandler)
-	r.Get("/corporation/{corporationID}/roles", m.corporationMemberRolesHandler)
-	r.Get("/corporation/{corporationID}/structures", m.corporationStructuresHandler)
-	r.Get("/corporation/{corporationID}/standings", m.corporationStandingsHandler)
-	r.Get("/corporation/{corporationID}/wallets", m.corporationWalletsHandler)
-	r.Get("/sde/status", m.sdeStatusHandler)
-	r.Get("/sde/agent/{agentID}", m.sdeAgentHandler)
-	r.Get("/sde/category/{categoryID}", m.sdeCategoryHandler)
-	r.Get("/sde/blueprint/{blueprintID}", m.sdeBlueprintHandler)
-	r.Get("/sde/agents/location/{locationID}", m.sdeAgentsByLocationHandler)
-	r.Get("/sde/blueprints", m.sdeBlueprintIdsHandler)
-	r.Get("/sde/marketgroup/{marketGroupID}", m.sdeMarketGroupHandler)
-	r.Get("/sde/marketgroups", m.sdeMarketGroupsHandler)
-	r.Get("/sde/metagroup/{metaGroupID}", m.sdeMetaGroupHandler)
-	r.Get("/sde/metagroups", m.sdeMetaGroupsHandler)
-	r.Get("/sde/npccorp/{corpID}", m.sdeNPCCorpHandler)
-	r.Get("/sde/npccorps", m.sdeNPCCorpsHandler)
-	r.Get("/sde/npccorps/faction/{factionID}", m.sdeNPCCorpsByFactionHandler)
-	r.Get("/sde/typeid/{typeID}", m.sdeTypeIDHandler)
-	r.Get("/sde/type/{typeID}", m.sdeTypeHandler)
-	r.Get("/sde/types", m.sdeTypesHandler)
-	r.Get("/sde/types/published", m.sdePublishedTypesHandler)
-	r.Get("/sde/types/group/{groupID}", m.sdeTypesByGroupHandler)
-	r.Get("/sde/typematerials/{typeID}", m.sdeTypeMaterialsHandler)
-	// Redis SDE endpoints
-	r.Get("/sde/redis/{type}/{id}", m.sdeRedisEntityHandler)
-	r.Get("/sde/redis/{type}", m.sdeRedisEntitiesByTypeHandler)
-	// Universe endpoints
-	r.Get("/sde/universe/{universeType}/{regionName}/systems", m.sdeUniverseRegionSystemsHandler)
-	r.Get("/sde/universe/{universeType}/{regionName}/{constellationName}/systems", m.sdeUniverseConstellationSystemsHandler)
-	r.Get("/sde/universe/{universeType}/{regionName}", m.sdeUniverseDataHandler)
-	r.Get("/sde/universe/{universeType}/{regionName}/{constellationName}", m.sdeUniverseDataHandler)
-	r.Get("/sde/universe/{universeType}/{regionName}/{constellationName}/{systemName}", m.sdeUniverseDataHandler)
-	// New comprehensive SDE management endpoints
-	r.Get("/sde/management/status", m.sdeManagementStatusHandler)
-	r.Get("/sde/comprehensive/status", m.sdeComprehensiveStatusHandler)
-	r.Get("/sde/entity-types", m.sdeAllEntityTypesHandler)
-	r.Get("/services", m.servicesHandler)
+	
+	// Public status endpoints
 	r.Get("/status", m.statusHandler)
+	r.Get("/services", m.servicesHandler)
+	
+	// Protected ESI testing endpoints (require dev tools access)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/esi-status", m.esiStatusHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/character/{characterID}", m.characterInfoHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/character/{characterID}/portrait", m.characterPortraitHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/universe/system/{systemID}", m.systemInfoHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/universe/station/{stationID}", m.stationInfoHandler)
+	
+	// Protected alliance endpoints
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/alliances", m.alliancesHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/alliance/{allianceID}", m.allianceInfoHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/alliance/{allianceID}/contacts", m.allianceContactsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/alliance/{allianceID}/contacts/labels", m.allianceContactLabelsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/alliance/{allianceID}/corporations", m.allianceCorporationsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/alliance/{allianceID}/icons", m.allianceIconsHandler)
+	
+	// Protected corporation endpoints
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}", m.corporationInfoHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}/icons", m.corporationIconsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}/alliancehistory", m.corporationAllianceHistoryHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}/members", m.corporationMembersHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}/membertracking", m.corporationMemberTrackingHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}/roles", m.corporationMemberRolesHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}/structures", m.corporationStructuresHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}/standings", m.corporationStandingsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/corporation/{corporationID}/wallets", m.corporationWalletsHandler)
+	
+	// Protected SDE data access endpoints
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/status", m.sdeStatusHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/agent/{agentID}", m.sdeAgentHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/category/{categoryID}", m.sdeCategoryHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/blueprint/{blueprintID}", m.sdeBlueprintHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/agents/location/{locationID}", m.sdeAgentsByLocationHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/blueprints", m.sdeBlueprintIdsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/marketgroup/{marketGroupID}", m.sdeMarketGroupHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/marketgroups", m.sdeMarketGroupsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/metagroup/{metaGroupID}", m.sdeMetaGroupHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/metagroups", m.sdeMetaGroupsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/npccorp/{corpID}", m.sdeNPCCorpHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/npccorps", m.sdeNPCCorpsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/npccorps/faction/{factionID}", m.sdeNPCCorpsByFactionHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/typeid/{typeID}", m.sdeTypeIDHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/type/{typeID}", m.sdeTypeHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/types", m.sdeTypesHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/types/published", m.sdePublishedTypesHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/types/group/{groupID}", m.sdeTypesByGroupHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/typematerials/{typeID}", m.sdeTypeMaterialsHandler)
+	
+	// Protected Redis SDE endpoints
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/redis/{type}/{id}", m.sdeRedisEntityHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/redis/{type}", m.sdeRedisEntitiesByTypeHandler)
+	
+	// Protected universe endpoints
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/universe/{universeType}/{regionName}/systems", m.sdeUniverseRegionSystemsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/universe/{universeType}/{regionName}/{constellationName}/systems", m.sdeUniverseConstellationSystemsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/universe/{universeType}/{regionName}", m.sdeUniverseDataHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/universe/{universeType}/{regionName}/{constellationName}", m.sdeUniverseDataHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/universe/{universeType}/{regionName}/{constellationName}/{systemName}", m.sdeUniverseDataHandler)
+	
+	// Protected SDE management endpoints
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/management/status", m.sdeManagementStatusHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/comprehensive/status", m.sdeComprehensiveStatusHandler)
+	r.With(m.groupsModule.RequireGranularPermission("dev", "tools", "read")).Get("/sde/entity-types", m.sdeAllEntityTypesHandler)
 }
 
 func (m *Module) StartBackgroundTasks(ctx context.Context) {

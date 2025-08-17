@@ -32,6 +32,11 @@ const (
 	solarSystemIndexKey = "sde:index:solarsystems"
 )
 
+// GroupsModule interface defines the methods needed from the groups module
+type GroupsModule interface {
+	RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
+}
+
 type Module struct {
 	*module.BaseModule
 	mu              sync.RWMutex
@@ -39,6 +44,7 @@ type Module struct {
 	currentProgress float64
 	lastError       error
 	lastCheck       time.Time
+	groupsModule    GroupsModule
 }
 
 type SDEStatus struct {
@@ -56,32 +62,33 @@ type UpdateRequest struct {
 	ForceUpdate bool `json:"force_update"`
 }
 
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService pkgsde.SDEService) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, sdeService pkgsde.SDEService, groupsModule GroupsModule) *Module {
 	return &Module{
-		BaseModule: module.NewBaseModule("sde", mongodb, redis, sdeService),
+		BaseModule:   module.NewBaseModule("sde", mongodb, redis, sdeService),
+		groupsModule: groupsModule,
 	}
 }
 
 func (m *Module) Routes(r chi.Router) {
 	m.RegisterHealthRoute(r) // Use the base module health handler
+	
+	// Public read-only endpoints
 	r.Get("/status", m.handleGetStatus)
-	r.Post("/check", m.handleCheckForUpdates)
-	r.Post("/update", m.handleStartUpdate)
 	r.Get("/progress", m.handleGetProgress)
 	
-	// Individual SDE entity access endpoints
-	r.Get("/entity/{type}/{id}", m.handleGetEntity)
-	r.Get("/entities/{type}", m.handleGetEntitiesByType)
+	// Protected data access endpoints
+	r.With(m.groupsModule.RequireGranularPermission("sde", "entities", "read")).Get("/entity/{type}/{id}", m.handleGetEntity)
+	r.With(m.groupsModule.RequireGranularPermission("sde", "entities", "read")).Get("/entities/{type}", m.handleGetEntitiesByType)
+	r.With(m.groupsModule.RequireGranularPermission("sde", "entities", "read")).Get("/search/solarsystem", m.handleSearchSolarSystem)
 	
-	// Search endpoints
-	r.Get("/search/solarsystem", m.handleSearchSolarSystem)
+	// Protected management endpoints
+	r.With(m.groupsModule.RequireGranularPermission("sde", "entities", "write")).Post("/check", m.handleCheckForUpdates)
+	r.With(m.groupsModule.RequireGranularPermission("sde", "entities", "admin")).Post("/update", m.handleStartUpdate)
+	r.With(m.groupsModule.RequireGranularPermission("sde", "entities", "admin")).Post("/index/rebuild", m.handleRebuildIndex)
 	
-	// Index management endpoints
-	r.Post("/index/rebuild", m.handleRebuildIndex)
-	
-	// Test endpoints for individual key storage
-	r.Post("/test/store-sample", m.handleTestStoreSample)
-	r.Get("/test/verify", m.handleTestVerify)
+	// Development/testing endpoints (admin only)
+	r.With(m.groupsModule.RequireGranularPermission("sde", "entities", "admin")).Post("/test/store-sample", m.handleTestStoreSample)
+	r.With(m.groupsModule.RequireGranularPermission("sde", "entities", "admin")).Get("/test/verify", m.handleTestVerify)
 }
 
 func (m *Module) StartBackgroundTasks(ctx context.Context) {

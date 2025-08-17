@@ -34,10 +34,10 @@ func (m *Module) Routes(r chi.Router) {
 	// Public endpoints - basic user information (no authentication required)
 	r.Get("/stats", m.getUserStatsHandler)                    // GET /api/users/stats
 
-	// Administrative endpoints - require authentication and admin permissions
-	r.With(m.authModule.JWTMiddleware).With(m.groupsModule.RequirePermission("users", "read")).Get("/", m.listUsersHandler) // GET /api/users?page=1&page_size=20&query=search
-	r.With(m.authModule.JWTMiddleware).With(m.groupsModule.RequirePermission("users", "read")).Get("/{character_id}", m.getUserHandler) // GET /api/users/{character_id}
-	r.With(m.authModule.JWTMiddleware).With(m.groupsModule.RequirePermission("users", "write")).Put("/{character_id}", m.updateUserHandler) // PUT /api/users/{character_id}
+	// Administrative endpoints - require authentication and granular permissions
+	r.With(m.groupsModule.RequireGranularPermission("users", "profiles", "read")).Get("/", m.listUsersHandler) // GET /api/users?page=1&page_size=20&query=search
+	r.With(m.groupsModule.RequireGranularPermission("users", "profiles", "read")).Get("/{character_id}", m.getUserHandler) // GET /api/users/{character_id}
+	r.With(m.groupsModule.RequireGranularPermission("users", "profiles", "write")).Put("/{character_id}", m.updateUserHandler) // PUT /api/users/{character_id}
 	
 	// User-specific character management - requires authentication, users can view their own characters or admins can view any
 	r.With(m.authModule.JWTMiddleware).Get("/by-user-id/{user_id}/characters", m.listCharactersHandler) // GET /api/users/by-user-id/{user_id}/characters

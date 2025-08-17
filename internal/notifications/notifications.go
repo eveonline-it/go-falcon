@@ -12,21 +12,30 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type Module struct {
-	*module.BaseModule
+// GroupsModule interface defines the methods needed from the groups module
+type GroupsModule interface {
+	RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
 }
 
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService) *Module {
+type Module struct {
+	*module.BaseModule
+	groupsModule GroupsModule
+}
+
+func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, groupsModule GroupsModule) *Module {
 	return &Module{
-		BaseModule: module.NewBaseModule("notifications", mongodb, redis, sdeService),
+		BaseModule:   module.NewBaseModule("notifications", mongodb, redis, sdeService),
+		groupsModule: groupsModule,
 	}
 }
 
 func (m *Module) Routes(r chi.Router) {
 	m.RegisterHealthRoute(r) // Use the base module health handler
-	r.Get("/", m.getNotificationsHandler)
-	r.Post("/", m.sendNotificationHandler)
-	r.Put("/{id}", m.markReadHandler)
+	
+	// Protected notification endpoints
+	r.With(m.groupsModule.RequireGranularPermission("notifications", "messages", "read")).Get("/", m.getNotificationsHandler)
+	r.With(m.groupsModule.RequireGranularPermission("notifications", "messages", "write")).Post("/", m.sendNotificationHandler)
+	r.With(m.groupsModule.RequireGranularPermission("notifications", "messages", "write")).Put("/{id}", m.markReadHandler)
 }
 
 func (m *Module) StartBackgroundTasks(ctx context.Context) {

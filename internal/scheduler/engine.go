@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
 
@@ -25,6 +26,8 @@ type GroupsModule interface {
 	CleanupExpiredMemberships(ctx context.Context) (int, error)
 	SyncDiscordRoles(ctx context.Context) error
 	ValidateGroupIntegrity(ctx context.Context) error
+	// Granular permission methods
+	RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
 }
 
 // Engine handles task scheduling and execution

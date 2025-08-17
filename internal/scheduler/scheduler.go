@@ -31,8 +31,9 @@ type SDEModule interface {
 
 type Module struct {
 	*module.BaseModule
-	engine     *Engine
-	repository *Repository
+	engine       *Engine
+	repository   *Repository
+	groupsModule GroupsModule
 }
 
 // New creates a new scheduler module
@@ -41,9 +42,10 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 	engine := NewEngine(repository, redis, authModule, sdeModule, groupsModule)
 
 	return &Module{
-		BaseModule: module.NewBaseModule("scheduler", mongodb, redis, sdeService),
-		engine:     engine,
-		repository: repository,
+		BaseModule:   module.NewBaseModule("scheduler", mongodb, redis, sdeService),
+		engine:       engine,
+		repository:   repository,
+		groupsModule: groupsModule,
 	}
 }
 
@@ -51,27 +53,29 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 func (m *Module) Routes(r chi.Router) {
 	m.RegisterHealthRoute(r) // Use the base module health handler
 
-	// Task management routes
-	r.Get("/tasks", m.listTasksHandler)
-	r.Post("/tasks", m.createTaskHandler)
-	r.Get("/tasks/{taskID}", m.getTaskHandler)
-	r.Put("/tasks/{taskID}", m.updateTaskHandler)
-	r.Delete("/tasks/{taskID}", m.deleteTaskHandler)
-
-	// Task control routes
-	r.Post("/tasks/{taskID}/start", m.startTaskHandler)
-	r.Post("/tasks/{taskID}/stop", m.stopTaskHandler)
-	r.Post("/tasks/{taskID}/pause", m.pauseTaskHandler)
-	r.Post("/tasks/{taskID}/resume", m.resumeTaskHandler)
-
-	// Task execution history
-	r.Get("/tasks/{taskID}/history", m.getTaskHistoryHandler)
-	r.Get("/tasks/{taskID}/executions/{executionID}", m.getExecutionHandler)
-
-	// Scheduler management
-	r.Get("/stats", m.getStatsHandler)
-	r.Post("/reload", m.reloadTasksHandler)
+	// Public endpoints (read-only status)
 	r.Get("/status", m.getStatusHandler)
+	r.Get("/stats", m.getStatsHandler)
+
+	// Protected task management routes
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "read")).Get("/tasks", m.listTasksHandler)
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "write")).Post("/tasks", m.createTaskHandler)
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "read")).Get("/tasks/{taskID}", m.getTaskHandler)
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "write")).Put("/tasks/{taskID}", m.updateTaskHandler)
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "delete")).Delete("/tasks/{taskID}", m.deleteTaskHandler)
+
+	// Protected task control routes
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "write")).Post("/tasks/{taskID}/start", m.startTaskHandler)
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "write")).Post("/tasks/{taskID}/stop", m.stopTaskHandler)
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "write")).Post("/tasks/{taskID}/pause", m.pauseTaskHandler)
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "write")).Post("/tasks/{taskID}/resume", m.resumeTaskHandler)
+
+	// Protected task execution history
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "read")).Get("/tasks/{taskID}/history", m.getTaskHistoryHandler)
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "read")).Get("/tasks/{taskID}/executions/{executionID}", m.getExecutionHandler)
+
+	// Protected scheduler management
+	r.With(m.groupsModule.RequireGranularPermission("scheduler", "tasks", "admin")).Post("/reload", m.reloadTasksHandler)
 }
 
 // StartBackgroundTasks starts the scheduler engine and background tasks

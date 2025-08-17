@@ -52,19 +52,19 @@ internal/sde/
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/sde/status` | GET | Get current SDE status and version information |
-| `/sde/check` | POST | Check for new SDE versions manually |
-| `/sde/update` | POST | Start SDE update process |
-| `/sde/progress` | GET | Get real-time update progress |
-| `/sde/health` | GET | Module health check |
-| `/sde/entity/{type}/{id}` | GET | Get individual SDE entity by type and ID |
-| `/sde/entities/{type}` | GET | Get all entities of a specific type |
-| `/sde/search/solarsystem` | GET | Search for solar systems by name (query param: name) |
-| `/sde/index/rebuild` | POST | Manually rebuild solar system search index |
-| `/sde/test/store-sample` | POST | Store sample test data for development |
-| `/sde/test/verify` | GET | Verify individual key storage functionality |
+| Endpoint | Method | Description | Permission Required |
+|----------|--------|-------------|-------------------|
+| `/sde/status` | GET | Get current SDE status and version information | None (public) |
+| `/sde/health` | GET | Module health check | None (public) |
+| `/sde/entity/{type}/{id}` | GET | Get individual SDE entity by type and ID | `sde.entities.read` |
+| `/sde/entities/{type}` | GET | Get all entities of a specific type | `sde.entities.read` |
+| `/sde/search/solarsystem` | GET | Search for solar systems by name (query param: name) | `sde.entities.read` |
+| `/sde/check` | POST | Check for new SDE versions manually | `sde.management.read` |
+| `/sde/update` | POST | Start SDE update process | `sde.management.write` |
+| `/sde/progress` | GET | Get real-time update progress | `sde.management.read` |
+| `/sde/index/rebuild` | POST | Manually rebuild solar system search index | `sde.management.write` |
+| `/sde/test/store-sample` | POST | Store sample test data for development | `sde.management.admin` |
+| `/sde/test/verify` | GET | Verify individual key storage functionality | `sde.management.admin` |
 
 ### Status Response Format
 ```json
@@ -457,6 +457,81 @@ func (m *Module) sendCompletionNotification(status *SDEStatus) {
 - Graceful degradation on storage issues
 - Cleanup of temporary files on errors
 - Status preservation across failures
+
+## Security and Permissions
+
+### Granular Permission System
+
+The SDE module implements granular permission control for secure access to EVE Online static data:
+
+#### Service: `sde`
+
+##### Resource: `entities`
+- **read**: Access to SDE entity data, search functionality, and individual entity retrieval
+
+##### Resource: `management`
+- **read**: Check for updates, monitor progress, and view management status
+- **write**: Initiate SDE updates, rebuild indexes, and modify SDE data
+- **admin**: Development tools, test endpoints, and administrative functions
+
+### Required Group Configuration
+
+To use the SDE module, configure the following groups:
+
+#### Administrators Group
+```json
+{
+  "name": "administrators",
+  "permissions": {
+    "sde": {
+      "entities": ["read"],
+      "management": ["read", "write", "admin"]
+    }
+  }
+}
+```
+
+#### SDE Managers Group
+```json
+{
+  "name": "sde_managers",
+  "permissions": {
+    "sde": {
+      "entities": ["read"],
+      "management": ["read", "write"]
+    }
+  }
+}
+```
+
+#### General Users Group
+```json
+{
+  "name": "general_users",
+  "permissions": {
+    "sde": {
+      "entities": ["read"]
+    }
+  }
+}
+```
+
+### Permission Requirements by Endpoint
+
+| Endpoint Category | Permission | Description |
+|------------------|------------|-------------|
+| Public Endpoints | None | Status and health checks (publicly accessible) |
+| Data Access | `sde.entities.read` | Entity data retrieval and search |
+| Management Read | `sde.management.read` | Update checking and progress monitoring |
+| Management Write | `sde.management.write` | SDE updates and index operations |
+| Admin Tools | `sde.management.admin` | Development and testing endpoints |
+
+### Security Features
+
+- **Public Information**: Status and health endpoints are publicly accessible
+- **Protected Data**: All SDE entity access requires authentication and permissions
+- **Administrative Control**: Update operations restricted to authorized users
+- **Development Safety**: Test endpoints require admin permissions
 
 ## Configuration
 

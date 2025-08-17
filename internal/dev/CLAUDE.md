@@ -59,37 +59,37 @@ TODO
 ### SDE Endpoints
 
 #### Memory-Based SDE (pkg/sde service)
-| Endpoint | Method | Description | Purpose |
-|----------|--------|-------------|---------|
-| `/sde/status` | GET | SDE service status and statistics | Health |
-| `/sde/agent/{agentID}` | GET | Get specific agent data | Testing |
-| `/sde/category/{categoryID}` | GET | Get category information | Testing |
-| `/sde/blueprint/{blueprintID}` | GET | Get blueprint data | Testing |
-| `/sde/types` | GET | Get all types | Testing |
-| `/sde/types/published` | GET | Get published types only | Testing |
+| Endpoint | Method | Description | Permission Required |
+|----------|--------|-------------|-------------------|
+| `/sde/status` | GET | SDE service status and statistics | `dev.tools.read` |
+| `/sde/agent/{agentID}` | GET | Get specific agent data | `dev.tools.read` |
+| `/sde/category/{categoryID}` | GET | Get category information | `dev.tools.read` |
+| `/sde/blueprint/{blueprintID}` | GET | Get blueprint data | `dev.tools.read` |
+| `/sde/types` | GET | Get all types | `dev.tools.read` |
+| `/sde/types/published` | GET | Get published types only | `dev.tools.read` |
 
 #### Redis-Based SDE (Direct Redis access)
-| Endpoint | Method | Description | Purpose |
-|----------|--------|-------------|---------|
-| `/sde/redis/{type}/{id}` | GET | Get specific SDE entity from Redis | Testing |
-| `/sde/redis/{type}` | GET | Get all entities of type from Redis | Testing |
+| Endpoint | Method | Description | Permission Required |
+|----------|--------|-------------|-------------------|
+| `/sde/redis/{type}/{id}` | GET | Get specific SDE entity from Redis | `dev.tools.read` |
+| `/sde/redis/{type}` | GET | Get all entities of type from Redis | `dev.tools.read` |
 
 #### Universe SDE Data
-| Endpoint | Method | Description | Purpose |
-|----------|--------|-------------|---------|
-| `/sde/universe/{type}/{region}/systems` | GET | Get all solar systems in region | Analysis |
-| `/sde/universe/{type}/{region}/{constellation}/systems` | GET | Get all solar systems in constellation | Analysis |
-| `/sde/universe/{type}/{region}` | GET | Get region data | Testing |
-| `/sde/universe/{type}/{region}/{constellation}` | GET | Get constellation data | Testing |
-| `/sde/universe/{type}/{region}/{constellation}/{system}` | GET | Get system data | Testing |
+| Endpoint | Method | Description | Permission Required |
+|----------|--------|-------------|-------------------|
+| `/sde/universe/{type}/{region}/systems` | GET | Get all solar systems in region | `dev.tools.read` |
+| `/sde/universe/{type}/{region}/{constellation}/systems` | GET | Get all solar systems in constellation | `dev.tools.read` |
+| `/sde/universe/{type}/{region}` | GET | Get region data | `dev.tools.read` |
+| `/sde/universe/{type}/{region}/{constellation}` | GET | Get constellation data | `dev.tools.read` |
+| `/sde/universe/{type}/{region}/{constellation}/{system}` | GET | Get system data | `dev.tools.read` |
 
 ### Utility Endpoints
 
-| Endpoint | Method | Description | Purpose |
-|----------|--------|-------------|---------|
-| `/services` | GET | List all available endpoints | Discovery |
-| `/status` | GET | Module status information | Health |
-| `/health` | GET | Health check endpoint | Monitoring |
+| Endpoint | Method | Description | Permission Required |
+|----------|--------|-------------|-------------------|
+| `/services` | GET | List all available endpoints | `dev.tools.read` |
+| `/status` | GET | Module status information | None (public) |
+| `/health` | GET | Health check endpoint | None (public) |
 
 ## Response Format
 
@@ -364,10 +364,67 @@ curl -H "Authorization: Bearer <access_token>" <endpoint>
 - Implement proper error handling
 
 ### Security Considerations
-- No authentication required (development only)
-- Rate limiting through ESI error limits
+- **Authentication Required**: All endpoints require valid JWT tokens and granular permissions
+- **Development Access Control**: Restricted to authorized developers and administrators
+- **Rate limiting through ESI error limits
 - Secure handling of character IDs
 - Proper input validation
+
+## Security and Permissions
+
+### Granular Permission System
+
+The development module implements comprehensive permission control to secure all development and testing functionality:
+
+#### Service: `dev`
+
+##### Resource: `tools`
+- **read**: Access to development tools, ESI testing endpoints, SDE validation, and debugging utilities
+
+### Required Group Configuration
+
+To use the development module, configure the following groups:
+
+#### Administrators Group
+```json
+{
+  "name": "administrators",
+  "permissions": {
+    "dev": {
+      "tools": ["read"]
+    }
+  }
+}
+```
+
+#### Developers Group
+```json
+{
+  "name": "developers",
+  "permissions": {
+    "dev": {
+      "tools": ["read"]
+    }
+  }
+}
+```
+
+### Permission Requirements by Endpoint
+
+| Endpoint Category | Method | Permission Required | Description |
+|------------------|--------|-------------------|-------------|
+| `/dev/status` | GET | None (public) | Module status information |
+| `/dev/health` | GET | None (public) | Health check endpoint |
+| All ESI Endpoints | GET | `dev.tools.read` | EVE Online ESI testing endpoints |
+| All SDE Endpoints | GET | `dev.tools.read` | Static Data Export testing endpoints |
+| Service Discovery | GET | `dev.tools.read` | Development utility endpoints |
+
+### Security Features
+
+- **Restricted Access**: All development tools require authentication and specific permissions
+- **Public Health**: Only status and health endpoints are publicly accessible
+- **Safe Testing**: Secure environment for ESI and SDE testing
+- **Access Control**: Fine-grained permission control for development access
 
 ## Troubleshooting
 
