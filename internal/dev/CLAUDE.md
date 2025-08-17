@@ -209,24 +209,51 @@ attribute.Bool("dev.success", true)
 
 ### Testing ESI Integration
 
+**⚠️ Authentication Required**: All ESI testing endpoints now require JWT authentication.
+
+```bash
+# First, authenticate via EVE Online SSO
+curl http://localhost:8080/auth/eve/login  # Follow the OAuth flow
+
+# Or use Bearer token authentication
+export JWT_TOKEN="your_jwt_token_here"
+
+# Test EVE Online server status
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/esi-status
+
+# Test character information
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/character/123456789
+
+# Test universe data
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/universe/system/30000142
+
+# Test alliance data
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/alliances
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/alliance/434243723
+```
 
 ### Testing SDE Integration
+
+**⚠️ Authentication Required**: All SDE testing endpoints now require JWT authentication.
 
 #### Memory-Based SDE (pkg/sde service)
 All existing SDE endpoints continue to work with the in-memory SDE service:
 
 ```bash
+# Set your JWT token
+export JWT_TOKEN="your_jwt_token_here"
+
 # Get SDE status and statistics
-curl http://localhost:8080/dev/sde/status
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/status
 
 # Get specific entities
-curl http://localhost:8080/dev/sde/agent/3008416
-curl http://localhost:8080/dev/sde/type/587
-curl http://localhost:8080/dev/sde/blueprint/1000001
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/agent/3008416
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/type/587
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/blueprint/1000001
 
 # Get collections
-curl http://localhost:8080/dev/sde/types/published
-curl http://localhost:8080/dev/sde/marketgroups
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/types/published
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/marketgroups
 ```
 
 #### Redis-Based SDE (Direct Redis access)
@@ -234,14 +261,14 @@ New endpoints for direct Redis SDE data access:
 
 ```bash
 # Get specific SDE entity from Redis
-curl http://localhost:8080/dev/sde/redis/agents/3008416
-curl http://localhost:8080/dev/sde/redis/types/587
-curl http://localhost:8080/dev/sde/redis/flags/0
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/redis/agents/3008416
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/redis/types/587
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/redis/flags/0
 
 # Get all entities of a type from Redis
-curl http://localhost:8080/dev/sde/redis/agents
-curl http://localhost:8080/dev/sde/redis/categories
-curl http://localhost:8080/dev/sde/redis/types
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/redis/agents
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/redis/categories
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/redis/types
 ```
 
 #### Universe SDE Data
@@ -249,19 +276,19 @@ Access EVE Online universe data with hierarchical structure:
 
 ```bash
 # Get all solar systems in a region
-curl http://localhost:8080/dev/sde/universe/eve/Derelik/systems
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/universe/eve/Derelik/systems
 
 # Get all solar systems in a constellation
-curl http://localhost:8080/dev/sde/universe/eve/Derelik/Kador/systems
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/universe/eve/Derelik/Kador/systems
 
 # Get specific universe data
-curl http://localhost:8080/dev/sde/universe/eve/Derelik                    # Region data
-curl http://localhost:8080/dev/sde/universe/eve/Derelik/Kador             # Constellation data
-curl http://localhost:8080/dev/sde/universe/eve/Derelik/Kador/Amarr       # System data
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/universe/eve/Derelik                    # Region data
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/universe/eve/Derelik/Kador             # Constellation data
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/universe/eve/Derelik/Kador/Amarr       # System data
 
 # Other universe types
-curl http://localhost:8080/dev/sde/universe/abyssal/RegionName/systems
-curl http://localhost:8080/dev/sde/universe/wormhole/RegionName/ConstellationName/systems
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/universe/abyssal/RegionName/systems
+curl -H "Authorization: Bearer $JWT_TOKEN" http://localhost:8080/dev/sde/universe/wormhole/RegionName/ConstellationName/systems
 ```
 
 ## Performance Characteristics
@@ -411,35 +438,105 @@ To use the development module, configure the following groups:
 
 ### Permission Requirements by Endpoint
 
-| Endpoint Category | Method | Permission Required | Description |
-|------------------|--------|-------------------|-------------|
-| `/dev/status` | GET | None (public) | Module status information |
-| `/dev/health` | GET | None (public) | Health check endpoint |
-| All ESI Endpoints | GET | `dev.tools.read` | EVE Online ESI testing endpoints |
-| All SDE Endpoints | GET | `dev.tools.read` | Static Data Export testing endpoints |
-| Service Discovery | GET | `dev.tools.read` | Development utility endpoints |
+| Endpoint Category | Method | Authentication Required | Permission Required | Description |
+|------------------|--------|----------------------|-------------------|-------------|
+| `/dev/status` | GET | No | None (public) | Module status information |
+| `/dev/health` | GET | No | None (public) | Health check endpoint |
+| `/dev/services` | GET | No | None (public) | Service discovery endpoint |
+| All ESI Endpoints | GET | **Yes (JWT)** | `dev.tools.read` | EVE Online ESI testing endpoints |
+| All SDE Endpoints | GET | **Yes (JWT)** | `dev.tools.read` | Static Data Export testing endpoints |
+
+### Authentication Methods
+
+All protected endpoints support two authentication methods:
+
+1. **Cookie-based Authentication** (Web applications):
+   ```bash
+   # After logging in via /auth/eve/login, cookies are automatically included
+   curl -b cookies.txt http://localhost:8080/dev/esi-status
+   ```
+
+2. **Bearer Token Authentication** (API clients, mobile apps):
+   ```bash
+   # Using JWT token in Authorization header
+   curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8080/dev/esi-status
+   ```
 
 ### Security Features
 
-- **Restricted Access**: All development tools require authentication and specific permissions
-- **Public Health**: Only status and health endpoints are publicly accessible
-- **Safe Testing**: Secure environment for ESI and SDE testing
-- **Access Control**: Fine-grained permission control for development access
+- **JWT Authentication Required**: All protected endpoints require valid JWT tokens (cookies or Bearer header)
+- **Granular Permission System**: Fine-grained access control with `dev.tools.read` permission
+- **Automatic Admin Access**: Users in `super_admin` or `administrators` groups get automatic access
+- **Public Endpoints**: Only `/dev/status`, `/dev/health`, and `/dev/services` are publicly accessible
+- **Secure ESI Testing**: Protected environment for EVE Online API testing
+- **Token Validation**: Comprehensive JWT token validation with proper error handling
+- **Cross-Domain Support**: CORS-enabled for cross-subdomain authentication
+
+### Automatic Access for Administrators
+
+The dev module implements automatic access for administrative users:
+
+- **Super Admins**: Users in the `super_admin` group automatically bypass all permission checks
+- **Administrators**: Users in the `administrators` group also get full access to all dev tools
+- **No Manual Setup**: Admin access works immediately without requiring explicit permission assignments
+
+### Authentication Flow
+
+1. **User Authentication**: 
+   - Web: Login via `/auth/eve/login` (EVE Online SSO)
+   - API: Exchange EVE tokens for JWT via `/auth/eve/token`
+
+2. **Request Authentication**:
+   - JWT middleware extracts and validates token from cookies or Authorization header
+   - User information is added to request context
+
+3. **Permission Check**:
+   - Granular permission middleware checks if user has `dev.tools.read` permission
+   - Super admins and administrators automatically bypass permission checks
+   - Regular users require explicit permission assignment
+
+4. **Access Granted**: User can access development tools and ESI testing endpoints
 
 ## Troubleshooting
 
 ### Common Issues
+- **Authentication Required**: All protected endpoints now require JWT authentication
+- **Permission Denied**: User needs `dev.tools.read` permission or admin group membership
+- **Invalid JWT Token**: Token may be expired, malformed, or missing
 - **ESI Rate Limits**: Monitor error limit headers
 - **Cache Misses**: Check cache expiration times
 - **SDE Not Loaded**: Verify SDE service initialization
 - **Invalid Parameters**: Validate ID formats
 
 ### Debug Steps
-1. Check `/dev/status` for module health
-2. Verify ESI connectivity with `/dev/esi-status`
-3. Test SDE functionality with `/dev/sde/status`
-4. Monitor logs for error patterns
-5. Check telemetry data for performance issues
+1. **Authentication Issues**:
+   ```bash
+   # Check if you're authenticated
+   curl -v http://localhost:8080/auth/profile
+   
+   # Login via EVE SSO (web)
+   curl http://localhost:8080/auth/eve/login
+   
+   # Test with Bearer token
+   curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8080/dev/esi-status
+   ```
+
+2. **Permission Issues**:
+   ```bash
+   # Check your permissions
+   curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8080/permissions/user
+   
+   # Verify admin status (requires super admin JWT)
+   curl -H "Authorization: Bearer SUPER_ADMIN_JWT" http://localhost:8080/admin/permissions/check \
+     -d '{"service": "dev", "resource": "tools", "action": "read", "character_id": YOUR_CHARACTER_ID}'
+   ```
+
+3. **Module Health**:
+   - Check `/dev/status` for module health
+   - Verify ESI connectivity with `/dev/esi-status` (requires auth)
+   - Test SDE functionality with `/dev/sde/status` (requires auth)
+   - Monitor logs for error patterns
+   - Check telemetry data for performance issues
 
 ## Future Enhancements
 

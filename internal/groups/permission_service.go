@@ -29,6 +29,182 @@ func NewGranularPermissionService(mongodb *database.MongoDB, redis *database.Red
 	}
 }
 
+// InitializeDefaultServices creates default service definitions if they don't exist
+func (gps *GranularPermissionService) InitializeDefaultServices(ctx context.Context) error {
+	slog.Info("Initializing default granular permission services")
+	
+	defaultServices := []Service{
+		{
+			Name:        "scheduler",
+			DisplayName: "Task Scheduler",
+			Description: "Task scheduling and management system with cron scheduling and distributed locking",
+			Resources: []Resource{
+				{
+					Name:        "tasks",
+					DisplayName: "Scheduled Tasks",
+					Description: "Task definitions, management, and lifecycle operations",
+					Actions:     []string{"read", "write", "delete", "execute", "admin"},
+					Enabled:     true,
+				},
+				{
+					Name:        "executions",
+					DisplayName: "Task Executions",
+					Description: "Task execution history and runtime details",
+					Actions:     []string{"read"},
+					Enabled:     true,
+				},
+			},
+			Enabled:   true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			Name:        "sde",
+			DisplayName: "Static Data Export",
+			Description: "EVE Online static data management with automated processing and scheduler integration",
+			Resources: []Resource{
+				{
+					Name:        "entities",
+					DisplayName: "SDE Entities",
+					Description: "EVE Online static data entities including agents, blueprints, types, and universe data",
+					Actions:     []string{"read"},
+					Enabled:     true,
+				},
+				{
+					Name:        "management",
+					DisplayName: "SDE Management",
+					Description: "SDE update processes, index rebuilding, and administrative operations",
+					Actions:     []string{"read", "write", "admin"},
+					Enabled:     true,
+				},
+			},
+			Enabled:   true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			Name:        "dev",
+			DisplayName: "Development Tools",
+			Description: "ESI testing and SDE data access tools for development and debugging",
+			Resources: []Resource{
+				{
+					Name:        "tools",
+					DisplayName: "Development Tools",
+					Description: "ESI testing endpoints, SDE data access, and development utilities",
+					Actions:     []string{"read", "write"},
+					Enabled:     true,
+				},
+			},
+			Enabled:   true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			Name:        "users",
+			DisplayName: "User Management",
+			Description: "User profile management and character administration",
+			Resources: []Resource{
+				{
+					Name:        "profiles",
+					DisplayName: "User Profiles",
+					Description: "User profiles, character management, and account administration",
+					Actions:     []string{"read", "write", "delete"},
+					Enabled:     true,
+				},
+			},
+			Enabled:   true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			Name:        "notifications",
+			DisplayName: "Notification System",
+			Description: "User notification management and messaging system",
+			Resources: []Resource{
+				{
+					Name:        "messages",
+					DisplayName: "Notification Messages",
+					Description: "User notifications, alerts, and messaging functionality",
+					Actions:     []string{"read", "write", "delete"},
+					Enabled:     true,
+				},
+			},
+			Enabled:   true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			Name:        "groups",
+			DisplayName: "Groups Management",
+			Description: "Group and permission management system",
+			Resources: []Resource{
+				{
+					Name:        "management",
+					DisplayName: "Group Management",
+					Description: "Group creation, membership, and permission administration",
+					Actions:     []string{"read", "write", "delete", "admin"},
+					Enabled:     true,
+				},
+			},
+			Enabled:   true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			Name:        "auth",
+			DisplayName: "Authentication",
+			Description: "EVE Online SSO authentication and session management",
+			Resources: []Resource{
+				{
+					Name:        "users",
+					DisplayName: "User Authentication",
+					Description: "User authentication, session management, and profile access",
+					Actions:     []string{"read", "write", "delete", "admin"},
+					Enabled:     true,
+				},
+			},
+			Enabled:   true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+	
+	collection := gps.mongodb.Database.Collection("services")
+	
+	for _, service := range defaultServices {
+		// Check if service already exists
+		var existing Service
+		err := collection.FindOne(ctx, bson.M{"name": service.Name}).Decode(&existing)
+		if err == nil {
+			// Service already exists, skip
+			slog.Info("Service already exists, skipping", slog.String("service", service.Name))
+			continue
+		}
+		
+		if err != mongo.ErrNoDocuments {
+			slog.Error("Failed to check if service exists", 
+				slog.String("service", service.Name),
+				slog.String("error", err.Error()))
+			continue
+		}
+		
+		// Insert the service
+		service.ID = primitive.NewObjectID()
+		_, err = collection.InsertOne(ctx, service)
+		if err != nil {
+			slog.Error("Failed to create default service", 
+				slog.String("service", service.Name),
+				slog.String("error", err.Error()))
+			continue
+		}
+		
+		slog.Info("Created default service", slog.String("service", service.Name))
+	}
+	
+	slog.Info("Default granular permission services initialization complete")
+	return nil
+}
+
 // InitializeIndexes creates necessary database indexes for the new permission system
 func (gps *GranularPermissionService) InitializeIndexes(ctx context.Context) error {
 	servicesCollection := gps.mongodb.Database.Collection("services")
@@ -395,6 +571,20 @@ func (gps *GranularPermissionService) CheckPermission(ctx context.Context, req *
 	groups, err := gps.groupService.GetUserGroups(ctx, req.CharacterID)
 	if err != nil {
 		return result, fmt.Errorf("failed to get user groups: %w", err)
+	}
+
+	// Check if user is super_admin or administrator - they have all permissions
+	for _, group := range groups {
+		if group.Name == "super_admin" {
+			result.Allowed = true
+			result.GrantedThrough = append(result.GrantedThrough, "group:super_admin")
+			return result, nil
+		}
+		if group.Name == "administrators" {
+			result.Allowed = true
+			result.GrantedThrough = append(result.GrantedThrough, "group:administrators")
+			return result, nil
+		}
 	}
 
 	// Check permissions through multiple subject types

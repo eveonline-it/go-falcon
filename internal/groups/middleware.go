@@ -210,7 +210,7 @@ func (m *Module) RequireAdmin() func(http.Handler) http.Handler {
 
 // RequireSuperAdmin middleware ensures the user has super admin permissions
 func (m *Module) RequireSuperAdmin() func(http.Handler) http.Handler {
-	return m.RequireGroup("super_admin")
+	return m.RequireAnyGroup("super_admin", "administrators")
 }
 
 // RequireEVEScopes middleware that works with groups - requires both EVE scopes AND group permissions

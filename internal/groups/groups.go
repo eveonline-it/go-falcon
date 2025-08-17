@@ -122,6 +122,14 @@ func (m *Module) initializeGroupsAndSuperAdmin(ctx context.Context) {
 		return
 	}
 	
+	// Initialize default granular permission services
+	slog.Info("Initializing default granular permission services")
+	
+	if err := m.granularPermissionService.InitializeDefaultServices(ctx); err != nil {
+		slog.Error("Failed to initialize default granular permission services", slog.String("error", err.Error()))
+		// Don't return here, continue with other initialization
+	}
+	
 	// Initialize default groups
 	slog.Info("Initializing default groups")
 	
@@ -660,6 +668,25 @@ func (m *Module) GetUserPermissions(ctx context.Context, characterID int) (*User
 func (m *Module) IsSuperAdmin(characterID int) bool {
 	superAdminCharID := config.GetSuperAdminCharacterID()
 	return superAdminCharID > 0 && characterID == superAdminCharID
+}
+
+// IsAdministrator checks if a character is in the administrators or super_admin group
+func (m *Module) IsAdministrator(ctx context.Context, characterID int) bool {
+	// Check if super admin first
+	if m.IsSuperAdmin(characterID) {
+		return true
+	}
+	
+	// Check if in administrators group
+	isAdmin, err := m.permissionService.IsUserInGroup(ctx, characterID, "administrators")
+	if err != nil {
+		slog.Warn("Failed to check administrator status", 
+			slog.String("error", err.Error()),
+			slog.Int("character_id", characterID))
+		return false
+	}
+	
+	return isAdmin
 }
 
 // AssignUserToDefaultGroups assigns a user to appropriate default groups
