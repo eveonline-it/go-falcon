@@ -84,6 +84,11 @@ func GetFrontendURL() string {
 	return GetEnv("FRONTEND_URL", "https://go.eveonline.it")
 }
 
+// GetCookieDomain returns the cookie domain for auth cookies
+func GetCookieDomain() string {
+	return GetEnv("COOKIE_DOMAIN", ".eveonline.it")
+}
+
 // GetEnvInt is an alias for GetIntEnv for backward compatibility
 func GetEnvInt(key string, defaultValue int) int {
 	return GetIntEnv(key, defaultValue)

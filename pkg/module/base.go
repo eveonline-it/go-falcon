@@ -13,6 +13,47 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// Info represents module information
+type Info struct {
+	Name        string           `json:"name"`
+	Version     string           `json:"version"`
+	Description string           `json:"description"`
+	Author      string           `json:"author"`
+	Endpoints   []EndpointInfo   `json:"endpoints"`
+	Permissions []PermissionInfo `json:"permissions"`
+}
+
+// EndpointInfo represents endpoint information
+type EndpointInfo struct {
+	Path        string `json:"path"`
+	Method      string `json:"method"`
+	Description string `json:"description"`
+	Permission  string `json:"permission"`
+}
+
+// PermissionInfo represents permission information
+type PermissionInfo struct {
+	Service     string `json:"service"`
+	Resource    string `json:"resource"`
+	Action      string `json:"action"`
+	Description string `json:"description"`
+}
+
+// HealthStatus represents module health status
+type HealthStatus struct {
+	Status  Status `json:"status"`
+	Message string `json:"message"`
+}
+
+// Status represents health status values
+type Status string
+
+const (
+	StatusHealthy   Status = "healthy"
+	StatusUnhealthy Status = "unhealthy"
+	StatusDegraded  Status = "degraded"
+)
+
 // Module defines the interface that all application modules must implement
 type Module interface {
 	// Routes sets up the HTTP routes for this module

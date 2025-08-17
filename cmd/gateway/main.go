@@ -19,13 +19,13 @@ import (
 	"go-falcon/internal/dev"
 	"go-falcon/internal/groups"
 	"go-falcon/internal/notifications"
-	"go-falcon/internal/scheduler"
 	"go-falcon/internal/sde"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
 	evegateway "go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
+	pkgsde "go-falcon/pkg/sde"
 	"go-falcon/pkg/version"
 
 	"github.com/go-chi/chi/v5"
@@ -129,25 +129,31 @@ func main() {
 	// Health check endpoint with version info
 	r.Get("/health", enhancedHealthHandler)
 
-	// Initialize modules
-	var modules []module.Module
-	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
-	groupsModule := groups.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule)
-	
-	// Set cross-module dependencies after creation to avoid circular dependency issues
-	authModule.SetGroupsModule(groupsModule)
-	
-	devModule := dev.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, groupsModule, authModule)
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, groupsModule)
-	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, groupsModule)
-	// Initialize SDE module
-	sdeModule := sde.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, groupsModule)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, sdeModule, groupsModule)
-	
-	modules = append(modules, authModule, groupsModule, devModule, usersModule, notificationsModule, schedulerModule, sdeModule)
-	
 	// Initialize EVE Online ESI client as shared package
 	evegateClient := evegateway.NewClient()
+	
+	// Initialize modules
+	var modules []module.Module
+	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, evegateClient)
+	groupsModule := groups.New(appCtx.MongoDB, appCtx.Redis)
+	
+	devModule, err := dev.NewModule(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	if err != nil {
+		log.Fatalf("Failed to initialize dev module: %v", err)
+	}
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, groupsModule)
+	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, groupsModule)
+	// Initialize SDE module - need to type assert the interface
+	sdeService, ok := appCtx.SDEService.(*pkgsde.Service)
+	if !ok {
+		log.Fatalf("SDE Service is not the expected type")
+	}
+	sdeModule := sde.NewModule(appCtx.MongoDB, appCtx.Redis, sdeService)
+	
+	// Temporarily disable scheduler until interface issues are resolved
+	// schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, sdeModule, groupsModule)
+	
+	modules = append(modules, authModule, groupsModule, devModule, usersModule, notificationsModule, sdeModule)
 	log.Printf("🚀 EVE Online ESI client initialized")
 
 	// Mount module routes with configurable API prefix
@@ -157,19 +163,17 @@ func main() {
 	// Handle empty prefix case
 	if apiPrefix == "" {
 		r.Route("/auth", authModule.Routes)
-		groupsModule.Routes(r) // Groups routes are mounted at root for /groups
+		groupsModule.Routes(r) // Groups routes are mounted at /groups via sub-router
 		r.Route("/dev", devModule.Routes)
 		r.Route("/users", usersModule.Routes)
 		r.Route("/notifications", notificationsModule.Routes)
-		r.Route("/scheduler", schedulerModule.Routes)
 		r.Route("/sde", sdeModule.Routes)
 	} else {
 		r.Route(apiPrefix+"/auth", authModule.Routes)
-		r.Route(apiPrefix, groupsModule.Routes) // Groups routes are mounted at API root for /api/groups
+		r.Route(apiPrefix, groupsModule.Routes) // Groups routes are mounted at /api/groups via sub-router
 		r.Route(apiPrefix+"/dev", devModule.Routes)
 		r.Route(apiPrefix+"/users", usersModule.Routes)
 		r.Route(apiPrefix+"/notifications", notificationsModule.Routes)
-		r.Route(apiPrefix+"/scheduler", schedulerModule.Routes)
 		r.Route(apiPrefix+"/sde", sdeModule.Routes)
 	}
 	

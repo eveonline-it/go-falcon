@@ -1,13 +1,14 @@
 # Handlers Package (pkg/handlers)
 
 ## Overview
-Shared HTTP handlers and utilities for consistent request handling, health checks, and OpenTelemetry integration across all modules. Provides common patterns and middleware components.
+Shared HTTP handlers and utilities for consistent request handling, health checks, response formatting, and OpenTelemetry integration across all modules. Provides common patterns and middleware components.
 
 ## Core Features
 - **Health Check Handlers**: Standardized health endpoints with module information
+- **Response Utilities**: Consistent JSON response formatting and error handling
 - **OpenTelemetry Integration**: HTTP span creation and tracing utilities
-- **Consistent Response Format**: Standardized JSON response structures
-- **Error Handling**: Common error response patterns
+- **Standard Response Format**: Unified JSON response structures across all modules
+- **Error Handling**: Common error response patterns with proper HTTP status codes
 
 ## Health Check System
 - `HealthHandler(moduleName)`: Module-specific health checks
@@ -23,6 +24,38 @@ span, r := handlers.StartHTTPSpan(r, "operation.name",
     attribute.String("operation", "action"),
 )
 defer span.End()
+```
+
+## Response Utilities
+
+### Standard Response Structure
+```go
+type StandardResponse struct {
+    Success bool        `json:"success"`
+    Data    interface{} `json:"data,omitempty"`
+    Error   string      `json:"error,omitempty"`
+    Message string      `json:"message,omitempty"`
+    Details interface{} `json:"details,omitempty"`
+}
+```
+
+### Available Response Functions
+```go
+// Success responses
+JSONResponse(w, data, statusCode)          // Generic JSON response
+SuccessResponse(w, data, statusCode)       // Successful response wrapper
+CreatedResponse(w, data)                   // 201 Created
+NoContentResponse(w)                       // 204 No Content
+
+// Error responses  
+ErrorResponse(w, message, statusCode, details...)  // Generic error
+ValidationErrorResponse(w, errors)                 // 400 Validation errors
+BadRequestResponse(w, message)                      // 400 Bad Request
+UnauthorizedResponse(w)                             // 401 Unauthorized
+ForbiddenResponse(w, message)                       // 403 Forbidden
+NotFoundResponse(w, resource)                       // 404 Not Found
+InternalErrorResponse(w, message)                   // 500 Internal Error
+MessageResponse(w, message, statusCode)             // Simple message
 ```
 
 ## Tracing Features
