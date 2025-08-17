@@ -87,6 +87,8 @@ The project's code is organized into several directories:
 
 - Keep shared libraries lightweight and focused
 - Document API changes in OpenAPI specs
+- Don't ever run the gateway because it's running in using cli
+- When you add, remove, update or delete an endpoint regenerate the export using cmd/postman and cmd/openapi
 
 ## EVE Online ESI Integration Guidelines
 
@@ -260,6 +262,7 @@ The project includes complete EVE Online Single Sign-On (SSO) authentication int
 - `GET /auth/eve/callback` - Handle OAuth2 callback
 - `GET /auth/eve/verify` - Verify JWT token validity
 - `POST /auth/eve/refresh` - Refresh access tokens
+- `GET /auth/token` - Retrieve current bearer token (requires authentication)
 - `POST /auth/eve/token` - Exchange EVE tokens for JWT (mobile apps)
 
 ### Profile Endpoints

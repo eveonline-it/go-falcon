@@ -118,7 +118,24 @@ Response:
 }
 ```
 
-#### 4. Refresh Token
+#### 4. Get Current Token
+```http
+GET /auth/token
+Authorization: Bearer jwt_token
+```
+
+Response:
+```json
+{
+  "bearer_token": "jwt_token_string",
+  "user_id": "12345678-1234-1234-1234-123456789abc",
+  "character_id": 123456789,
+  "character_name": "Character Name",
+  "scopes": "publicData esi-characters.read_contacts.v1"
+}
+```
+
+#### 5. Refresh Token
 ```http
 POST /auth/eve/refresh
 Content-Type: application/json

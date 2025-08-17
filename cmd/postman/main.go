@@ -216,6 +216,7 @@ func getAuthRoutes() []RouteInfo {
 		{Method: "POST", Path: "/logout", ModuleName: "auth", HandlerName: "logoutHandler", Description: "User logout"},
 		{Method: "GET", Path: "/profile", ModuleName: "auth", HandlerName: "profileHandler", Description: "Get user profile"},
 		{Method: "POST", Path: "/profile/refresh", ModuleName: "auth", HandlerName: "profileRefreshHandler", Description: "Refresh profile from ESI"},
+		{Method: "GET", Path: "/token", ModuleName: "auth", HandlerName: "tokenHandler", Description: "Retrieve current bearer token"},
 	}
 }
 

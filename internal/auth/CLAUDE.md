@@ -216,6 +216,7 @@ ESI_USER_AGENT=go-falcon/1.0.0 (contact@example.com)
 | `/auth/profile` | GET | Yes | Get full user profile |
 | `/auth/profile/refresh` | POST | Yes | Refresh profile from ESI |
 | `/auth/profile/public` | GET | No | Get public profile by ID |
+| `/auth/token` | GET | Yes | Retrieve current bearer token |
 | `/auth/eve/token` | POST | No | Exchange EVE token for JWT (mobile) |
 
 ### Internal Methods

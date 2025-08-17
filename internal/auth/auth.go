@@ -64,6 +64,9 @@ func (m *Module) Routes(r chi.Router) {
 	// Authentication status and logout endpoints (not restricted)
 	r.Get("/status", m.authStatusHandler)
 	r.Post("/logout", m.logoutHandler)
+	
+	// Token retrieval endpoint (requires authentication)
+	r.With(m.JWTMiddleware).Get("/token", m.tokenHandler)
 }
 
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
@@ -779,6 +782,64 @@ func (m *Module) logoutHandler(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"message": "Logged out successfully",
 	})
+}
+
+// tokenHandler returns the current JWT bearer token for authenticated users
+func (m *Module) tokenHandler(w http.ResponseWriter, r *http.Request) {
+	span, r := handlers.StartHTTPSpan(r, "auth.token",
+		attribute.String("service", "auth"),
+		attribute.String("operation", "get_token"),
+	)
+	defer span.End()
+
+	// Get the current JWT token from cookie or Authorization header
+	var jwtToken string
+	
+	// Try cookie first
+	if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
+		jwtToken = cookie.Value
+	} else {
+		// Try Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			jwtToken = strings.TrimPrefix(authHeader, "Bearer ")
+		}
+	}
+
+	if jwtToken == "" {
+		span.SetStatus(codes.Error, "No token found")
+		http.Error(w, "No authentication token found", http.StatusUnauthorized)
+		return
+	}
+
+	// Get authenticated user from context (already validated by middleware)
+	user, ok := GetAuthenticatedUser(r)
+	if !ok {
+		span.SetStatus(codes.Error, "User not found in context")
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Int("eve.character_id", user.CharacterID),
+		attribute.String("eve.character_name", user.CharacterName),
+		attribute.Bool("auth.success", true),
+	)
+
+	slog.Info("Token retrieved successfully", 
+		slog.Int("character_id", user.CharacterID),
+		slog.String("character_name", user.CharacterName))
+
+	response := map[string]interface{}{
+		"bearer_token":   jwtToken,
+		"user_id":        user.UserID,
+		"character_id":   user.CharacterID,
+		"character_name": user.CharacterName,
+		"scopes":         user.Scopes,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // mobileTokenHandler converts EVE SSO tokens to JWT tokens for mobile apps
