@@ -499,6 +499,11 @@ func convertIntrospectionSchema(introspectionSchema *introspection.OpenAPISchema
 
 // generateSummary creates a human-readable summary for the operation
 func generateSummary(route RouteInfo) string {
+	// Use the route description as summary if available and meaningful
+	if route.Description != "" && route.Description != "No description available" {
+		return route.Description
+	}
+	
 	verb := strings.ToUpper(route.Method)
 	
 	// Extract resource from path

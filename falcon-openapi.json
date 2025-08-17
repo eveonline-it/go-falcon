@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Go-Falcon Gateway API",
-    "description": "Complete OpenAPI 3.1 specification for the Go-Falcon API Gateway.\n\nThis specification covers all endpoints across multiple modules including authentication, user management, EVE Online integration, static data access, and task scheduling.\n\nVersion: dev\nGenerated: 2025-08-17T21:00:17Z",
+    "description": "Complete OpenAPI 3.1 specification for the Go-Falcon API Gateway.\n\nThis specification covers all endpoints across multiple modules including authentication, user management, EVE Online integration, static data access, and task scheduling.\n\nVersion: dev\nGenerated: 2025-08-17T21:05:18Z",
     "contact": {
       "name": "Go-Falcon Team",
       "url": "https://github.com/go-falcon/go-falcon"
@@ -29,7 +29,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List eve",
+        "summary": "Handle EVE SSO callback",
         "description": "Handle EVE SSO callback",
         "operationId": "get_auth_eve_callback",
         "responses": {
@@ -82,7 +82,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List eve",
+        "summary": "Initiate EVE SSO login",
         "description": "Initiate EVE SSO login",
         "operationId": "get_auth_eve_login",
         "responses": {
@@ -134,7 +134,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create eve",
+        "summary": "Refresh access token",
         "description": "Refresh access token",
         "operationId": "post_auth_eve_refresh",
         "requestBody": {
@@ -264,7 +264,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List eve",
+        "summary": "Initiate EVE SSO registration with full scopes",
         "description": "Initiate EVE SSO registration with full scopes",
         "operationId": "get_auth_eve_register",
         "responses": {
@@ -343,7 +343,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create eve",
+        "summary": "Exchange EVE token for JWT (mobile apps)",
         "description": "Exchange EVE token for JWT (mobile apps)",
         "operationId": "post_auth_eve_token",
         "requestBody": {
@@ -464,7 +464,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List eve",
+        "summary": "Verify JWT token",
         "description": "Verify JWT token",
         "operationId": "get_auth_eve_verify",
         "responses": {
@@ -544,7 +544,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List health",
+        "summary": "Auth module health check",
         "description": "Auth module health check",
         "operationId": "get_auth_health",
         "responses": {
@@ -603,7 +603,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create login",
+        "summary": "Basic login endpoint",
         "description": "Basic login endpoint",
         "operationId": "post_auth_login",
         "requestBody": {
@@ -721,7 +721,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create logout",
+        "summary": "User logout",
         "description": "User logout",
         "operationId": "post_auth_logout",
         "requestBody": {
@@ -836,7 +836,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List profile",
+        "summary": "Get user profile",
         "description": "Get user profile",
         "operationId": "get_auth_profile",
         "responses": {
@@ -959,7 +959,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List profile",
+        "summary": "Get public profile by ID",
         "description": "Get public profile by ID",
         "operationId": "get_auth_profile_public",
         "responses": {
@@ -1054,7 +1054,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create profile",
+        "summary": "Refresh profile from ESI",
         "description": "Refresh profile from ESI",
         "operationId": "post_auth_profile_refresh",
         "requestBody": {
@@ -1255,7 +1255,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create register",
+        "summary": "User registration endpoint",
         "description": "User registration endpoint",
         "operationId": "post_auth_register",
         "requestBody": {
@@ -1373,7 +1373,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List status",
+        "summary": "Get authentication status",
         "description": "Get authentication status",
         "operationId": "get_auth_status",
         "responses": {
@@ -1459,7 +1459,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List token",
+        "summary": "Retrieve current bearer token",
         "description": "Retrieve current bearer token",
         "operationId": "get_auth_token",
         "responses": {
@@ -1539,7 +1539,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List user",
+        "summary": "Get current user information",
         "description": "Get current user information",
         "operationId": "get_auth_user",
         "responses": {
@@ -1627,7 +1627,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get alliance",
+        "summary": "Get alliance information",
         "description": "Get alliance information",
         "operationId": "get_dev_alliance_allianceID",
         "parameters": [
@@ -1762,7 +1762,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List cache",
+        "summary": "Get cache statistics",
         "description": "Get cache statistics",
         "operationId": "get_dev_cache_stats",
         "responses": {
@@ -1813,7 +1813,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Create cache",
+        "summary": "Test cache operations",
         "description": "Test cache operations",
         "operationId": "post_dev_cache_test",
         "requestBody": {
@@ -1926,7 +1926,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Delete cache",
+        "summary": "Delete cache key",
         "description": "Delete cache key",
         "operationId": "delete_dev_cache_key",
         "parameters": [
@@ -2018,7 +2018,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get character",
+        "summary": "Get character information",
         "description": "Get character information",
         "operationId": "get_dev_character_characterID",
         "parameters": [
@@ -2166,7 +2166,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get corporation",
+        "summary": "Get corporation information",
         "description": "Get corporation information",
         "operationId": "get_dev_corporation_corporationID",
         "parameters": [
@@ -2317,7 +2317,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Create debug",
+        "summary": "Create a new debug session",
         "description": "Create a new debug session",
         "operationId": "post_dev_debug_session",
         "requestBody": {
@@ -2430,7 +2430,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get debug",
+        "summary": "Retrieve a debug session",
         "description": "Retrieve a debug session",
         "operationId": "get_dev_debug_session_sessionID",
         "parameters": [
@@ -2519,7 +2519,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "POST /debug/session/{sessionID}/action",
+        "summary": "Perform a debug action",
         "description": "Perform a debug action",
         "operationId": "post_dev_debug_session_sessionID_action",
         "parameters": [
@@ -2643,7 +2643,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List esi",
+        "summary": "Get EVE Online server status",
         "description": "Get EVE Online server status",
         "operationId": "get_dev_esi_status",
         "responses": {
@@ -2694,7 +2694,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Create esi",
+        "summary": "Test custom ESI endpoints",
         "description": "Test custom ESI endpoints",
         "operationId": "post_dev_esi_test",
         "requestBody": {
@@ -2807,7 +2807,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List health",
+        "summary": "Dev module health check",
         "description": "Dev module health check",
         "operationId": "get_dev_health",
         "responses": {
@@ -2866,7 +2866,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Create health",
+        "summary": "Run comprehensive health checks",
         "description": "Run comprehensive health checks",
         "operationId": "post_dev_health_check",
         "requestBody": {
@@ -2952,7 +2952,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List health",
+        "summary": "Get component health information",
         "description": "Get component health information",
         "operationId": "get_dev_health_components",
         "responses": {
@@ -3003,7 +3003,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Create mock",
+        "summary": "Generate mock data for testing",
         "description": "Generate mock data for testing",
         "operationId": "post_dev_mock",
         "requestBody": {
@@ -3116,7 +3116,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get SDE agent information",
         "description": "Get SDE agent information",
         "operationId": "get_dev_sde_agent_agentID",
         "parameters": [
@@ -3224,7 +3224,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get SDE blueprint information",
         "description": "Get SDE blueprint information",
         "operationId": "get_dev_sde_blueprint_blueprintID",
         "parameters": [
@@ -3332,7 +3332,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get SDE category information",
         "description": "Get SDE category information",
         "operationId": "get_dev_sde_category_categoryID",
         "parameters": [
@@ -3440,7 +3440,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get specific SDE entity",
         "description": "Get specific SDE entity",
         "operationId": "get_dev_sde_entity_type_id",
         "parameters": [
@@ -3511,7 +3511,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get all Redis-based SDE entities of a type",
         "description": "Get all Redis-based SDE entities of a type",
         "operationId": "get_dev_sde_redis_type",
         "parameters": [
@@ -3619,7 +3619,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get specific Redis-based SDE entity",
         "description": "Get specific Redis-based SDE entity",
         "operationId": "get_dev_sde_redis_type_id",
         "parameters": [
@@ -3736,7 +3736,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List sde",
+        "summary": "Get SDE service status",
         "description": "Get SDE service status",
         "operationId": "get_dev_sde_status",
         "responses": {
@@ -3882,7 +3882,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List sde",
+        "summary": "Get all SDE types",
         "description": "Get all SDE types",
         "operationId": "get_dev_sde_types",
         "responses": {
@@ -3979,7 +3979,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List sde",
+        "summary": "Get published SDE types only",
         "description": "Get published SDE types only",
         "operationId": "get_dev_sde_types_published",
         "responses": {
@@ -4076,7 +4076,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get region data",
         "description": "Get region data",
         "operationId": "get_dev_sde_universe_type_region",
         "parameters": [
@@ -4147,7 +4147,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get all systems in a region",
         "description": "Get all systems in a region",
         "operationId": "get_dev_sde_universe_type_region_systems",
         "parameters": [
@@ -4218,7 +4218,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get constellation data",
         "description": "Get constellation data",
         "operationId": "get_dev_sde_universe_type_region_constellation",
         "parameters": [
@@ -4298,7 +4298,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get all systems in a constellation",
         "description": "Get all systems in a constellation",
         "operationId": "get_dev_sde_universe_type_region_constellation_systems",
         "parameters": [
@@ -4378,7 +4378,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get sde",
+        "summary": "Get system data",
         "description": "Get system data",
         "operationId": "get_dev_sde_universe_type_region_constellation_system",
         "parameters": [
@@ -4467,7 +4467,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List services",
+        "summary": "Service discovery information",
         "description": "Service discovery information",
         "operationId": "get_dev_services",
         "responses": {
@@ -4595,7 +4595,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "List status",
+        "summary": "Module status information",
         "description": "Module status information",
         "operationId": "get_dev_status",
         "responses": {
@@ -4681,7 +4681,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Create test",
+        "summary": "Run bulk tests",
         "description": "Run bulk tests",
         "operationId": "post_dev_test_bulk",
         "requestBody": {
@@ -4794,7 +4794,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Create test",
+        "summary": "Run performance tests",
         "description": "Run performance tests",
         "operationId": "post_dev_test_performance",
         "requestBody": {
@@ -4907,7 +4907,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Create test",
+        "summary": "Run validation tests",
         "description": "Run validation tests",
         "operationId": "post_dev_test_validate",
         "requestBody": {
@@ -5020,7 +5020,7 @@
         "tags": [
           "Dev"
         ],
-        "summary": "Get universe",
+        "summary": "Get solar system information",
         "description": "Get solar system information",
         "operationId": "get_dev_universe_system_systemID",
         "parameters": [
@@ -5232,7 +5232,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "List ",
+        "summary": "List all groups with optional filtering",
         "description": "List all groups with optional filtering",
         "operationId": "get_groups_root",
         "responses": {
@@ -5383,7 +5383,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Create ",
+        "summary": "Create a new group (requires groups:management:write)",
         "description": "Create a new group (requires groups:management:write)",
         "operationId": "post_groups_root",
         "requestBody": {
@@ -5599,7 +5599,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "List admin",
+        "summary": "Get permission audit logs (super admin only)",
         "description": "Get permission audit logs (super admin only)",
         "operationId": "get_groups_admin_audit",
         "responses": {
@@ -5731,7 +5731,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "DELETE /admin/permissions",
+        "summary": "Revoke permission from subject (super admin only)",
         "description": "Revoke permission from subject (super admin only)",
         "operationId": "delete_groups_admin_permissions",
         "responses": {
@@ -5810,7 +5810,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Create admin",
+        "summary": "Grant permission to subject (super admin only)",
         "description": "Grant permission to subject (super admin only)",
         "operationId": "post_groups_admin_permissions",
         "requestBody": {
@@ -6028,7 +6028,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "List admin",
+        "summary": "List permission assignments (super admin only)",
         "description": "List permission assignments (super admin only)",
         "operationId": "get_groups_admin_permissions_assignments",
         "responses": {
@@ -6160,7 +6160,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "List admin",
+        "summary": "List all permission services (super admin only)",
         "description": "List all permission services (super admin only)",
         "operationId": "get_groups_admin_services",
         "responses": {
@@ -6280,7 +6280,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Create admin",
+        "summary": "Create new permission service (super admin only)",
         "description": "Create new permission service (super admin only)",
         "operationId": "post_groups_admin_services",
         "requestBody": {
@@ -6516,7 +6516,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Delete admin",
+        "summary": "Delete permission service (super admin only)",
         "description": "Delete permission service (super admin only)",
         "operationId": "delete_groups_admin_services_serviceName",
         "parameters": [
@@ -6579,7 +6579,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Get admin",
+        "summary": "Get permission service details (super admin only)",
         "description": "Get permission service details (super admin only)",
         "operationId": "get_groups_admin_services_serviceName",
         "parameters": [
@@ -6689,7 +6689,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Update admin",
+        "summary": "Update permission service (super admin only)",
         "description": "Update permission service (super admin only)",
         "operationId": "put_groups_admin_services_serviceName",
         "parameters": [
@@ -6860,7 +6860,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "List admin",
+        "summary": "Get group statistics (super admin only)",
         "description": "Get group statistics (super admin only)",
         "operationId": "get_groups_admin_stats",
         "responses": {
@@ -6931,7 +6931,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "List admin",
+        "summary": "List groups for permission assignment (super admin only)",
         "description": "List groups for permission assignment (super admin only)",
         "operationId": "get_groups_admin_subjects_groups",
         "responses": {
@@ -7025,7 +7025,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "List health",
+        "summary": "Groups module health check",
         "description": "Groups module health check",
         "operationId": "get_groups_health",
         "responses": {
@@ -7084,7 +7084,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Create permissions",
+        "summary": "Check granular permission for authenticated user",
         "description": "Check granular permission for authenticated user",
         "operationId": "post_groups_permissions_granular_check",
         "requestBody": {
@@ -7233,7 +7233,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Delete {groupID}",
+        "summary": "Delete group (requires groups:management:delete)",
         "description": "Delete group (requires groups:management:delete)",
         "operationId": "delete_groups_groupID",
         "parameters": [
@@ -7323,7 +7323,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Get {groupID}",
+        "summary": "Get specific group details (requires groups:management:read)",
         "description": "Get specific group details (requires groups:management:read)",
         "operationId": "get_groups_groupID",
         "parameters": [
@@ -7504,7 +7504,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Update {groupID}",
+        "summary": "Update existing group (requires groups:management:write)",
         "description": "Update existing group (requires groups:management:write)",
         "operationId": "put_groups_groupID",
         "parameters": [
@@ -7752,7 +7752,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Get {groupID}",
+        "summary": "List group members (requires groups:management:read)",
         "description": "List group members (requires groups:management:read)",
         "operationId": "get_groups_groupID_members",
         "parameters": [
@@ -7882,7 +7882,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "POST /{groupID}/members",
+        "summary": "Add member to group (requires groups:management:write)",
         "description": "Add member to group (requires groups:management:write)",
         "operationId": "post_groups_groupID_members",
         "parameters": [
@@ -8056,7 +8056,7 @@
         "tags": [
           "Groups"
         ],
-        "summary": "Delete {groupID}",
+        "summary": "Remove member from group (requires groups:management:write)",
         "description": "Remove member from group (requires groups:management:write)",
         "operationId": "delete_groups_groupID_members_characterID",
         "parameters": [
@@ -8157,7 +8157,7 @@
         "tags": [
           "Gateway"
         ],
-        "summary": "List health",
+        "summary": "Gateway health check with version information",
         "description": "Gateway health check with version information",
         "operationId": "get_gateway_health",
         "responses": {
@@ -8216,7 +8216,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "List ",
+        "summary": "Get user's notifications with filtering",
         "description": "Get user's notifications with filtering",
         "operationId": "get_notifications_root",
         "responses": {
@@ -8367,7 +8367,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Create ",
+        "summary": "Send a new notification",
         "description": "Send a new notification",
         "operationId": "post_notifications_root",
         "requestBody": {
@@ -8583,7 +8583,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Create bulk",
+        "summary": "Bulk operations on notifications",
         "description": "Bulk operations on notifications",
         "operationId": "post_notifications_bulk",
         "requestBody": {
@@ -8696,7 +8696,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "List health",
+        "summary": "Notifications module health check",
         "description": "Notifications module health check",
         "operationId": "get_notifications_health",
         "responses": {
@@ -8755,7 +8755,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "List stats",
+        "summary": "Get notification statistics",
         "description": "Get notification statistics",
         "operationId": "get_notifications_stats",
         "responses": {
@@ -8834,7 +8834,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Delete {id}",
+        "summary": "Delete specific notification",
         "description": "Delete specific notification",
         "operationId": "delete_notifications_id",
         "parameters": [
@@ -8924,7 +8924,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Get {id}",
+        "summary": "Get specific notification",
         "description": "Get specific notification",
         "operationId": "get_notifications_id",
         "parameters": [
@@ -9011,7 +9011,7 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Update {id}",
+        "summary": "Update notification status",
         "description": "Update notification status",
         "operationId": "put_notifications_id",
         "parameters": [
@@ -9179,7 +9179,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "List health",
+        "summary": "Scheduler module health check",
         "description": "Scheduler module health check",
         "operationId": "get_scheduler_health",
         "responses": {
@@ -9238,7 +9238,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "Create reload",
+        "summary": "Reload scheduler configuration",
         "description": "Reload scheduler configuration",
         "operationId": "post_scheduler_reload",
         "requestBody": {
@@ -9383,7 +9383,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "List stats",
+        "summary": "Get scheduler statistics and metrics",
         "description": "Get scheduler statistics and metrics",
         "operationId": "get_scheduler_stats",
         "responses": {
@@ -9462,7 +9462,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "List status",
+        "summary": "Get scheduler service status",
         "description": "Get scheduler service status",
         "operationId": "get_scheduler_status",
         "responses": {
@@ -9548,7 +9548,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "List tasks",
+        "summary": "List all scheduled tasks",
         "description": "List all scheduled tasks",
         "operationId": "get_scheduler_tasks",
         "responses": {
@@ -9739,7 +9739,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "Create tasks",
+        "summary": "Create a new scheduled task",
         "description": "Create a new scheduled task",
         "operationId": "post_scheduler_tasks",
         "requestBody": {
@@ -10133,7 +10133,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "Delete tasks",
+        "summary": "Delete scheduled task",
         "description": "Delete scheduled task",
         "operationId": "delete_scheduler_tasks_taskID",
         "parameters": [
@@ -10235,7 +10235,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "Get tasks",
+        "summary": "Get task details by ID",
         "description": "Get task details by ID",
         "operationId": "get_scheduler_tasks_taskID",
         "parameters": [
@@ -10416,7 +10416,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "Update tasks",
+        "summary": "Update task configuration",
         "description": "Update task configuration",
         "operationId": "put_scheduler_tasks_taskID",
         "parameters": [
@@ -10645,7 +10645,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "Get tasks",
+        "summary": "Get specific execution details",
         "description": "Get specific execution details",
         "operationId": "get_scheduler_tasks_taskID_executions_executionID",
         "parameters": [
@@ -10774,7 +10774,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "Get tasks",
+        "summary": "Get task execution history",
         "description": "Get task execution history",
         "operationId": "get_scheduler_tasks_taskID_history",
         "parameters": [
@@ -10915,7 +10915,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "POST /tasks/{taskID}/pause",
+        "summary": "Pause scheduled task",
         "description": "Pause scheduled task",
         "operationId": "post_scheduler_tasks_taskID_pause",
         "parameters": [
@@ -11075,7 +11075,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "POST /tasks/{taskID}/resume",
+        "summary": "Resume paused task",
         "description": "Resume paused task",
         "operationId": "post_scheduler_tasks_taskID_resume",
         "parameters": [
@@ -11235,7 +11235,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "POST /tasks/{taskID}/start",
+        "summary": "Start/enable scheduled task",
         "description": "Start/enable scheduled task",
         "operationId": "post_scheduler_tasks_taskID_start",
         "parameters": [
@@ -11428,7 +11428,7 @@
         "tags": [
           "Scheduler"
         ],
-        "summary": "POST /tasks/{taskID}/stop",
+        "summary": "Stop/disable scheduled task",
         "description": "Stop/disable scheduled task",
         "operationId": "post_scheduler_tasks_taskID_stop",
         "parameters": [
@@ -11588,7 +11588,7 @@
         "tags": [
           "Sde"
         ],
-        "summary": "List health",
+        "summary": "SDE module health check",
         "description": "SDE module health check",
         "operationId": "get_sde_health",
         "responses": {
@@ -11647,7 +11647,7 @@
         "tags": [
           "Sde"
         ],
-        "summary": "List status",
+        "summary": "Get current SDE status (placeholder implementation)",
         "description": "Get current SDE status (placeholder implementation)",
         "operationId": "get_sde_status",
         "responses": {
@@ -11733,7 +11733,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "List ",
+        "summary": "List users with pagination and filtering (requires users:read permission)",
         "description": "List users with pagination and filtering (requires users:read permission)",
         "operationId": "get_users_root",
         "responses": {
@@ -11886,7 +11886,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Get by-user-id",
+        "summary": "List characters for a user (requires authentication, self-access or users:read permission)",
         "description": "List characters for a user (requires authentication, self-access or users:read permission)",
         "operationId": "get_users_by-user-id_user_id_characters",
         "parameters": [
@@ -12006,7 +12006,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "List health",
+        "summary": "Users module health check",
         "description": "Users module health check",
         "operationId": "get_users_health",
         "responses": {
@@ -12065,7 +12065,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "List stats",
+        "summary": "Get user statistics (public endpoint)",
         "description": "Get user statistics (public endpoint)",
         "operationId": "get_users_stats",
         "responses": {
@@ -12144,7 +12144,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Get {character_id}",
+        "summary": "Get user by character ID (requires users:read permission)",
         "description": "Get user by character ID (requires users:read permission)",
         "operationId": "get_users_character_id",
         "parameters": [
@@ -12268,7 +12268,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Update {character_id}",
+        "summary": "Update user status and settings (requires users:write permission)",
         "description": "Update user status and settings (requires users:write permission)",
         "operationId": "put_users_character_id",
         "parameters": [
@@ -12488,24 +12488,8 @@
   ],
   "tags": [
     {
-      "name": "Sde",
-      "description": "EVE Online Static Data Export management endpoints"
-    },
-    {
-      "name": "Auth",
-      "description": "Authentication and authorization endpoints using EVE Online SSO"
-    },
-    {
-      "name": "Groups",
-      "description": "Group management and permission system endpoints"
-    },
-    {
       "name": "Gateway",
       "description": "Gateway health and status endpoints"
-    },
-    {
-      "name": "Dev",
-      "description": "Development and testing endpoints for EVE Online ESI and SDE data"
     },
     {
       "name": "Users",
@@ -12518,6 +12502,22 @@
     {
       "name": "Scheduler",
       "description": "Task scheduling and management endpoints"
+    },
+    {
+      "name": "Sde",
+      "description": "EVE Online Static Data Export management endpoints"
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication and authorization endpoints using EVE Online SSO"
+    },
+    {
+      "name": "Groups",
+      "description": "Group management and permission system endpoints"
+    },
+    {
+      "name": "Dev",
+      "description": "Development and testing endpoints for EVE Online ESI and SDE data"
     }
   ],
   "externalDocs": {
