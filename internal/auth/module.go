@@ -57,7 +57,7 @@ func (m *Module) RegisterHumaRoutes(r chi.Router) {
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterAuthRoutes(api, basePath, m.authService, m.middleware)
+	routes.RegisterAuthRoutes(api, basePath, m.authService, m.middleware, m.MongoDB())
 }
 
 // StartBackgroundTasks starts auth-specific background tasks

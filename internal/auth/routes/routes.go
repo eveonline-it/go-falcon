@@ -8,6 +8,7 @@ import (
 	"go-falcon/internal/auth/middleware"
 	"go-falcon/internal/auth/services"
 	"go-falcon/pkg/config"
+	"go-falcon/pkg/database"
 	humaMiddleware "go-falcon/pkg/middleware"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -48,7 +49,7 @@ func NewRoutes(authService *services.AuthService, middleware *middleware.Middlew
 }
 
 // RegisterAuthRoutes registers auth routes on a shared Huma API
-func RegisterAuthRoutes(api huma.API, basePath string, authService *services.AuthService, middleware *middleware.Middleware) {
+func RegisterAuthRoutes(api huma.API, basePath string, authService *services.AuthService, middleware *middleware.Middleware, mongodb *database.MongoDB) {
 	// Create authentication middleware using the auth service as JWT validator
 	authMiddleware := humaMiddleware.NewAuthMiddleware(authService)
 
@@ -127,7 +128,11 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		fmt.Printf("\n[DEBUG] ===== /auth/status HUMA HANDLER START =====\n")
 		fmt.Printf("[DEBUG] AuthStatus Handler: Processing request\n")
 		fmt.Printf("[DEBUG] AuthStatus Handler: Authorization header: %q\n", input.Authorization)
-		fmt.Printf("[DEBUG] AuthStatus Handler: Cookie header: %q\n", input.Cookie)
+		if input.Cookie != "" {
+			fmt.Printf("[DEBUG] AuthStatus Handler: Cookie present\n")
+		} else {
+			fmt.Printf("[DEBUG] AuthStatus Handler: No cookie present\n")
+		}
 		
 		// Use the new method that accepts header strings
 		statusResp, err := authService.GetAuthStatusFromHeaders(ctx, input.Authorization, input.Cookie)
@@ -266,6 +271,100 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 			SetCookie: cookieHeader,
 			Body:      response,
 		}, nil
+	})
+
+	// Debug endpoint to test UserCharacterResolver (development only)
+	huma.Get(api, basePath+"/debug/characters", func(ctx context.Context, input *dto.AuthDebugInput) (*dto.AuthDebugOutput, error) {
+		fmt.Printf("\n[DEBUG] ===== /auth/debug/characters HUMA HANDLER START =====\n")
+		fmt.Printf("[DEBUG] CharacterDebug Handler: Processing request\n")
+		
+		// Validate authentication first
+		user, err := authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+		if err != nil {
+			fmt.Printf("[DEBUG] CharacterDebug Handler: Authentication failed: %v\n", err)
+			return nil, huma.Error401Unauthorized("Authentication required", err)
+		}
+		
+		fmt.Printf("[DEBUG] CharacterDebug Handler: User authenticated: %s (Character: %d)\n", user.UserID, user.CharacterID)
+		
+		// Get user profile to obtain user ID
+		profile, err := authService.GetUserProfile(ctx, user.CharacterID)
+		if err != nil {
+			fmt.Printf("[DEBUG] CharacterDebug Handler: Failed to get user profile: %v\n", err)
+			return nil, huma.Error500InternalServerError("Failed to get user profile", err)
+		}
+		
+		fmt.Printf("[DEBUG] CharacterDebug Handler: Got user profile for UserID: %s\n", profile.UserID)
+		
+		// Create UserCharacterResolver and resolve characters
+		resolver := humaMiddleware.NewUserCharacterResolver(mongodb)
+		
+		fmt.Printf("[DEBUG] CharacterDebug Handler: Created UserCharacterResolver, now resolving characters...\n")
+		userWithCharacters, err := resolver.GetUserWithCharacters(ctx, profile.UserID)
+		if err != nil {
+			fmt.Printf("[DEBUG] CharacterDebug Handler: Character resolution failed: %v\n", err)
+			return nil, huma.Error500InternalServerError("Failed to resolve characters", err)
+		}
+		
+		// Build response
+		response := &dto.AuthDebugOutput{}
+		response.Body.Message = "Character resolution successful"
+		response.Body.UserID = userWithCharacters.ID
+		
+		// Extract all IDs for easier access
+		var characterIDs []int64
+		var corporationIDs []int64
+		var allianceIDs []int64
+		corporationMap := make(map[int64]bool)
+		allianceMap := make(map[int64]bool)
+		
+		// Process all characters
+		for _, char := range userWithCharacters.Characters {
+			characterIDs = append(characterIDs, char.CharacterID)
+			
+			if char.CorporationID > 0 && !corporationMap[char.CorporationID] {
+				corporationIDs = append(corporationIDs, char.CorporationID)
+				corporationMap[char.CorporationID] = true
+			}
+			
+			if char.AllianceID > 0 && !allianceMap[char.AllianceID] {
+				allianceIDs = append(allianceIDs, char.AllianceID)
+				allianceMap[char.AllianceID] = true
+			}
+			
+			// Add to all characters array
+			response.Body.AllCharacters = append(response.Body.AllCharacters, struct {
+				ID            int64  `json:"id" doc:"Character ID"`
+				Name          string `json:"name" doc:"Character name"`
+				CorporationID int64  `json:"corporation_id" doc:"Corporation ID"`
+				AllianceID    int64  `json:"alliance_id" doc:"Alliance ID"`
+				IsPrimary     bool   `json:"is_primary" doc:"Is primary character"`
+			}{
+				ID:            char.CharacterID,
+				Name:          char.Name,
+				CorporationID: char.CorporationID,
+				AllianceID:    char.AllianceID,
+				IsPrimary:     char.IsPrimary,
+			})
+		}
+		
+		// Set primary character (first one if any)
+		if len(userWithCharacters.Characters) > 0 {
+			primary := userWithCharacters.Characters[0]
+			response.Body.PrimaryCharacter.ID = primary.CharacterID
+			response.Body.PrimaryCharacter.Name = primary.Name
+			response.Body.PrimaryCharacter.CorporationID = primary.CorporationID
+			response.Body.PrimaryCharacter.AllianceID = primary.AllianceID
+		}
+		
+		response.Body.CharacterIDs = characterIDs
+		response.Body.CorporationIDs = corporationIDs
+		response.Body.AllianceIDs = allianceIDs
+		
+		fmt.Printf("[DEBUG] CharacterDebug Handler: Successfully resolved %d characters\n", len(userWithCharacters.Characters))
+		fmt.Printf("[DEBUG] ===== /auth/debug/characters HUMA HANDLER END =====\n")
+		
+		return response, nil
 	})
 }
 
