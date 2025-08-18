@@ -80,28 +80,23 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 	huma.Get(api, basePath+"/eve/callback", func(ctx context.Context, input *dto.EVECallbackInput) (*dto.EVECallbackOutput, error) {
 		// Handle the OAuth callback
-		jwtToken, userInfo, err := authService.HandleEVECallback(ctx, input.Code, input.State)
+		jwtToken, _, err := authService.HandleEVECallback(ctx, input.Code, input.State)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Authentication failed", err)
-		}
-
-		// Create response with authentication cookie
-		response := map[string]interface{}{
-			"success": true,
-			"user":    userInfo,
-			"message": "Authentication successful",
 		}
 
 		// Set authentication cookie using Huma header response
 		cookieHeader := humaMiddleware.CreateAuthCookieHeader(jwtToken)
 		
-		// TODO: Add proper redirect URL from frontend configuration
-		redirectURL := "https://react.eveonline.it"
-
+		// Get frontend URL from configuration
+		frontendURL := "https://go.eveonline.it" // Use correct frontend URL
+		
+		// Return HTTP 302 redirect with Location header and cookie
+		// Huma will handle this as a proper redirect response
 		return &dto.EVECallbackOutput{
 			SetCookie: cookieHeader,
-			Location:  redirectURL,
-			Body:      response,
+			Location:  frontendURL,
+			Body:      nil, // Empty body for redirect
 		}, nil
 	})
 
@@ -327,28 +322,23 @@ func (hr *Routes) eveRegister(ctx context.Context, input *dto.EVERegisterInput) 
 
 func (hr *Routes) eveCallback(ctx context.Context, input *dto.EVECallbackInput) (*dto.EVECallbackOutput, error) {
 	// Handle the OAuth callback
-	jwtToken, userInfo, err := hr.authService.HandleEVECallback(ctx, input.Code, input.State)
+	jwtToken, _, err := hr.authService.HandleEVECallback(ctx, input.Code, input.State)
 	if err != nil {
 		return nil, huma.Error400BadRequest("Authentication failed", err)
-	}
-
-	// Create response with authentication cookie
-	response := map[string]interface{}{
-		"success": true,
-		"user":    userInfo,
-		"message": "Authentication successful",
 	}
 
 	// Set authentication cookie using Huma header response
 	cookieHeader := humaMiddleware.CreateAuthCookieHeader(jwtToken)
 	
-	// TODO: Add proper redirect URL from frontend configuration
-	redirectURL := "https://react.eveonline.it"
-
+	// Get frontend URL from configuration
+	frontendURL := "https://go.eveonline.it" // Use correct frontend URL
+	
+	// Return HTTP 302 redirect with Location header and cookie
+	// Huma will handle this as a proper redirect response
 	return &dto.EVECallbackOutput{
 		SetCookie: cookieHeader,
-		Location:  redirectURL,
-		Body:      response,
+		Location:  frontendURL,
+		Body:      nil, // Empty body for redirect
 	}, nil
 }
 

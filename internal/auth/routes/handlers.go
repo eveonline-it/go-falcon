@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"go-falcon/internal/auth/dto"
@@ -108,7 +109,13 @@ func (r *Routes) eveCallbackHandler(w http.ResponseWriter, req *http.Request) {
 
 	// Redirect to frontend or return JSON based on Accept header
 	frontendURL := config.GetFrontendURL()
-	if frontendURL != "" && req.Header.Get("Accept") != "application/json" {
+	acceptHeader := req.Header.Get("Accept")
+	
+	// Check if request prefers HTML (browser request)
+	prefersHTML := strings.Contains(acceptHeader, "text/html") || 
+		(acceptHeader != "application/json" && !strings.Contains(acceptHeader, "application/json"))
+	
+	if frontendURL != "" && prefersHTML {
 		http.Redirect(w, req, frontendURL, http.StatusFound)
 		return
 	}
