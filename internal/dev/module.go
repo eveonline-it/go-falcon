@@ -71,12 +71,9 @@ func NewModule(
 	// Create validation middleware
 	validation := middleware.NewValidationMiddleware()
 
-	// Create routes
-	routesHandler := routes.NewRoutes(service, validation)
-
 	return &Module{
 		service:    service,
-		routes:     routesHandler,
+		routes:     nil, // Will be created when needed
 		validation: validation,
 	}, nil
 }
@@ -152,9 +149,11 @@ func (m *Module) GetInfo() module.Info {
 	}
 }
 
-// RegisterRoutes registers the module routes
-func (m *Module) RegisterRoutes(r chi.Router) {
-	m.routes.RegisterRoutes(r)
+// RegisterHumaRoutes registers the Huma v2 routes
+func (m *Module) RegisterHumaRoutes(r chi.Router) {
+	if m.routes == nil {
+		m.routes = routes.NewRoutes(m.service, r)
+	}
 }
 
 // Initialize initializes the module
@@ -215,8 +214,10 @@ func (m *Module) Name() string {
 }
 
 // Routes sets up the HTTP routes for this module
+// Routes is kept for compatibility - dev now uses Huma v2 routes only
 func (m *Module) Routes(r chi.Router) {
-	m.routes.RegisterRoutes(r)
+	// Dev module now uses only Huma v2 routes - call RegisterHumaRoutes instead
+	m.RegisterHumaRoutes(r)
 }
 
 // StartBackgroundTasks starts any background processing for this module

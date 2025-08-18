@@ -16,8 +16,8 @@ import (
 // Module represents the SDE module
 type Module struct {
 	*module.BaseModule
-	service *services.Service
-	routes  *routes.Routes
+	service    *services.Service
+	routes     *routes.Routes
 }
 
 // NewModule creates a new SDE module instance
@@ -32,20 +32,24 @@ func NewModule(
 	// Create service
 	service := services.NewService(repo, sdeService)
 
-	// Create routes
-	routesHandler := routes.NewRoutes(service)
-
 	return &Module{
 		BaseModule: module.NewBaseModule("sde", mongodb, redis, sdeService),
 		service:    service,
-		routes:     routesHandler,
+		routes:     nil, // Will be created when needed
 	}
 }
 
-// Routes registers the module's routes
+// Routes is kept for compatibility - sde now uses Huma v2 routes only
 func (m *Module) Routes(r chi.Router) {
-	m.RegisterHealthRoute(r)
-	m.routes.RegisterRoutes(r)
+	// SDE module now uses only Huma v2 routes - call RegisterHumaRoutes instead
+	m.RegisterHumaRoutes(r)
+}
+
+// RegisterHumaRoutes registers the Huma v2 routes
+func (m *Module) RegisterHumaRoutes(r chi.Router) {
+	if m.routes == nil {
+		m.routes = routes.NewRoutes(m.service, r)
+	}
 }
 
 // StartBackgroundTasks starts SDE-specific background tasks

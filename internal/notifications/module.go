@@ -20,7 +20,7 @@ import (
 type Module struct {
 	*module.BaseModule
 	service      *services.Service
-	handler      *routes.Handler
+	routes       *routes.Routes
 	authModule   *auth.Module
 	groupsModule *groups.Module
 }
@@ -28,24 +28,27 @@ type Module struct {
 // New creates a new notifications module instance
 func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule *auth.Module, groupsModule *groups.Module) *Module {
 	service := services.NewService(mongodb)
-	handler := routes.NewHandler(service, authModule, groupsModule)
 
 	return &Module{
 		BaseModule:   module.NewBaseModule("notifications", mongodb, redis, sdeService),
 		service:      service,
-		handler:      handler,
+		routes:       nil, // Will be created when needed
 		authModule:   authModule,
 		groupsModule: groupsModule,
 	}
 }
 
-// Routes registers the module's routes
+// Routes is kept for compatibility - notifications now uses Huma v2 routes only
 func (m *Module) Routes(r chi.Router) {
-	// Register health check route
-	m.RegisterHealthRoute(r)
-	
-	// Register notifications-specific routes
-	m.handler.RegisterRoutes(r)
+	// Notifications module now uses only Huma v2 routes - call RegisterHumaRoutes instead
+	m.RegisterHumaRoutes(r)
+}
+
+// RegisterHumaRoutes registers the Huma v2 routes
+func (m *Module) RegisterHumaRoutes(r chi.Router) {
+	if m.routes == nil {
+		m.routes = routes.NewRoutes(m.service, r)
+	}
 }
 
 // StartBackgroundTasks starts background processes for the notifications module

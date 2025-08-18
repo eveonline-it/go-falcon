@@ -7,7 +7,6 @@ import (
 
 	"go-falcon/internal/groups/middleware"
 	"go-falcon/internal/groups/models"
-	"go-falcon/internal/groups/routes"
 	"go-falcon/internal/groups/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
@@ -21,7 +20,6 @@ type Module struct {
 	groupService              *services.GroupService
 	granularPermissionService *services.GranularPermissionService
 	middleware                *middleware.Middleware
-	routes                    *routes.Routes
 }
 
 // New creates a new Groups module instance
@@ -33,15 +31,11 @@ func New(mongodb *database.MongoDB, redis *database.Redis) *Module {
 	// Initialize middleware
 	moduleMiddleware := middleware.New(granularPermissionService)
 
-	// Initialize routes
-	moduleRoutes := routes.NewRoutes(groupService, granularPermissionService, moduleMiddleware)
-
 	return &Module{
 		BaseModule:                module.NewBaseModule("groups", mongodb, redis, nil),
 		groupService:              groupService,
 		granularPermissionService: granularPermissionService,
 		middleware:                moduleMiddleware,
-		routes:                    moduleRoutes,
 	}
 }
 
@@ -71,9 +65,10 @@ func (m *Module) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// Routes registers the module's routes
+// Routes registers the module's routes (placeholder - groups primarily provides services)
 func (m *Module) Routes(r chi.Router) {
-	m.routes.RegisterRoutes(r)
+	// Groups module primarily provides services and middleware to other modules
+	// Future: Add admin routes for group management
 }
 
 // Public Interface Methods for other modules

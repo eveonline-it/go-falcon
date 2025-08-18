@@ -58,21 +58,18 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 	// Create middleware
 	middlewareLayer := middleware.New()
 	
-	// Create routes
-	routeHandlers := routes.New(schedulerService, middlewareLayer)
-
 	return &Module{
 		BaseModule:       baseModule,
 		schedulerService: schedulerService,
 		middleware:       middlewareLayer,
-		routes:           routeHandlers,
+		routes:           nil, // Will be created when needed
 		authModule:       authModule,
 		sdeModule:        sdeModule,
 		groupsModule:     groupsModule,
 	}
 }
 
-// Routes registers all scheduler routes
+// Routes registers all scheduler routes (traditional Chi)
 func (m *Module) Routes(r chi.Router) {
 	// Apply middleware first
 	r.Use(m.middleware.RequestLogging)
@@ -81,12 +78,14 @@ func (m *Module) Routes(r chi.Router) {
 	// Register health check route using base module
 	m.RegisterHealthRoute(r)
 	
-	// Register public routes
-	m.routes.RegisterRoutes(r)
-	
-	// Register protected routes with permission middleware
-	if m.groupsModule != nil {
-		m.routes.RegisterProtectedRoutes(r, m.groupsModule.RequireGranularPermission)
+	// Scheduler module now uses only Huma v2 routes - call RegisterHumaRoutes instead
+	m.RegisterHumaRoutes(r)
+}
+
+// RegisterHumaRoutes registers the Huma v2 routes
+func (m *Module) RegisterHumaRoutes(r chi.Router) {
+	if m.routes == nil {
+		m.routes = routes.NewRoutes(m.schedulerService, m.middleware, r)
 	}
 }
 

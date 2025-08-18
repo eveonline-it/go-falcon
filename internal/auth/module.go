@@ -33,21 +33,25 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 	
 	// Create middleware with JWT validator
 	middlewareLayer := middleware.New(authService)
-	
-	// Create routes
-	routeHandlers := routes.New(authService, middlewareLayer)
 
 	return &Module{
 		BaseModule:  baseModule,
 		authService: authService,
 		middleware:  middlewareLayer,
-		routes:      routeHandlers,
+		routes:      nil, // Will be created when needed
 	}
 }
 
-// Routes registers all auth routes
+// Routes implements module.Module interface - registers Huma v2 routes
 func (m *Module) Routes(r chi.Router) {
-	m.routes.RegisterRoutes(r)
+	m.RegisterHumaRoutes(r)
+}
+
+// RegisterHumaRoutes registers the Huma v2 routes
+func (m *Module) RegisterHumaRoutes(r chi.Router) {
+	if m.routes == nil {
+		m.routes = routes.NewRoutes(m.authService, m.middleware, r)
+	}
 }
 
 // StartBackgroundTasks starts auth-specific background tasks

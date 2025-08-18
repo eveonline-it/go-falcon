@@ -824,3 +824,112 @@ func (s *Service) generateMockItem(dataType string, index int) interface{} {
 		}
 	}
 }
+
+// GetHealthStatus retrieves module health status
+func (s *Service) GetHealthStatus(ctx context.Context) (*dto.HealthResponse, error) {
+	response := &dto.HealthResponse{
+		Status:    "ok",
+		Module:    "dev",
+		Version:   "1.0.0",
+		Timestamp: time.Now(),
+		Checks: []dto.HealthCheck{
+			{
+				Name:   "service",
+				Status: "ok",
+			},
+		},
+	}
+	
+	return response, nil
+}
+
+// GetServices retrieves service discovery information
+func (s *Service) GetServices(ctx context.Context, serviceName string, detailed bool) (*dto.ServiceDiscoveryResponse, error) {
+	services := []dto.ServiceInfo{
+		{
+			Name:    "dev",
+			Version: "1.0.0",
+			Status:  "active",
+		},
+	}
+	
+	if detailed {
+		services[0].Endpoints = []dto.EndpointInfo{
+			{Path: "/esi/status", Method: "GET", Description: "Get EVE Online server status", Permission: "dev.tools.read"},
+			{Path: "/character/{id}", Method: "GET", Description: "Get character information", Permission: "dev.tools.read"},
+			{Path: "/sde/status", Method: "GET", Description: "Get SDE service status", Permission: "dev.tools.read"},
+		}
+		
+		services[0].Health = &dto.HealthInfo{
+			Status: "healthy",
+			Uptime: time.Hour * 24, // Placeholder
+		}
+	}
+	
+	response := &dto.ServiceDiscoveryResponse{
+		Services:  services,
+		Count:     len(services),
+		Timestamp: time.Now(),
+	}
+	
+	return response, nil
+}
+
+// GetUniverseSystems retrieves universe systems
+func (s *Service) GetUniverseSystems(ctx context.Context, req *dto.UniverseRequest) (*dto.UniverseSystemsResponse, error) {
+	startTime := time.Now()
+	
+	// Mock response for now
+	systems := []string{"System A", "System B", "System C"}
+	
+	responseTime := time.Since(startTime)
+	
+	response := &dto.UniverseSystemsResponse{
+		DevResponse: dto.DevResponse{
+			Source:         "Static Data Export",
+			Endpoint:       fmt.Sprintf("/universe/%s/%s/systems", req.Type, req.Region),
+			ResponseTimeMS: responseTime.Milliseconds(),
+			Status:         "success",
+			Module:         "dev",
+			Timestamp:      time.Now(),
+		},
+		Type:          req.Type,
+		Region:        req.Region,
+		Constellation: req.Constellation,
+		Systems:       systems,
+		Count:         len(systems),
+	}
+	
+	return response, nil
+}
+
+// GetRedisSDEEntity retrieves SDE entity from Redis
+func (s *Service) GetRedisSDEEntity(ctx context.Context, req *dto.RedisSDERequest) (*dto.SDEEntityResponse, error) {
+	startTime := time.Now()
+	
+	// Mock response for now
+	entityData := map[string]interface{}{
+		"type": req.Type,
+		"id":   req.ID,
+		"name": fmt.Sprintf("Redis SDE Entity %s", req.ID),
+		"data": "redis_sample_data",
+	}
+	
+	responseTime := time.Since(startTime)
+	
+	response := &dto.SDEEntityResponse{
+		DevResponse: dto.DevResponse{
+			Source:         "Redis SDE",
+			Endpoint:       fmt.Sprintf("/sde/redis/%s/%s", req.Type, req.ID),
+			ResponseTimeMS: responseTime.Milliseconds(),
+			Status:         "success",
+			Module:         "dev",
+			Timestamp:      time.Now(),
+		},
+		EntityType: req.Type,
+		EntityID:   req.ID,
+		EntityData: entityData,
+	}
+	
+	return response, nil
+}

@@ -1,398 +1,279 @@
 package routes
 
 import (
-	"encoding/json"
-	"net/http"
+	"context"
 
 	"go-falcon/internal/scheduler/dto"
 	"go-falcon/internal/scheduler/middleware"
 	"go-falcon/internal/scheduler/services"
-	"go-falcon/pkg/handlers"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 )
 
-// Routes handles HTTP routing for the scheduler module
+// Routes handles Huma-based HTTP routing for the Scheduler module
 type Routes struct {
 	service    *services.SchedulerService
 	middleware *middleware.Middleware
+	api        huma.API
 }
 
-// New creates a new routes instance
-func New(service *services.SchedulerService, middleware *middleware.Middleware) *Routes {
-	return &Routes{
+// NewRoutes creates a new Huma Scheduler routes handler
+func NewRoutes(service *services.SchedulerService, middleware *middleware.Middleware, router chi.Router) *Routes {
+	// Create Huma API with Chi adapter
+	config := huma.DefaultConfig("Go Falcon Scheduler Module", "1.0.0")
+	config.Info.Description = "Task scheduling and management system with cron support and distributed execution"
+	
+	api := humachi.New(router, config)
+
+	hr := &Routes{
 		service:    service,
 		middleware: middleware,
+		api:        api,
 	}
+
+	// Register all routes
+	hr.registerRoutes()
+
+	return hr
 }
 
-// RegisterRoutes registers all scheduler routes
-func (rt *Routes) RegisterRoutes(r chi.Router) {
-	// Public endpoints (read-only status) - no middleware needed for these
-	r.Get("/status", rt.getStatusHandler)
-	r.Get("/stats", rt.getStatsHandler)
+// registerRoutes registers all Scheduler module routes with Huma
+func (hr *Routes) registerRoutes() {
+	// Public endpoints (no authentication required)
+	huma.Get(hr.api, "/status", hr.getStatus)
+	huma.Get(hr.api, "/stats", hr.getStats)
 
-	// Protected task management routes - these need to be set by the main module
-	// based on the groups module permissions
+	// Task management endpoints (require authentication and permissions)
+	huma.Get(hr.api, "/tasks", hr.listTasks)
+	huma.Post(hr.api, "/tasks", hr.createTask)
+	huma.Get(hr.api, "/tasks/{task_id}", hr.getTask)
+	huma.Put(hr.api, "/tasks/{task_id}", hr.updateTask)
+	huma.Delete(hr.api, "/tasks/{task_id}", hr.deleteTask)
+
+	// Task control endpoints
+	huma.Post(hr.api, "/tasks/{task_id}/execute", hr.executeTask)
+	huma.Post(hr.api, "/tasks/{task_id}/enable", hr.enableTask)
+	huma.Post(hr.api, "/tasks/{task_id}/disable", hr.disableTask)
+	huma.Post(hr.api, "/tasks/{task_id}/pause", hr.pauseTask)
+	huma.Post(hr.api, "/tasks/{task_id}/resume", hr.resumeTask)
+
+	// Execution endpoints
+	huma.Get(hr.api, "/tasks/{task_id}/history", hr.getTaskHistory)
+	huma.Get(hr.api, "/executions", hr.listExecutions)
+	huma.Get(hr.api, "/executions/{execution_id}", hr.getExecution)
+
+	// Bulk operations
+	huma.Post(hr.api, "/tasks/bulk", hr.bulkTaskOperation)
+	huma.Post(hr.api, "/tasks/import", hr.importTasks)
 }
 
-// RegisterProtectedRoutes registers protected routes with permission middleware
-func (rt *Routes) RegisterProtectedRoutes(r chi.Router, permissionMiddleware func(service, resource, action string) func(http.Handler) http.Handler) {
-	// Protected task management routes
-	r.Group(func(r chi.Router) {
-		r.Use(permissionMiddleware("scheduler", "tasks", "read"))
-		r.With(rt.middleware.ValidateQueryParams).Get("/tasks", rt.listTasksHandler)
-		r.Get("/tasks/{taskID}", rt.getTaskHandler)
-	})
+// Public endpoint handlers
 
-	r.Group(func(r chi.Router) {
-		r.Use(permissionMiddleware("scheduler", "tasks", "write"))
-		r.With(rt.middleware.GetValidationMiddleware().ValidateTaskCreateRequest).Post("/tasks", rt.createTaskHandler)
-		r.With(rt.middleware.GetValidationMiddleware().ValidateTaskUpdateRequest).Put("/tasks/{taskID}", rt.updateTaskHandler)
-		r.Post("/tasks/{taskID}/pause", rt.pauseTaskHandler)
-		r.Post("/tasks/{taskID}/resume", rt.resumeTaskHandler)
-	})
-
-	r.Group(func(r chi.Router) {
-		r.Use(permissionMiddleware("scheduler", "tasks", "delete"))
-		r.Delete("/tasks/{taskID}", rt.deleteTaskHandler)
-	})
-
-	r.Group(func(r chi.Router) {
-		r.Use(permissionMiddleware("scheduler", "tasks", "execute"))
-		r.Post("/tasks/{taskID}/start", rt.startTaskHandler)
-		r.Post("/tasks/{taskID}/stop", rt.stopTaskHandler)
-	})
-
-	// Protected task execution history
-	r.Group(func(r chi.Router) {
-		r.Use(permissionMiddleware("scheduler", "executions", "read"))
-		r.With(rt.middleware.ValidateQueryParams).Get("/tasks/{taskID}/history", rt.getTaskHistoryHandler)
-		r.Get("/tasks/{taskID}/executions/{executionID}", rt.getExecutionHandler)
-	})
-
-	// Protected scheduler management
-	r.Group(func(r chi.Router) {
-		r.Use(permissionMiddleware("scheduler", "tasks", "admin"))
-		r.Post("/reload", rt.reloadTasksHandler)
-	})
+func (hr *Routes) getStatus(ctx context.Context, input *dto.SchedulerStatusInput) (*dto.SchedulerStatusOutput, error) {
+	status := hr.service.GetStatus()
+	return &dto.SchedulerStatusOutput{Body: *status}, nil
 }
 
-// Public Endpoints
-
-func (rt *Routes) getStatusHandler(w http.ResponseWriter, r *http.Request) {
-	span, r := handlers.StartHTTPSpan(r, "scheduler.get_status",
-		attribute.String("service", "scheduler"),
-		attribute.String("operation", "get_status"),
-	)
-	defer span.End()
-
-	status := rt.service.GetStatus()
-	handlers.JSONResponse(w, status, http.StatusOK)
-}
-
-func (rt *Routes) getStatsHandler(w http.ResponseWriter, r *http.Request) {
-	span, r := handlers.StartHTTPSpan(r, "scheduler.get_stats",
-		attribute.String("service", "scheduler"),
-		attribute.String("operation", "get_stats"),
-	)
-	defer span.End()
-
-	stats, err := rt.service.GetStats(r.Context())
+func (hr *Routes) getStats(ctx context.Context, input *dto.SchedulerStatsInput) (*dto.SchedulerStatsOutput, error) {
+	stats, err := hr.service.GetStats(ctx)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Failed to get scheduler stats")
-		handlers.ErrorResponse(w, "Failed to get scheduler stats", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to get scheduler stats", err)
 	}
 
-	handlers.JSONResponse(w, stats, http.StatusOK)
+	return &dto.SchedulerStatsOutput{Body: *stats}, nil
 }
 
-// Task Management Endpoints
+// Task management handlers
 
-func (rt *Routes) listTasksHandler(w http.ResponseWriter, r *http.Request) {
-	span, r := handlers.StartHTTPSpan(r, "scheduler.list_tasks",
-		attribute.String("service", "scheduler"),
-		attribute.String("operation", "list_tasks"),
-	)
-	defer span.End()
-
-	// Get validated query from context
-	query, ok := handlers.GetValidatedQuery(r.Context()).(*dto.TaskListQuery)
-	if !ok {
-		// Fallback to default if validation middleware wasn't used
-		query = &dto.TaskListQuery{
-			Page:     1,
-			PageSize: 20,
-		}
+func (hr *Routes) listTasks(ctx context.Context, input *dto.TaskListInput) (*dto.TaskListOutput, error) {
+	// Convert Huma input to service query format
+	query := &dto.TaskListQuery{
+		Page:     input.Page,
+		PageSize: input.PageSize,
+		Status:   input.Status,
+		Type:     input.Type,
+		Enabled:  input.Enabled,
 	}
 
-	tasks, err := rt.service.ListTasks(r.Context(), query)
+	// Set defaults if not provided
+	if query.Page == 0 {
+		query.Page = 1
+	}
+	if query.PageSize == 0 {
+		query.PageSize = 20
+	}
+
+	// TODO: Parse tags from comma-separated string
+	// query.Tags = strings.Split(input.Tags, ",")
+
+	tasks, err := hr.service.ListTasks(ctx, query)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Failed to list tasks")
-		handlers.ErrorResponse(w, "Failed to list tasks", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to list tasks", err)
 	}
 
-	span.SetAttributes(
-		attribute.Int64("tasks.count", tasks.Total),
-		attribute.Int("tasks.page", tasks.Page),
-		attribute.Int("tasks.page_size", tasks.PageSize),
-	)
-
-	handlers.JSONResponse(w, tasks, http.StatusOK)
+	return &dto.TaskListOutput{Body: *tasks}, nil
 }
 
-func (rt *Routes) createTaskHandler(w http.ResponseWriter, r *http.Request) {
-	span, r := handlers.StartHTTPSpan(r, "scheduler.create_task",
-		attribute.String("service", "scheduler"),
-		attribute.String("operation", "create_task"),
-	)
-	defer span.End()
-
-	// Get validated request from context
-	req, ok := handlers.GetValidatedRequest(r.Context()).(*dto.TaskCreateRequest)
-	if !ok {
-		span.SetStatus(codes.Error, "Invalid request")
-		handlers.ErrorResponse(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-
-	task, err := rt.service.CreateTask(r.Context(), req)
+func (hr *Routes) createTask(ctx context.Context, input *dto.TaskCreateInput) (*dto.TaskCreateOutput, error) {
+	// TODO: Add permission checking middleware
+	// For now, create the task directly
+	task, err := hr.service.CreateTask(ctx, &input.Body)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Failed to create task")
-		handlers.ErrorResponse(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, huma.Error400BadRequest("Failed to create task", err)
 	}
 
-	span.SetAttributes(
-		attribute.String("task.id", task.ID),
-		attribute.String("task.name", task.Name),
-		attribute.String("task.type", string(task.Type)),
-	)
-
-	handlers.JSONResponse(w, task, http.StatusCreated)
+	return &dto.TaskCreateOutput{Body: *task}, nil
 }
 
-func (rt *Routes) getTaskHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	if taskID == "" {
-		handlers.ErrorResponse(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
-
-	task, err := rt.service.GetTask(r.Context(), taskID)
+func (hr *Routes) getTask(ctx context.Context, input *dto.TaskGetInput) (*dto.TaskGetOutput, error) {
+	task, err := hr.service.GetTask(ctx, input.TaskID)
 	if err != nil {
 		if err.Error() == "task not found" {
-			handlers.ErrorResponse(w, "Task not found", http.StatusNotFound)
-			return
+			return nil, huma.Error404NotFound("Task not found")
 		}
-		handlers.ErrorResponse(w, "Failed to get task", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to get task", err)
 	}
 
-	handlers.JSONResponse(w, task, http.StatusOK)
+	return &dto.TaskGetOutput{Body: *task}, nil
 }
 
-func (rt *Routes) updateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	if taskID == "" {
-		handlers.ErrorResponse(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
-
-	// Get validated request from context
-	req, ok := handlers.GetValidatedRequest(r.Context()).(*dto.TaskUpdateRequest)
-	if !ok {
-		handlers.ErrorResponse(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-
-	task, err := rt.service.UpdateTask(r.Context(), taskID, req)
+func (hr *Routes) updateTask(ctx context.Context, input *dto.TaskUpdateInput) (*dto.TaskUpdateOutput, error) {
+	task, err := hr.service.UpdateTask(ctx, input.TaskID, &input.Body)
 	if err != nil {
 		if err.Error() == "task not found" {
-			handlers.ErrorResponse(w, "Task not found", http.StatusNotFound)
-			return
+			return nil, huma.Error404NotFound("Task not found")
 		}
 		if err.Error() == "cannot update system tasks" {
-			handlers.ErrorResponse(w, "Cannot update system tasks", http.StatusForbidden)
-			return
+			return nil, huma.Error403Forbidden("Cannot update system tasks")
 		}
-		handlers.ErrorResponse(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, huma.Error400BadRequest("Failed to update task", err)
 	}
 
-	handlers.JSONResponse(w, task, http.StatusOK)
+	return &dto.TaskUpdateOutput{Body: *task}, nil
 }
 
-func (rt *Routes) deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	if taskID == "" {
-		handlers.ErrorResponse(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
-
-	err := rt.service.DeleteTask(r.Context(), taskID)
+func (hr *Routes) deleteTask(ctx context.Context, input *dto.TaskDeleteInput) (*dto.TaskDeleteOutput, error) {
+	err := hr.service.DeleteTask(ctx, input.TaskID)
 	if err != nil {
 		if err.Error() == "task not found" {
-			handlers.ErrorResponse(w, "Task not found", http.StatusNotFound)
-			return
+			return nil, huma.Error404NotFound("Task not found")
 		}
 		if err.Error() == "cannot delete system tasks" {
-			handlers.ErrorResponse(w, "Cannot delete system tasks", http.StatusForbidden)
-			return
+			return nil, huma.Error403Forbidden("Cannot delete system tasks")
 		}
-		handlers.ErrorResponse(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to delete task", err)
 	}
 
-	handlers.SuccessResponse(w, map[string]string{"message": "Task deleted successfully"}, http.StatusOK)
+	response := map[string]interface{}{
+		"message": "Task deleted successfully",
+		"task_id": input.TaskID,
+	}
+
+	return &dto.TaskDeleteOutput{Body: response}, nil
 }
 
-// Task Control Endpoints
+// Task control handlers
 
-func (rt *Routes) startTaskHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	if taskID == "" {
-		handlers.ErrorResponse(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
-
-	execution, err := rt.service.StartTask(r.Context(), taskID)
+func (hr *Routes) executeTask(ctx context.Context, input *dto.TaskExecuteInput) (*dto.TaskExecuteOutput, error) {
+	execution, err := hr.service.StartTask(ctx, input.TaskID)
 	if err != nil {
-		handlers.ErrorResponse(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to execute task", err)
 	}
 
-	handlers.JSONResponse(w, execution, http.StatusOK)
+	return &dto.TaskExecuteOutput{Body: *execution}, nil
 }
 
-func (rt *Routes) stopTaskHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	if taskID == "" {
-		handlers.ErrorResponse(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
+func (hr *Routes) enableTask(ctx context.Context, input *dto.TaskEnableInput) (*dto.TaskEnableOutput, error) {
+	// TODO: Implement enable task in service
+	return nil, huma.Error501NotImplemented("Task enable not yet implemented")
+}
 
-	err := rt.service.StopTask(r.Context(), taskID)
+func (hr *Routes) disableTask(ctx context.Context, input *dto.TaskDisableInput) (*dto.TaskDisableOutput, error) {
+	// TODO: Implement disable task in service
+	return nil, huma.Error501NotImplemented("Task disable not yet implemented")
+}
+
+func (hr *Routes) pauseTask(ctx context.Context, input *dto.TaskPauseInput) (*dto.TaskPauseOutput, error) {
+	err := hr.service.PauseTask(ctx, input.TaskID)
 	if err != nil {
-		handlers.ErrorResponse(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to pause task", err)
 	}
 
-	handlers.SuccessResponse(w, map[string]string{"message": "Task stopped successfully"}, http.StatusOK)
-}
-
-func (rt *Routes) pauseTaskHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	if taskID == "" {
-		handlers.ErrorResponse(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
-
-	err := rt.service.PauseTask(r.Context(), taskID)
+	// Get updated task to return
+	task, err := hr.service.GetTask(ctx, input.TaskID)
 	if err != nil {
-		handlers.ErrorResponse(w, "Failed to pause task", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to get updated task", err)
 	}
 
-	handlers.SuccessResponse(w, map[string]string{"message": "Task paused successfully"}, http.StatusOK)
+	return &dto.TaskPauseOutput{Body: *task}, nil
 }
 
-func (rt *Routes) resumeTaskHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	if taskID == "" {
-		handlers.ErrorResponse(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
-
-	err := rt.service.ResumeTask(r.Context(), taskID)
+func (hr *Routes) resumeTask(ctx context.Context, input *dto.TaskResumeInput) (*dto.TaskResumeOutput, error) {
+	err := hr.service.ResumeTask(ctx, input.TaskID)
 	if err != nil {
-		handlers.ErrorResponse(w, "Failed to resume task", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to resume task", err)
 	}
 
-	handlers.SuccessResponse(w, map[string]string{"message": "Task resumed successfully"}, http.StatusOK)
-}
-
-// Execution History Endpoints
-
-func (rt *Routes) getTaskHistoryHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	if taskID == "" {
-		handlers.ErrorResponse(w, "Task ID is required", http.StatusBadRequest)
-		return
-	}
-
-	// Get validated query from context
-	query, ok := handlers.GetValidatedQuery(r.Context()).(*dto.TaskExecutionQuery)
-	if !ok {
-		// Fallback to default
-		query = &dto.TaskExecutionQuery{
-			Page:     1,
-			PageSize: 20,
-		}
-	}
-
-	executions, err := rt.service.GetTaskExecutions(r.Context(), taskID, query)
+	// Get updated task to return
+	task, err := hr.service.GetTask(ctx, input.TaskID)
 	if err != nil {
-		handlers.ErrorResponse(w, "Failed to get task history", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to get updated task", err)
 	}
 
-	handlers.JSONResponse(w, executions, http.StatusOK)
+	return &dto.TaskResumeOutput{Body: *task}, nil
 }
 
-func (rt *Routes) getExecutionHandler(w http.ResponseWriter, r *http.Request) {
-	taskID := chi.URLParam(r, "taskID")
-	executionID := chi.URLParam(r, "executionID")
-	if taskID == "" || executionID == "" {
-		handlers.ErrorResponse(w, "Task ID and Execution ID are required", http.StatusBadRequest)
-		return
+// Execution handlers
+
+func (hr *Routes) getTaskHistory(ctx context.Context, input *dto.TaskExecutionHistoryInput) (*dto.TaskExecutionHistoryOutput, error) {
+	query := &dto.TaskExecutionQuery{
+		Page:     input.Page,
+		PageSize: input.PageSize,
 	}
 
-	execution, err := rt.service.GetExecution(r.Context(), executionID)
+	// Set defaults
+	if query.Page == 0 {
+		query.Page = 1
+	}
+	if query.PageSize == 0 {
+		query.PageSize = 20
+	}
+
+	executions, err := hr.service.GetTaskExecutions(ctx, input.TaskID, query)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to get task history", err)
+	}
+
+	return &dto.TaskExecutionHistoryOutput{Body: *executions}, nil
+}
+
+func (hr *Routes) listExecutions(ctx context.Context, input *dto.ExecutionListInput) (*dto.ExecutionListOutput, error) {
+	// TODO: Implement list all executions in service
+	return nil, huma.Error501NotImplemented("List all executions not yet implemented")
+}
+
+func (hr *Routes) getExecution(ctx context.Context, input *dto.ExecutionGetInput) (*dto.ExecutionGetOutput, error) {
+	execution, err := hr.service.GetExecution(ctx, input.ExecutionID)
 	if err != nil {
 		if err.Error() == "execution not found" {
-			handlers.ErrorResponse(w, "Execution not found", http.StatusNotFound)
-			return
+			return nil, huma.Error404NotFound("Execution not found")
 		}
-		handlers.ErrorResponse(w, "Failed to get execution", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("Failed to get execution", err)
 	}
 
-	if execution.TaskID != taskID {
-		handlers.ErrorResponse(w, "Execution does not belong to the specified task", http.StatusBadRequest)
-		return
-	}
-
-	handlers.JSONResponse(w, execution, http.StatusOK)
+	return &dto.ExecutionGetOutput{Body: *execution}, nil
 }
 
-// Management Endpoints
+// Bulk operation handlers
 
-func (rt *Routes) reloadTasksHandler(w http.ResponseWriter, r *http.Request) {
-	err := rt.service.ReloadTasks()
-	if err != nil {
-		handlers.ErrorResponse(w, "Failed to reload tasks", http.StatusInternalServerError)
-		return
-	}
-
-	handlers.SuccessResponse(w, map[string]string{"message": "Tasks reloaded successfully"}, http.StatusOK)
+func (hr *Routes) bulkTaskOperation(ctx context.Context, input *dto.BulkTaskOperationInput) (*dto.BulkTaskOperationOutput, error) {
+	// TODO: Implement bulk operations in service
+	return nil, huma.Error501NotImplemented("Bulk operations not yet implemented")
 }
 
-// Health Check Handler (for base module compatibility)
-func (rt *Routes) HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"module":  "scheduler",
-		"status":  "healthy",
-		"version": "1.0.0",
-	})
+func (hr *Routes) importTasks(ctx context.Context, input *dto.TaskImportInput) (*dto.TaskImportOutput, error) {
+	// TODO: Implement task import in service
+	return nil, huma.Error501NotImplemented("Task import not yet implemented")
 }

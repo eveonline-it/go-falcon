@@ -159,24 +159,32 @@ func main() {
 	apiPrefix := config.GetAPIPrefix()
 	log.Printf("🔗 Using API prefix: '%s'", apiPrefix)
 	
+	// Register Huma v2 routes as primary routing system
+	log.Printf("🚀 Registering Huma v2 routes (type-safe APIs with automatic OpenAPI)")
+	
 	// Handle empty prefix case
 	if apiPrefix == "" {
-		r.Route("/auth", authModule.Routes)
+		// Huma v2 routes (now primary)
+		r.Route("/auth", authModule.RegisterHumaRoutes)
 		groupsModule.Routes(r) // Groups routes are mounted at /groups via sub-router
-		r.Route("/dev", devModule.Routes)
-		r.Route("/users", usersModule.Routes)
-		r.Route("/notifications", notificationsModule.Routes)
-		r.Route("/sde", sdeModule.Routes)
-		r.Route("/scheduler", schedulerModule.Routes)
+		r.Route("/dev", devModule.RegisterHumaRoutes)
+		r.Route("/users", usersModule.RegisterHumaRoutes)
+		r.Route("/notifications", notificationsModule.RegisterHumaRoutes)
+		r.Route("/sde", sdeModule.RegisterHumaRoutes)
+		r.Route("/scheduler", schedulerModule.RegisterHumaRoutes)
 	} else {
-		r.Route(apiPrefix+"/auth", authModule.Routes)
+		// Huma v2 routes (now primary)
+		r.Route(apiPrefix+"/auth", authModule.RegisterHumaRoutes)
 		r.Route(apiPrefix, groupsModule.Routes) // Groups routes are mounted at /api/groups via sub-router
-		r.Route(apiPrefix+"/dev", devModule.Routes)
-		r.Route(apiPrefix+"/users", usersModule.Routes)
-		r.Route(apiPrefix+"/notifications", notificationsModule.Routes)
-		r.Route(apiPrefix+"/sde", sdeModule.Routes)
-		r.Route(apiPrefix+"/scheduler", schedulerModule.Routes)
+		r.Route(apiPrefix+"/dev", devModule.RegisterHumaRoutes)
+		r.Route(apiPrefix+"/users", usersModule.RegisterHumaRoutes)
+		r.Route(apiPrefix+"/notifications", notificationsModule.RegisterHumaRoutes)
+		r.Route(apiPrefix+"/sde", sdeModule.RegisterHumaRoutes)
+		r.Route(apiPrefix+"/scheduler", schedulerModule.RegisterHumaRoutes)
 	}
+	
+	log.Printf("✅ Huma v2 routes: /auth, /dev, /users, /notifications, /sde, /scheduler")
+	log.Printf("🔧 Each module provides automatic OpenAPI 3.1.1 specification at /{module}/openapi.json")
 	
 	// Note: evegateway is now a shared package for EVE Online ESI integration
 	// Other services can import and use: evegateway.NewClient().GetServerStatus(ctx)
