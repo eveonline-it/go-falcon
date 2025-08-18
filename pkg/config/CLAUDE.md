@@ -14,6 +14,8 @@ Centralized configuration management using environment variables with sensible d
 - `GetBoolEnv(key, default)`: Get boolean with fallback  
 - `GetIntEnv(key, default)`: Get integer with fallback
 - `MustGetEnv(key)`: Get required variable or panic
+- `GetHumaPort()`: Get HUMA server port (HUMA_PORT)
+- `GetHumaSeparateServer()`: Get separate server flag (HUMA_SEPARATE_SERVER)
 
 ## EVE Online Configuration
 ```go
@@ -32,6 +34,7 @@ GetFrontendURL()       // FRONTEND_URL
 - **EVE Online**: SSO credentials, redirect URIs, scopes
 - **Frontend**: React application URL for redirects
 - **API**: Prefix configuration for versioning
+- **HUMA Server**: Port configuration and server mode selection
 - **Security**: JWT secrets and token management
 
 ## Usage Pattern

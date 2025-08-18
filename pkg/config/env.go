@@ -122,3 +122,13 @@ func GetEnvIntSlice(key string) []int {
 func GetSuperAdminCharacterID() int {
 	return GetIntEnv("SUPER_ADMIN_CHARACTER_ID", 0)
 }
+
+// GetHumaPort returns the HUMA server port from environment
+func GetHumaPort() string {
+	return GetEnv("HUMA_PORT", "")
+}
+
+// GetHumaSeparateServer returns whether to run HUMA on a separate server
+func GetHumaSeparateServer() bool {
+	return GetBoolEnv("HUMA_SEPARATE_SERVER", false)
+}

@@ -197,7 +197,26 @@ func main() {
 
 	// HTTP server setup
 	port := app.GetPort("8080")
+	humaPort := config.GetHumaPort()
+	separateHumaServer := config.GetHumaSeparateServer()
 	
+	// Display HUMA configuration
+	log.Printf("🔧 HUMA Configuration:")
+	log.Printf(" - Separate Server: %v", separateHumaServer)
+	if humaPort != "" {
+		log.Printf(" - HUMA Port: %s", humaPort)
+	} else {
+		log.Printf(" - HUMA Port: Not specified (would default to main port)")
+	}
+	if separateHumaServer && humaPort != "" {
+		log.Printf(" - Mode: Separate server - HUMA APIs on port %s", humaPort)
+	} else if separateHumaServer && humaPort == "" {
+		log.Printf(" - Mode: Separate server DISABLED - HUMA_PORT not set")
+	} else {
+		log.Printf(" - Mode: Integrated - HUMA APIs on main port %s", port)
+	}
+	
+	// Main server
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      r,
@@ -206,11 +225,71 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server
+	// Optional separate HUMA server
+	var humaSrv *http.Server
+	if separateHumaServer && humaPort != "" {
+		// Create separate router for HUMA APIs only
+		humaRouter := chi.NewRouter()
+		humaRouter.Use(customLoggerMiddleware)
+		humaRouter.Use(middleware.Recoverer)
+		humaRouter.Use(middleware.RequestID)
+		humaRouter.Use(middleware.RealIP)
+		humaRouter.Use(middleware.Timeout(60 * time.Second))
+		humaRouter.Use(corsMiddleware)
+
+		// Register HUMA routes on separate server
+		log.Printf("🚀 Starting separate HUMA server on port %s", humaPort)
+		
+		if apiPrefix == "" {
+			humaRouter.Route("/auth", authModule.RegisterHumaRoutes)
+			humaRouter.Route("/dev", devModule.RegisterHumaRoutes)
+			humaRouter.Route("/users", usersModule.RegisterHumaRoutes)
+			humaRouter.Route("/notifications", notificationsModule.RegisterHumaRoutes)
+			humaRouter.Route("/sde", sdeModule.RegisterHumaRoutes)
+			humaRouter.Route("/scheduler", schedulerModule.RegisterHumaRoutes)
+		} else {
+			humaRouter.Route(apiPrefix+"/auth", authModule.RegisterHumaRoutes)
+			humaRouter.Route(apiPrefix+"/dev", devModule.RegisterHumaRoutes)
+			humaRouter.Route(apiPrefix+"/users", usersModule.RegisterHumaRoutes)
+			humaRouter.Route(apiPrefix+"/notifications", notificationsModule.RegisterHumaRoutes)
+			humaRouter.Route(apiPrefix+"/sde", sdeModule.RegisterHumaRoutes)
+			humaRouter.Route(apiPrefix+"/scheduler", schedulerModule.RegisterHumaRoutes)
+		}
+
+		humaSrv = &http.Server{
+			Addr:         ":" + humaPort,
+			Handler:      humaRouter,
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 15 * time.Second,
+			IdleTimeout:  60 * time.Second,
+		}
+
+		// Start separate HUMA server
+		go func() {
+			slog.Info("Starting separate HUMA API server", slog.String("addr", humaSrv.Addr))
+			if err := humaSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				slog.Error("HUMA server failed to start", "error", err)
+				os.Exit(1)
+			}
+		}()
+		
+		log.Printf("✅ HUMA APIs running on separate server: port %s", humaPort)
+		log.Printf("📋 OpenAPI specs: http://localhost:%s/{module}/openapi.json", humaPort)
+		log.Printf("🌐 Example: http://localhost:%s/auth/openapi.json", humaPort)
+	} else {
+		if humaPort != "" && !separateHumaServer {
+			log.Printf("⚠️  HUMA_PORT=%s set but HUMA_SEPARATE_SERVER=false - using integrated mode", humaPort)
+		}
+		log.Printf("✅ HUMA APIs integrated with main server: port %s", port)
+		log.Printf("📋 OpenAPI specs: http://localhost:%s/{module}/openapi.json", port)
+		log.Printf("🌐 Example: http://localhost:%s/auth/openapi.json", port)
+	}
+
+	// Start main server
 	go func() {
-		slog.Info("Starting api gateway server", slog.String("addr", srv.Addr))
+		slog.Info("Starting main API gateway server", slog.String("addr", srv.Addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Server failed to start", "error", err)
+			slog.Error("Main server failed to start", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -226,9 +305,16 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Shutdown HTTP server
+	// Shutdown HTTP servers
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.Error("Server forced to shutdown", "error", err)
+		slog.Error("Main server forced to shutdown", "error", err)
+	}
+	
+	// Shutdown separate HUMA server if running
+	if humaSrv != nil {
+		if err := humaSrv.Shutdown(shutdownCtx); err != nil {
+			slog.Error("HUMA server forced to shutdown", "error", err)
+		}
 	}
 
 	// Stop background services for all modules

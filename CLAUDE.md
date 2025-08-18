@@ -149,6 +149,10 @@ go-falcon/
 API_PREFIX="/api"              # API route prefix (empty for root)
 JWT_SECRET="your-secret-key"   # JWT signing key
 
+# HUMA Server Configuration
+HUMA_PORT="8081"               # Port for separate HUMA API server
+HUMA_SEPARATE_SERVER="true"    # Run HUMA APIs on separate server
+
 # EVE Online Integration
 EVE_CLIENT_ID="your-client-id"
 EVE_CLIENT_SECRET="your-secret"
@@ -169,7 +173,22 @@ Each module in `internal/` is self-contained with:
 - Module-specific middleware
 - Comprehensive documentation (CLAUDE.md)
 
-### 2. Task Scheduling System
+### 2. Flexible HUMA API Server
+
+The application supports two HUMA API deployment modes:
+
+**Integrated Mode (Default)**
+- HUMA APIs run on the same port as the main server
+- Simpler deployment and configuration
+- Single server management
+
+**Separate Server Mode**
+- HUMA APIs run on a dedicated port
+- Independent scaling and monitoring
+- Clear separation of concerns
+- Enable with `HUMA_SEPARATE_SERVER=true` and `HUMA_PORT=8081`
+
+### 3. Task Scheduling System
 
 The scheduler module provides:
 - **Cron Scheduling**: Standard cron expression support
@@ -178,7 +197,7 @@ The scheduler module provides:
 - **Execution History**: Complete audit trail
 - **Worker Pool**: Configurable concurrent execution
 
-### 3. EVE Online SDE Management
+### 4. EVE Online SDE Management
 
 Two-tier SDE (Static Data Export) system:
 - **In-Memory Service** (`pkg/sde`): Ultra-fast data access
@@ -186,7 +205,7 @@ Two-tier SDE (Static Data Export) system:
 - **Automated Updates**: Background processing with progress tracking
 - **Scheduler Integration**: Automatic version checking
 
-### 4. Authentication & Security
+### 5. Authentication & Security
 
 - **EVE Online SSO**: OAuth2 integration
 - **JWT Tokens**: Stateless authentication
@@ -491,12 +510,22 @@ API documentation is automatically generated using **Huma v2's built-in OpenAPI 
 
 ```bash
 # Access live OpenAPI specifications (no generation command needed):
+
+# Integrated Mode (default) - Main server port (8080):
 # - Auth module: http://localhost:8080/auth/openapi.json
 # - Dev module: http://localhost:8080/dev/openapi.json
 # - Users module: http://localhost:8080/users/openapi.json
 # - Scheduler module: http://localhost:8080/scheduler/openapi.json
 # - SDE module: http://localhost:8080/sde/openapi.json
 # - Notifications module: http://localhost:8080/notifications/openapi.json
+
+# Separate Server Mode - HUMA server port (configured via HUMA_PORT):
+# - Auth module: http://localhost:8081/auth/openapi.json
+# - Dev module: http://localhost:8081/dev/openapi.json
+# - Users module: http://localhost:8081/users/openapi.json
+# - Scheduler module: http://localhost:8081/scheduler/openapi.json
+# - SDE module: http://localhost:8081/sde/openapi.json
+# - Notifications module: http://localhost:8081/notifications/openapi.json
 ```
 
 **Key Features:**
