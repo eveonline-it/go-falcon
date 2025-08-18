@@ -10,11 +10,11 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-// HumaAuthContextKey key for storing user info in Huma context
-type HumaAuthContextKey string
+// AuthContextKey key for storing user info in context
+type AuthContextKey string
 
 const (
-	HumaAuthContextKeyUser = HumaAuthContextKey("authenticated_user")
+	AuthContextKeyUser = AuthContextKey("authenticated_user")
 )
 
 // JWTValidator interface for JWT validation
@@ -22,20 +22,20 @@ type JWTValidator interface {
 	ValidateJWT(token string) (*models.AuthenticatedUser, error)
 }
 
-// HumaAuthMiddleware provides authentication utilities for Huma operations
-type HumaAuthMiddleware struct {
+// AuthMiddleware provides authentication utilities for API operations
+type AuthMiddleware struct {
 	jwtValidator JWTValidator
 }
 
-// NewHumaAuthMiddleware creates a new Huma authentication middleware
-func NewHumaAuthMiddleware(validator JWTValidator) *HumaAuthMiddleware {
-	return &HumaAuthMiddleware{
+// NewAuthMiddleware creates a new authentication middleware
+func NewAuthMiddleware(validator JWTValidator) *AuthMiddleware {
+	return &AuthMiddleware{
 		jwtValidator: validator,
 	}
 }
 
 // ValidateAuthFromHeaders validates authentication from request headers
-func (m *HumaAuthMiddleware) ValidateAuthFromHeaders(authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+func (m *AuthMiddleware) ValidateAuthFromHeaders(authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
 	// Try to get token from Authorization header first
 	token := m.ExtractTokenFromHeaders(authHeader)
 	
@@ -57,13 +57,13 @@ func (m *HumaAuthMiddleware) ValidateAuthFromHeaders(authHeader, cookieHeader st
 }
 
 // ValidateOptionalAuthFromHeaders validates optional authentication from request headers
-func (m *HumaAuthMiddleware) ValidateOptionalAuthFromHeaders(authHeader, cookieHeader string) *models.AuthenticatedUser {
+func (m *AuthMiddleware) ValidateOptionalAuthFromHeaders(authHeader, cookieHeader string) *models.AuthenticatedUser {
 	user, _ := m.ValidateAuthFromHeaders(authHeader, cookieHeader)
 	return user
 }
 
 // ValidateScopesFromHeaders validates authentication and required EVE scopes
-func (m *HumaAuthMiddleware) ValidateScopesFromHeaders(authHeader, cookieHeader string, requiredScopes ...string) (*models.AuthenticatedUser, error) {
+func (m *AuthMiddleware) ValidateScopesFromHeaders(authHeader, cookieHeader string, requiredScopes ...string) (*models.AuthenticatedUser, error) {
 	user, err := m.ValidateAuthFromHeaders(authHeader, cookieHeader)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (m *HumaAuthMiddleware) ValidateScopesFromHeaders(authHeader, cookieHeader 
 
 
 // ExtractTokenFromHeaders extracts JWT token from Authorization header string
-func (m *HumaAuthMiddleware) ExtractTokenFromHeaders(authHeader string) string {
+func (m *AuthMiddleware) ExtractTokenFromHeaders(authHeader string) string {
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		return strings.TrimPrefix(authHeader, "Bearer ")
 	}
@@ -87,7 +87,7 @@ func (m *HumaAuthMiddleware) ExtractTokenFromHeaders(authHeader string) string {
 }
 
 // ExtractTokenFromCookie extracts JWT token from cookie header string
-func (m *HumaAuthMiddleware) ExtractTokenFromCookie(cookieHeader string) string {
+func (m *AuthMiddleware) ExtractTokenFromCookie(cookieHeader string) string {
 	// Parse cookie header to find falcon_auth_token
 	cookies := strings.Split(cookieHeader, ";")
 	for _, cookie := range cookies {
@@ -100,7 +100,7 @@ func (m *HumaAuthMiddleware) ExtractTokenFromCookie(cookieHeader string) string 
 }
 
 // ValidateToken validates a JWT token string and returns the authenticated user
-func (m *HumaAuthMiddleware) ValidateToken(token string) (*models.AuthenticatedUser, error) {
+func (m *AuthMiddleware) ValidateToken(token string) (*models.AuthenticatedUser, error) {
 	if token == "" {
 		return nil, &AuthError{message: "no authentication token provided"}
 	}
@@ -114,9 +114,9 @@ func (m *HumaAuthMiddleware) ValidateToken(token string) (*models.AuthenticatedU
 	return user, nil
 }
 
-// GetHumaAuthenticatedUser retrieves authenticated user from standard context
-func GetHumaAuthenticatedUser(ctx context.Context) *models.AuthenticatedUser {
-	if user, ok := ctx.Value(HumaAuthContextKeyUser).(*models.AuthenticatedUser); ok {
+// GetAuthenticatedUser retrieves authenticated user from standard context
+func GetAuthenticatedUser(ctx context.Context) *models.AuthenticatedUser {
+	if user, ok := ctx.Value(AuthContextKeyUser).(*models.AuthenticatedUser); ok {
 		return user
 	}
 	return nil
