@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"log"
 	"log/slog"
 
 	"go-falcon/internal/auth"
@@ -12,6 +13,7 @@ import (
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/sde"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -48,6 +50,12 @@ func (m *Module) RegisterHumaRoutes(r chi.Router) {
 	if m.routes == nil {
 		m.routes = routes.NewRoutes(m.service, r)
 	}
+}
+
+// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// TODO: Implement unified routes for users module
+	log.Printf("Users module unified routes registration not yet implemented")
 }
 
 // StartBackgroundTasks starts any background processes for the module

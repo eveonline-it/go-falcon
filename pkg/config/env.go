@@ -132,3 +132,13 @@ func GetHumaPort() string {
 func GetHumaSeparateServer() bool {
 	return GetBoolEnv("HUMA_SEPARATE_SERVER", false)
 }
+
+// GetHost returns the host interface to bind to (default: all interfaces)
+func GetHost() string {
+	return GetEnv("HOST", "0.0.0.0")
+}
+
+// GetHumaHost returns the HUMA server host interface to bind to
+func GetHumaHost() string {
+	return GetEnv("HUMA_HOST", GetHost())
+}

@@ -16,6 +16,8 @@ Centralized configuration management using environment variables with sensible d
 - `MustGetEnv(key)`: Get required variable or panic
 - `GetHumaPort()`: Get HUMA server port (HUMA_PORT)
 - `GetHumaSeparateServer()`: Get separate server flag (HUMA_SEPARATE_SERVER)
+- `GetHost()`: Get main server host interface (HOST, default: 0.0.0.0)
+- `GetHumaHost()`: Get HUMA server host interface (HUMA_HOST, defaults to HOST)
 
 ## EVE Online Configuration
 ```go

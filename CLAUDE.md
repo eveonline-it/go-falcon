@@ -145,13 +145,18 @@ go-falcon/
 ### Key Environment Variables
 
 ```bash
+# Server Configuration
+HOST="0.0.0.0"                 # Host interface to bind to (all interfaces)
+PORT="8080"                    # Main server port
+
 # API Configuration
 API_PREFIX="/api"              # API route prefix (empty for root)
 JWT_SECRET="your-secret-key"   # JWT signing key
 
-# HUMA Server Configuration
-HUMA_PORT="8081"               # Port for separate HUMA API server
-HUMA_SEPARATE_SERVER="true"    # Run HUMA APIs on separate server
+# HUMA Server Configuration (Future Feature)
+# HUMA_PORT="8081"               # Reserved for future separate HUMA server
+# HUMA_HOST="0.0.0.0"            # Reserved for future separate HUMA server  
+# HUMA_SEPARATE_SERVER="false"   # Currently disabled - will be reimplemented
 
 # EVE Online Integration
 EVE_CLIENT_ID="your-client-id"
@@ -173,20 +178,26 @@ Each module in `internal/` is self-contained with:
 - Module-specific middleware
 - Comprehensive documentation (CLAUDE.md)
 
-### 2. Flexible HUMA API Server
+### 2. Unified OpenAPI Architecture
 
-The application supports two HUMA API deployment modes:
+Modern API gateway with unified OpenAPI 3.1.1 specification:
 
-**Integrated Mode (Default)**
-- HUMA APIs run on the same port as the main server
-- Simpler deployment and configuration
-- Single server management
+**Single API Specification**
+- All modules documented in one comprehensive OpenAPI spec
+- Unified schema registry with shared types across modules
+- Environment-aware server configuration
+- Modern API standards compliance
 
-**Separate Server Mode**
-- HUMA APIs run on a dedicated port
-- Independent scaling and monitoring
-- Clear separation of concerns
-- Enable with `HUMA_SEPARATE_SERVER=true` and `HUMA_PORT=8081`
+**Flexible API Prefix Support**
+- Configure API versioning via `API_PREFIX` environment variable
+- Supports deployment patterns: `/api`, `/v1`, `/v2`, etc.
+- OpenAPI servers field automatically configured for different environments
+- Backward compatible with existing deployment strategies
+
+**Future: Separate Server Mode**
+- HUMA separate server mode currently disabled during architectural refactor
+- Will be reimplemented with unified OpenAPI support
+- For now, all APIs served from main server with unified specification
 
 ### 3. Task Scheduling System
 
@@ -504,37 +515,37 @@ Control the API prefix via `API_PREFIX` environment variable:
 - `API_PREFIX="/api"` → `/api/auth/health`
 - `API_PREFIX="/v1"` → `/v1/auth/health`
 
-### API Documentation Generation with Huma v2
+### Unified OpenAPI 3.1.1 Specification
 
-API documentation is automatically generated using **Huma v2's built-in OpenAPI generation**:
+The API gateway now provides a **single, comprehensive OpenAPI specification** that documents all modules in one unified specification:
 
 ```bash
-# Access live OpenAPI specifications (no generation command needed):
+# Unified OpenAPI specification (replaces per-module specs):
 
-# Integrated Mode (default) - Main server port (8080):
-# - Auth module: http://localhost:8080/auth/openapi.json
-# - Dev module: http://localhost:8080/dev/openapi.json
-# - Users module: http://localhost:8080/users/openapi.json
-# - Scheduler module: http://localhost:8080/scheduler/openapi.json
-# - SDE module: http://localhost:8080/sde/openapi.json
-# - Notifications module: http://localhost:8080/notifications/openapi.json
+# No API prefix (default):
+# Single spec: http://localhost:3000/openapi.json
 
-# Separate Server Mode - HUMA server port (configured via HUMA_PORT):
-# - Auth module: http://localhost:8081/auth/openapi.json
-# - Dev module: http://localhost:8081/dev/openapi.json
-# - Users module: http://localhost:8081/users/openapi.json
-# - Scheduler module: http://localhost:8081/scheduler/openapi.json
-# - SDE module: http://localhost:8081/sde/openapi.json
-# - Notifications module: http://localhost:8081/notifications/openapi.json
+# With API prefix (/api):  
+# Single spec: http://localhost:3000/api/openapi.json
+
+# All modules documented in one place:
+# - Auth Module: /auth/* endpoints
+# - Dev Module: /dev/* endpoints  
+# - Users Module: /users/* endpoints
+# - Scheduler Module: /scheduler/* endpoints
+# - SDE Module: /sde/* endpoints
+# - Notifications Module: /notifications/* endpoints
 ```
 
-**Key Features:**
-- **Automatic Schema Generation**: Real-time OpenAPI 3.1.1 generation from Huma route definitions
-- **Validation Rules**: Huma validation tags automatically converted to OpenAPI constraints
+**Modern API Features:**
+- **Single OpenAPI 3.1.1 Specification**: All modules documented together
+- **Unified Schema Registry**: Shared schemas across all modules
+- **Environment-aware Servers**: Multiple server URLs for different environments
 - **Type-Safe Operations**: Complete type safety with compile-time validation
-- **Real Request Bodies**: Accurate JSON schemas with proper field types and validation
+- **Real Request/Response Bodies**: Accurate JSON schemas with proper field types
 - **Postman Compatible**: Generated specs can be imported directly into Postman
-- **Live Documentation**: Specifications update automatically with code changes
+- **Live Documentation**: Specification updates automatically with code changes
+- **Modern API Standards**: Follows OpenAPI 3.1.1 best practices
 
 **Important**: OpenAPI specifications are generated in real-time and automatically reflect the current `API_PREFIX` configuration.
 

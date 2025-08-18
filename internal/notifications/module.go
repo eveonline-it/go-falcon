@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"log/slog"
+	"log"
 	"time"
 
 	"go-falcon/internal/auth"
@@ -14,6 +15,7 @@ import (
 	"go-falcon/pkg/sde"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // Module represents the notifications module
@@ -126,4 +128,9 @@ func (m *Module) SendSystemNotification(ctx context.Context, title, message stri
 func (m *Module) SendAlertNotification(ctx context.Context, title, message string, recipients []int, priority string) error {
 	_, err := m.service.SendAlertNotification(ctx, title, message, recipients, priority)
 	return err
+}
+// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// TODO: Implement unified routes for notifications module
+	log.Printf("Notifications module unified routes registration not yet implemented")
 }

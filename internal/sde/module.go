@@ -3,6 +3,7 @@ package sde
 import (
 	"context"
 	"log/slog"
+	"log"
 
 	"go-falcon/internal/sde/routes"
 	"go-falcon/internal/sde/services"
@@ -11,6 +12,7 @@ import (
 	"go-falcon/pkg/sde"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // Module represents the SDE module
@@ -86,4 +88,9 @@ func (m *Module) CheckSDEUpdate(ctx context.Context) error {
 	// The actual SDE update checking would go here
 	slog.Info("SDE update check requested")
 	return nil
+}
+// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// TODO: Implement unified routes for sde module
+	log.Printf("Sde module unified routes registration not yet implemented")
 }

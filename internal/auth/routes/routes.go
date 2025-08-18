@@ -46,6 +46,229 @@ func NewRoutes(authService *services.AuthService, middleware *middleware.Middlew
 	return hr
 }
 
+// RegisterAuthRoutes registers auth routes on a shared Huma API
+func RegisterAuthRoutes(api huma.API, basePath string, authService *services.AuthService, middleware *middleware.Middleware) {
+	// Create Huma authentication middleware using the auth service as JWT validator
+	humaAuth := humaMiddleware.NewHumaAuthMiddleware(authService)
+
+	// EVE Online SSO endpoints (public)
+	huma.Get(api, basePath+"/eve/login", func(ctx context.Context, input *dto.EVELoginInput) (*dto.EVELoginOutput, error) {
+		// Extract user ID from context if authenticated
+		userID := ""
+		
+		// Generate login URL without scopes (basic login)
+		loginResp, err := authService.InitiateEVELogin(ctx, false, userID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to initiate login", err)
+		}
+
+		return &dto.EVELoginOutput{Body: *loginResp}, nil
+	})
+	
+	huma.Get(api, basePath+"/eve/register", func(ctx context.Context, input *dto.EVERegisterInput) (*dto.EVERegisterOutput, error) {
+		// Extract user ID from context if authenticated
+		userID := ""
+		
+		// Generate login URL with full scopes (registration)
+		loginResp, err := authService.InitiateEVELogin(ctx, true, userID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to initiate registration", err)
+		}
+
+		return &dto.EVERegisterOutput{Body: *loginResp}, nil
+	})
+
+	huma.Get(api, basePath+"/eve/callback", func(ctx context.Context, input *dto.EVECallbackInput) (*dto.EVECallbackOutput, error) {
+		// Handle the OAuth callback
+		jwtToken, userInfo, err := authService.HandleEVECallback(ctx, input.Code, input.State)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Authentication failed", err)
+		}
+
+		// Create response with authentication cookie
+		response := map[string]interface{}{
+			"success": true,
+			"user":    userInfo,
+			"message": "Authentication successful",
+		}
+
+		// Set authentication cookie using Huma header response
+		cookieHeader := humaMiddleware.CreateAuthCookieHeader(jwtToken)
+		
+		// TODO: Add proper redirect URL from frontend configuration
+		redirectURL := "https://react.eveonline.it"
+
+		return &dto.EVECallbackOutput{
+			SetCookie: cookieHeader,
+			Location:  redirectURL,
+			Body:      response,
+		}, nil
+	})
+
+	huma.Post(api, basePath+"/eve/token", func(ctx context.Context, input *dto.EVETokenExchangeInput) (*dto.EVETokenExchangeOutput, error) {
+		// Exchange EVE token for JWT
+		tokenResp, err := authService.ExchangeEVEToken(ctx, &input.Body)
+		if err != nil {
+			return nil, huma.Error401Unauthorized("Token exchange failed", err)
+		}
+
+		return &dto.EVETokenExchangeOutput{Body: *tokenResp}, nil
+	})
+
+	huma.Post(api, basePath+"/eve/refresh", func(ctx context.Context, input *dto.RefreshTokenInput) (*dto.RefreshTokenOutput, error) {
+		// TODO: Implement token refresh
+		return nil, huma.Error501NotImplemented("Token refresh not yet implemented")
+	})
+
+	huma.Get(api, basePath+"/eve/verify", func(ctx context.Context, input *dto.VerifyTokenInput) (*dto.VerifyTokenOutput, error) {
+		// TODO: Implement token verification
+		return nil, huma.Error501NotImplemented("Token verification not yet implemented")
+	})
+
+	// Authentication status and user info (public with optional auth)
+	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.AuthStatusInput) (*dto.AuthStatusOutput, error) {
+		// TODO: Extract HTTP request from context for cookie checking
+		// For now, create a minimal request object
+		req := &http.Request{}
+		
+		statusResp, err := authService.GetAuthStatus(ctx, req)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to check auth status", err)
+		}
+
+		return &dto.AuthStatusOutput{Body: *statusResp}, nil
+	})
+
+	huma.Get(api, basePath+"/user", func(ctx context.Context, input *dto.UserInfoInput) (*dto.UserInfoOutput, error) {
+		// TODO: Extract HTTP request from context
+		req := &http.Request{}
+		
+		userInfo, err := authService.GetCurrentUser(ctx, req)
+		if err != nil {
+			return nil, huma.Error401Unauthorized("User not authenticated", err)
+		}
+
+		return &dto.UserInfoOutput{Body: *userInfo}, nil
+	})
+
+	// Profile endpoints (require authentication)
+	huma.Get(api, basePath+"/profile", func(ctx context.Context, input *dto.ProfileInput) (*dto.ProfileOutput, error) {
+		// Validate authentication using Huma auth middleware
+		user, err := humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err // Returns proper Huma error response
+		}
+
+		// Get user profile using authenticated character ID
+		profile, err := authService.GetUserProfile(ctx, user.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get user profile", err)
+		}
+
+		// Convert to DTO response
+		response := &dto.ProfileResponse{
+			UserID:            profile.UserID,
+			CharacterID:       profile.CharacterID,
+			CharacterName:     profile.CharacterName,
+			CorporationID:     profile.CorporationID,
+			CorporationName:   profile.CorporationName,
+			AllianceID:        profile.AllianceID,
+			AllianceName:      profile.AllianceName,
+			SecurityStatus:    profile.SecurityStatus,
+			Birthday:          profile.Birthday,
+			Scopes:            profile.Scopes,
+			LastLogin:         profile.LastLogin,
+		}
+
+		return &dto.ProfileOutput{Body: *response}, nil
+	})
+
+	huma.Post(api, basePath+"/profile/refresh", func(ctx context.Context, input *dto.ProfileRefreshInput) (*dto.ProfileRefreshOutput, error) {
+		// Validate authentication using Huma auth middleware
+		user, err := humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err // Returns proper Huma error response
+		}
+
+		// Refresh user profile from EVE Online ESI
+		profile, err := authService.RefreshUserProfile(ctx, user.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to refresh user profile", err)
+		}
+
+		// Convert to DTO response
+		response := &dto.ProfileResponse{
+			UserID:            profile.UserID,
+			CharacterID:       profile.CharacterID,
+			CharacterName:     profile.CharacterName,
+			CorporationID:     profile.CorporationID,
+			CorporationName:   profile.CorporationName,
+			AllianceID:        profile.AllianceID,
+			AllianceName:      profile.AllianceName,
+			SecurityStatus:    profile.SecurityStatus,
+			Birthday:          profile.Birthday,
+			Scopes:            profile.Scopes,
+			LastLogin:         profile.LastLogin,
+		}
+
+		return &dto.ProfileRefreshOutput{Body: *response}, nil
+	})
+
+	huma.Get(api, basePath+"/token", func(ctx context.Context, input *dto.TokenInput) (*dto.TokenOutput, error) {
+		// Validate authentication using Huma auth middleware
+		user, err := humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err // Returns proper Huma error response
+		}
+
+		// Get user profile to obtain user ID for token generation
+		profile, err := authService.GetUserProfile(ctx, user.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get user profile", err)
+		}
+
+		// Generate JWT token for authenticated user
+		tokenResp, err := authService.GetBearerToken(ctx, profile.UserID, user.CharacterID, user.CharacterName, user.Scopes)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to generate token", err)
+		}
+
+		// Convert to DTO response (TokenResponse already has the correct field names)
+		response := &dto.TokenResponse{
+			Token:     tokenResp.Token,
+			ExpiresAt: tokenResp.ExpiresAt,
+		}
+
+		return &dto.TokenOutput{Body: *response}, nil
+	})
+
+	// Public endpoints
+	huma.Get(api, basePath+"/profile/public", func(ctx context.Context, input *dto.PublicProfileInput) (*dto.PublicProfileOutput, error) {
+		profile, err := authService.GetPublicProfile(ctx, input.CharacterID)
+		if err != nil {
+			return nil, huma.Error404NotFound("Character not found", err)
+		}
+
+		return &dto.PublicProfileOutput{Body: *profile}, nil
+	})
+
+	huma.Post(api, basePath+"/logout", func(ctx context.Context, input *dto.LogoutInput) (*dto.LogoutOutput, error) {
+		// Clear authentication cookie
+		response := dto.LogoutResponse{
+			Success: true,
+			Message: "Logged out successfully",
+		}
+
+		// Clear authentication cookie using Huma header response
+		cookieHeader := humaMiddleware.CreateClearCookieHeader()
+
+		return &dto.LogoutOutput{
+			SetCookie: cookieHeader,
+			Body:      response,
+		}, nil
+	})
+}
+
 // registerRoutes registers all Auth module routes with Huma
 func (hr *Routes) registerRoutes() {
 	// EVE Online SSO endpoints (public)

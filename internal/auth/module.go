@@ -13,6 +13,7 @@ import (
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/sde"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -47,11 +48,16 @@ func (m *Module) Routes(r chi.Router) {
 	m.RegisterHumaRoutes(r)
 }
 
-// RegisterHumaRoutes registers the Huma v2 routes
+// RegisterHumaRoutes registers the Huma v2 routes (legacy method)
 func (m *Module) RegisterHumaRoutes(r chi.Router) {
 	if m.routes == nil {
 		m.routes = routes.NewRoutes(m.authService, m.middleware, r)
 	}
+}
+
+// RegisterUnifiedRoutes registers routes on the shared Huma API
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	routes.RegisterAuthRoutes(api, basePath, m.authService, m.middleware)
 }
 
 // StartBackgroundTasks starts auth-specific background tasks

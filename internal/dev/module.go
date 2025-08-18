@@ -20,6 +20,7 @@ import (
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/sde"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -262,4 +263,10 @@ func (m *Module) GetESIStatus(ctx context.Context) (*dto.ESIStatusResponse, erro
 // GetSDEStatus gets SDE status for monitoring
 func (m *Module) GetSDEStatus(ctx context.Context) (*dto.SDEStatusResponse, error) {
 	return m.service.GetSDEStatus(ctx)
+}
+
+// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// TODO: Implement unified routes for dev module
+	log.Printf("Dev module unified routes registration not yet implemented")
 }

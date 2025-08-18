@@ -31,6 +31,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -159,32 +161,77 @@ func main() {
 	apiPrefix := config.GetAPIPrefix()
 	log.Printf("🔗 Using API prefix: '%s'", apiPrefix)
 	
-	// Register Huma v2 routes as primary routing system
-	log.Printf("🚀 Registering Huma v2 routes (type-safe APIs with automatic OpenAPI)")
+	// Create unified Huma v2 API for integrated mode
+	log.Printf("🚀 Creating unified Huma v2 API (type-safe APIs with single OpenAPI specification)")
 	
-	// Handle empty prefix case
-	if apiPrefix == "" {
-		// Huma v2 routes (now primary)
-		r.Route("/auth", authModule.RegisterHumaRoutes)
-		groupsModule.Routes(r) // Groups routes are mounted at /groups via sub-router
-		r.Route("/dev", devModule.RegisterHumaRoutes)
-		r.Route("/users", usersModule.RegisterHumaRoutes)
-		r.Route("/notifications", notificationsModule.RegisterHumaRoutes)
-		r.Route("/sde", sdeModule.RegisterHumaRoutes)
-		r.Route("/scheduler", schedulerModule.RegisterHumaRoutes)
-	} else {
-		// Huma v2 routes (now primary)
-		r.Route(apiPrefix+"/auth", authModule.RegisterHumaRoutes)
-		r.Route(apiPrefix, groupsModule.Routes) // Groups routes are mounted at /api/groups via sub-router
-		r.Route(apiPrefix+"/dev", devModule.RegisterHumaRoutes)
-		r.Route(apiPrefix+"/users", usersModule.RegisterHumaRoutes)
-		r.Route(apiPrefix+"/notifications", notificationsModule.RegisterHumaRoutes)
-		r.Route(apiPrefix+"/sde", sdeModule.RegisterHumaRoutes)
-		r.Route(apiPrefix+"/scheduler", schedulerModule.RegisterHumaRoutes)
+	// Create unified Huma API configuration
+	humaConfig := huma.DefaultConfig("Go Falcon API Gateway", "1.0.0")
+	humaConfig.Info.Description = "Unified EVE Online API Gateway with modular architecture"
+	humaConfig.Info.Contact = &huma.Contact{
+		Name: "Go Falcon",
+		URL:  "https://github.com/your-org/go-falcon",
 	}
 	
-	log.Printf("✅ Huma v2 routes: /auth, /dev, /users, /notifications, /sde, /scheduler")
-	log.Printf("🔧 Each module provides automatic OpenAPI 3.1.1 specification at /{module}/openapi.json")
+	// Add servers based on API prefix and environment
+	frontendURL := config.GetFrontendURL()
+	if apiPrefix == "" {
+		humaConfig.Servers = []*huma.Server{
+			{URL: frontendURL, Description: "Production server"},
+			{URL: "http://localhost:3000", Description: "Local development"},
+		}
+	} else {
+		humaConfig.Servers = []*huma.Server{
+			{URL: frontendURL + apiPrefix, Description: "Production server"},
+			{URL: "http://localhost:3000" + apiPrefix, Description: "Local development"},
+		}
+	}
+	
+	// Create the unified API on main router
+	var unifiedAPI huma.API
+	if apiPrefix == "" {
+		unifiedAPI = humachi.New(r, humaConfig)
+	} else {
+		// Mount the API under the prefix
+		r.Route(apiPrefix, func(prefixRouter chi.Router) {
+			unifiedAPI = humachi.New(prefixRouter, humaConfig)
+		})
+	}
+	
+	log.Printf("✅ Unified Huma v2 API created")
+	log.Printf("🔧 Single OpenAPI 3.1.1 specification will be available at %s/openapi.json", apiPrefix)
+	
+	// Register all module routes on the unified API
+	log.Printf("📝 Registering module routes on unified API:")
+	
+	// Register auth module routes
+	log.Printf("   🔐 Auth module: /auth/*")
+	authModule.RegisterUnifiedRoutes(unifiedAPI, "/auth")
+	
+	// Register dev module routes  
+	log.Printf("   🔧 Dev module: /dev/*")
+	devModule.RegisterUnifiedRoutes(unifiedAPI, "/dev")
+	
+	// Register users module routes
+	log.Printf("   👥 Users module: /users/*")
+	usersModule.RegisterUnifiedRoutes(unifiedAPI, "/users")
+	
+	// Register notifications module routes
+	log.Printf("   📬 Notifications module: /notifications/*")
+	notificationsModule.RegisterUnifiedRoutes(unifiedAPI, "/notifications")
+	
+	// Register SDE module routes
+	log.Printf("   📊 SDE module: /sde/*")
+	sdeModule.RegisterUnifiedRoutes(unifiedAPI, "/sde")
+	
+	// Register scheduler module routes
+	log.Printf("   ⏰ Scheduler module: /scheduler/*")
+	schedulerModule.RegisterUnifiedRoutes(unifiedAPI, "/scheduler")
+	
+	// Register groups module routes (traditional Chi routes for now)
+	log.Printf("   👤 Groups module: /groups/* (Chi routes)")
+	groupsModule.Routes(r)
+	
+	log.Printf("✅ All modules registered on unified API")
 	
 	// Note: evegateway is now a shared package for EVE Online ESI integration
 	// Other services can import and use: evegateway.NewClient().GetServerStatus(ctx)
@@ -197,28 +244,31 @@ func main() {
 
 	// HTTP server setup
 	port := app.GetPort("8080")
+	host := config.GetHost()
 	humaPort := config.GetHumaPort()
+	humaHost := config.GetHumaHost()
 	separateHumaServer := config.GetHumaSeparateServer()
 	
 	// Display HUMA configuration
 	log.Printf("🔧 HUMA Configuration:")
 	log.Printf(" - Separate Server: %v", separateHumaServer)
+	log.Printf(" - Main Server: %s:%s", host, port)
 	if humaPort != "" {
-		log.Printf(" - HUMA Port: %s", humaPort)
+		log.Printf(" - HUMA Server: %s:%s", humaHost, humaPort)
 	} else {
-		log.Printf(" - HUMA Port: Not specified (would default to main port)")
+		log.Printf(" - HUMA Port: Not specified (would use main server)")
 	}
 	if separateHumaServer && humaPort != "" {
-		log.Printf(" - Mode: Separate server - HUMA APIs on port %s", humaPort)
+		log.Printf(" - Mode: Separate server - HUMA APIs on %s:%s", humaHost, humaPort)
 	} else if separateHumaServer && humaPort == "" {
 		log.Printf(" - Mode: Separate server DISABLED - HUMA_PORT not set")
 	} else {
-		log.Printf(" - Mode: Integrated - HUMA APIs on main port %s", port)
+		log.Printf(" - Mode: Integrated - HUMA APIs on main server %s:%s", host, port)
 	}
 	
 	// Main server
 	srv := &http.Server{
-		Addr:         ":" + port,
+		Addr:         host + ":" + port,
 		Handler:      r,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
@@ -228,61 +278,27 @@ func main() {
 	// Optional separate HUMA server
 	var humaSrv *http.Server
 	if separateHumaServer && humaPort != "" {
-		// Create separate router for HUMA APIs only
-		humaRouter := chi.NewRouter()
-		humaRouter.Use(customLoggerMiddleware)
-		humaRouter.Use(middleware.Recoverer)
-		humaRouter.Use(middleware.RequestID)
-		humaRouter.Use(middleware.RealIP)
-		humaRouter.Use(middleware.Timeout(60 * time.Second))
-		humaRouter.Use(corsMiddleware)
-
-		// Register HUMA routes on separate server
-		log.Printf("🚀 Starting separate HUMA server on port %s", humaPort)
-		
-		if apiPrefix == "" {
-			humaRouter.Route("/auth", authModule.RegisterHumaRoutes)
-			humaRouter.Route("/dev", devModule.RegisterHumaRoutes)
-			humaRouter.Route("/users", usersModule.RegisterHumaRoutes)
-			humaRouter.Route("/notifications", notificationsModule.RegisterHumaRoutes)
-			humaRouter.Route("/sde", sdeModule.RegisterHumaRoutes)
-			humaRouter.Route("/scheduler", schedulerModule.RegisterHumaRoutes)
-		} else {
-			humaRouter.Route(apiPrefix+"/auth", authModule.RegisterHumaRoutes)
-			humaRouter.Route(apiPrefix+"/dev", devModule.RegisterHumaRoutes)
-			humaRouter.Route(apiPrefix+"/users", usersModule.RegisterHumaRoutes)
-			humaRouter.Route(apiPrefix+"/notifications", notificationsModule.RegisterHumaRoutes)
-			humaRouter.Route(apiPrefix+"/sde", sdeModule.RegisterHumaRoutes)
-			humaRouter.Route(apiPrefix+"/scheduler", schedulerModule.RegisterHumaRoutes)
-		}
-
-		humaSrv = &http.Server{
-			Addr:         ":" + humaPort,
-			Handler:      humaRouter,
-			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 15 * time.Second,
-			IdleTimeout:  60 * time.Second,
-		}
-
-		// Start separate HUMA server
-		go func() {
-			slog.Info("Starting separate HUMA API server", slog.String("addr", humaSrv.Addr))
-			if err := humaSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				slog.Error("HUMA server failed to start", "error", err)
-				os.Exit(1)
-			}
-		}()
-		
-		log.Printf("✅ HUMA APIs running on separate server: port %s", humaPort)
-		log.Printf("📋 OpenAPI specs: http://localhost:%s/{module}/openapi.json", humaPort)
-		log.Printf("🌐 Example: http://localhost:%s/auth/openapi.json", humaPort)
+		log.Printf("🚀 Separate HUMA server mode is currently disabled in unified architecture")
+		log.Printf("⚠️  This feature will be reimplemented with unified OpenAPI support")
+		log.Printf("⚠️  For now, all routes are served from the main server")
+	}
+	
+	// Display final configuration
+	if separateHumaServer && humaPort != "" {
+		log.Printf("⚠️  HUMA_SEPARATE_SERVER=true but feature disabled - using integrated mode")
+	}
+	
+	if humaPort != "" && !separateHumaServer {
+		log.Printf("⚠️  HUMA_PORT=%s set but HUMA_SEPARATE_SERVER=false - using integrated mode", humaPort)
+	}
+	
+	log.Printf("✅ Unified HUMA API available on main server: %s:%s", host, port)
+	if host == "0.0.0.0" {
+		log.Printf("📋 Single OpenAPI specification: http://localhost:%s%s/openapi.json", port, apiPrefix)
+		log.Printf("🌐 Access all modules via unified API")
 	} else {
-		if humaPort != "" && !separateHumaServer {
-			log.Printf("⚠️  HUMA_PORT=%s set but HUMA_SEPARATE_SERVER=false - using integrated mode", humaPort)
-		}
-		log.Printf("✅ HUMA APIs integrated with main server: port %s", port)
-		log.Printf("📋 OpenAPI specs: http://localhost:%s/{module}/openapi.json", port)
-		log.Printf("🌐 Example: http://localhost:%s/auth/openapi.json", port)
+		log.Printf("📋 Single OpenAPI specification: http://%s:%s%s/openapi.json", host, port, apiPrefix)
+		log.Printf("🌐 Access all modules via unified API")
 	}
 
 	// Start main server

@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"log"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"go-falcon/pkg/sde"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // Module represents the standardized scheduler module
@@ -221,4 +223,9 @@ func (m *Module) Shutdown() error {
 	// Use the new Stop method for consistency
 	m.Stop()
 	return nil
+}
+// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// TODO: Implement unified routes for scheduler module
+	log.Printf("Scheduler module unified routes registration not yet implemented")
 }
