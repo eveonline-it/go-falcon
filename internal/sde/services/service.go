@@ -484,7 +484,7 @@ func (s *Service) GetHistory(ctx context.Context, req *dto.HistoryQueryRequest) 
 
 	return &dto.HistoryResponse{
 		Updates: entries,
-		Pagination: dto.PaginationResponse{
+		Pagination: dto.SDEPaginationResponse{
 			Page:       page,
 			PageSize:   pageSize,
 			Total:      total,
@@ -494,7 +494,7 @@ func (s *Service) GetHistory(ctx context.Context, req *dto.HistoryQueryRequest) 
 }
 
 // GetNotifications retrieves SDE notifications
-func (s *Service) GetNotifications(ctx context.Context, req *dto.NotificationQueryRequest) (*dto.NotificationResponse, error) {
+func (s *Service) GetNotifications(ctx context.Context, req *dto.NotificationQueryRequest) (*dto.SDENotificationResponse, error) {
 	// Set defaults
 	page := 1
 	pageSize := 20
@@ -527,9 +527,9 @@ func (s *Service) GetNotifications(ctx context.Context, req *dto.NotificationQue
 
 	totalPages := (total + pageSize - 1) / pageSize
 
-	return &dto.NotificationResponse{
+	return &dto.SDENotificationResponse{
 		Notifications: entries,
-		Pagination: dto.PaginationResponse{
+		Pagination: dto.SDEPaginationResponse{
 			Page:       page,
 			PageSize:   pageSize,
 			Total:      total,

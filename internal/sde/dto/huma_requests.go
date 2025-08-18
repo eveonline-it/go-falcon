@@ -157,7 +157,7 @@ type NotificationsGetInput struct {
 
 // NotificationsGetOutput represents the output for getting SDE notifications
 type NotificationsGetOutput struct {
-	Body NotificationResponse `json:"body"`
+	Body SDENotificationResponse `json:"body"`
 }
 
 // NotificationsMarkReadInput represents the input for marking notifications as read

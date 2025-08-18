@@ -117,8 +117,8 @@ type ConfigResponse struct {
 
 // HistoryResponse represents SDE update history
 type HistoryResponse struct {
-	Updates    []UpdateHistoryEntry `json:"updates"`
-	Pagination PaginationResponse   `json:"pagination"`
+	Updates    []UpdateHistoryEntry    `json:"updates"`
+	Pagination SDEPaginationResponse  `json:"pagination"`
 }
 
 // UpdateHistoryEntry represents a single update history entry
@@ -137,8 +137,8 @@ type UpdateHistoryEntry struct {
 
 // NotificationResponse represents SDE notifications
 type SDENotificationResponse struct {
-	Notifications []NotificationEntry `json:"notifications"`
-	Pagination    PaginationResponse  `json:"pagination"`
+	Notifications []NotificationEntry    `json:"notifications"`
+	Pagination    SDEPaginationResponse `json:"pagination"`
 }
 
 // NotificationEntry represents a single notification
