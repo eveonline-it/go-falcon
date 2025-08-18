@@ -2,14 +2,20 @@ package dto
 
 import "time"
 
+// CharacterInfo represents character information in auth status
+type CharacterInfo struct {
+	CharacterID   int    `json:"character_id"`
+	CharacterName string `json:"character_name"`
+}
+
 // AuthStatusResponse represents authentication status
 type AuthStatusResponse struct {
-	Authenticated   bool     `json:"authenticated"`
-	UserID          *string  `json:"user_id"`
-	CharacterID     *int     `json:"character_id"`
-	CharacterName   *string  `json:"character_name"`
-	Characters      []string `json:"characters"`
-	Permissions     []string `json:"permissions"`
+	Authenticated   bool            `json:"authenticated"`
+	UserID          *string         `json:"user_id"`
+	CharacterID     *int            `json:"character_id"`     // Current active character
+	CharacterName   *string         `json:"character_name"`   // Current active character name
+	Characters      []CharacterInfo `json:"characters"`       // All characters for this user
+	Permissions     []string        `json:"permissions"`
 }
 
 // LoginResponse represents a successful login response

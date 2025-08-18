@@ -64,7 +64,7 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 			UserID:        nil,
 			CharacterID:   nil,
 			CharacterName: nil,
-			Characters:    []string{},
+			Characters:    []dto.CharacterInfo{},
 			Permissions:   []string{},
 		}, nil
 	}
@@ -77,18 +77,49 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 			UserID:        nil,
 			CharacterID:   nil,
 			CharacterName: nil,
-			Characters:    []string{},
+			Characters:    []dto.CharacterInfo{},
 			Permissions:   []string{},
 		}, nil
 	}
 
-	// Check if user is super admin from their profile
+	// Get all characters for this user
+	allProfiles, err := s.repository.GetAllUserProfilesByUserID(ctx, user.UserID)
+	if err != nil {
+		// If we can't get all profiles, fallback to just current character
+		allProfiles = nil
+	}
+
+	// Build character list
+	var characters []dto.CharacterInfo
 	permissions := []string{}
-	userProfile, err := s.repository.GetUserProfileByCharacterID(ctx, user.CharacterID)
-	if err == nil && userProfile != nil && userProfile.IsSuperAdmin {
-		// Grant super admin status (specific permissions will be handled by CASBIN)
-		permissions = []string{
-			"super_admin",
+	
+	if allProfiles != nil {
+		for _, profile := range allProfiles {
+			characters = append(characters, dto.CharacterInfo{
+				CharacterID:   profile.CharacterID,
+				CharacterName: profile.CharacterName,
+			})
+			
+			// Check if any character is super admin
+			if profile.IsSuperAdmin {
+				permissions = []string{
+					"super_admin",
+				}
+			}
+		}
+	} else {
+		// Fallback to just current character
+		characters = []dto.CharacterInfo{{
+			CharacterID:   user.CharacterID,
+			CharacterName: user.CharacterName,
+		}}
+		
+		// Check if current user is super admin
+		userProfile, err := s.repository.GetUserProfileByCharacterID(ctx, user.CharacterID)
+		if err == nil && userProfile != nil && userProfile.IsSuperAdmin {
+			permissions = []string{
+				"super_admin",
+			}
 		}
 	}
 
@@ -98,7 +129,7 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 		UserID:        &user.UserID,
 		CharacterID:   &user.CharacterID,
 		CharacterName: &user.CharacterName,
-		Characters:    []string{user.CharacterName}, // For now, just include current character
+		Characters:    characters,
 		Permissions:   permissions,
 	}, nil
 }
@@ -164,7 +195,7 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 			UserID:        nil,
 			CharacterID:   nil,
 			CharacterName: nil,
-			Characters:    []string{},
+			Characters:    []dto.CharacterInfo{},
 			Permissions:   []string{},
 		}, nil
 	}
@@ -177,18 +208,49 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 			UserID:        nil,
 			CharacterID:   nil,
 			CharacterName: nil,
-			Characters:    []string{},
+			Characters:    []dto.CharacterInfo{},
 			Permissions:   []string{},
 		}, nil
 	}
 
-	// Check if user is super admin from their profile
+	// Get all characters for this user
+	allProfiles, err := s.repository.GetAllUserProfilesByUserID(ctx, user.UserID)
+	if err != nil {
+		// If we can't get all profiles, fallback to just current character
+		allProfiles = nil
+	}
+
+	// Build character list
+	var characters []dto.CharacterInfo
 	permissions := []string{}
-	userProfile, err := s.repository.GetUserProfileByCharacterID(ctx, user.CharacterID)
-	if err == nil && userProfile != nil && userProfile.IsSuperAdmin {
-		// Grant super admin status (specific permissions will be handled by CASBIN)
-		permissions = []string{
-			"super_admin",
+	
+	if allProfiles != nil {
+		for _, profile := range allProfiles {
+			characters = append(characters, dto.CharacterInfo{
+				CharacterID:   profile.CharacterID,
+				CharacterName: profile.CharacterName,
+			})
+			
+			// Check if any character is super admin
+			if profile.IsSuperAdmin {
+				permissions = []string{
+					"super_admin",
+				}
+			}
+		}
+	} else {
+		// Fallback to just current character
+		characters = []dto.CharacterInfo{{
+			CharacterID:   user.CharacterID,
+			CharacterName: user.CharacterName,
+		}}
+		
+		// Check if current user is super admin
+		userProfile, err := s.repository.GetUserProfileByCharacterID(ctx, user.CharacterID)
+		if err == nil && userProfile != nil && userProfile.IsSuperAdmin {
+			permissions = []string{
+				"super_admin",
+			}
 		}
 	}
 
@@ -198,7 +260,7 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 		UserID:        &user.UserID,
 		CharacterID:   &user.CharacterID,
 		CharacterName: &user.CharacterName,
-		Characters:    []string{user.CharacterName}, // For now, just include current character
+		Characters:    characters,
 		Permissions:   permissions,
 	}, nil
 }

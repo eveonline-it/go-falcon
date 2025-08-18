@@ -54,7 +54,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 	// EVE Online SSO endpoints (public)
 	huma.Get(api, basePath+"/eve/login", func(ctx context.Context, input *dto.EVELoginInput) (*dto.EVELoginOutput, error) {
 		// Extract user ID from context if authenticated
-		userID := ""
+		userID := extractUserIDFromHeaders(authService, input.Authorization, input.Cookie)
 		
 		// Generate login URL without scopes (basic login)
 		loginResp, err := authService.InitiateEVELogin(ctx, false, userID)
@@ -67,7 +67,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 	
 	huma.Get(api, basePath+"/eve/register", func(ctx context.Context, input *dto.EVERegisterInput) (*dto.EVERegisterOutput, error) {
 		// Extract user ID from context if authenticated
-		userID := ""
+		userID := extractUserIDFromHeaders(authService, input.Authorization, input.Cookie)
 		
 		// Generate login URL with full scopes (registration)
 		loginResp, err := authService.InitiateEVELogin(ctx, true, userID)
@@ -290,8 +290,7 @@ func (hr *Routes) registerRoutes() {
 
 func (hr *Routes) eveLogin(ctx context.Context, input *dto.EVELoginInput) (*dto.EVELoginOutput, error) {
 	// Extract user ID from context if authenticated (similar to original handler)
-	userID := ""
-	// TODO: Extract from context/cookies in Huma middleware
+	userID := extractUserIDFromHeaders(hr.authService, input.Authorization, input.Cookie)
 
 	// Generate login URL without scopes (basic login)
 	loginResp, err := hr.authService.InitiateEVELogin(ctx, false, userID)
@@ -304,8 +303,7 @@ func (hr *Routes) eveLogin(ctx context.Context, input *dto.EVELoginInput) (*dto.
 
 func (hr *Routes) eveRegister(ctx context.Context, input *dto.EVERegisterInput) (*dto.EVERegisterOutput, error) {
 	// Extract user ID from context if authenticated
-	userID := ""
-	// TODO: Extract from context/cookies in Huma middleware
+	userID := extractUserIDFromHeaders(hr.authService, input.Authorization, input.Cookie)
 
 	// Generate login URL with full scopes (registration)
 	loginResp, err := hr.authService.InitiateEVELogin(ctx, true, userID)
@@ -500,7 +498,16 @@ func (hr *Routes) logout(ctx context.Context, input *dto.LogoutInput) (*dto.Logo
 	}, nil
 }
 
-// Helper methods for cookie handling (to be implemented in future iterations)
+// Helper methods for cookie handling and user context extraction
 
-// TODO: Implement cookie handling and user context extraction
-// These will be added when Huma middleware integration is complete
+// extractUserIDFromHeaders extracts user ID from authentication headers if valid
+func extractUserIDFromHeaders(authService *services.AuthService, authHeader, cookieHeader string) string {
+	// Try to get current user from headers
+	userInfo, err := authService.GetCurrentUserFromHeaders(context.Background(), authHeader, cookieHeader)
+	if err != nil {
+		// Not authenticated or invalid token - return empty string
+		return ""
+	}
+	
+	return userInfo.UserID
+}

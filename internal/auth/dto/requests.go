@@ -35,7 +35,8 @@ type ProfileRefreshRequest struct {
 
 // EVELoginInput represents the input for EVE SSO login initiation (no body needed)
 type EVELoginInput struct {
-	// No body parameters needed - this is a simple GET endpoint
+	Authorization string `header:"Authorization" doc:"Optional Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Optional session cookie for authentication"`
 }
 
 // EVELoginOutput represents the output for EVE SSO login initiation
@@ -45,7 +46,8 @@ type EVELoginOutput struct {
 
 // EVERegisterInput represents the input for EVE SSO registration initiation (no body needed)
 type EVERegisterInput struct {
-	// No body parameters needed - this is a simple GET endpoint
+	Authorization string `header:"Authorization" doc:"Optional Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Optional session cookie for authentication"`
 }
 
 // EVERegisterOutput represents the output for EVE SSO registration initiation
