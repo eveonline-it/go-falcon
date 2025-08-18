@@ -2,17 +2,27 @@ package groups
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
+	authModels "go-falcon/internal/auth/models"
 	"go-falcon/internal/groups/middleware"
 	"go-falcon/internal/groups/models"
+	"go-falcon/internal/groups/routes"
 	"go-falcon/internal/groups/services"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/handlers"
 	"go-falcon/pkg/module"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
 )
+
+// AuthModule interface for JWT validation
+type AuthModule interface {
+	ValidateJWT(token string) (interface{}, error)
+}
 
 // Module represents the Groups module
 type Module struct {
@@ -20,6 +30,7 @@ type Module struct {
 	groupService              *services.GroupService
 	granularPermissionService *services.GranularPermissionService
 	middleware                *middleware.Middleware
+	authModule                AuthModule
 }
 
 // New creates a new Groups module instance
@@ -36,7 +47,33 @@ func New(mongodb *database.MongoDB, redis *database.Redis) *Module {
 		groupService:              groupService,
 		granularPermissionService: granularPermissionService,
 		middleware:                moduleMiddleware,
+		authModule:                nil, // Set later via SetAuthModule
 	}
+}
+
+// SetAuthModule sets the auth module for JWT validation
+func (m *Module) SetAuthModule(authModule AuthModule) {
+	m.authModule = authModule
+}
+
+// authModuleWrapper wraps an AuthModule to implement JWTValidator interface
+type authModuleWrapper struct {
+	authModule AuthModule
+}
+
+// ValidateJWT validates a JWT token using the auth module
+func (w *authModuleWrapper) ValidateJWT(token string) (*authModels.AuthenticatedUser, error) {
+	result, err := w.authModule.ValidateJWT(token)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Type assert the result to AuthenticatedUser
+	if user, ok := result.(*authModels.AuthenticatedUser); ok {
+		return user, nil
+	}
+	
+	return nil, fmt.Errorf("invalid user type returned from auth module")
 }
 
 // Initialize performs module initialization
@@ -65,10 +102,54 @@ func (m *Module) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// Routes registers the module's routes (placeholder - groups primarily provides services)
+// Routes registers the module's routes
 func (m *Module) Routes(r chi.Router) {
-	// Groups module primarily provides services and middleware to other modules
-	// Future: Add admin routes for group management
+	// For now, register a simple health endpoint
+	r.Get("/groups/health", func(w http.ResponseWriter, r *http.Request) {
+		handlers.JSONResponse(w, map[string]interface{}{
+			"status":  "healthy",
+			"module":  "groups",
+			"message": "Groups module is operational",
+		}, http.StatusOK)
+	})
+	
+	// TODO: Full route registration will be implemented when auth service
+	// integration is properly designed at the application level
+}
+
+// RegisterUnifiedRoutes registers routes on the shared Huma API
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// Create a JWT validator from the auth module
+	if m.authModule == nil {
+		// If no auth module available, create a simple health endpoint
+		huma.Get(api, basePath+"/health", func(ctx context.Context, input *struct{}) (*struct {
+			Body map[string]interface{} `json:"body"`
+		}, error) {
+			return &struct {
+				Body map[string]interface{} `json:"body"`
+			}{
+				Body: map[string]interface{}{
+					"status":  "healthy", 
+					"module":  "groups",
+					"message": "Groups module is operational (auth service not available)",
+				},
+			}, nil
+		})
+		return
+	}
+
+	// Create a JWT validator that wraps the auth module
+	authService := &authModuleWrapper{authModule: m.authModule}
+
+	// Register full groups routes using the shared API
+	routes.RegisterGroupsRoutes(
+		api,
+		basePath,
+		m.groupService,
+		m.granularPermissionService,
+		m.middleware,
+		authService,
+	)
 }
 
 // Public Interface Methods for other modules

@@ -25,7 +25,6 @@ Operations that can be performed on resources:
 
 #### Subjects
 Who can receive permissions:
-- **group**: Existing group (from legacy system)
 - **member**: Individual EVE character
 - **corporation**: EVE Online corporation
 - **alliance**: EVE Online alliance
@@ -158,37 +157,59 @@ GET /admin/permissions/check/service/{serviceName}
 
 #### Basic Permission Checking
 ```go
-// Require specific permission
+// Require specific permission (Chi router middleware)
 r.With(groupsModule.RequireGranularPermission("sde", "entities", "read")).Get("/sde/data", handler)
 
 // Optional permission (adds to context)
 r.With(groupsModule.OptionalGranularPermission("sde", "entities", "write")).Get("/sde/info", handler)
 
-// Check permission in handler
+// Check permission in handler context
 func handler(w http.ResponseWriter, r *http.Request) {
-    result, err := groupsModule.CheckGranularPermissionInHandler(r, "sde", "entities", "admin")
-    if err != nil || !result.Allowed {
+    allowed, err := groupsModule.CheckGranularPermission(r.Context(), characterID, "sde", "entities", "admin")
+    if err != nil || !allowed {
         // Handle permission denial
     }
 }
 ```
 
+#### HUMA v2 Integration
+For HUMA v2 endpoints, permission checking is integrated into the request validation:
+
+```go
+// HUMA v2 operation with permission middleware
+huma.Register(api, huma.Operation{
+    OperationID: "getSdeEntities", 
+    Method:      http.MethodGet,
+    Path:        "/admin/permissions/services/{serviceName}",
+    Summary:     "Get service definition",
+    Tags:        []string{"admin", "permissions"},
+    Middlewares: huma.Middlewares{
+        groupsModule.RequireGranularPermission("groups", "management", "read"),
+    },
+}, func(ctx context.Context, req *GetServiceRequest) (*GetServiceResponse, error) {
+    // Handler logic with validated permissions
+    return &GetServiceResponse{...}, nil
+})
+```
+
 #### Interface for Other Modules
-Other modules can integrate with the groups module by implementing the following interface pattern:
+Other modules can integrate with the groups module using these interfaces:
 
 ```go
 // GroupsModule interface used by other modules
 type GroupsModule interface {
-    // Main middleware functions
+    // Chi router middleware functions
     RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
-    OptionalGranularPermission(service, resource, action string) func(http.Handler) http.Handler
-    CheckGranularPermissionInHandler(r *http.Request, service, resource, action string) (*PermissionResult, error)
-}
-
-// PermissionResult structure
-type PermissionResult struct {
-    Allowed bool   `json:"allowed"`
-    Reason  string `json:"reason,omitempty"`
+    OptionalGranularPermission(service, resource, action string) func(chi.Router)
+    RequireSuperAdmin() func(chi.Router)
+    
+    // Direct permission checking
+    CheckGranularPermission(ctx context.Context, characterID int, service, resource, action string) (bool, error)
+    IsSuperAdmin(ctx context.Context, characterID int) (bool, error)
+    
+    // Service accessors
+    GetGroupService() *services.GroupService
+    GetGranularPermissionService() *services.GranularPermissionService
 }
 ```
 
@@ -347,11 +368,23 @@ The Groups module provides traditional group management alongside granular permi
 
 ## Architecture
 
-The Groups module follows the standard Go Falcon module architecture:
-- **MongoDB Storage**: Group definitions, memberships, and permissions
+The Groups module follows the standard Go Falcon module architecture with **dual API implementation**:
+
+### Storage & Caching
+- **MongoDB Storage**: Group definitions, memberships, and granular permissions
 - **Redis Caching**: Fast permission lookups and session data
+- **Optimized Indexes**: Compound indexes for efficient permission queries
+
+### API Implementation  
+- **Traditional Chi Routes**: `/groups/*` endpoints for basic group management
+- **HUMA v2 Endpoints**: `/huma-groups/*` endpoints for granular permissions with OpenAPI 3.1.1
+- **Unified OpenAPI Spec**: Complete API documentation via HUMA v2 framework
+- **Type-Safe Operations**: Automatic request/response validation for admin endpoints
+
+### Integration Points
 - **Scheduler Integration**: Automated membership validation tasks
 - **Auth Module Integration**: Seamless integration with EVE SSO authentication
+- **Cross-Module Middleware**: Granular permission checking for all modules
 
 ## Default Groups
 
@@ -475,77 +508,269 @@ DISCORD_SERVICE_URL=http://localhost:8080  # Discord service endpoint for role r
 }
 ```
 
+## API Architecture
+
+The Groups module implements a **dual API architecture** using both traditional Chi routes and modern HUMA v2 endpoints:
+
+### Traditional Routes (Chi Router)
+- **Legacy group management**: `/groups/*` endpoints
+- **Basic permission queries**: Simple GET/POST operations
+- **Quick integration**: Easy to integrate with existing middleware
+
+### HUMA v2 API Endpoints
+- **Granular permissions**: `/huma-groups/admin/permissions/*` endpoints  
+- **Type-safe validation**: Automatic request/response validation
+- **OpenAPI 3.1.1**: Complete API specification with schemas
+- **Enhanced error handling**: Structured error responses
+
 ## API Endpoints
 
-### Group Management
+### OpenAPI 3.1.1 Specification
+
+The Groups module provides comprehensive OpenAPI documentation via HUMA v2:
+
+```bash
+# Complete OpenAPI specification
+GET /huma-groups/openapi.json
+
+# Interactive documentation  
+GET /huma-groups/docs
+
+# Schema definitions
+GET /huma-groups/openapi.json#/components/schemas
+```
+
+### Administrative Endpoints (HUMA v2)
+
+All administrative endpoints require **super admin privileges** and are implemented using HUMA v2 for type safety and automatic OpenAPI generation.
+
+#### Service Management
+```bash
+# List all services
+GET /huma-groups/admin/permissions/services
+Authorization: Bearer JWT
+Response: ServiceListResponse with service definitions
+
+# Create a new service
+POST /huma-groups/admin/permissions/services  
+Authorization: Bearer JWT
+Content-Type: application/json
+Body: CreateServiceRequest with validation
+Response: ServiceResponse with created service
+
+# Get specific service
+GET /huma-groups/admin/permissions/services/{serviceName}
+Authorization: Bearer JWT
+Response: ServiceResponse with service details
+
+# Update service  
+PUT /huma-groups/admin/permissions/services/{serviceName}
+Authorization: Bearer JWT
+Body: UpdateServiceRequest
+Response: ServiceResponse with updated service
+
+# Delete service (removes all associated permissions)
+DELETE /huma-groups/admin/permissions/services/{serviceName}
+Authorization: Bearer JWT
+Response: DeleteResponse with operation status
+```
+
+#### Permission Assignment (HUMA v2)
+```bash
+# Grant permission
+POST /huma-groups/admin/permissions/assignments
+Authorization: Bearer JWT  
+Body: CreatePermissionAssignmentRequest
+Response: PermissionAssignmentResponse
+
+# List permission assignments
+GET /huma-groups/admin/permissions/assignments
+Authorization: Bearer JWT
+Query Parameters: service, resource, action, subject_type, subject_id
+Response: PermissionAssignmentListResponse
+
+# Revoke permission
+DELETE /huma-groups/admin/permissions/assignments/{assignmentID}
+Authorization: Bearer JWT
+Response: DeleteResponse with operation status
+
+# Check permission
+POST /huma-groups/admin/permissions/check
+Authorization: Bearer JWT
+Body: PermissionCheckRequest
+Response: PermissionCheckResponse
+```
+
+#### Utility Endpoints (HUMA v2)
+```bash
+# List available subjects for assignment
+GET /huma-groups/admin/permissions/subjects/groups
+Authorization: Bearer JWT
+Response: SubjectListResponse
+
+# Validate subject exists
+GET /huma-groups/admin/permissions/subjects/validate
+Authorization: Bearer JWT  
+Query Parameters: type, id
+Response: SubjectValidationResponse
+
+# Get audit logs
+GET /huma-groups/admin/permissions/audit
+Authorization: Bearer JWT
+Query Parameters: limit, offset, service, action
+Response: AuditLogListResponse
+
+# Get user permission summary
+GET /huma-groups/admin/permissions/check/user/{characterID}  
+Authorization: Bearer JWT
+Response: UserPermissionSummaryResponse
+
+# Get service-specific permissions
+GET /huma-groups/admin/permissions/check/service/{serviceName}
+Authorization: Bearer JWT
+Response: ServicePermissionListResponse
+```
+
+### Traditional Group Management (Chi Routes)
+
+Traditional group endpoints for backward compatibility and simple operations:
 
 #### List Groups
-```
-GET /api/groups
-Authorization: JWT (any authenticated user)
+```bash
+GET /groups
+Authorization: Bearer JWT (any authenticated user)
 Response: List of groups with user's membership status
 ```
 
-#### Create Group
-```
-POST /api/groups
-Authorization: JWT (administrators only)
+#### Create Group  
+```bash
+POST /groups
+Authorization: Bearer JWT (administrators only)
 Content-Type: application/json
 Body: Group creation parameters
+Response: Created group information
 ```
 
 #### Update Group
-```
-PUT /api/groups/{group_id}
-Authorization: JWT (administrators only)
+```bash  
+PUT /groups/{group_id}
+Authorization: Bearer JWT (administrators only)
 Content-Type: application/json
 Body: Group update parameters
+Response: Updated group information
 ```
 
 #### Delete Group
-```
-DELETE /api/groups/{group_id}
-Authorization: JWT (administrators only)
+```bash
+DELETE /groups/{group_id}
+Authorization: Bearer JWT (administrators only)
 Note: Cannot delete default groups
+Response: Deletion confirmation
 ```
 
-### Membership Management
+### Membership Management (Chi Routes)
 
 #### Add Member
-```
-POST /api/groups/{group_id}/members
-Authorization: JWT (administrators only)
+```bash
+POST /groups/{group_id}/members
+Authorization: Bearer JWT (administrators only)
 Content-Type: application/json
 Body: { "character_id": 123456789, "expires_at": "2024-12-31T23:59:59Z" }
+Response: Membership confirmation
 ```
 
 #### Remove Member
-```
-DELETE /api/groups/{group_id}/members/{character_id}
-Authorization: JWT (administrators only)
+```bash
+DELETE /groups/{group_id}/members/{character_id}
+Authorization: Bearer JWT (administrators only) 
+Response: Removal confirmation
 ```
 
 #### List Members
-```
-GET /api/groups/{group_id}/members
-Authorization: JWT (administrators only)
+```bash
+GET /groups/{group_id}/members
+Authorization: Bearer JWT (administrators only)
 Response: List of group members with status
 ```
 
-### Permission Queries
+### Permission Queries (Chi Routes)
 
 #### Check Permission
-```
-GET /api/permissions/check?resource={resource}&action={action}
-Authorization: JWT (any authenticated user)
+```bash
+GET /permissions/check?resource={resource}&action={action}
+Authorization: Bearer JWT (any authenticated user)
 Response: { "allowed": boolean, "groups": ["group_name"] }
 ```
 
 #### User Permissions
-```
-GET /api/permissions/user
-Authorization: JWT (any authenticated user)
+```bash
+GET /permissions/user  
+Authorization: Bearer JWT (any authenticated user)
 Response: Complete permission matrix for authenticated user
+```
+
+### Request/Response Schemas (HUMA v2)
+
+#### Service Management DTOs
+```go
+type CreateServiceRequest struct {
+    Name        string            `json:"name" validate:"required,min=2,max=50" doc:"Unique service identifier"`
+    DisplayName string            `json:"display_name" validate:"required,min=2,max=100" doc:"Human-readable service name"`
+    Description string            `json:"description" validate:"max=500" doc:"Service description"`
+    Resources   []ResourceRequest `json:"resources" validate:"required,min=1" doc:"Service resources"`
+    Enabled     bool              `json:"enabled" doc:"Whether service is enabled"`
+}
+
+type ResourceRequest struct {
+    Name        string   `json:"name" validate:"required,min=2,max=50" doc:"Resource identifier"`
+    DisplayName string   `json:"display_name" validate:"required,min=2,max=100" doc:"Human-readable resource name"`
+    Actions     []string `json:"actions" validate:"required,min=1" doc:"Allowed actions for resource"`
+    Enabled     bool     `json:"enabled" doc:"Whether resource is enabled"`
+}
+```
+
+#### Permission Assignment DTOs
+```go
+type CreatePermissionAssignmentRequest struct {
+    Service     string    `json:"service" validate:"required" doc:"Target service name"`
+    Resource    string    `json:"resource" validate:"required" doc:"Target resource name"`
+    Action      string    `json:"action" validate:"required" doc:"Action to grant"`
+    SubjectType string    `json:"subject_type" validate:"required,oneof=member corporation alliance" doc:"Type of subject"`
+    SubjectID   string    `json:"subject_id" validate:"required" doc:"Subject identifier"`
+    ExpiresAt   *time.Time `json:"expires_at,omitempty" doc:"Optional expiration timestamp"`
+    Reason      string    `json:"reason" validate:"required,min=10,max=500" doc:"Business justification"`
+}
+
+type PermissionCheckRequest struct {
+    Service     string `json:"service" validate:"required" doc:"Service to check"`
+    Resource    string `json:"resource" validate:"required" doc:"Resource to check"`
+    Action      string `json:"action" validate:"required" doc:"Action to check"`
+    CharacterID int    `json:"character_id" validate:"required" doc:"EVE character ID"`
+}
+```
+
+### Error Handling (HUMA v2)
+
+HUMA v2 provides structured error responses with detailed validation information:
+
+```json
+{
+  "status": 400,
+  "title": "Bad Request",
+  "detail": "Validation failed for request body",
+  "errors": [
+    {
+      "location": "body.service",
+      "message": "Service name is required",
+      "value": ""
+    },
+    {
+      "location": "body.reason", 
+      "message": "Reason must be at least 10 characters",
+      "value": "test"
+    }
+  ]
+}
 ```
 
 ## Integration Points

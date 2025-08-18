@@ -140,6 +140,9 @@ func main() {
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, evegateClient)
 	groupsModule := groups.New(appCtx.MongoDB, appCtx.Redis)
 	
+	// Set auth module dependency for groups module
+	groupsModule.SetAuthModule(authModule)
+	
 	devModule, err := dev.NewModule(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
 	if err != nil {
 		log.Fatalf("Failed to initialize dev module: %v", err)
@@ -244,9 +247,9 @@ func main() {
 	log.Printf("   ⏰ Scheduler module: /scheduler/*")
 	schedulerModule.RegisterUnifiedRoutes(unifiedAPI, "/scheduler")
 	
-	// Register groups module routes (traditional Chi routes for now)
-	log.Printf("   👤 Groups module: /groups/* (Chi routes)")
-	groupsModule.Routes(r)
+	// Register groups module routes
+	log.Printf("   👤 Groups module: /groups/*")
+	groupsModule.RegisterUnifiedRoutes(unifiedAPI, "/groups")
 	
 	log.Printf("✅ All modules registered on unified API")
 	
