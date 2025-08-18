@@ -16,6 +16,9 @@ Database connection utilities for MongoDB and Redis with proper connection pooli
 - **Collection Access**: Simplified collection retrieval
 - **Authentication**: Built-in auth source handling
 - **Connection Pooling**: Automatic connection management
+- **Health Monitoring**: Connection health checks with automatic reconnection
+- **Connection Recovery**: Automatic reconnection on "client is disconnected" errors
+- **Stale Connection Handling**: Detects and recovers from stale connections
 
 ## Redis Features  
 - **URL Parsing**: Redis connection string support
@@ -25,14 +28,46 @@ Database connection utilities for MongoDB and Redis with proper connection pooli
 
 ## Usage Examples
 ```go
-// MongoDB
+// MongoDB with automatic health checks
 mongodb, err := database.NewMongoDB(ctx, "database_name")
 collection := mongodb.Collection("users")
+
+// Health check before database operations
+err = mongodb.HealthCheck(ctx)  // Automatically reconnects if disconnected
+if err != nil {
+    // Connection is unhealthy
+}
 
 // Redis  
 redis, err := database.NewRedis(ctx)
 err = redis.Set(ctx, "key", "value", 0)
 ```
+
+## Connection Recovery
+The MongoDB connection includes automatic recovery mechanisms:
+
+```go
+// Health check with automatic reconnection
+func (m *MongoDB) HealthCheck(ctx context.Context) error {
+    // Ping MongoDB
+    err := m.Client.Ping(ctx, nil)
+    if err != nil {
+        // Automatically attempt reconnection
+        if reconnErr := m.reconnect(ctx); reconnErr != nil {
+            return fmt.Errorf("ping failed and reconnect failed: %v", reconnErr)
+        }
+        // Verify reconnection
+        return m.Client.Ping(ctx, nil)
+    }
+    return nil
+}
+```
+
+## Best Practices
+- Always call `HealthCheck()` before critical database operations
+- The health check automatically handles "client is disconnected" errors
+- Connection recovery is transparent to the application
+- Failed health checks indicate persistent connection issues
 
 ## Configuration
 - `MONGODB_URI`: Full MongoDB connection string

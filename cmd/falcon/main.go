@@ -136,6 +136,45 @@ func main() {
 	var modules []module.Module
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, evegateClient)
 	
+	// Initialize CASBIN middleware factory for authorization
+	log.Printf("🔒 Initializing CASBIN authorization system...")
+	
+	// Declare CASBIN factory at function level
+	var casbinFactory *falconMiddleware.CasbinMiddlewareFactory
+	
+	// Create user character resolver for CASBIN with Redis caching
+	characterResolver := falconMiddleware.NewUserCharacterResolver(appCtx.MongoDB, appCtx.Redis)
+	
+	// Create CASBIN middleware factory
+	casbinFactory, err = falconMiddleware.NewCasbinMiddlewareFactory(
+		authModule.GetAuthService(), // JWT validator from auth module
+		characterResolver,            // Character resolver
+		appCtx.MongoDB.Client,       // MongoDB client
+		"falcon",                     // Database name
+	)
+	if err != nil {
+		log.Printf("⚠️  Warning: CASBIN middleware initialization failed: %v", err)
+		log.Printf("⚠️  Continuing without CASBIN authorization (using basic auth only)")
+		// Continue without CASBIN - modules will use basic authentication
+	} else {
+		log.Printf("✅ CASBIN authorization system initialized successfully")
+		
+		// Initialize basic roles and permissions
+		log.Printf("🔑 Setting up initial CASBIN roles and permissions...")
+		if setupErr := setupInitialCasbinPolicies(casbinFactory); setupErr != nil {
+			log.Printf("⚠️  Warning: Failed to setup initial CASBIN policies: %v", setupErr)
+		} else {
+			log.Printf("✅ Initial CASBIN roles and permissions configured")
+		}
+		
+		// Register CASBIN API endpoints for permission management
+		log.Printf("📝 CASBIN management API will be registered on /admin/permissions/*")
+		// Note: We'll register these routes after the Huma API is created
+		
+		// Make CASBIN available to modules
+		log.Printf("🔗 CASBIN middleware factory available for route protection")
+	}
+	
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, nil)
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, nil)
 	
@@ -218,7 +257,36 @@ func main() {
 	log.Printf("   ⏰ Scheduler module: /scheduler/*")
 	schedulerModule.RegisterUnifiedRoutes(unifiedAPI, "/scheduler")
 	
+	// Register role management routes if CASBIN is available
+	if casbinFactory != nil {
+		log.Printf("   🔐 Role Management: /admin/roles/*, /admin/policies/*, /permissions/*")
+		roleManagementRoutes := falconMiddleware.NewRoleManagementRoutes(
+			falconMiddleware.NewRoleAssignmentService(casbinFactory.GetEnhanced().GetCasbinAuth().GetEnforcer()),
+			casbinFactory.GetEnhanced().GetCasbinAuth(),
+		)
+		roleManagementRoutes.RegisterRoleManagementRoutes(unifiedAPI, "")
+		log.Printf("✅ Role management routes registered on unified API")
+	}
+	
 	log.Printf("✅ All modules registered on unified API")
+	
+	// Register CASBIN management API if initialized
+	if casbinFactory != nil {
+		log.Printf("   🔐 CASBIN Admin: /admin/permissions/*")
+		apiHandler := casbinFactory.GetAPIHandler()
+		
+		// Create a Chi subrouter for CASBIN admin endpoints
+		r.Route(apiPrefix+"/admin/permissions", func(adminRouter chi.Router) {
+			// Apply CASBIN super admin middleware
+			adminRouter.Use(func(next http.Handler) http.Handler {
+				return casbinFactory.GetConvenience().SuperAdminOnly()(next)
+			})
+			
+			// Register CASBIN API routes
+			apiHandler.RegisterRoutes(adminRouter)
+		})
+		log.Printf("✅ CASBIN management API registered")
+	}
 	
 	// Note: evegateway is now a shared package for EVE Online ESI integration
 	// Other services can import and use: evegateway.NewClient().GetServerStatus(ctx)
@@ -461,4 +529,88 @@ func readCgroupV1MemoryLimit() int64 {
 	}
 	
 	return limit
+}
+
+// setupInitialCasbinPolicies sets up initial roles and permissions for CASBIN
+func setupInitialCasbinPolicies(factory *falconMiddleware.CasbinMiddlewareFactory) error {
+	casbinAuth := factory.GetEnhanced().GetCasbinAuth()
+	
+	// Define basic roles and their permissions
+	rolePolicies := map[string][][]string{
+		// Super Admin role - full system access
+		"role:super_admin": {
+			{"system", "super_admin", "allow"},
+			{"system", "admin", "allow"},
+		},
+		
+		// Admin role - general administration
+		"role:admin": {
+			{"system", "admin", "allow"},
+			{"users", "read", "allow"},
+			{"users", "write", "allow"},
+			{"users", "admin", "allow"},
+			{"scheduler", "admin", "allow"},
+			{"auth", "admin", "allow"},
+		},
+		
+		// User role - basic authenticated user
+		"role:user": {
+			{"auth.profile", "read", "allow"},
+			{"auth.profile", "write", "allow"},
+			{"users.profiles", "read", "allow"},
+			{"scheduler.tasks", "read", "allow"},
+			{"scheduler.tasks", "write", "allow"},
+		},
+		
+		// Guest role - minimal public access
+		"role:guest": {
+			{"public", "read", "allow"},
+			{"auth.status", "read", "allow"},
+		},
+		
+		// Corporation Manager role
+		"role:corp_manager": {
+			{"corporation", "admin", "allow"},
+			{"users.corporation", "read", "allow"},
+			{"users.corporation", "write", "allow"},
+			{"scheduler.corporation", "admin", "allow"},
+		},
+		
+		// Alliance Manager role
+		"role:alliance_manager": {
+			{"alliance", "admin", "allow"},
+			{"users.alliance", "read", "allow"},
+			{"users.alliance", "write", "allow"},
+			{"scheduler.alliance", "admin", "allow"},
+		},
+	}
+	
+	// Add all role policies
+	for role, policies := range rolePolicies {
+		for _, policy := range policies {
+			resource := policy[0]
+			action := policy[1]
+			effect := policy[2]
+			
+			err := casbinAuth.AddPolicy(role, resource, action, effect)
+			if err != nil && !strings.Contains(err.Error(), "already exists") {
+				return fmt.Errorf("failed to add policy for %s: %w", role, err)
+			}
+		}
+	}
+	
+	// Check for super admin character ID from environment
+	superAdminCharID := os.Getenv("SUPER_ADMIN_CHARACTER_ID")
+	if superAdminCharID != "" {
+		// Grant super admin role to the specified character
+		subject := fmt.Sprintf("character:%s", superAdminCharID)
+		err := casbinAuth.AddRoleForUser(subject, "role:super_admin")
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
+			log.Printf("⚠️  Warning: Failed to assign super admin role to character %s: %v", superAdminCharID, err)
+		} else {
+			log.Printf("👑 Super admin role assigned to character %s", superAdminCharID)
+		}
+	}
+	
+	return nil
 }

@@ -8,27 +8,30 @@ Comprehensive authentication and authorization middleware system for the Go Falc
 
 ### Core Components
 
-- **Authentication Middleware**: JWT validation from cookies and bearer tokens
+- **Authentication Middleware**: JWT validation from cookies and bearer tokens with secure debug logging
 - **Character Resolution**: Expands auth context with all user characters, corporations, and alliances
-- **Authorization System**: Permission-based access control (CASBIN integration ready)
+- **CASBIN Authorization**: Production-ready permission-based access control with hierarchical subjects
+- **MongoDB Integration**: Health checks and automatic reconnection for database operations
 - **Convenience Wrappers**: Easy-to-use middleware stacks for common patterns
-- **Debug & Observability**: Comprehensive logging and tracing throughout the stack
+- **Debug & Observability**: Comprehensive logging and tracing with security-conscious output
 
 ### Files Structure
 
 ```
 pkg/middleware/
-├── auth.go                    # Basic JWT authentication middleware
+├── auth.go                    # Basic JWT authentication middleware with secure logging
 ├── enhanced_auth.go           # Authentication + character resolution middleware
-├── user_resolver.go           # Character/user relationship resolution
+├── user_resolver.go           # Character/user relationship resolution with MongoDB health checks
 ├── convenience.go             # Easy-to-use wrapper functions
 ├── factory.go                 # Pre-configured middleware stacks
 ├── helpers.go                 # Context utilities and debug tools
 ├── integration.go             # Huma v2 framework integration helpers
 ├── init.go                    # Initialization and setup utilities
 ├── debug_test_handler.go      # Debug endpoints for testing middleware
-├── huma_helpers.go           # Huma-specific authentication helpers
+├── huma_helpers.go           # Huma-specific authentication helpers with secure logging
 ├── tracing.go                # OpenTelemetry tracing middleware
+├── casbin_auth.go            # CASBIN authorization middleware with debug logging
+├── casbin_factory.go         # CASBIN middleware factory and convenience methods
 └── CLAUDE.md                 # This documentation
 ```
 
@@ -498,6 +501,133 @@ curl -H "Authorization: Bearer <token>" http://localhost:8080/debug/auth
 # Test character resolution
 curl -H "Authorization: Bearer <token>" http://localhost:8080/debug/characters
 ```
+
+## 🔒 CASBIN Authorization System
+
+### Overview
+
+The middleware package now includes a production-ready CASBIN authorization system with hierarchical permission checking and comprehensive debug logging.
+
+### CASBIN Components
+
+```go
+// CASBIN Authorization Middleware
+type CasbinAuthMiddleware struct {
+    enforcer *casbin.Enforcer
+    enabled  bool
+}
+
+// CASBIN Factory for easy setup
+type CasbinMiddlewareFactory struct {
+    enhanced    *CasbinEnhancedMiddleware
+    convenience *CasbinConvenienceMiddleware
+    apiHandler  *CasbinAPIHandler
+}
+```
+
+### Permission Model
+
+CASBIN uses a 5-field policy model: `(subject, object, action, domain, effect)`
+
+```conf
+# configs/casbin_model.conf
+[request_definition]
+r = sub, obj, act, dom
+
+[policy_definition]
+p = sub, obj, act, dom, eft
+
+[role_definition]
+g = _, _, _
+
+[policy_effect]
+e = some(where (p.eft == allow)) && !some(where (p.eft == deny))
+
+[matchers]
+m = g(r.sub, p.sub, r.dom) && r.obj == p.obj && r.act == p.act && r.dom == p.dom
+```
+
+### Hierarchical Subject System
+
+CASBIN middleware builds subjects in priority order:
+
+1. **Character Level**: `character:123456` (highest priority)
+2. **User Level**: `user:uuid-12345` 
+3. **Corporation Level**: `corporation:987654`
+4. **Alliance Level**: `alliance:456789` (lowest priority)
+
+### Debug Logging
+
+Comprehensive debug output shows the complete permission checking process:
+
+```bash
+[DEBUG] CasbinAuthMiddleware.RequirePermission: Checking scheduler.read for GET /scheduler/status
+[DEBUG] CasbinAuthMiddleware: Found authenticated user (user:test-user)
+[DEBUG] CasbinAuthMiddleware: Checking permission 'scheduler.read' for subjects: [user:test-user, character:123456, corporation:987654]
+[DEBUG] CasbinAuthMiddleware: Permission denied for subject user:test-user
+[DEBUG] CasbinAuthMiddleware: Permission denied for subject character:123456
+[DEBUG] CasbinAuthMiddleware: Permission denied for subject corporation:987654
+[DEBUG] CasbinAuthMiddleware: No explicit allow found, defaulting to deny
+[DEBUG] CasbinAuthMiddleware: Permission denied for user test-user
+```
+
+### Usage Example
+
+```go
+// Protect endpoint with CASBIN permission
+func RegisterProtectedRoutes(api huma.API, basePath string) {
+    // Method 1: Using CASBIN middleware in Huma handler
+    huma.Get(api, basePath+"/status", func(ctx context.Context, input *StatusInput) (*StatusOutput, error) {
+        // Simulate CASBIN permission check
+        if input.Authorization == "" && input.Cookie == "" {
+            return nil, huma.Error401Unauthorized("Authentication required")
+        }
+        // Permission check would happen here
+        return nil, huma.Error403Forbidden("Permission denied - requires scheduler.read permission")
+    })
+}
+```
+
+### Policy Management
+
+```go
+// Add policies programmatically
+casbinAuth.AddPolicy("role:admin", "scheduler", "read", "allow")
+casbinAuth.AddPolicy("role:user", "scheduler", "read", "allow") 
+casbinAuth.AddPolicy("user:specific-user", "scheduler", "admin", "deny")
+
+// Role assignments
+casbinAuth.AddRoleForUser("user:12345", "role:admin")
+casbinAuth.AddRoleForUser("character:67890", "role:user")
+```
+
+### Security Features
+
+- **Sensitive Data Protection**: Debug logs hide cookie values and JWT tokens
+- **Hierarchical Checking**: Evaluates permissions across character/corp/alliance hierarchy
+- **Default Deny**: Secure-by-default approach with explicit allows required
+- **MongoDB Integration**: Policies stored in MongoDB with automatic reconnection
+
+## 🔧 Security & Debug Logging
+
+### Secure Debug Logging
+
+All middleware components now include security-conscious debug logging:
+
+```bash
+# Secure authentication logs (no sensitive data)
+[DEBUG] ValidateAuthFromHeaders: authHeader present=true cookieHeader present=true
+[DEBUG] ExtractTokenFromCookie: parsing cookie header with 3 cookie(s)
+[DEBUG] ExtractTokenFromCookie: cookie[0] name='session_id'
+[DEBUG] ExtractTokenFromCookie: cookie[1] name='falcon_auth_token'
+[DEBUG] ExtractTokenFromCookie: found falcon_auth_token (length=156)
+```
+
+### Database Connection Resilience
+
+- **MongoDB Health Checks**: Automatic connection health validation before database operations
+- **Automatic Reconnection**: Transparent recovery from "client is disconnected" errors
+- **Character Resolution**: Reliable user character relationship queries with connection recovery
 
 ## 📈 Monitoring
 

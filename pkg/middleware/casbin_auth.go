@@ -107,16 +107,15 @@ func (c *CasbinAuthMiddleware) RequirePermission(resource, action string) func(h
 // checkHierarchicalPermission checks permissions across character/corp/alliance hierarchy
 func (c *CasbinAuthMiddleware) checkHierarchicalPermission(ctx context.Context, authCtx *ExpandedAuthContext, resource, action string) (bool, error) {
 	domain := "global" // For now, using global domain
-	permission := fmt.Sprintf("%s.%s", resource, action)
 
 	// Build subjects in priority order (character > corp > alliance)
 	subjects := c.buildSubjects(authCtx)
 
-	fmt.Printf("[DEBUG] CasbinAuthMiddleware: Checking permission '%s' for subjects: %v\n", permission, subjects)
+	fmt.Printf("[DEBUG] CasbinAuthMiddleware: Checking permission '%s.%s' for subjects: %v\n", resource, action, subjects)
 
 	// Use the single enforce call - CASBIN handles allow/deny logic internally
 	for _, subject := range subjects {
-		result, err := c.enforcer.Enforce(subject, permission, action, domain)
+		result, err := c.enforcer.Enforce(subject, resource, action, domain)
 		if err != nil {
 			return false, fmt.Errorf("failed to check policy for subject %s: %w", subject, err)
 		}
@@ -156,10 +155,10 @@ func (c *CasbinAuthMiddleware) buildSubjects(authCtx *ExpandedAuthContext) []str
 // AddPolicy adds a policy to Casbin
 func (c *CasbinAuthMiddleware) AddPolicy(subject, resource, action, effect string) error {
 	domain := "global"
-	permission := fmt.Sprintf("%s.%s", resource, action)
 	
 	// CASBIN model expects: sub, obj, act, dom, eft
-	added, err := c.enforcer.AddPolicy(subject, permission, action, domain, effect)
+	// Use resource as object, action as action, domain and effect as specified
+	added, err := c.enforcer.AddPolicy(subject, resource, action, domain, effect)
 	if err != nil {
 		return fmt.Errorf("failed to add policy: %w", err)
 	}
@@ -170,9 +169,10 @@ func (c *CasbinAuthMiddleware) AddPolicy(subject, resource, action, effect strin
 	
 	slog.Info("Added Casbin policy", 
 		"subject", subject,
-		"permission", permission,
-		"effect", effect,
-		"domain", domain)
+		"resource", resource,
+		"action", action,
+		"domain", domain,
+		"effect", effect)
 	
 	return nil
 }
@@ -180,10 +180,9 @@ func (c *CasbinAuthMiddleware) AddPolicy(subject, resource, action, effect strin
 // RemovePolicy removes a policy from Casbin
 func (c *CasbinAuthMiddleware) RemovePolicy(subject, resource, action, effect string) error {
 	domain := "global"
-	permission := fmt.Sprintf("%s.%s", resource, action)
 	
 	// CASBIN model expects: sub, obj, act, dom, eft
-	removed, err := c.enforcer.RemovePolicy(subject, permission, action, domain, effect)
+	removed, err := c.enforcer.RemovePolicy(subject, resource, action, domain, effect)
 	if err != nil {
 		return fmt.Errorf("failed to remove policy: %w", err)
 	}
@@ -194,9 +193,10 @@ func (c *CasbinAuthMiddleware) RemovePolicy(subject, resource, action, effect st
 	
 	slog.Info("Removed Casbin policy", 
 		"subject", subject,
-		"permission", permission,
-		"effect", effect,
-		"domain", domain)
+		"resource", resource,
+		"action", action,
+		"domain", domain,
+		"effect", effect)
 	
 	return nil
 }
@@ -296,4 +296,9 @@ func (c *CasbinAuthMiddleware) ReloadPolicies() error {
 	
 	slog.Info("Casbin policies reloaded from database")
 	return nil
+}
+
+// GetEnforcer returns the CASBIN enforcer instance for advanced operations
+func (c *CasbinAuthMiddleware) GetEnforcer() *casbin.Enforcer {
+	return c.enforcer
 }

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -144,4 +145,108 @@ func (r *Redis) HealthCheck(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	return r.Client.Ping(ctx).Err()
+}
+
+// SetJSON stores a JSON-serializable object in Redis with expiration
+func (r *Redis) SetJSON(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	jsonData, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	if r.tracer != nil {
+		ctx, span := r.tracer.Start(ctx, "redis.set_json",
+			trace.WithAttributes(
+				attribute.String("redis.key", key),
+				attribute.String("redis.operation", "SET_JSON"),
+				attribute.Int("redis.data_size", len(jsonData)),
+			),
+		)
+		defer span.End()
+
+		err := r.Client.Set(ctx, key, jsonData, expiration).Err()
+		if err != nil {
+			span.RecordError(err)
+		}
+		return err
+	}
+
+	return r.Client.Set(ctx, key, jsonData, expiration).Err()
+}
+
+// GetJSON retrieves and unmarshals a JSON object from Redis
+func (r *Redis) GetJSON(ctx context.Context, key string, dest interface{}) error {
+	var jsonData string
+	var err error
+
+	if r.tracer != nil {
+		ctx, span := r.tracer.Start(ctx, "redis.get_json",
+			trace.WithAttributes(
+				attribute.String("redis.key", key),
+				attribute.String("redis.operation", "GET_JSON"),
+			),
+		)
+		defer span.End()
+
+		jsonData, err = r.Client.Get(ctx, key).Result()
+		if err != nil {
+			span.RecordError(err)
+			return err
+		}
+	} else {
+		jsonData, err = r.Client.Get(ctx, key).Result()
+		if err != nil {
+			return err
+		}
+	}
+
+	err = json.Unmarshal([]byte(jsonData), dest)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	return nil
+}
+
+// SetWithTTL sets a key with a TTL and returns the remaining TTL
+func (r *Redis) SetWithTTL(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	if r.tracer != nil {
+		ctx, span := r.tracer.Start(ctx, "redis.set_with_ttl",
+			trace.WithAttributes(
+				attribute.String("redis.key", key),
+				attribute.String("redis.operation", "SET_WITH_TTL"),
+				attribute.String("redis.expiration", expiration.String()),
+			),
+		)
+		defer span.End()
+
+		err := r.Client.Set(ctx, key, value, expiration).Err()
+		if err != nil {
+			span.RecordError(err)
+		}
+		return err
+	}
+
+	return r.Client.Set(ctx, key, value, expiration).Err()
+}
+
+// GetTTL returns the remaining time to live for a key
+func (r *Redis) GetTTL(ctx context.Context, key string) (time.Duration, error) {
+	if r.tracer != nil {
+		ctx, span := r.tracer.Start(ctx, "redis.get_ttl",
+			trace.WithAttributes(
+				attribute.String("redis.key", key),
+				attribute.String("redis.operation", "TTL"),
+			),
+		)
+		defer span.End()
+
+		ttl, err := r.Client.TTL(ctx, key).Result()
+		if err != nil {
+			span.RecordError(err)
+		}
+		return ttl, err
+	}
+
+	return r.Client.TTL(ctx, key).Result()
 }

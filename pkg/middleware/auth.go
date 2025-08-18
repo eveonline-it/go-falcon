@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"go-falcon/internal/auth/models"
 	"go-falcon/pkg/config"
+	"go-falcon/pkg/database"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -55,15 +57,25 @@ type JWTValidator interface {
 	ValidateJWT(token string) (*models.AuthenticatedUser, error)
 }
 
-// AuthMiddleware provides authentication utilities for API operations
+// AuthMiddleware provides authentication utilities for API operations with optional caching
 type AuthMiddleware struct {
 	jwtValidator JWTValidator
+	authCache    *AuthCache
 }
 
 // NewAuthMiddleware creates a new authentication middleware
-func NewAuthMiddleware(validator JWTValidator) *AuthMiddleware {
+func NewAuthMiddleware(validator JWTValidator, redis ...*database.Redis) *AuthMiddleware {
+	var authCache *AuthCache
+	if len(redis) > 0 && redis[0] != nil {
+		authCache = NewAuthCache(redis[0])
+		fmt.Printf("[DEBUG] AuthMiddleware: Redis caching enabled\n")
+	} else {
+		fmt.Printf("[DEBUG] AuthMiddleware: Redis caching disabled\n")
+	}
+
 	return &AuthMiddleware{
 		jwtValidator: validator,
+		authCache:    authCache,
 	}
 }
 
@@ -149,12 +161,25 @@ func (m *AuthMiddleware) ExtractTokenFromCookie(cookieHeader string) string {
 	return ""
 }
 
-// ValidateToken validates a JWT token string and returns the authenticated user
+// ValidateToken validates a JWT token string and returns the authenticated user with caching
 func (m *AuthMiddleware) ValidateToken(token string) (*models.AuthenticatedUser, error) {
 	fmt.Printf("[DEBUG] ValidateToken: token length=%d\n", len(token))
 	if token == "" {
 		fmt.Printf("[DEBUG] ValidateToken: empty token provided\n")
 		return nil, &AuthError{message: "no authentication token provided"}
+	}
+
+	// Try cache first if available
+	if m.authCache != nil {
+		tokenHash := m.authCache.HashToken(token)
+		fmt.Printf("[DEBUG] ValidateToken: Checking cache for token hash\n")
+		
+		if cachedUser, err := m.authCache.GetAuthenticatedUser(context.Background(), tokenHash); err == nil {
+			fmt.Printf("[DEBUG] ValidateToken: Cache HIT - returning cached user %s\n", cachedUser.CharacterName)
+			return cachedUser, nil
+		} else {
+			fmt.Printf("[DEBUG] ValidateToken: Cache MISS - validating with JWT\n")
+		}
 	}
 
 	// Validate JWT using the injected validator
@@ -165,6 +190,18 @@ func (m *AuthMiddleware) ValidateToken(token string) (*models.AuthenticatedUser,
 		return nil, err
 	}
 	fmt.Printf("[DEBUG] ValidateToken: JWT validation successful, userID=%s, characterID=%d\n", user.UserID, user.CharacterID)
+
+	// Cache the validated user if cache is available
+	if m.authCache != nil {
+		tokenHash := m.authCache.HashToken(token)
+		cacheTTL := 10 * time.Minute // Cache for 10 minutes
+		
+		if err := m.authCache.SetAuthenticatedUser(context.Background(), tokenHash, user, cacheTTL); err != nil {
+			fmt.Printf("[DEBUG] ValidateToken: Failed to cache user: %v\n", err)
+		} else {
+			fmt.Printf("[DEBUG] ValidateToken: Cached user %s for %v\n", user.CharacterName, cacheTTL)
+		}
+	}
 
 	return user, nil
 }

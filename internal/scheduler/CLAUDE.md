@@ -143,7 +143,7 @@ User-defined task executors with flexible configuration:
 
 | Endpoint | Method | Description | Permission Required |
 |----------|--------|-------------|-------------------|
-| `/scheduler/status` | GET | Get scheduler status | None (public) |
+| `/scheduler/status` | GET | Get scheduler status | `scheduler.read` (CASBIN protected) |
 | `/scheduler/stats` | GET | Get scheduler statistics | None (public) |
 | `/scheduler/tasks` | GET | List tasks with filtering and pagination | `scheduler.tasks.read` |
 | `/scheduler/tasks` | POST | Create new task | `scheduler.tasks.write` |
@@ -472,6 +472,9 @@ The scheduler module implements a comprehensive granular permission system with 
 
 #### Service: `scheduler`
 
+##### Global Permissions
+- **read**: View scheduler status and basic information (required for `/scheduler/status`)
+
 ##### Resource: `tasks`
 - **read**: View task details and list tasks
 - **write**: Create, update, pause, and resume tasks
@@ -481,6 +484,32 @@ The scheduler module implements a comprehensive granular permission system with 
 
 ##### Resource: `executions`
 - **read**: View task execution history and details
+
+### CASBIN Authorization Integration
+
+The `/scheduler/status` endpoint is now protected with CASBIN authorization middleware:
+
+**Debug Logging Example:**
+```bash
+[DEBUG] SchedulerRoutes: /status endpoint called
+[DEBUG] CasbinAuthMiddleware.RequirePermission: Checking scheduler.read for GET /scheduler/status
+[DEBUG] CasbinAuthMiddleware: Found authenticated user (user:test-user)
+[DEBUG] CasbinAuthMiddleware: Checking permission 'scheduler.read' for subjects: [user:test-user, character:123456]
+[DEBUG] CasbinAuthMiddleware: Permission denied for subject user:test-user
+[DEBUG] CasbinAuthMiddleware: Permission denied for subject character:123456
+[DEBUG] CasbinAuthMiddleware: No explicit allow found, defaulting to deny
+[DEBUG] CasbinAuthMiddleware: Permission denied for user test-user
+```
+
+**Required Policy Setup:**
+```bash
+# Grant scheduler.read permission to appropriate roles
+casbin.AddPolicy("role:admin", "scheduler", "read", "allow")
+casbin.AddPolicy("role:monitoring", "scheduler", "read", "allow")
+
+# Assign roles to users
+casbin.AddRoleForUser("user:12345", "role:admin")
+```
 
 ### Required Group Configuration
 
@@ -492,6 +521,7 @@ To use the scheduler module, the following groups should be configured:
   "name": "administrators",
   "permissions": {
     "scheduler": {
+      "global": ["read"],
       "tasks": ["read", "write", "delete", "execute", "admin"],
       "executions": ["read"]
     }
@@ -505,6 +535,7 @@ To use the scheduler module, the following groups should be configured:
   "name": "task_managers", 
   "permissions": {
     "scheduler": {
+      "global": ["read"],
       "tasks": ["read", "write", "execute"],
       "executions": ["read"]
     }
@@ -518,6 +549,7 @@ To use the scheduler module, the following groups should be configured:
   "name": "monitoring",
   "permissions": {
     "scheduler": {
+      "global": ["read"],
       "tasks": ["read"],
       "executions": ["read"]
     }
@@ -536,8 +568,10 @@ To use the scheduler module, the following groups should be configured:
 
 ### Health Checks
 ```bash
-# Check scheduler status
-curl /scheduler/status
+# Check scheduler status (requires authentication and scheduler.read permission)
+curl -H "Authorization: Bearer <token>" /scheduler/status
+# OR with cookie authentication
+curl -H "Cookie: falcon_auth_token=<token>" /scheduler/status
 
 # Get comprehensive statistics
 curl /scheduler/stats

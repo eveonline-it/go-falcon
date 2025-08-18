@@ -3,21 +3,24 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"time"
 
 	authModels "go-falcon/internal/auth/models"
 	"go-falcon/pkg/database"
 
+	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// UserCharacterResolverImpl implements UserCharacterResolver using MongoDB
+// UserCharacterResolverImpl implements UserCharacterResolver using MongoDB with Redis caching
 type UserCharacterResolverImpl struct {
 	mongodb *database.MongoDB
+	redis   *database.Redis
 }
 
-// NewUserCharacterResolver creates a new user character resolver
-func NewUserCharacterResolver(mongodb *database.MongoDB) UserCharacterResolver {
+// NewUserCharacterResolver creates a new user character resolver with optional Redis caching
+func NewUserCharacterResolver(mongodb *database.MongoDB, redis ...*database.Redis) UserCharacterResolver {
 	fmt.Printf("[DEBUG] NewUserCharacterResolver: Creating new user character resolver with MongoDB connection\n")
 	if mongodb == nil {
 		fmt.Printf("[DEBUG] NewUserCharacterResolver: WARNING - MongoDB connection is nil!\n")
@@ -25,15 +28,24 @@ func NewUserCharacterResolver(mongodb *database.MongoDB) UserCharacterResolver {
 		fmt.Printf("[DEBUG] NewUserCharacterResolver: MongoDB connection established successfully\n")
 	}
 	
+	var redisClient *database.Redis
+	if len(redis) > 0 && redis[0] != nil {
+		redisClient = redis[0]
+		fmt.Printf("[DEBUG] NewUserCharacterResolver: Redis caching enabled\n")
+	} else {
+		fmt.Printf("[DEBUG] NewUserCharacterResolver: Redis caching disabled\n")
+	}
+	
 	resolver := &UserCharacterResolverImpl{
 		mongodb: mongodb,
+		redis:   redisClient,
 	}
 	
 	fmt.Printf("[DEBUG] NewUserCharacterResolver: User character resolver created successfully\n")
 	return resolver
 }
 
-// GetUserWithCharacters implements UserCharacterResolver interface
+// GetUserWithCharacters implements UserCharacterResolver interface with Redis caching
 func (r *UserCharacterResolverImpl) GetUserWithCharacters(ctx context.Context, userID string) (*UserWithCharacters, error) {
 	fmt.Printf("[DEBUG] ===== UserCharacterResolver.GetUserWithCharacters START =====\n")
 	fmt.Printf("[DEBUG] UserCharacterResolver: Getting characters for user %s\n", userID)
@@ -41,6 +53,25 @@ func (r *UserCharacterResolverImpl) GetUserWithCharacters(ctx context.Context, u
 	if r.mongodb == nil {
 		fmt.Printf("[DEBUG] UserCharacterResolver: ERROR - MongoDB connection is nil!\n")
 		return nil, fmt.Errorf("mongodb connection is nil")
+	}
+
+	// Try Redis cache first if available
+	cacheKey := fmt.Sprintf("user_characters:%s", userID)
+	if r.redis != nil {
+		fmt.Printf("[DEBUG] UserCharacterResolver: Checking Redis cache for key: %s\n", cacheKey)
+		
+		var cachedResult UserWithCharacters
+		err := r.redis.GetJSON(ctx, cacheKey, &cachedResult)
+		if err == nil {
+			fmt.Printf("[DEBUG] UserCharacterResolver: Cache HIT - found %d characters in cache\n", len(cachedResult.Characters))
+			fmt.Printf("[DEBUG] ===== UserCharacterResolver.GetUserWithCharacters END (from cache) =====\n")
+			return &cachedResult, nil
+		} else if err != redis.Nil {
+			// Log cache error but continue with database lookup
+			fmt.Printf("[DEBUG] UserCharacterResolver: Cache error (continuing with DB): %v\n", err)
+		} else {
+			fmt.Printf("[DEBUG] UserCharacterResolver: Cache MISS - fetching from database\n")
+		}
 	}
 	
 	// Use the auth UserProfile collection since it has corporation/alliance data
@@ -124,7 +155,36 @@ func (r *UserCharacterResolverImpl) GetUserWithCharacters(ctx context.Context, u
 		Characters: characters,
 	}
 
+	// Cache the result in Redis if available
+	if r.redis != nil {
+		cacheExpiration := 15 * time.Minute // Cache for 15 minutes
+		err := r.redis.SetJSON(ctx, cacheKey, result, cacheExpiration)
+		if err != nil {
+			fmt.Printf("[DEBUG] UserCharacterResolver: Failed to cache result: %v\n", err)
+		} else {
+			fmt.Printf("[DEBUG] UserCharacterResolver: Cached result for %d characters (TTL: %v)\n", len(characters), cacheExpiration)
+		}
+	}
+
 	fmt.Printf("[DEBUG] UserCharacterResolver: Successfully resolved %d characters for user %s\n", len(characters), userID)
 	fmt.Printf("[DEBUG] ===== UserCharacterResolver.GetUserWithCharacters END =====\n")
 	return result, nil
+}
+
+// InvalidateUserCache removes cached character data for a specific user
+func (r *UserCharacterResolverImpl) InvalidateUserCache(ctx context.Context, userID string) error {
+	if r.redis == nil {
+		fmt.Printf("[DEBUG] UserCharacterResolver: Redis not available, skipping cache invalidation for user %s\n", userID)
+		return nil
+	}
+
+	cacheKey := fmt.Sprintf("user_characters:%s", userID)
+	err := r.redis.Delete(ctx, cacheKey)
+	if err != nil {
+		fmt.Printf("[DEBUG] UserCharacterResolver: Failed to invalidate cache for user %s: %v\n", userID, err)
+		return err
+	}
+
+	fmt.Printf("[DEBUG] UserCharacterResolver: Successfully invalidated cache for user %s\n", userID)
+	return nil
 }

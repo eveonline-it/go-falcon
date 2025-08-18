@@ -11,6 +11,7 @@ import (
 // UserCharacterResolver interface for resolving user characters
 type UserCharacterResolver interface {
 	GetUserWithCharacters(ctx context.Context, userID string) (*UserWithCharacters, error)
+	InvalidateUserCache(ctx context.Context, userID string) error
 }
 
 // UserWithCharacters represents a user with all their characters

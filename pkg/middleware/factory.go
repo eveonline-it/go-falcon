@@ -14,12 +14,17 @@ type MiddlewareFactory struct {
 }
 
 // NewMiddlewareFactory creates a new middleware factory with all required dependencies
-func NewMiddlewareFactory(jwtValidator JWTValidator, mongodb *database.MongoDB) *MiddlewareFactory {
-	// Create character resolver
-	characterResolver := NewUserCharacterResolver(mongodb)
+func NewMiddlewareFactory(jwtValidator JWTValidator, mongodb *database.MongoDB, redis ...*database.Redis) *MiddlewareFactory {
+	var redisClient *database.Redis
+	if len(redis) > 0 {
+		redisClient = redis[0]
+	}
 	
-	// Create middleware instances
-	authMiddleware := NewAuthMiddleware(jwtValidator)
+	// Create character resolver with Redis caching if available
+	characterResolver := NewUserCharacterResolver(mongodb, redisClient)
+	
+	// Create middleware instances with Redis caching if available
+	authMiddleware := NewAuthMiddleware(jwtValidator, redisClient)
 	enhancedAuthMiddleware := NewEnhancedAuthMiddleware(jwtValidator, characterResolver)
 	contextHelper := NewContextHelper()
 	

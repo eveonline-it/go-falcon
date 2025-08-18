@@ -19,9 +19,10 @@ import (
 
 // SchedulerService is the main service that orchestrates scheduler operations
 type SchedulerService struct {
-	repository   *Repository
+	repository    *Repository
 	engineService *EngineService
-	authModule   AuthModule
+	authModule    AuthModule
+	cache         *SchedulerCache
 }
 
 // NewSchedulerService creates a new scheduler service with all dependencies
@@ -29,10 +30,19 @@ func NewSchedulerService(mongodb *database.MongoDB, redis *database.Redis, authM
 	repository := NewRepository(mongodb)
 	engineService := NewEngineService(repository, redis, authModule, nil)
 
+	var cache *SchedulerCache
+	if redis != nil {
+		cache = NewSchedulerCache(redis)
+		fmt.Printf("[DEBUG] SchedulerService: Redis caching enabled\n")
+	} else {
+		fmt.Printf("[DEBUG] SchedulerService: Redis caching disabled\n")
+	}
+
 	return &SchedulerService{
 		repository:    repository,
 		engineService: engineService,
 		authModule:    authModule,
+		cache:         cache,
 	}
 }
 
@@ -83,6 +93,13 @@ func (s *SchedulerService) CreateTask(ctx context.Context, req *dto.TaskCreateRe
 
 	// Reload tasks in engine
 	s.engineService.ReloadTasks()
+
+	// Invalidate related caches
+	if s.cache != nil {
+		if err := s.cache.InvalidateOnTaskChange(ctx, "create"); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.CreateTask: Failed to invalidate cache: %v\n", err)
+		}
+	}
 
 	slog.Info("Task created successfully",
 		slog.String("task_id", task.ID),
@@ -152,6 +169,13 @@ func (s *SchedulerService) UpdateTask(ctx context.Context, taskID string, req *d
 	// Reload tasks in engine
 	s.engineService.ReloadTasks()
 
+	// Invalidate related caches
+	if s.cache != nil {
+		if err := s.cache.InvalidateOnTaskChange(ctx, "update"); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.UpdateTask: Failed to invalidate cache: %v\n", err)
+		}
+	}
+
 	slog.Info("Task updated successfully",
 		slog.String("task_id", task.ID),
 		slog.String("task_name", task.Name))
@@ -180,6 +204,13 @@ func (s *SchedulerService) DeleteTask(ctx context.Context, taskID string) error 
 
 	// Reload tasks in engine
 	s.engineService.ReloadTasks()
+
+	// Invalidate related caches
+	if s.cache != nil {
+		if err := s.cache.InvalidateOnTaskChange(ctx, "delete"); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.DeleteTask: Failed to invalidate cache: %v\n", err)
+		}
+	}
 
 	slog.Info("Task deleted successfully", slog.String("task_id", taskID))
 	return nil
@@ -261,6 +292,14 @@ func (s *SchedulerService) PauseTask(ctx context.Context, taskID string) error {
 
 	// Reload tasks in engine
 	s.engineService.ReloadTasks()
+
+	// Invalidate related caches
+	if s.cache != nil {
+		if err := s.cache.InvalidateOnTaskChange(ctx, "pause"); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.PauseTask: Failed to invalidate cache: %v\n", err)
+		}
+	}
+
 	return nil
 }
 
@@ -272,6 +311,14 @@ func (s *SchedulerService) ResumeTask(ctx context.Context, taskID string) error 
 
 	// Reload tasks in engine
 	s.engineService.ReloadTasks()
+
+	// Invalidate related caches
+	if s.cache != nil {
+		if err := s.cache.InvalidateOnTaskChange(ctx, "resume"); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.ResumeTask: Failed to invalidate cache: %v\n", err)
+		}
+	}
+
 	return nil
 }
 
@@ -321,6 +368,17 @@ func (s *SchedulerService) GetExecution(ctx context.Context, executionID string)
 
 // GetStats retrieves scheduler statistics
 func (s *SchedulerService) GetStats(ctx context.Context) (*dto.SchedulerStatsResponse, error) {
+	// Try cache first if available
+	if s.cache != nil {
+		if cachedStats, err := s.cache.GetSchedulerStats(ctx); err == nil {
+			fmt.Printf("[DEBUG] SchedulerService.GetStats: Cache HIT\n")
+			return cachedStats, nil
+		} else {
+			fmt.Printf("[DEBUG] SchedulerService.GetStats: Cache MISS - generating fresh stats\n")
+		}
+	}
+
+	// Generate fresh stats
 	stats, err := s.repository.GetSchedulerStats(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get scheduler stats: %w", err)
@@ -331,7 +389,7 @@ func (s *SchedulerService) GetStats(ctx context.Context) (*dto.SchedulerStatsRes
 	stats.WorkerCount = engineStats.WorkerCount
 	stats.QueueSize = engineStats.QueueSize
 
-	return &dto.SchedulerStatsResponse{
+	result := &dto.SchedulerStatsResponse{
 		TotalTasks:       stats.TotalTasks,
 		EnabledTasks:     stats.EnabledTasks,
 		RunningTasks:     stats.RunningTasks,
@@ -341,17 +399,50 @@ func (s *SchedulerService) GetStats(ctx context.Context) (*dto.SchedulerStatsRes
 		NextScheduledRun: stats.NextScheduledRun,
 		WorkerCount:      stats.WorkerCount,
 		QueueSize:        stats.QueueSize,
-	}, nil
+	}
+
+	// Cache the result if cache is available
+	if s.cache != nil {
+		cacheTTL := 2 * time.Minute // Cache stats for 2 minutes
+		if err := s.cache.SetSchedulerStats(ctx, result, cacheTTL); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.GetStats: Failed to cache stats: %v\n", err)
+		}
+	}
+
+	return result, nil
 }
 
 // GetStatus returns scheduler status
 func (s *SchedulerService) GetStatus() *dto.SchedulerStatusResponse {
-	return &dto.SchedulerStatusResponse{
+	ctx := context.Background()
+	
+	// Try cache first if available
+	if s.cache != nil {
+		if cachedStatus, err := s.cache.GetSchedulerStatus(ctx); err == nil {
+			fmt.Printf("[DEBUG] SchedulerService.GetStatus: Cache HIT\n")
+			return cachedStatus
+		} else {
+			fmt.Printf("[DEBUG] SchedulerService.GetStatus: Cache MISS - generating fresh status\n")
+		}
+	}
+
+	// Generate fresh status
+	status := &dto.SchedulerStatusResponse{
 		Module:  "scheduler",
 		Status:  "running",
 		Version: "1.0.0",
 		Engine:  s.engineService.IsRunning(),
 	}
+
+	// Cache the result if cache is available
+	if s.cache != nil {
+		cacheTTL := 30 * time.Second // Cache status for 30 seconds
+		if err := s.cache.SetSchedulerStatus(ctx, status, cacheTTL); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.GetStatus: Failed to cache status: %v\n", err)
+		}
+	}
+
+	return status
 }
 
 // ReloadTasks reloads tasks from database
