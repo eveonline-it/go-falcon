@@ -7,6 +7,7 @@ import (
 	"go-falcon/internal/auth/dto"
 	"go-falcon/internal/auth/middleware"
 	"go-falcon/internal/auth/services"
+	"go-falcon/pkg/config"
 	humaMiddleware "go-falcon/pkg/middleware"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -89,11 +90,12 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		cookieHeader := humaMiddleware.CreateAuthCookieHeader(jwtToken)
 		
 		// Get frontend URL from configuration
-		frontendURL := "https://go.eveonline.it" // Use correct frontend URL
+		frontendURL := config.GetFrontendURL()
 		
 		// Return HTTP 302 redirect with Location header and cookie
 		// Huma will handle this as a proper redirect response
 		return &dto.EVECallbackOutput{
+			Status:    302,
 			SetCookie: cookieHeader,
 			Location:  frontendURL,
 			Body:      nil, // Empty body for redirect
@@ -331,11 +333,12 @@ func (hr *Routes) eveCallback(ctx context.Context, input *dto.EVECallbackInput) 
 	cookieHeader := humaMiddleware.CreateAuthCookieHeader(jwtToken)
 	
 	// Get frontend URL from configuration
-	frontendURL := "https://go.eveonline.it" // Use correct frontend URL
+	frontendURL := config.GetFrontendURL()
 	
 	// Return HTTP 302 redirect with Location header and cookie
 	// Huma will handle this as a proper redirect response
 	return &dto.EVECallbackOutput{
+		Status:    302,
 		SetCookie: cookieHeader,
 		Location:  frontendURL,
 		Body:      nil, // Empty body for redirect

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"go-falcon/internal/auth/models"
+	"go-falcon/pkg/config"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -170,12 +171,28 @@ func NewAuthError(message string) *AuthError {
 
 // CreateAuthCookieHeader creates a Set-Cookie header string for authentication
 func CreateAuthCookieHeader(token string) string {
+	// Get cookie domain from config
+	cookieDomain := config.GetCookieDomain()
+	
 	// Create cookie similar to the traditional handler
-	return "falcon_auth_token=" + token + "; Path=/; Domain=.eveonline.it; Max-Age=86400; HttpOnly; Secure; SameSite=Lax"
+	cookie := "falcon_auth_token=" + token + "; Path=/"
+	if cookieDomain != "" {
+		cookie += "; Domain=" + cookieDomain
+	}
+	cookie += "; Max-Age=86400; HttpOnly; Secure; SameSite=Lax"
+	return cookie
 }
 
 // CreateClearCookieHeader creates a Set-Cookie header string to clear the auth cookie
 func CreateClearCookieHeader() string {
+	// Get cookie domain from config
+	cookieDomain := config.GetCookieDomain()
+	
 	// Clear cookie by setting it to empty with past expiration
-	return "falcon_auth_token=; Path=/; Domain=.eveonline.it; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+	cookie := "falcon_auth_token=; Path=/"
+	if cookieDomain != "" {
+		cookie += "; Domain=" + cookieDomain
+	}
+	cookie += "; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+	return cookie
 }

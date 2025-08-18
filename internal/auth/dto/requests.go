@@ -61,6 +61,7 @@ type EVECallbackInput struct {
 
 // EVECallbackOutput represents the output for EVE SSO callback
 type EVECallbackOutput struct {
+	Status    int                    `json:"-" status:"302" doc:"HTTP status code for redirect"`
 	SetCookie string                 `header:"Set-Cookie" doc:"Authentication cookie"`
 	Location  string                 `header:"Location" doc:"Redirect location"`
 	Body      map[string]interface{} `json:"body,omitempty"`
