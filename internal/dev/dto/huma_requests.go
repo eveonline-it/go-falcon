@@ -7,7 +7,7 @@ type HealthCheckInput struct {
 
 // HealthCheckOutput represents the output for health check endpoint
 type HealthCheckOutput struct {
-	Body HealthResponse `json:"body"`
+	Body DevHealthResponse `json:"body"`
 }
 
 // ESIStatusInput represents the input for ESI status endpoint
@@ -39,7 +39,7 @@ type SDEStatusInput struct {
 
 // SDEStatusOutput represents the output for SDE status endpoint
 type SDEStatusOutput struct {
-	Body SDEStatusResponse `json:"body"`
+	Body DevSDEStatusResponse `json:"body"`
 }
 
 // ServiceDiscoveryInput represents the input for service discovery

@@ -89,8 +89,8 @@ func (m *Module) CheckSDEUpdate(ctx context.Context) error {
 	slog.Info("SDE update check requested")
 	return nil
 }
-// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+// RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	// TODO: Implement unified routes for sde module
-	log.Printf("Sde module unified routes registration not yet implemented")
+	routes.RegisterSDERoutes(api, basePath, m.service)
+	log.Printf("SDE module unified routes registered at %s", basePath)
 }

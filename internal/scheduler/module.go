@@ -224,8 +224,8 @@ func (m *Module) Shutdown() error {
 	m.Stop()
 	return nil
 }
-// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+// RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	// TODO: Implement unified routes for scheduler module
-	log.Printf("Scheduler module unified routes registration not yet implemented")
+	routes.RegisterSchedulerRoutes(api, basePath, m.schedulerService, m.middleware)
+	log.Printf("Scheduler module unified routes registered at %s", basePath)
 }

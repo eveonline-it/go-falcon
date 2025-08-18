@@ -136,7 +136,7 @@ type UpdateHistoryEntry struct {
 }
 
 // NotificationResponse represents SDE notifications
-type NotificationResponse struct {
+type SDENotificationResponse struct {
 	Notifications []NotificationEntry `json:"notifications"`
 	Pagination    PaginationResponse  `json:"pagination"`
 }
@@ -153,7 +153,7 @@ type NotificationEntry struct {
 }
 
 // PaginationResponse represents pagination information
-type PaginationResponse struct {
+type SDEPaginationResponse struct {
 	Page       int `json:"page"`
 	PageSize   int `json:"page_size"`
 	Total      int `json:"total"`
@@ -196,17 +196,17 @@ type PerformanceStats struct {
 	TotalRequests       int64         `json:"total_requests"`
 }
 
-// HealthResponse represents module health information
-type HealthResponse struct {
+// SDEHealthResponse represents module health information
+type SDEHealthResponse struct {
 	Status    string    `json:"status"`
 	Module    string    `json:"module"`
 	Version   string    `json:"version"`
 	Timestamp time.Time `json:"timestamp"`
-	Checks    []HealthCheck `json:"checks"`
+	Checks    []SDEHealthCheck `json:"checks"`
 }
 
-// HealthCheck represents an individual health check
-type HealthCheck struct {
+// SDEHealthCheck represents an individual health check
+type SDEHealthCheck struct {
 	Name    string `json:"name"`
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`

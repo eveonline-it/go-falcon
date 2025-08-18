@@ -17,7 +17,7 @@ type SDEHealthInput struct {
 
 // SDEHealthOutput represents the output for SDE health check
 type SDEHealthOutput struct {
-	Body HealthResponse `json:"body"`
+	Body SDEHealthResponse `json:"body"`
 }
 
 // EntityGetInput represents the input for getting a specific entity

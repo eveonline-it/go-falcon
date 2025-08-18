@@ -261,12 +261,12 @@ func (m *Module) GetESIStatus(ctx context.Context) (*dto.ESIStatusResponse, erro
 }
 
 // GetSDEStatus gets SDE status for monitoring
-func (m *Module) GetSDEStatus(ctx context.Context) (*dto.SDEStatusResponse, error) {
+func (m *Module) GetSDEStatus(ctx context.Context) (*dto.DevSDEStatusResponse, error) {
 	return m.service.GetSDEStatus(ctx)
 }
 
-// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+// RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	// TODO: Implement unified routes for dev module
-	log.Printf("Dev module unified routes registration not yet implemented")
+	routes.RegisterDevRoutes(api, basePath, m.service)
+	log.Printf("Dev module unified routes registered at %s", basePath)
 }

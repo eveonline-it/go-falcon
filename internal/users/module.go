@@ -52,10 +52,10 @@ func (m *Module) RegisterHumaRoutes(r chi.Router) {
 	}
 }
 
-// RegisterUnifiedRoutes registers routes on the shared Huma API (placeholder)
+// RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	// TODO: Implement unified routes for users module
-	log.Printf("Users module unified routes registration not yet implemented")
+	routes.RegisterUsersRoutes(api, basePath, m.service)
+	log.Printf("Users module unified routes registered at %s", basePath)
 }
 
 // StartBackgroundTasks starts any background processes for the module

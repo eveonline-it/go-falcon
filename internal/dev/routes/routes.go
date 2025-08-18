@@ -36,6 +36,129 @@ func NewRoutes(service *services.Service, router chi.Router) *Routes {
 	return hr
 }
 
+// RegisterDevRoutes registers dev routes on a shared Huma API
+func RegisterDevRoutes(api huma.API, basePath string, service *services.Service) {
+	// Public health check endpoint
+	huma.Get(api, basePath+"/health", func(ctx context.Context, input *dto.HealthCheckInput) (*dto.HealthCheckOutput, error) {
+		response, err := service.GetHealthStatus(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get health status", err)
+		}
+		return &dto.HealthCheckOutput{Body: *response}, nil
+	})
+
+	// Service discovery endpoint
+	huma.Get(api, basePath+"/services", func(ctx context.Context, input *dto.ServiceDiscoveryInput) (*dto.ServiceDiscoveryOutput, error) {
+		response, err := service.GetServices(ctx, input.ServiceName, input.Detailed)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get services", err)
+		}
+		return &dto.ServiceDiscoveryOutput{Body: *response}, nil
+	})
+
+	// ESI testing endpoints (protected)
+	huma.Get(api, basePath+"/esi/status", func(ctx context.Context, input *dto.ESIStatusInput) (*dto.ESIStatusOutput, error) {
+		response, err := service.GetESIStatus(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get ESI status", err)
+		}
+		return &dto.ESIStatusOutput{Body: *response}, nil
+	})
+
+	huma.Get(api, basePath+"/character/{character_id}", func(ctx context.Context, input *dto.CharacterInfoInput) (*dto.CharacterInfoOutput, error) {
+		charReq := &dto.CharacterRequest{CharacterID: input.CharacterID}
+		response, err := service.GetCharacterInfo(ctx, charReq)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to get character info", err)
+		}
+		return &dto.CharacterInfoOutput{Body: *response}, nil
+	})
+
+	huma.Get(api, basePath+"/alliance/{alliance_id}", func(ctx context.Context, input *dto.AllianceInfoInput) (*dto.AllianceInfoOutput, error) {
+		allianceReq := &dto.AllianceRequest{AllianceID: input.AllianceID}
+		response, err := service.GetAllianceInfo(ctx, allianceReq)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to get alliance info", err)
+		}
+		return &dto.AllianceInfoOutput{Body: *response}, nil
+	})
+
+	huma.Get(api, basePath+"/corporation/{corporation_id}", func(ctx context.Context, input *dto.CorporationInfoInput) (*dto.CorporationInfoOutput, error) {
+		corpReq := &dto.CorporationRequest{CorporationID: input.CorporationID}
+		response, err := service.GetCorporationInfo(ctx, corpReq)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to get corporation info", err)
+		}
+		return &dto.CorporationInfoOutput{Body: *response}, nil
+	})
+
+	huma.Get(api, basePath+"/system/{system_id}", func(ctx context.Context, input *dto.SystemInfoInput) (*dto.SystemInfoOutput, error) {
+		systemReq := &dto.SystemRequest{SystemID: input.SystemID}
+		response, err := service.GetSystemInfo(ctx, systemReq)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to get system info", err)
+		}
+		return &dto.SystemInfoOutput{Body: *response}, nil
+	})
+
+	// SDE testing endpoints (protected)
+	huma.Get(api, basePath+"/sde/status", func(ctx context.Context, input *dto.SDEStatusInput) (*dto.SDEStatusOutput, error) {
+		response, err := service.GetSDEStatus(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get SDE status", err)
+		}
+		return &dto.SDEStatusOutput{Body: *response}, nil
+	})
+
+	huma.Get(api, basePath+"/sde/types", func(ctx context.Context, input *dto.SDETypesInput) (*dto.SDETypesOutput, error) {
+		var publishedPtr *bool
+		if input.Published {
+			publishedPtr = &input.Published
+		}
+		typeReq := &dto.SDETypeRequest{
+			TypeID:    0, // Get all types
+			Published: publishedPtr,
+		}
+		response, err := service.GetSDETypes(ctx, typeReq)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get SDE types", err)
+		}
+		return &dto.SDETypesOutput{Body: *response}, nil
+	})
+
+	huma.Get(api, basePath+"/sde/entity/{type}/{id}", func(ctx context.Context, input *dto.SDEEntityInput) (*dto.SDEEntityOutput, error) {
+		entityReq := &dto.SDEEntityRequest{Type: input.Type, ID: input.ID}
+		response, err := service.GetSDEEntity(ctx, entityReq)
+		if err != nil {
+			return nil, huma.Error404NotFound("Entity not found", err)
+		}
+		return &dto.SDEEntityOutput{Body: *response}, nil
+	})
+
+	// Additional universe and Redis SDE endpoints
+	huma.Get(api, basePath+"/universe/{type}/{region}/systems", func(ctx context.Context, input *dto.UniverseSystemsInput) (*dto.UniverseSystemsOutput, error) {
+		universeReq := &dto.UniverseRequest{
+			Type:          input.Type,
+			Region:        input.Region,
+			Constellation: input.Constellation,
+		}
+		response, err := service.GetUniverseSystems(ctx, universeReq)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get universe systems", err)
+		}
+		return &dto.UniverseSystemsOutput{Body: *response}, nil
+	})
+
+	huma.Get(api, basePath+"/sde/redis/{type}/{id}", func(ctx context.Context, input *dto.RedisSDEEntityInput) (*dto.RedisSDEEntityOutput, error) {
+		redisReq := &dto.RedisSDERequest{Type: input.Type, ID: input.ID}
+		response, err := service.GetRedisSDEEntity(ctx, redisReq)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get Redis SDE entity", err)
+		}
+		return &dto.RedisSDEEntityOutput{Body: *response}, nil
+	})
+}
+
 // registerRoutes registers all Dev module routes with Huma
 func (hr *Routes) registerRoutes() {
 	// Public health check endpoint

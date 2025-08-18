@@ -126,8 +126,8 @@ type Position struct {
 	Z float64 `json:"z"`
 }
 
-// SDEStatusResponse represents SDE service status
-type SDEStatusResponse struct {
+// DevSDEStatusResponse represents SDE service status from dev module perspective
+type DevSDEStatusResponse struct {
 	DevResponse
 	Loaded        bool              `json:"loaded"`
 	EntitiesCount map[string]int    `json:"entities_count,omitempty"`
@@ -211,13 +211,13 @@ type EndpointInfo struct {
 // HealthInfo represents health information
 type HealthInfo struct {
 	Status    string            `json:"status"`
-	Checks    []HealthCheck     `json:"checks,omitempty"`
+	Checks    []DevHealthCheck     `json:"checks,omitempty"`
 	Uptime    time.Duration     `json:"uptime,omitempty"`
 	Metadata  map[string]string `json:"metadata,omitempty"`
 }
 
-// HealthCheck represents an individual health check
-type HealthCheck struct {
+// DevHealthCheck represents an individual health check
+type DevHealthCheck struct {
 	Name    string `json:"name"`
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`
@@ -337,13 +337,13 @@ type PerformanceStats struct {
 	P99    time.Duration `json:"p99"`
 }
 
-// HealthResponse represents module health information
-type HealthResponse struct {
+// DevHealthResponse represents module health information
+type DevHealthResponse struct {
 	Status     string        `json:"status"`
 	Module     string        `json:"module"`
 	Version    string        `json:"version"`
 	Timestamp  time.Time     `json:"timestamp"`
-	Checks     []HealthCheck `json:"checks"`
+	Checks     []DevHealthCheck `json:"checks"`
 	Uptime     time.Duration `json:"uptime,omitempty"`
 	Components map[string]ComponentHealth `json:"components,omitempty"`
 }

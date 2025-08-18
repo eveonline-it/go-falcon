@@ -39,6 +39,197 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 	return hr
 }
 
+// RegisterSchedulerRoutes registers scheduler routes on a shared Huma API
+func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, middleware *middleware.Middleware) {
+	// Public endpoints (no authentication required)
+	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.SchedulerStatusInput) (*dto.SchedulerStatusOutput, error) {
+		status := service.GetStatus()
+		return &dto.SchedulerStatusOutput{Body: *status}, nil
+	})
+
+	huma.Get(api, basePath+"/stats", func(ctx context.Context, input *dto.SchedulerStatsInput) (*dto.SchedulerStatsOutput, error) {
+		stats, err := service.GetStats(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get scheduler stats", err)
+		}
+		return &dto.SchedulerStatsOutput{Body: *stats}, nil
+	})
+
+	// Task management endpoints (require authentication and permissions)
+	huma.Get(api, basePath+"/tasks", func(ctx context.Context, input *dto.TaskListInput) (*dto.TaskListOutput, error) {
+		// Convert Huma input to service query format
+		query := &dto.TaskListQuery{
+			Page:     input.Page,
+			PageSize: input.PageSize,
+			Status:   input.Status,
+			Type:     input.Type,
+			Enabled:  input.Enabled,
+		}
+
+		// Set defaults if not provided
+		if query.Page == 0 {
+			query.Page = 1
+		}
+		if query.PageSize == 0 {
+			query.PageSize = 20
+		}
+
+		tasks, err := service.ListTasks(ctx, query)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to list tasks", err)
+		}
+		return &dto.TaskListOutput{Body: *tasks}, nil
+	})
+
+	huma.Post(api, basePath+"/tasks", func(ctx context.Context, input *dto.TaskCreateInput) (*dto.TaskCreateOutput, error) {
+		task, err := service.CreateTask(ctx, &input.Body)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to create task", err)
+		}
+		return &dto.TaskCreateOutput{Body: *task}, nil
+	})
+
+	huma.Get(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskGetInput) (*dto.TaskGetOutput, error) {
+		task, err := service.GetTask(ctx, input.TaskID)
+		if err != nil {
+			if err.Error() == "task not found" {
+				return nil, huma.Error404NotFound("Task not found")
+			}
+			return nil, huma.Error500InternalServerError("Failed to get task", err)
+		}
+		return &dto.TaskGetOutput{Body: *task}, nil
+	})
+
+	huma.Put(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskUpdateInput) (*dto.TaskUpdateOutput, error) {
+		task, err := service.UpdateTask(ctx, input.TaskID, &input.Body)
+		if err != nil {
+			if err.Error() == "task not found" {
+				return nil, huma.Error404NotFound("Task not found")
+			}
+			if err.Error() == "cannot update system tasks" {
+				return nil, huma.Error403Forbidden("Cannot update system tasks")
+			}
+			return nil, huma.Error400BadRequest("Failed to update task", err)
+		}
+		return &dto.TaskUpdateOutput{Body: *task}, nil
+	})
+
+	huma.Delete(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskDeleteInput) (*dto.TaskDeleteOutput, error) {
+		err := service.DeleteTask(ctx, input.TaskID)
+		if err != nil {
+			if err.Error() == "task not found" {
+				return nil, huma.Error404NotFound("Task not found")
+			}
+			if err.Error() == "cannot delete system tasks" {
+				return nil, huma.Error403Forbidden("Cannot delete system tasks")
+			}
+			return nil, huma.Error500InternalServerError("Failed to delete task", err)
+		}
+
+		response := map[string]interface{}{
+			"message": "Task deleted successfully",
+			"task_id": input.TaskID,
+		}
+		return &dto.TaskDeleteOutput{Body: response}, nil
+	})
+
+	// Task control endpoints
+	huma.Post(api, basePath+"/tasks/{task_id}/execute", func(ctx context.Context, input *dto.TaskExecuteInput) (*dto.TaskExecuteOutput, error) {
+		execution, err := service.StartTask(ctx, input.TaskID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to execute task", err)
+		}
+		return &dto.TaskExecuteOutput{Body: *execution}, nil
+	})
+
+	huma.Post(api, basePath+"/tasks/{task_id}/enable", func(ctx context.Context, input *dto.TaskEnableInput) (*dto.TaskEnableOutput, error) {
+		// TODO: Implement enable task in service
+		return nil, huma.Error501NotImplemented("Task enable not yet implemented")
+	})
+
+	huma.Post(api, basePath+"/tasks/{task_id}/disable", func(ctx context.Context, input *dto.TaskDisableInput) (*dto.TaskDisableOutput, error) {
+		// TODO: Implement disable task in service
+		return nil, huma.Error501NotImplemented("Task disable not yet implemented")
+	})
+
+	huma.Post(api, basePath+"/tasks/{task_id}/pause", func(ctx context.Context, input *dto.TaskPauseInput) (*dto.TaskPauseOutput, error) {
+		err := service.PauseTask(ctx, input.TaskID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to pause task", err)
+		}
+
+		// Get updated task to return
+		task, err := service.GetTask(ctx, input.TaskID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get updated task", err)
+		}
+		return &dto.TaskPauseOutput{Body: *task}, nil
+	})
+
+	huma.Post(api, basePath+"/tasks/{task_id}/resume", func(ctx context.Context, input *dto.TaskResumeInput) (*dto.TaskResumeOutput, error) {
+		err := service.ResumeTask(ctx, input.TaskID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to resume task", err)
+		}
+
+		// Get updated task to return
+		task, err := service.GetTask(ctx, input.TaskID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get updated task", err)
+		}
+		return &dto.TaskResumeOutput{Body: *task}, nil
+	})
+
+	// Execution endpoints
+	huma.Get(api, basePath+"/tasks/{task_id}/history", func(ctx context.Context, input *dto.TaskExecutionHistoryInput) (*dto.TaskExecutionHistoryOutput, error) {
+		query := &dto.TaskExecutionQuery{
+			Page:     input.Page,
+			PageSize: input.PageSize,
+		}
+
+		// Set defaults
+		if query.Page == 0 {
+			query.Page = 1
+		}
+		if query.PageSize == 0 {
+			query.PageSize = 20
+		}
+
+		executions, err := service.GetTaskExecutions(ctx, input.TaskID, query)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get task history", err)
+		}
+		return &dto.TaskExecutionHistoryOutput{Body: *executions}, nil
+	})
+
+	huma.Get(api, basePath+"/executions", func(ctx context.Context, input *dto.ExecutionListInput) (*dto.ExecutionListOutput, error) {
+		// TODO: Implement list all executions in service
+		return nil, huma.Error501NotImplemented("List all executions not yet implemented")
+	})
+
+	huma.Get(api, basePath+"/executions/{execution_id}", func(ctx context.Context, input *dto.ExecutionGetInput) (*dto.ExecutionGetOutput, error) {
+		execution, err := service.GetExecution(ctx, input.ExecutionID)
+		if err != nil {
+			if err.Error() == "execution not found" {
+				return nil, huma.Error404NotFound("Execution not found")
+			}
+			return nil, huma.Error500InternalServerError("Failed to get execution", err)
+		}
+		return &dto.ExecutionGetOutput{Body: *execution}, nil
+	})
+
+	// Bulk operations
+	huma.Post(api, basePath+"/tasks/bulk", func(ctx context.Context, input *dto.BulkTaskOperationInput) (*dto.BulkTaskOperationOutput, error) {
+		// TODO: Implement bulk operations in service
+		return nil, huma.Error501NotImplemented("Bulk operations not yet implemented")
+	})
+
+	huma.Post(api, basePath+"/tasks/import", func(ctx context.Context, input *dto.TaskImportInput) (*dto.TaskImportOutput, error) {
+		// TODO: Implement task import in service
+		return nil, huma.Error501NotImplemented("Task import not yet implemented")
+	})
+}
+
 // registerRoutes registers all Scheduler module routes with Huma
 func (hr *Routes) registerRoutes() {
 	// Public endpoints (no authentication required)

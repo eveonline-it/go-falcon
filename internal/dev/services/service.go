@@ -296,7 +296,7 @@ func (s *Service) GetSystemInfo(ctx context.Context, req *dto.SystemRequest) (*d
 // SDE Service Methods
 
 // GetSDEStatus retrieves SDE service status
-func (s *Service) GetSDEStatus(ctx context.Context) (*dto.SDEStatusResponse, error) {
+func (s *Service) GetSDEStatus(ctx context.Context) (*dto.DevSDEStatusResponse, error) {
 	startTime := time.Now()
 	
 	// Get SDE status
@@ -321,7 +321,7 @@ func (s *Service) GetSDEStatus(ctx context.Context) (*dto.SDEStatusResponse, err
 	
 	responseTime := time.Since(startTime)
 	
-	response := &dto.SDEStatusResponse{
+	response := &dto.DevSDEStatusResponse{
 		DevResponse: dto.DevResponse{
 			Source:         "Static Data Export",
 			Endpoint:       "/sde/status",
@@ -826,13 +826,13 @@ func (s *Service) generateMockItem(dataType string, index int) interface{} {
 }
 
 // GetHealthStatus retrieves module health status
-func (s *Service) GetHealthStatus(ctx context.Context) (*dto.HealthResponse, error) {
-	response := &dto.HealthResponse{
+func (s *Service) GetHealthStatus(ctx context.Context) (*dto.DevHealthResponse, error) {
+	response := &dto.DevHealthResponse{
 		Status:    "ok",
 		Module:    "dev",
 		Version:   "1.0.0",
 		Timestamp: time.Now(),
-		Checks: []dto.HealthCheck{
+		Checks: []dto.DevHealthCheck{
 			{
 				Name:   "service",
 				Status: "ok",
