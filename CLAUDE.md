@@ -42,13 +42,13 @@ go-falcon/
 │   │   ├── services/     # Business logic
 │   │   ├── models/       # Database schemas
 │   │   └── CLAUDE.md     # Module documentation
-│   ├── scheduler/        # Task scheduling syste
+│   ├── scheduler/        # Task scheduling system
 │   │   ├── dto/          # Request/Response structures
 │   │   ├── middleware/   # Auth-specific middleware
 │   │   ├── routes/       # Route definitions
 │   │   ├── services/     # Business logic
 │   │   ├── models/       # Database schemas
-│   │   └── CLAUDE.md     # Module documentationm
+│   │   └── CLAUDE.md     # Module documentation
 │   └── users/            # User management
 │   │   ├── dto/          # Request/Response structures
 │   │   ├── middleware/   # Auth-specific middleware
@@ -75,7 +75,7 @@ go-falcon/
 ### Technology Stack
 
 - **Language**: Go 1.24.5
-- **API Framework**: Huma v2 with Chi v5.2.2 adapter
+- **API Framework**: Huma v2 with Chi v5 adapter (unified API approach)
 - **Databases**: MongoDB (primary), Redis (caching/sessions)
 - **Container**: Docker & Docker Compose
 - **Observability**: OpenTelemetry
@@ -163,13 +163,14 @@ Each module in `internal/` is self-contained with:
 
 ### 2. Unified OpenAPI Architecture
 
-Modern API gateway with unified OpenAPI 3.1.1 specification:
+Modern API gateway with unified OpenAPI 3.1.1 specification using Huma v2:
 
 **Single API Specification**
-- All modules documented in one comprehensive OpenAPI spec
+- All modules documented in one comprehensive OpenAPI spec via Huma v2
 - Unified schema registry with shared types across modules
+- Automatic schema generation from Go structs
 - Environment-aware server configuration
-- Modern API standards compliance
+- Modern API standards compliance with compile-time validation
 
 **Flexible API Prefix Support**
 - Configure API versioning via `API_PREFIX` environment variable
@@ -223,9 +224,15 @@ The scheduler module provides:
 | **Module** | [`pkg/module/CLAUDE.md`](pkg/module/CLAUDE.md) | Module system base |
 | **SDE Service** | [`pkg/sde/CLAUDE.md`](pkg/sde/CLAUDE.md) | In-memory data service |
 
-### Upcoming Documentation
+### Module Implementation Pattern
 
-- `internal/users/CLAUDE.md` - User management with permissions
+All modules follow a unified Huma v2 pattern:
+- Implement `RegisterUnifiedRoutes(api huma.API, basePath string)` method in module.go
+- Use Huma's type-safe input/output DTOs with validation tags
+- Leverage automatic OpenAPI 3.1.1 generation
+- Share a single unified API specification across all modules
+- Use `huma.Register()` for routes with middleware
+- Use `huma.Get()`, `huma.Post()`, etc. for simple routes
 
 ## 🚀 EVE Online Integration
 
@@ -319,9 +326,9 @@ Each module in `internal/` **MUST** follow this standardized structure:
 
 ```
 internal/modulename/
-├── dto/                    # Data Transfer Objects
-│   ├── requests.go        # Request DTOs with validation
-│   ├── responses.go       # Response DTOs
+├── dto/                    # Data Transfer Objects (Huma v2 style)
+│   ├── inputs.go          # Huma input DTOs with validation tags
+│   ├── outputs.go         # Huma output DTOs with status codes
 │   └── validators.go      # Custom validation logic
 ├── middleware/            # Module-specific middleware
 │   ├── auth.go           # Authentication middleware
@@ -336,73 +343,92 @@ internal/modulename/
 │   └── repository.go     # Database operations
 ├── models/               # Database models
 │   └── models.go         # MongoDB/Redis schemas
-├── module.go             # Module initialization
+├── module.go             # Module initialization with RegisterUnifiedRoutes
 └── CLAUDE.md             # Module documentation
 
 ```
 
-#### Example Module Structure Implementation
+#### Example Module Structure Implementation (Huma v2)
 
 ```go
-// internal/mymodule/dto/requests.go
+// internal/mymodule/dto/inputs.go
 package dto
 
-import "github.com/go-playground/validator/v10"
-
-type CreateTaskRequest struct {
-    Name        string `json:"name" validate:"required,min=3,max=100"`
-    Description string `json:"description" validate:"max=500"`
-    CronExpr    string `json:"cron_expression" validate:"required,cron"`
+type CreateTaskInput struct {
+    Body struct {
+        Name        string `json:"name" minLength:"3" maxLength:"100" doc:"Task name"`
+        Description string `json:"description" maxLength:"500" doc:"Task description"`
+        CronExpr    string `json:"cron_expression" pattern:"^[\\S]+$" doc:"Cron expression"`
+    }
 }
 
-// internal/mymodule/dto/responses.go
+// internal/mymodule/dto/outputs.go
 package dto
 
-type TaskResponse struct {
-    ID          string    `json:"id"`
-    Name        string    `json:"name"`
-    Description string    `json:"description"`
-    CreatedAt   time.Time `json:"created_at"`
+type TaskOutput struct {
+    Status int `json:"-" doc:"HTTP status code"` // Huma uses this for response status
+    Body struct {
+        ID          string    `json:"id" doc:"Task ID"`
+        Name        string    `json:"name" doc:"Task name"`
+        Description string    `json:"description" doc:"Task description"`
+        CreatedAt   time.Time `json:"created_at" doc:"Creation timestamp"`
+    }
 }
 
 // internal/mymodule/routes/routes.go
 package routes
 
-func (m *Module) RegisterRoutes(r chi.Router) {
+import (
+    "github.com/danielgtaylor/huma/v2"
+)
+
+// RegisterUnifiedRoutes registers routes on the unified Huma API
+func RegisterMyModuleRoutes(api huma.API, basePath string, service *services.Service, middleware *middleware.Middleware) {
     // Public routes
-    r.Group(func(r chi.Router) {
-        r.Get("/health", m.HealthCheck)
-    })
+    huma.Get(api, basePath+"/health", healthHandler)
     
-    // Protected routes
-    r.Group(func(r chi.Router) {
-        r.Use(m.middleware.RequireAuth)
-        r.Use(m.middleware.ValidateRequest)
-        
-        r.Post("/tasks", m.CreateTask)
-        r.Get("/tasks", m.ListTasks)
-        r.Get("/tasks/{id}", m.GetTask)
-    })
+    // Protected routes with middleware
+    huma.Register(api, huma.Operation{
+        OperationID: "createTask",
+        Method:      "POST",
+        Path:        basePath + "/tasks",
+        Middlewares: huma.Middlewares{middleware.RequireAuth},
+    }, createTaskHandler)
+    
+    huma.Register(api, huma.Operation{
+        OperationID: "listTasks",
+        Method:      "GET",
+        Path:        basePath + "/tasks",
+        Middlewares: huma.Middlewares{middleware.RequireAuth},
+    }, listTasksHandler)
 }
 
-// internal/mymodule/middleware/validation.go
-package middleware
+// internal/mymodule/module.go
+package mymodule
 
-func ValidateRequest(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Validation logic here
-        next.ServeHTTP(w, r)
-    })
+import (
+    "github.com/danielgtaylor/huma/v2"
+    "go-falcon/internal/mymodule/routes"
+)
+
+type Module struct {
+    *module.BaseModule
+    service *services.Service
+}
+
+// RegisterUnifiedRoutes registers routes on the unified Huma API
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+    routes.RegisterMyModuleRoutes(api, basePath, m.service, m.middleware)
 }
 ```
 
 ### Code Standards
 
-1. **DTO Requirements**
-   - All request/response structures in `dto/` package
-   - Use struct tags for validation
-   - Separate files for requests and responses
-   - Include OpenAPI annotations
+1. **DTO Requirements (Huma v2)**
+   - All input/output structures in `dto/` package
+   - Use Huma v2 validation tags (minLength, maxLength, pattern, etc.)
+   - Separate files for inputs and outputs
+   - Automatic OpenAPI generation from struct tags
 
 2. **Route Organization**
    - All routes defined in `routes/` package
@@ -450,8 +476,9 @@ func ValidateRequest(next http.Handler) http.Handler {
 2. **API Changes**
    ```bash
    # OpenAPI specification is automatically generated by Huma v2
-   # Access the live specification at: http://localhost:8080/huma-{module}/openapi.json
-   # No manual generation required
+   # Access the unified specification at: http://localhost:8080/openapi.json
+   # Or with API prefix: http://localhost:8080/api/openapi.json
+   # No manual generation required - updates live with code changes
    ```
 
 3. **Documentation**
@@ -520,11 +547,15 @@ The API gateway now provides a **single, comprehensive OpenAPI specification** t
 
 ### Available Endpoints
 
-**Traditional Endpoints:** Available at standard module paths (`/auth`, `/dev`, `/users`, etc.)
+**Unified API Endpoints:** All modules are registered on a single unified Huma v2 API:
+- **Auth Module**: `/auth/*` - EVE SSO authentication and JWT management
+- **Users Module**: `/users/*` - User management and permissions
+- **Scheduler Module**: `/scheduler/*` - Task scheduling and cron jobs
 
-**Huma v2 Endpoints:** Available at prefixed paths (`/huma-auth`, `/huma-users`, `/huma-scheduler`, etc.) with:
+All endpoints feature:
 - Automatic OpenAPI 3.1.1 documentation
 - Type-safe request/response validation
+- Compile-time type checking
 - Enhanced error handling
 
 Access the live OpenAPI specifications for complete endpoint documentation with accurate schemas and request examples. All Huma specifications can be imported directly into Postman for testing.
