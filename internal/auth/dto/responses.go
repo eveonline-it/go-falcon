@@ -15,7 +15,9 @@ type AuthStatusResponse struct {
 	CharacterID     *int            `json:"character_id"`     // Current active character
 	CharacterName   *string         `json:"character_name"`   // Current active character name
 	Characters      []CharacterInfo `json:"characters"`       // All characters for this user
-	Permissions     []string        `json:"permissions"`
+	CharacterIDs    []int64         `json:"character_ids"`    // List of all character IDs
+	CorporationIDs  []int64         `json:"corporation_ids"`  // List of all corporation IDs
+	AllianceIDs     []int64         `json:"alliance_ids"`     // List of all alliance IDs
 }
 
 // LoginResponse represents a successful login response
@@ -98,26 +100,3 @@ type VerifyResponse struct {
 	ExpiresAt     time.Time `json:"expires_at,omitempty"`
 }
 
-// AuthDebugOutput represents the debug endpoint output with character resolution
-type AuthDebugOutput struct {
-	Body struct {
-		Message           string `json:"message" doc:"Debug message"`
-		UserID            string `json:"user_id" doc:"User ID"`
-		PrimaryCharacter  struct {
-			ID            int64  `json:"id" doc:"Character ID"`
-			Name          string `json:"name" doc:"Character name"`
-			CorporationID int64  `json:"corporation_id" doc:"Corporation ID"`
-			AllianceID    int64  `json:"alliance_id" doc:"Alliance ID"`
-		} `json:"primary_character" doc:"Primary character info"`
-		AllCharacters   []struct {
-			ID            int64  `json:"id" doc:"Character ID"`
-			Name          string `json:"name" doc:"Character name"`
-			CorporationID int64  `json:"corporation_id" doc:"Corporation ID"`
-			AllianceID    int64  `json:"alliance_id" doc:"Alliance ID"`
-			IsPrimary     bool   `json:"is_primary" doc:"Is primary character"`
-		} `json:"all_characters" doc:"All user characters"`
-		CharacterIDs   []int64 `json:"character_ids" doc:"List of character IDs"`
-		CorporationIDs []int64 `json:"corporation_ids" doc:"List of corporation IDs"`
-		AllianceIDs    []int64 `json:"alliance_ids" doc:"List of alliance IDs"`
-	}
-}

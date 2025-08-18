@@ -134,16 +134,127 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 			fmt.Printf("[DEBUG] AuthStatus Handler: No cookie present\n")
 		}
 		
-		// Use the new method that accepts header strings
-		statusResp, err := authService.GetAuthStatusFromHeaders(ctx, input.Authorization, input.Cookie)
-		if err != nil {
-			fmt.Printf("[DEBUG] AuthStatus Handler: GetAuthStatusFromHeaders failed: %v\n", err)
-			return nil, huma.Error500InternalServerError("Failed to check auth status", err)
+		// Try to validate authentication (optional - don't fail if not authenticated)
+		user := authMiddleware.ValidateOptionalAuthFromHeaders(input.Authorization, input.Cookie)
+		if user == nil {
+			fmt.Printf("[DEBUG] AuthStatus Handler: User not authenticated or validation failed\n")
+			// Return unauthenticated status
+			return &dto.AuthStatusOutput{
+				Body: dto.AuthStatusResponse{
+					Authenticated:  false,
+					UserID:         nil,
+					CharacterID:    nil,
+					CharacterName:  nil,
+					Characters:     []dto.CharacterInfo{},
+					CharacterIDs:   []int64{},
+					CorporationIDs: []int64{},
+					AllianceIDs:    []int64{},
+				},
+			}, nil
 		}
-
-		fmt.Printf("[DEBUG] AuthStatus Handler: Status response: authenticated=%v\n", statusResp.Authenticated)
+		
+		fmt.Printf("[DEBUG] AuthStatus Handler: User authenticated: %s (Character: %d)\n", user.UserID, user.CharacterID)
+		
+		// Get user profile to obtain user ID for character resolution
+		profile, err := authService.GetUserProfile(ctx, user.CharacterID)
+		if err != nil {
+			fmt.Printf("[DEBUG] AuthStatus Handler: Failed to get user profile: %v\n", err)
+			// Return basic authenticated status without character details
+			characterID := user.CharacterID
+			characterName := user.CharacterName
+			userID := user.UserID
+			return &dto.AuthStatusOutput{
+				Body: dto.AuthStatusResponse{
+					Authenticated:  true,
+					UserID:         &userID,
+					CharacterID:    &characterID,
+					CharacterName:  &characterName,
+					Characters:     []dto.CharacterInfo{},
+					CharacterIDs:   []int64{},
+					CorporationIDs: []int64{},
+					AllianceIDs:    []int64{},
+				},
+			}, nil
+		}
+		
+		fmt.Printf("[DEBUG] AuthStatus Handler: Got user profile for UserID: %s\n", profile.UserID)
+		
+		// Create UserCharacterResolver and resolve all characters
+		resolver := humaMiddleware.NewUserCharacterResolver(mongodb)
+		fmt.Printf("[DEBUG] AuthStatus Handler: Created UserCharacterResolver, now resolving characters...\n")
+		
+		userWithCharacters, err := resolver.GetUserWithCharacters(ctx, profile.UserID)
+		if err != nil {
+			fmt.Printf("[DEBUG] AuthStatus Handler: Character resolution failed: %v\n", err)
+			// Return basic authenticated status without character details
+			characterID := user.CharacterID
+			characterName := user.CharacterName
+			userID := user.UserID
+			return &dto.AuthStatusOutput{
+				Body: dto.AuthStatusResponse{
+					Authenticated:  true,
+					UserID:         &userID,
+					CharacterID:    &characterID,
+					CharacterName:  &characterName,
+					Characters:     []dto.CharacterInfo{},
+					CharacterIDs:   []int64{},
+					CorporationIDs: []int64{},
+					AllianceIDs:    []int64{},
+				},
+			}, nil
+		}
+		
+		// Build character list and ID arrays for response
+		var characters []dto.CharacterInfo
+		var characterIDs []int64
+		var corporationIDs []int64
+		var allianceIDs []int64
+		corporationMap := make(map[int64]bool)
+		allianceMap := make(map[int64]bool)
+		
+		for _, char := range userWithCharacters.Characters {
+			// Add to character list
+			characters = append(characters, dto.CharacterInfo{
+				CharacterID:   int(char.CharacterID),
+				CharacterName: char.Name,
+			})
+			
+			// Add to character IDs list
+			characterIDs = append(characterIDs, char.CharacterID)
+			
+			// Add unique corporation IDs
+			if char.CorporationID > 0 && !corporationMap[char.CorporationID] {
+				corporationIDs = append(corporationIDs, char.CorporationID)
+				corporationMap[char.CorporationID] = true
+			}
+			
+			// Add unique alliance IDs
+			if char.AllianceID > 0 && !allianceMap[char.AllianceID] {
+				allianceIDs = append(allianceIDs, char.AllianceID)
+				allianceMap[char.AllianceID] = true
+			}
+		}
+		
+		// Build final response with all character information
+		userID := profile.UserID
+		primaryCharID := user.CharacterID
+		primaryCharName := user.CharacterName
+		
+		statusResp := dto.AuthStatusResponse{
+			Authenticated:  true,
+			UserID:         &userID,
+			CharacterID:    &primaryCharID,
+			CharacterName:  &primaryCharName,
+			Characters:     characters,
+			CharacterIDs:   characterIDs,
+			CorporationIDs: corporationIDs,
+			AllianceIDs:    allianceIDs,
+		}
+		
+		fmt.Printf("[DEBUG] AuthStatus Handler: Successfully resolved %d characters, %d corporations, %d alliances for user %s\n", len(characters), len(corporationIDs), len(allianceIDs), profile.UserID)
 		fmt.Printf("[DEBUG] ===== /auth/status HUMA HANDLER END =====\n\n")
-		return &dto.AuthStatusOutput{Body: *statusResp}, nil
+		
+		return &dto.AuthStatusOutput{Body: statusResp}, nil
 	})
 
 	huma.Get(api, basePath+"/user", func(ctx context.Context, input *dto.UserInfoInput) (*dto.UserInfoOutput, error) {
@@ -273,99 +384,6 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		}, nil
 	})
 
-	// Debug endpoint to test UserCharacterResolver (development only)
-	huma.Get(api, basePath+"/debug/characters", func(ctx context.Context, input *dto.AuthDebugInput) (*dto.AuthDebugOutput, error) {
-		fmt.Printf("\n[DEBUG] ===== /auth/debug/characters HUMA HANDLER START =====\n")
-		fmt.Printf("[DEBUG] CharacterDebug Handler: Processing request\n")
-		
-		// Validate authentication first
-		user, err := authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
-		if err != nil {
-			fmt.Printf("[DEBUG] CharacterDebug Handler: Authentication failed: %v\n", err)
-			return nil, huma.Error401Unauthorized("Authentication required", err)
-		}
-		
-		fmt.Printf("[DEBUG] CharacterDebug Handler: User authenticated: %s (Character: %d)\n", user.UserID, user.CharacterID)
-		
-		// Get user profile to obtain user ID
-		profile, err := authService.GetUserProfile(ctx, user.CharacterID)
-		if err != nil {
-			fmt.Printf("[DEBUG] CharacterDebug Handler: Failed to get user profile: %v\n", err)
-			return nil, huma.Error500InternalServerError("Failed to get user profile", err)
-		}
-		
-		fmt.Printf("[DEBUG] CharacterDebug Handler: Got user profile for UserID: %s\n", profile.UserID)
-		
-		// Create UserCharacterResolver and resolve characters
-		resolver := humaMiddleware.NewUserCharacterResolver(mongodb)
-		
-		fmt.Printf("[DEBUG] CharacterDebug Handler: Created UserCharacterResolver, now resolving characters...\n")
-		userWithCharacters, err := resolver.GetUserWithCharacters(ctx, profile.UserID)
-		if err != nil {
-			fmt.Printf("[DEBUG] CharacterDebug Handler: Character resolution failed: %v\n", err)
-			return nil, huma.Error500InternalServerError("Failed to resolve characters", err)
-		}
-		
-		// Build response
-		response := &dto.AuthDebugOutput{}
-		response.Body.Message = "Character resolution successful"
-		response.Body.UserID = userWithCharacters.ID
-		
-		// Extract all IDs for easier access
-		var characterIDs []int64
-		var corporationIDs []int64
-		var allianceIDs []int64
-		corporationMap := make(map[int64]bool)
-		allianceMap := make(map[int64]bool)
-		
-		// Process all characters
-		for _, char := range userWithCharacters.Characters {
-			characterIDs = append(characterIDs, char.CharacterID)
-			
-			if char.CorporationID > 0 && !corporationMap[char.CorporationID] {
-				corporationIDs = append(corporationIDs, char.CorporationID)
-				corporationMap[char.CorporationID] = true
-			}
-			
-			if char.AllianceID > 0 && !allianceMap[char.AllianceID] {
-				allianceIDs = append(allianceIDs, char.AllianceID)
-				allianceMap[char.AllianceID] = true
-			}
-			
-			// Add to all characters array
-			response.Body.AllCharacters = append(response.Body.AllCharacters, struct {
-				ID            int64  `json:"id" doc:"Character ID"`
-				Name          string `json:"name" doc:"Character name"`
-				CorporationID int64  `json:"corporation_id" doc:"Corporation ID"`
-				AllianceID    int64  `json:"alliance_id" doc:"Alliance ID"`
-				IsPrimary     bool   `json:"is_primary" doc:"Is primary character"`
-			}{
-				ID:            char.CharacterID,
-				Name:          char.Name,
-				CorporationID: char.CorporationID,
-				AllianceID:    char.AllianceID,
-				IsPrimary:     char.IsPrimary,
-			})
-		}
-		
-		// Set primary character (first one if any)
-		if len(userWithCharacters.Characters) > 0 {
-			primary := userWithCharacters.Characters[0]
-			response.Body.PrimaryCharacter.ID = primary.CharacterID
-			response.Body.PrimaryCharacter.Name = primary.Name
-			response.Body.PrimaryCharacter.CorporationID = primary.CorporationID
-			response.Body.PrimaryCharacter.AllianceID = primary.AllianceID
-		}
-		
-		response.Body.CharacterIDs = characterIDs
-		response.Body.CorporationIDs = corporationIDs
-		response.Body.AllianceIDs = allianceIDs
-		
-		fmt.Printf("[DEBUG] CharacterDebug Handler: Successfully resolved %d characters\n", len(userWithCharacters.Characters))
-		fmt.Printf("[DEBUG] ===== /auth/debug/characters HUMA HANDLER END =====\n")
-		
-		return response, nil
-	})
 }
 
 // registerRoutes registers all Auth module routes with Huma

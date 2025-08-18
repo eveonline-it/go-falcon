@@ -65,8 +65,7 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 			CharacterID:   nil,
 			CharacterName: nil,
 			Characters:    []dto.CharacterInfo{},
-			Permissions:   []string{},
-		}, nil
+			}, nil
 	}
 
 	// Validate JWT and get user info
@@ -78,8 +77,7 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 			CharacterID:   nil,
 			CharacterName: nil,
 			Characters:    []dto.CharacterInfo{},
-			Permissions:   []string{},
-		}, nil
+			}, nil
 	}
 
 	// Get all characters for this user
@@ -91,7 +89,6 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 
 	// Build character list
 	var characters []dto.CharacterInfo
-	permissions := []string{}
 	
 	if allProfiles != nil {
 		for _, profile := range allProfiles {
@@ -100,12 +97,6 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 				CharacterName: profile.CharacterName,
 			})
 			
-			// Check if any character is super admin
-			if profile.IsSuperAdmin {
-				permissions = []string{
-					"super_admin",
-				}
-			}
 		}
 	} else {
 		// Fallback to just current character
@@ -114,13 +105,6 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 			CharacterName: user.CharacterName,
 		}}
 		
-		// Check if current user is super admin
-		userProfile, err := s.repository.GetUserProfileByCharacterID(ctx, user.CharacterID)
-		if err == nil && userProfile != nil && userProfile.IsSuperAdmin {
-			permissions = []string{
-				"super_admin",
-			}
-		}
 	}
 
 	// Return authenticated response with user info
@@ -130,7 +114,6 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 		CharacterID:   &user.CharacterID,
 		CharacterName: &user.CharacterName,
 		Characters:    characters,
-		Permissions:   permissions,
 	}, nil
 }
 
@@ -168,7 +151,11 @@ func (s *AuthService) GetCurrentUser(ctx context.Context, r *http.Request) (*dto
 
 // GetAuthStatusFromHeaders returns current authentication status from header strings
 func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, cookieHeader string) (*dto.AuthStatusResponse, error) {
-	fmt.Printf("[DEBUG] AuthService.GetAuthStatusFromHeaders: authHeader=%q cookieHeader=%q\n", authHeader, cookieHeader)
+	if cookieHeader != "" {
+		fmt.Printf("[DEBUG] AuthService.GetAuthStatusFromHeaders: authHeader=%q cookie present\n", authHeader)
+	} else {
+		fmt.Printf("[DEBUG] AuthService.GetAuthStatusFromHeaders: authHeader=%q no cookie\n", authHeader)
+	}
 	// Try to extract JWT token from headers
 	var jwtToken string
 	
@@ -202,8 +189,7 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 			CharacterID:   nil,
 			CharacterName: nil,
 			Characters:    []dto.CharacterInfo{},
-			Permissions:   []string{},
-		}, nil
+			}, nil
 	}
 
 	// Validate JWT and get user info
@@ -217,8 +203,7 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 			CharacterID:   nil,
 			CharacterName: nil,
 			Characters:    []dto.CharacterInfo{},
-			Permissions:   []string{},
-		}, nil
+			}, nil
 	}
 
 	// Get all characters for this user
@@ -230,7 +215,6 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 
 	// Build character list
 	var characters []dto.CharacterInfo
-	permissions := []string{}
 	
 	if allProfiles != nil {
 		for _, profile := range allProfiles {
@@ -239,12 +223,6 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 				CharacterName: profile.CharacterName,
 			})
 			
-			// Check if any character is super admin
-			if profile.IsSuperAdmin {
-				permissions = []string{
-					"super_admin",
-				}
-			}
 		}
 	} else {
 		// Fallback to just current character
@@ -253,13 +231,6 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 			CharacterName: user.CharacterName,
 		}}
 		
-		// Check if current user is super admin
-		userProfile, err := s.repository.GetUserProfileByCharacterID(ctx, user.CharacterID)
-		if err == nil && userProfile != nil && userProfile.IsSuperAdmin {
-			permissions = []string{
-				"super_admin",
-			}
-		}
 	}
 
 	// Return authenticated response with user info
@@ -269,7 +240,6 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 		CharacterID:   &user.CharacterID,
 		CharacterName: &user.CharacterName,
 		Characters:    characters,
-		Permissions:   permissions,
 	}, nil
 }
 

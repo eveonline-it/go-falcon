@@ -301,9 +301,15 @@ Comprehensive debug logging throughout the middleware stack:
 # Huma Route Handlers
 [DEBUG] ===== /auth/status HUMA HANDLER START =====
 [DEBUG] AuthStatus Handler: Authorization header: "Bearer eyJ..."
-[DEBUG] AuthService.GetAuthStatusFromHeaders: authHeader="Bearer..." cookieHeader="..."
-[DEBUG] AuthService: Extracted JWT from Authorization header (length=156)
-[DEBUG] AuthService: Validating JWT token
+[DEBUG] AuthStatus Handler: Cookie present
+[DEBUG] AuthStatus Handler: User authenticated: 12345 (Character: 123456)
+[DEBUG] AuthStatus Handler: Got user profile for UserID: uuid-12345
+[DEBUG] AuthStatus Handler: Created UserCharacterResolver, now resolving characters...
+[DEBUG] NewUserCharacterResolver: Creating new user character resolver with MongoDB connection
+[DEBUG] ===== UserCharacterResolver.GetUserWithCharacters START =====
+[DEBUG] UserCharacterResolver: Found 3 profiles for user uuid-12345
+[DEBUG] ===== UserCharacterResolver.GetUserWithCharacters END =====
+[DEBUG] AuthStatus Handler: Successfully resolved 3 characters for user uuid-12345
 ```
 
 ### Debug Middleware

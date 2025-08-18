@@ -29,11 +29,6 @@ type ProfileRefreshRequest struct {
 	ForceRefresh bool `json:"force_refresh,omitempty"`
 }
 
-// AuthDebugInput represents the debug endpoint input with auth headers
-type AuthDebugInput struct {
-	Authorization string `header:"Authorization" doc:"Bearer token"`
-	Cookie        string `header:"Cookie" doc:"Auth cookie"`
-}
 
 // =============================================================================
 // HUMA INPUT/OUTPUT WRAPPERS (from huma_requests.go)
