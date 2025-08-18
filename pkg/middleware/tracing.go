@@ -17,7 +17,7 @@ func TracingMiddleware(next http.Handler) http.Handler {
 		return next
 	}
 
-	tracer := otel.Tracer("api-gateway")
+	tracer := otel.Tracer("api-falcon")
 	
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))

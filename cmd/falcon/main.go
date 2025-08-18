@@ -90,7 +90,7 @@ func main() {
 	ctx := context.Background()
 
 	// Initialize application with shared components
-	appCtx, err := app.InitializeApp("gateway")
+	appCtx, err := app.InitializeApp("falcon")
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
@@ -148,8 +148,8 @@ func main() {
 	log.Printf("🚀 Creating unified Huma v2 API (type-safe APIs with single OpenAPI specification)")
 	
 	// Create unified Huma API configuration
-	humaConfig := huma.DefaultConfig("Go Falcon API Gateway", "1.0.0")
-	humaConfig.Info.Description = "Unified EVE Online API Gateway with modular architecture"
+	humaConfig := huma.DefaultConfig("Go Falcon API Server", "1.0.0")
+	humaConfig.Info.Description = "Unified EVE Online API Server with modular architecture"
 	humaConfig.Info.Contact = &huma.Contact{
 		Name: "Go Falcon",
 		URL:  "https://github.com/your-org/go-falcon",
@@ -288,7 +288,7 @@ func main() {
 
 	// Start main server
 	go func() {
-		slog.Info("Starting main API gateway server", slog.String("addr", srv.Addr))
+		slog.Info("Starting main API falcon server", slog.String("addr", srv.Addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Main server failed to start", "error", err)
 			os.Exit(1)
@@ -326,7 +326,7 @@ func main() {
 	// Application context will handle database and telemetry shutdown
 	appCtx.Shutdown(shutdownCtx)
 
-	slog.Info("Gateway shutdown completed successfully")
+	slog.Info("Falcon shutdown completed successfully")
 }
 
 func enhancedHealthHandler(w http.ResponseWriter, r *http.Request) {
@@ -337,7 +337,7 @@ func enhancedHealthHandler(w http.ResponseWriter, r *http.Request) {
 	versionInfo := version.Get()
 	response := fmt.Sprintf(`{
 		"status": "healthy",
-		"architecture": "gateway",
+		"architecture": "falcon",
 		"version": "%s",
 		"git_commit": "%s",
 		"build_date": "%s",
@@ -353,7 +353,7 @@ func displayBanner() {
 	if err != nil {
 		// Fallback to inline banner if file not found
 		fmt.Print("\033[38;5;33m")
-		fmt.Print("GO-FALCON API Gateway\n")
+		fmt.Print("GO-FALCON API Server\n")
 		fmt.Print("\033[0m")
 		return
 	}
@@ -362,7 +362,7 @@ func displayBanner() {
 	content, err := io.ReadAll(file)
 	if err != nil {
 		fmt.Print("\033[38;5;33m")
-		fmt.Print("GO-FALCON API Gateway\n")
+		fmt.Print("GO-FALCON API Server\n")
 		fmt.Print("\033[0m")
 		return
 	}

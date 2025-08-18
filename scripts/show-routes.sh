@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to show available API routes in the Go Falcon gateway
+# Script to show available API routes in the Go Falcon application
 
 echo "=== Go Falcon API Routes ==="
 echo ""
@@ -33,7 +33,7 @@ echo "  GET  /scheduler/stats        - Get scheduler statistics (admin only)"
 echo ""
 
 echo "🏥 System Routes:"
-echo "  GET  /health                     - Gateway health check with version info"
+echo "  GET  /health                     - Falcon health check with version info"
 echo ""
 
 

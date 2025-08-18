@@ -6,7 +6,7 @@ db = db.getSiblingDB('admin');
 
 // Create databases for each service
 const databases = [
-  'gateway',
+  'falcon',
   'auth', 
   'users'
 ];

@@ -1,12 +1,12 @@
-# Go Falcon - Go Gateway Project
+# Go Falcon - Go Application Project
 
-A production-ready Go gateway application with modular architecture featuring Chi router, background services, and comprehensive observability.
+A production-ready Go application with modular architecture featuring Chi router, background services, and comprehensive observability.
 
 ## 🏗️ Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Go Gateway Application                        │
+│                    Go Falcon Application                        │
 │                           :3000                                  │
 │                                                                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐   │
@@ -29,14 +29,14 @@ A production-ready Go gateway application with modular architecture featuring Ch
                                          │
          ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
          │     SigNoz      │    │   Chi Router    │    │  OpenTelemetry  │
-         │   :3301,:4318   │    │  HTTP Gateway   │    │    Tracing      │
+         │   :3301,:4318   │    │  HTTP Falcon    │    │    Tracing      │
          │ (Observability) │    │                 │    │   & Logging     │
          └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ## 🚀 Features
 
-- **🏗️ Modular Gateway Architecture**: Scalable modular design with Chi router
+- **🏗️ Modular Falcon Architecture**: Scalable modular design with Chi router
 - **📊 OpenTelemetry Integration**: Full observability with traces, metrics, and logs
 - **🗄️ Multi-Database Support**: MongoDB (primary) + Redis (cache/sessions)
 - **🔄 Background Tasks**: Module-based background processing
@@ -52,7 +52,7 @@ A production-ready Go gateway application with modular architecture featuring Ch
 
 ## 🏗️ Clean Architecture
 
-The gateway follows clean architecture principles:
+The application follows clean architecture principles:
 
 - **HTTP Layer**: Chi router handles HTTP requests and routes to modules
 - **Module Layer**: Each module (auth, users, notifications) has its own domain logic
@@ -64,7 +64,7 @@ The gateway follows clean architecture principles:
 ```
 .
 ├── cmd/                         # Main applications for different services
-│   ├── gateway/                # Gateway application entry point
+│   ├── falcon/                 # Falcon application entry point
 │   │   └── main.go
 │   ├── backup/                 # Backup application for MongoDB and Redis
 │   └── restore/                # Restore application for MongoDB and Redis
@@ -115,7 +115,7 @@ The gateway follows clean architecture principles:
    docker-compose -f docker-compose.infra.yml up -d
    ```
 
-3. **Run gateway locally with hot reload**:
+3. **Run falcon locally with hot reload**:
    ```bash
    # Development mode with hot reload (recommended)
    make dev
@@ -123,7 +123,7 @@ The gateway follows clean architecture principles:
    ./scripts/dev.sh
 
    # Or traditional Go run (no hot reload)
-   go run ./cmd/gateway
+   go run ./cmd/falcon
    ```
 
 ### Quick Test
@@ -222,8 +222,8 @@ LOG_LEVEL=info
 
 ### Database Configuration
 ```bash
-# MongoDB (single database for gateway)
-MONGODB_URI=mongodb://admin:password123@localhost:27017/gateway?authSource=admin
+# MongoDB (single database for falcon)
+MONGODB_URI=mongodb://admin:password123@localhost:27017/falcon?authSource=admin
 
 # Redis (shared cache and session store)
 REDIS_URL=redis://localhost:6379
@@ -289,7 +289,7 @@ The first user to successfully authenticate via EVE Online SSO will automaticall
 Access observability dashboard at: `http://localhost:3301`
 
 ### Health Checks
-The gateway exposes health endpoints:
+The application exposes health endpoints:
 - Application: `http://localhost:8080/health`
 - Auth Module: `http://localhost:8080/auth/health`
 - Users Module: `http://localhost:8080/users/health`
@@ -376,20 +376,20 @@ docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ### Multi-stage Docker Builds
-The gateway uses optimized multi-stage Dockerfile:
+The application uses optimized multi-stage Dockerfile:
 - Build stage: Compiles Go application
 - Production stage: Minimal runtime image with security hardening
 
 ### Graceful Shutdown
-The gateway implements graceful shutdown handling:
+The application implements graceful shutdown handling:
 - HTTP server shutdown with connection draining
 - Database connection cleanup
 - Background task cleanup
 - OpenTelemetry data flushing
 
 ### Database Organization
-The gateway uses a single MongoDB database with collections:
-- `gateway` - Single database with module-specific collections
+The application uses a single MongoDB database with collections:
+- `falcon` - Single database with module-specific collections
 - `auth_*` - Authentication collections
 - `users_*` - User management collections
 - `notifications_*` - Notification collections
@@ -438,7 +438,7 @@ docker-compose logs -f mongodb
 docker-compose logs -f redis
 
 # Check production application logs
-docker-compose -f docker-compose.prod.yml logs -f gateway
+docker-compose -f docker-compose.prod.yml logs -f falcon
 
 # Check database connectivity
 docker exec -it go-falcon-mongodb mongosh
@@ -446,6 +446,6 @@ docker exec -it go-falcon-mongodb mongosh
 # Check Redis connectivity
 docker exec -it go-falcon-redis redis-cli ping
 
-# Check gateway container (production only)
-docker exec -it go-falcon-gateway ps aux
+# Check falcon container (production only)
+docker exec -it go-falcon-falcon ps aux
 ```

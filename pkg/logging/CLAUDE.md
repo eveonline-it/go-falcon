@@ -22,7 +22,7 @@ OpenTelemetry-based logging and telemetry management with conditional activation
 ENABLE_TELEMETRY=true
 
 # Optional configuration
-SERVICE_NAME=gateway-dev
+SERVICE_NAME=falcon-dev
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 ```
 

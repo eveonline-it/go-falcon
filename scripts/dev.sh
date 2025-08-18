@@ -26,7 +26,7 @@ fi
 # Create tmp directory if it doesn't exist and set permissions
 mkdir -p tmp
 chmod 755 tmp
-rm -f tmp/gateway 2>/dev/null || true
+rm -f tmp/falcon 2>/dev/null || true
 
 echo "🔥 Starting Air with hot reload..."
 echo "📝 Watching for changes in:"

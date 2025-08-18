@@ -40,7 +40,7 @@ func InitializeApp(serviceName string) (*AppContext, error) {
 	}
 
 	// Initialize databases
-	mongodb, err := database.NewMongoDB(ctx, "gateway")
+	mongodb, err := database.NewMongoDB(ctx, "falcon")
 	if err != nil {
 		slog.Error("Failed to connect to MongoDB", "error", err)
 		// Continue without MongoDB for now - some applications might not need it

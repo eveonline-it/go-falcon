@@ -4,28 +4,28 @@ version: '3.8'
 # Use: docker-compose -f docker-compose.infra.yml -f docker-compose.prod.yml up -d
 
 services:
-  # Gateway Application - Production mode
-  gateway:
+  # Falcon Application - Production mode
+  falcon:
     build:
       context: .
       dockerfile: builders/Dockerfile
-    container_name: go-falcon-gateway
+    container_name: go-falcon-falcon
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
       - ENABLE_TELEMETRY=${ENABLE_TELEMETRY:-true}
-      - SERVICE_NAME=${SERVICE_NAME:-gateway}
+      - SERVICE_NAME=${SERVICE_NAME:-falcon}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-localhost:4318}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - ENABLE_PRETTY_LOGS=${ENABLE_PRETTY_LOGS:-false}
       - REDIS_URL=redis://redis:6379
-      - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-password123}@mongodb:27017/gateway?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-password123}@mongodb:27017/falcon?authSource=admin
     depends_on:
       - mongodb
       - redis
     networks:
-      - gateway-network
+      - falcon-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -34,5 +34,5 @@ services:
       start_period: 40s
 
 networks:
-  gateway-network:
+  falcon-network:
     external: true

@@ -1,10 +1,10 @@
-# Go Falcon - Monolithic API Gateway
+# Go Falcon - Monolithic API Server
 
 A production-ready Go monolithic architecture featuring modular design, EVE Online integration, and comprehensive task scheduling capabilities.
 
 ## 🚀 Overview
 
-Go Falcon is a monolithic API gateway built with Go that provides:
+Go Falcon is a monolithic API server built with Go that provides:
 
 - **Type-Safe APIs**: Huma v2 framework with compile-time validation
 - **Modular Architecture**: Clean separation of concerns with internal modules
@@ -31,7 +31,7 @@ Go Falcon is a monolithic API gateway built with Go that provides:
 ```
 go-falcon/
 ├── cmd/                    # Executable applications
-│   ├── gateway/           # Main API gateway
+│   ├── falcon/            # Main API server
 │   ├── backup/            # MongoDB/Redis backup utility
 │   └── restore/           # Data restoration utility
 ├── internal/              # Private application modules
@@ -162,7 +162,7 @@ Each module in `internal/` is self-contained with:
 
 ### 2. Unified OpenAPI Architecture
 
-Modern API gateway with unified OpenAPI 3.1.1 specification using Huma v2:
+Modern API server with unified OpenAPI 3.1.1 specification using Huma v2:
 
 **Single API Specification**
 - All modules documented in one comprehensive OpenAPI spec via Huma v2
@@ -499,7 +499,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 - ✅ Cache ESI responses appropriately
 - ❌ Never put business logic in route handlers
 - ❌ Don't mix HTTP concerns with service logic
-- ❌ Never run gateway directly (use Docker)
+- ❌ Never run falcon directly (use Docker)
 - ❌ Don't ignore cache headers from ESI
 - ❌ Avoid tight coupling between modules
 
@@ -515,7 +515,7 @@ Control the API prefix via `API_PREFIX` environment variable:
 
 ### Unified OpenAPI 3.1.1 Specification
 
-The API gateway now provides a **single, comprehensive OpenAPI specification** that documents all modules in one unified specification:
+The API server now provides a **single, comprehensive OpenAPI specification** that documents all modules in one unified specification:
 
 ```bash
 # Unified OpenAPI specification (replaces per-module specs):
