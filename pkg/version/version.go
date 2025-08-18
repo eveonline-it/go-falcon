@@ -2,7 +2,10 @@ package version
 
 import (
 	"fmt"
+	"regexp"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 // Build information. These variables are set at build time via ldflags.
@@ -73,4 +76,162 @@ func GetBuildInfo() string {
 		info.Compiler,
 		info.Platform,
 	)
+}
+
+// String implements the Stringer interface for Info
+func (i Info) String() string {
+	return fmt.Sprintf("%s (%s)", i.Version, i.GitCommit[:min(7, len(i.GitCommit))])
+}
+
+// VersionType represents the type of version bump
+type VersionType int
+
+const (
+	Patch VersionType = iota
+	Minor
+	Major
+)
+
+// String returns the string representation of VersionType
+func (vt VersionType) String() string {
+	switch vt {
+	case Patch:
+		return "patch"
+	case Minor:
+		return "minor"
+	case Major:
+		return "major"
+	default:
+		return "unknown"
+	}
+}
+
+// SemanticVersion represents a semantic version
+type SemanticVersion struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+// String returns the semantic version as a string
+func (sv SemanticVersion) String() string {
+	return fmt.Sprintf("%d.%d.%d", sv.Major, sv.Minor, sv.Patch)
+}
+
+// ParseVersion parses a semantic version string
+func ParseVersion(version string) (SemanticVersion, error) {
+	// Remove 'v' prefix if present
+	version = strings.TrimPrefix(version, "v")
+	
+	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-.*)?(?:\+.*)?$`)
+	matches := re.FindStringSubmatch(version)
+	
+	if len(matches) < 4 {
+		return SemanticVersion{}, fmt.Errorf("invalid semantic version: %s", version)
+	}
+	
+	major, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return SemanticVersion{}, fmt.Errorf("invalid major version: %s", matches[1])
+	}
+	
+	minor, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return SemanticVersion{}, fmt.Errorf("invalid minor version: %s", matches[2])
+	}
+	
+	patch, err := strconv.Atoi(matches[3])
+	if err != nil {
+		return SemanticVersion{}, fmt.Errorf("invalid patch version: %s", matches[3])
+	}
+	
+	return SemanticVersion{
+		Major: major,
+		Minor: minor,
+		Patch: patch,
+	}, nil
+}
+
+// Bump increments the version based on the bump type
+func (sv SemanticVersion) Bump(versionType VersionType) SemanticVersion {
+	switch versionType {
+	case Major:
+		return SemanticVersion{Major: sv.Major + 1, Minor: 0, Patch: 0}
+	case Minor:
+		return SemanticVersion{Major: sv.Major, Minor: sv.Minor + 1, Patch: 0}
+	case Patch:
+		return SemanticVersion{Major: sv.Major, Minor: sv.Minor, Patch: sv.Patch + 1}
+	default:
+		return sv
+	}
+}
+
+// GetCurrentVersion returns the current version as a SemanticVersion
+func GetCurrentVersion() (SemanticVersion, error) {
+	if Version == "dev" {
+		return SemanticVersion{Major: 0, Minor: 1, Patch: 0}, nil
+	}
+	return ParseVersion(Version)
+}
+
+// BumpVersion returns a new version string bumped by the specified type
+func BumpVersion(versionType VersionType) (string, error) {
+	current, err := GetCurrentVersion()
+	if err != nil {
+		return "", err
+	}
+	
+	bumped := current.Bump(versionType)
+	return bumped.String(), nil
+}
+
+// IsValidVersion checks if a version string is valid semantic version
+func IsValidVersion(version string) bool {
+	_, err := ParseVersion(version)
+	return err == nil
+}
+
+// CompareVersions compares two version strings
+// Returns: -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
+func CompareVersions(v1, v2 string) (int, error) {
+	sv1, err := ParseVersion(v1)
+	if err != nil {
+		return 0, err
+	}
+	
+	sv2, err := ParseVersion(v2)
+	if err != nil {
+		return 0, err
+	}
+	
+	if sv1.Major != sv2.Major {
+		if sv1.Major < sv2.Major {
+			return -1, nil
+		}
+		return 1, nil
+	}
+	
+	if sv1.Minor != sv2.Minor {
+		if sv1.Minor < sv2.Minor {
+			return -1, nil
+		}
+		return 1, nil
+	}
+	
+	if sv1.Patch != sv2.Patch {
+		if sv1.Patch < sv2.Patch {
+			return -1, nil
+		}
+		return 1, nil
+	}
+	
+	return 0, nil
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
