@@ -77,18 +77,6 @@ func (m *HumaAuthMiddleware) ValidateScopesFromHeaders(authHeader, cookieHeader 
 	return user, nil
 }
 
-// ValidatePermissionFromHeaders validates authentication and required permission
-func (m *HumaAuthMiddleware) ValidatePermissionFromHeaders(authHeader, cookieHeader, service, resource, action string) (*models.AuthenticatedUser, error) {
-	user, err := m.ValidateAuthFromHeaders(authHeader, cookieHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Implement permission checking logic
-	// This would integrate with the groups/permissions system
-	// For now, allow authenticated users
-	return user, nil
-}
 
 // ExtractTokenFromHeaders extracts JWT token from Authorization header string
 func (m *HumaAuthMiddleware) ExtractTokenFromHeaders(authHeader string) string {

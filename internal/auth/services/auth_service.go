@@ -87,12 +87,9 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 	permissions := []string{}
 	superAdminCharacterID := config.GetSuperAdminCharacterID()
 	if superAdminCharacterID != 0 && user.CharacterID == superAdminCharacterID {
-		// Grant all permissions to super admin
+		// Grant super admin status (specific permissions will be handled by CASBIN)
 		permissions = []string{
 			"super_admin",
-			"auth.users.admin",
-			"scheduler.tasks.admin",
-			"users.profiles.admin",
 		}
 	}
 
@@ -190,12 +187,9 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 	permissions := []string{}
 	superAdminCharacterID := config.GetSuperAdminCharacterID()
 	if superAdminCharacterID != 0 && user.CharacterID == superAdminCharacterID {
-		// Grant all permissions to super admin
+		// Grant super admin status (specific permissions will be handled by CASBIN)
 		permissions = []string{
 			"super_admin",
-			"auth.users.admin",
-			"scheduler.tasks.admin",
-			"users.profiles.admin",
 		}
 	}
 
