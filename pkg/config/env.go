@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // GetEnv returns the value of an environment variable or a default value if not set
@@ -87,6 +88,18 @@ func GetFrontendURL() string {
 // GetCookieDomain returns the cookie domain for auth cookies
 func GetCookieDomain() string {
 	return GetEnv("COOKIE_DOMAIN", ".eveonline.it")
+}
+
+// GetCookieDuration returns the cookie duration for auth cookies
+// Accepts values like "24h", "7d", "30m", "1h30m"
+func GetCookieDuration() time.Duration {
+	durationStr := GetEnv("COOKIE_DURATION", "24h")
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil {
+		// If parsing fails, default to 24 hours
+		return 24 * time.Hour
+	}
+	return duration
 }
 
 // GetEnvInt is an alias for GetIntEnv for backward compatibility

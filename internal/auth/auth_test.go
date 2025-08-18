@@ -6,6 +6,7 @@ import (
 
 	"go-falcon/internal/auth/dto"
 	"go-falcon/internal/auth/models"
+	"go-falcon/pkg/config"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -128,7 +129,7 @@ func TestDTOConversion(t *testing.T) {
 
 	resp := &dto.TokenResponse{
 		Token:     "generated_jwt_token",
-		ExpiresAt: time.Now().Add(24 * time.Hour),
+		ExpiresAt: time.Now().Add(config.GetCookieDuration()),
 	}
 
 	if resp.Token == "" {

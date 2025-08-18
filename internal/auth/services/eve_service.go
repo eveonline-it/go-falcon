@@ -191,7 +191,7 @@ func (s *EVEService) ValidateJWT(tokenString string) (*models.AuthenticatedUser,
 
 // GenerateJWT creates a JWT token for the authenticated user
 func (s *EVEService) GenerateJWT(userID string, characterID int, characterName, scopes string) (string, time.Time, error) {
-	expiresAt := time.Now().Add(24 * time.Hour)
+	expiresAt := time.Now().Add(config.GetCookieDuration())
 	
 	claims := jwt.MapClaims{
 		"user_id":        userID,

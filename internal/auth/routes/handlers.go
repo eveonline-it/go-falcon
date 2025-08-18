@@ -291,7 +291,7 @@ func (r *Routes) setAuthCookie(w http.ResponseWriter, token string) {
 		Value:    token,
 		Path:     "/",
 		Domain:   config.GetCookieDomain(),
-		Expires:  time.Now().Add(24 * time.Hour),
+		Expires:  time.Now().Add(config.GetCookieDuration()),
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
