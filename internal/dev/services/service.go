@@ -78,14 +78,9 @@ func (s *Service) GetESIStatus(ctx context.Context) (*dto.ESIStatusResponse, err
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           statusResp,
 		},
-		ServerVersion: statusResp.ServerVersion,
-		Players:       statusResp.Players,
-		StartTime:     statusResp.StartTime.Format(time.RFC3339),
-		VIP:           false, // VIP field is not in the status response
 	}
-	
-	response.Data = statusResp
 	
 	// Update metrics
 	go s.updateESIMetrics(ctx, "/status/", responseTime, err == nil)
@@ -97,7 +92,7 @@ func (s *Service) GetESIStatus(ctx context.Context) (*dto.ESIStatusResponse, err
 func (s *Service) GetCharacterInfo(ctx context.Context, req *dto.CharacterRequest) (*dto.CharacterResponse, error) {
 	startTime := time.Now()
 	
-	charInfo, err := s.characterClient.GetCharacterInfo(ctx, req.CharacterID)
+	result, err := s.characterClient.GetCharacterInfoWithCache(ctx, req.CharacterID)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to get character info", "character_id", req.CharacterID, "error", err)
 		return nil, fmt.Errorf("failed to get character info: %w", err)
@@ -105,29 +100,42 @@ func (s *Service) GetCharacterInfo(ctx context.Context, req *dto.CharacterReques
 	
 	responseTime := time.Since(startTime)
 	
+	// Determine source based on actual cache information
+	source := "EVE Online ESI"
+	if result.Cache.Cached {
+		source = "EVE Online ESI (cached)"
+	}
+	
+	// Prepare cache info for response
+	var cacheInfo *dto.CacheInfo
+	if result.Cache.Cached {
+		var expiresIn int
+		if result.Cache.ExpiresAt != nil {
+			expiresIn = int(time.Until(*result.Cache.ExpiresAt).Seconds())
+		}
+		cacheInfo = &dto.CacheInfo{
+			Cached:    result.Cache.Cached,
+			ExpiresIn: expiresIn,
+			CacheHit:  result.Cache.Cached,
+			CacheKey:  fmt.Sprintf("/characters/%d/", req.CharacterID),
+		}
+		if result.Cache.ExpiresAt != nil {
+			cacheInfo.ExpiresAt = *result.Cache.ExpiresAt
+		}
+	}
+	
 	response := &dto.CharacterResponse{
 		DevResponse: dto.DevResponse{
-			Source:         "EVE Online ESI",
+			Source:         source,
 			Endpoint:       fmt.Sprintf("/characters/%d/", req.CharacterID),
 			ResponseTimeMS: responseTime.Milliseconds(),
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           result.Data,
+			Cache:          cacheInfo,
 		},
-		Name:           charInfo.Name,
-		CorporationID:  charInfo.CorporationID,
-		AllianceID:     charInfo.AllianceID,
-		FactionID:      charInfo.FactionID,
-		SecurityStatus: charInfo.SecurityStatus,
-		Birthday:       charInfo.Birthday,
-		Gender:         charInfo.Gender,
-		RaceID:         charInfo.RaceID,
-		BloodlineID:    charInfo.BloodlineID,
-		AncestryID:     charInfo.AncestryID,
-		Title:          "", // Title is not in the response
 	}
-	
-	response.Data = charInfo
 	
 	// Update metrics
 	go s.updateESIMetrics(ctx, fmt.Sprintf("/characters/%d/", req.CharacterID), responseTime, err == nil)
@@ -147,16 +155,6 @@ func (s *Service) GetAllianceInfo(ctx context.Context, req *dto.AllianceRequest)
 	
 	responseTime := time.Since(startTime)
 	
-	var executorCorp int
-	if allianceInfo.ExecutorCorporationID != nil {
-		executorCorp = int(*allianceInfo.ExecutorCorporationID)
-	}
-	
-	var factionID int
-	if allianceInfo.FactionID != nil {
-		factionID = int(*allianceInfo.FactionID)
-	}
-	
 	response := &dto.AllianceResponse{
 		DevResponse: dto.DevResponse{
 			Source:         "EVE Online ESI",
@@ -165,17 +163,9 @@ func (s *Service) GetAllianceInfo(ctx context.Context, req *dto.AllianceRequest)
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           allianceInfo,
 		},
-		Name:          allianceInfo.Name,
-		Ticker:        allianceInfo.Ticker,
-		ExecutorCorp:  executorCorp,
-		DateFounded:   allianceInfo.DateFounded,
-		CreatorID:     int(allianceInfo.CreatorID),
-		CreatorCorpID: int(allianceInfo.CreatorCorporationID),
-		FactionID:     factionID,
 	}
-	
-	response.Data = allianceInfo
 	
 	// Update metrics
 	go s.updateESIMetrics(ctx, fmt.Sprintf("/alliances/%d/", req.AllianceID), responseTime, err == nil)
@@ -187,7 +177,7 @@ func (s *Service) GetAllianceInfo(ctx context.Context, req *dto.AllianceRequest)
 func (s *Service) GetCorporationInfo(ctx context.Context, req *dto.CorporationRequest) (*dto.CorporationResponse, error) {
 	startTime := time.Now()
 	
-	corpInfo, err := s.corporationClient.GetCorporationInfo(ctx, req.CorporationID)
+	result, err := s.corporationClient.GetCorporationInfoWithCache(ctx, req.CorporationID)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to get corporation info", "corporation_id", req.CorporationID, "error", err)
 		return nil, fmt.Errorf("failed to get corporation info: %w", err)
@@ -195,31 +185,42 @@ func (s *Service) GetCorporationInfo(ctx context.Context, req *dto.CorporationRe
 	
 	responseTime := time.Since(startTime)
 	
+	// Determine source based on actual cache information
+	source := "EVE Online ESI"
+	if result.Cache.Cached {
+		source = "EVE Online ESI (cached)"
+	}
+	
+	// Prepare cache info for response
+	var cacheInfo *dto.CacheInfo
+	if result.Cache.Cached {
+		var expiresIn int
+		if result.Cache.ExpiresAt != nil {
+			expiresIn = int(time.Until(*result.Cache.ExpiresAt).Seconds())
+		}
+		cacheInfo = &dto.CacheInfo{
+			Cached:    result.Cache.Cached,
+			ExpiresIn: expiresIn,
+			CacheHit:  result.Cache.Cached,
+			CacheKey:  fmt.Sprintf("/corporations/%d/", req.CorporationID),
+		}
+		if result.Cache.ExpiresAt != nil {
+			cacheInfo.ExpiresAt = *result.Cache.ExpiresAt
+		}
+	}
+	
 	response := &dto.CorporationResponse{
 		DevResponse: dto.DevResponse{
-			Source:         "EVE Online ESI",
+			Source:         source,
 			Endpoint:       fmt.Sprintf("/corporations/%d/", req.CorporationID),
 			ResponseTimeMS: responseTime.Milliseconds(),
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           result.Data,
+			Cache:          cacheInfo,
 		},
-		Name:        corpInfo.Name,
-		Ticker:      corpInfo.Ticker,
-		MemberCount: corpInfo.MemberCount,
-		AllianceID:  corpInfo.AllianceID,
-		FactionID:   corpInfo.FactionID,
-		DateFounded: corpInfo.DateFounded,
-		CreatorID:   corpInfo.CreatorID,
-		CEOID:       corpInfo.CEOCharacterID,
-		URL:         corpInfo.URL,
-		Description: corpInfo.Description,
-		TaxRate:     corpInfo.TaxRate,
-		WarEligible: corpInfo.WarEligible,
 	}
-	
-	
-	response.Data = corpInfo
 	
 	// Update metrics
 	go s.updateESIMetrics(ctx, fmt.Sprintf("/corporations/%d/", req.CorporationID), responseTime, err == nil)
@@ -231,7 +232,7 @@ func (s *Service) GetCorporationInfo(ctx context.Context, req *dto.CorporationRe
 func (s *Service) GetSystemInfo(ctx context.Context, req *dto.SystemRequest) (*dto.SystemResponse, error) {
 	startTime := time.Now()
 	
-	systemInfo, err := s.universeClient.GetSystemInfo(ctx, req.SystemID)
+	result, err := s.universeClient.GetSystemInfoWithCache(ctx, req.SystemID)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to get system info", "system_id", req.SystemID, "error", err)
 		return nil, fmt.Errorf("failed to get system info: %w", err)
@@ -239,53 +240,42 @@ func (s *Service) GetSystemInfo(ctx context.Context, req *dto.SystemRequest) (*d
 	
 	responseTime := time.Since(startTime)
 	
+	// Determine source based on actual cache information
+	source := "EVE Online ESI"
+	if result.Cache.Cached {
+		source = "EVE Online ESI (cached)"
+	}
+	
+	// Prepare cache info for response
+	var cacheInfo *dto.CacheInfo
+	if result.Cache.Cached {
+		var expiresIn int
+		if result.Cache.ExpiresAt != nil {
+			expiresIn = int(time.Until(*result.Cache.ExpiresAt).Seconds())
+		}
+		cacheInfo = &dto.CacheInfo{
+			Cached:    result.Cache.Cached,
+			ExpiresIn: expiresIn,
+			CacheHit:  result.Cache.Cached,
+			CacheKey:  fmt.Sprintf("/universe/systems/%d/", req.SystemID),
+		}
+		if result.Cache.ExpiresAt != nil {
+			cacheInfo.ExpiresAt = *result.Cache.ExpiresAt
+		}
+	}
+	
 	response := &dto.SystemResponse{
 		DevResponse: dto.DevResponse{
-			Source:         "EVE Online ESI",
+			Source:         source,
 			Endpoint:       fmt.Sprintf("/universe/systems/%d/", req.SystemID),
 			ResponseTimeMS: responseTime.Milliseconds(),
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           result.Data,
+			Cache:          cacheInfo,
 		},
-		Name:            systemInfo.Name,
-		SystemID:        systemInfo.SystemID,
-		ConstellationID: systemInfo.ConstellationID,
-		StarID:          systemInfo.StarID,
-		SecurityStatus:  systemInfo.SecurityStatus,
-		SecurityClass:   systemInfo.SecurityClass,
 	}
-	
-	// Note: The ESI response only contains IDs for planets, stargates, and stations
-	// For detailed info, each ID would need to be queried separately
-	// Here we'll create simplified entries with just the IDs
-	for _, planetID := range systemInfo.Planets {
-		response.Planets = append(response.Planets, dto.PlanetInfo{
-			PlanetID: planetID,
-			Moons:    []int{}, // Would need separate query
-			Position: dto.Position{X: 0, Y: 0, Z: 0}, // Would need separate query
-		})
-	}
-	
-	for _, stargateID := range systemInfo.Stargates {
-		response.Stargates = append(response.Stargates, dto.StargateInfo{
-			StargateID:  stargateID,
-			Destination: 0, // Would need separate query
-			Position:    dto.Position{X: 0, Y: 0, Z: 0}, // Would need separate query
-		})
-	}
-	
-	for _, stationID := range systemInfo.Stations {
-		response.Stations = append(response.Stations, dto.StationInfo{
-			StationID: stationID,
-			Name:      "", // Would need separate query
-			OwnerID:   0,  // Would need separate query
-			TypeID:    0,  // Would need separate query
-			Position:  dto.Position{X: 0, Y: 0, Z: 0}, // Would need separate query
-		})
-	}
-	
-	response.Data = systemInfo
 	
 	// Update metrics
 	go s.updateESIMetrics(ctx, fmt.Sprintf("/universe/systems/%d/", req.SystemID), responseTime, err == nil)
@@ -310,6 +300,7 @@ func (s *Service) GetSDEStatus(ctx context.Context) (*dto.DevSDEStatusResponse, 
 		MemoryUsage   int64                  `json:"memory_usage"`
 		LastUpdate    time.Time              `json:"last_update"`
 		Version       string                 `json:"version"`
+		Statistics    *dto.SDEStatistics     `json:"statistics,omitempty"`
 	}{
 		Loaded:        isLoaded,
 		EntitiesCount: make(map[string]int),
@@ -317,9 +308,20 @@ func (s *Service) GetSDEStatus(ctx context.Context) (*dto.DevSDEStatusResponse, 
 		MemoryUsage:   0,
 		LastUpdate:    time.Time{},
 		Version:       "unknown",
+		Statistics:    nil,
 	}
 	
 	responseTime := time.Since(startTime)
+	
+	// Add statistics to status if loaded
+	if status.Loaded {
+		status.Statistics = &dto.SDEStatistics{
+			TotalEntities:  len(status.EntitiesCount),
+			EntitiesByType: status.EntitiesCount,
+			DataSizeBytes:  status.MemoryUsage,
+			LastUpdate:     status.LastUpdate,
+		}
+	}
 	
 	response := &dto.DevSDEStatusResponse{
 		DevResponse: dto.DevResponse{
@@ -329,25 +331,9 @@ func (s *Service) GetSDEStatus(ctx context.Context) (*dto.DevSDEStatusResponse, 
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           status,
 		},
-		Loaded:        status.Loaded,
-		EntitiesCount: status.EntitiesCount,
-		LoadTime:      status.LoadTime,
-		MemoryUsage:   status.MemoryUsage,
-		LastUpdate:    status.LastUpdate,
-		Version:       status.Version,
 	}
-	
-	if status.Loaded {
-		response.Statistics = &dto.SDEStatistics{
-			TotalEntities:  len(status.EntitiesCount),
-			EntitiesByType: status.EntitiesCount,
-			DataSizeBytes:  status.MemoryUsage,
-			LastUpdate:     status.LastUpdate,
-		}
-	}
-	
-	response.Data = status
 	
 	return response, nil
 }
@@ -378,13 +364,9 @@ func (s *Service) GetSDEEntity(ctx context.Context, req *dto.SDEEntityRequest) (
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           entityData,
 		},
-		EntityType: req.Type,
-		EntityID:   req.ID,
-		EntityData: entityData,
 	}
-	
-	response.Data = entityData
 	
 	return response, nil
 }
@@ -404,6 +386,13 @@ func (s *Service) GetSDETypes(ctx context.Context, req *dto.SDETypeRequest) (*dt
 	
 	responseTime := time.Since(startTime)
 	
+	// Create response data structure
+	responseData := map[string]interface{}{
+		"published_only": req.Published != nil && *req.Published,
+		"count":          len(types),
+		"types":          types,
+	}
+	
 	response := &dto.SDETypesResponse{
 		DevResponse: dto.DevResponse{
 			Source:         "Static Data Export",
@@ -412,13 +401,9 @@ func (s *Service) GetSDETypes(ctx context.Context, req *dto.SDETypeRequest) (*dt
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           responseData,
 		},
-		PublishedOnly: req.Published != nil && *req.Published,
-		Count:         len(types),
-		Types:         types,
 	}
-	
-	response.Data = types
 	
 	return response, nil
 }
@@ -884,6 +869,15 @@ func (s *Service) GetUniverseSystems(ctx context.Context, req *dto.UniverseReque
 	
 	responseTime := time.Since(startTime)
 	
+	// Create response data structure
+	responseData := map[string]interface{}{
+		"universe_type": req.Type,
+		"region":        req.Region,
+		"constellation": req.Constellation,
+		"systems":       systems,
+		"count":         len(systems),
+	}
+	
 	response := &dto.UniverseSystemsResponse{
 		DevResponse: dto.DevResponse{
 			Source:         "Static Data Export",
@@ -892,12 +886,8 @@ func (s *Service) GetUniverseSystems(ctx context.Context, req *dto.UniverseReque
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           responseData,
 		},
-		Type:          req.Type,
-		Region:        req.Region,
-		Constellation: req.Constellation,
-		Systems:       systems,
-		Count:         len(systems),
 	}
 	
 	return response, nil
@@ -925,10 +915,8 @@ func (s *Service) GetRedisSDEEntity(ctx context.Context, req *dto.RedisSDEReques
 			Status:         "success",
 			Module:         "dev",
 			Timestamp:      time.Now(),
+			Data:           entityData,
 		},
-		EntityType: req.Type,
-		EntityID:   req.ID,
-		EntityData: entityData,
 	}
 	
 	return response, nil
