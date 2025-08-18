@@ -359,3 +359,112 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 
 	return characters, nil
 }
+
+// Character Management Repository Methods (Phase 2: Character Resolution System)
+
+// GetFullCharactersForUser retrieves complete character information for middleware resolution
+func (r *Repository) GetFullCharactersForUser(ctx context.Context, userID string) ([]dto.FullCharacterResponse, error) {
+	collection := r.mongodb.Collection(models.User{}.CollectionName())
+	
+	filter := bson.M{"user_id": userID}
+	
+	// Project all needed fields for middleware
+	projection := bson.M{
+		"character_id":     1,
+		"character_name":   1,
+		"user_id":          1,
+		"corporation_id":   1,
+		"corporation_name": 1,
+		"alliance_id":      1,
+		"alliance_name":    1,
+		"enabled":          1,
+		"banned":           1,
+		"position":         1,
+		"last_login":       1,
+		"created_at":       1,
+		"updated_at":       1,
+	}
+	
+	findOptions := options.Find().
+		SetProjection(projection).
+		SetSort(bson.D{{"character_name", 1}})
+
+	cursor, err := collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query characters: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var characters []dto.FullCharacterResponse
+	for cursor.Next(ctx) {
+		var char dto.FullCharacterResponse
+		if err := cursor.Decode(&char); err != nil {
+			return nil, fmt.Errorf("failed to decode character: %w", err)
+		}
+		characters = append(characters, char)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
+	}
+
+	return characters, nil
+}
+
+// AddCharacterToUser adds a new character to an existing user (placeholder implementation)
+func (r *Repository) AddCharacterToUser(ctx context.Context, userID string, character *models.UserCharacter) error {
+	// This would typically involve creating a new user_profile document
+	// For now, this is a placeholder that would need to be implemented based on
+	// the specific requirements of how characters are added to users
+	
+	// In the current system, characters are added through the auth flow
+	// This method could be used for admin operations or character transfers
+	
+	return fmt.Errorf("AddCharacterToUser not yet implemented - characters are added through auth flow")
+}
+
+// UpdateCharacterDetails updates corporation and alliance information for a character
+func (r *Repository) UpdateCharacterDetails(ctx context.Context, characterID int64, corporationID, allianceID int64) error {
+	collection := r.mongodb.Collection(models.User{}.CollectionName())
+	
+	filter := bson.M{"character_id": characterID}
+	update := bson.M{
+		"$set": bson.M{
+			"corporation_id": corporationID,
+			"alliance_id":    allianceID,
+			"updated_at":     time.Now(),
+		},
+	}
+	
+	result, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update character details: %w", err)
+	}
+	
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("character not found: %d", characterID)
+	}
+	
+	return nil
+}
+
+// RemoveCharacterFromUser removes a character from a user's account
+func (r *Repository) RemoveCharacterFromUser(ctx context.Context, userID string, characterID int64) error {
+	collection := r.mongodb.Collection(models.User{}.CollectionName())
+	
+	filter := bson.M{
+		"user_id":      userID,
+		"character_id": characterID,
+	}
+	
+	result, err := collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to remove character from user: %w", err)
+	}
+	
+	if result.DeletedCount == 0 {
+		return fmt.Errorf("character not found for user: user_id=%s, character_id=%d", userID, characterID)
+	}
+	
+	return nil
+}

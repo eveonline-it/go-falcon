@@ -27,6 +27,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/danielgtaylor/huma/v2"
+	falconMiddleware "go-falcon/pkg/middleware"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	_ "go.uber.org/automaxprocs"
 )
@@ -123,6 +124,7 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(corsMiddleware) // Add CORS support for cross-subdomain requests
+	r.Use(falconMiddleware.TracingMiddleware) // Add our custom tracing middleware
 
 	// Health check endpoint with version info
 	r.Get("/health", enhancedHealthHandler)

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"fmt"
 
 	"go-falcon/internal/auth/dto"
 	"go-falcon/internal/auth/middleware"
@@ -123,12 +124,20 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 	// Authentication status and user info (public with optional auth)
 	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.AuthStatusInput) (*dto.AuthStatusOutput, error) {
+		fmt.Printf("\n[DEBUG] ===== /auth/status HUMA HANDLER START =====\n")
+		fmt.Printf("[DEBUG] AuthStatus Handler: Processing request\n")
+		fmt.Printf("[DEBUG] AuthStatus Handler: Authorization header: %q\n", input.Authorization)
+		fmt.Printf("[DEBUG] AuthStatus Handler: Cookie header: %q\n", input.Cookie)
+		
 		// Use the new method that accepts header strings
 		statusResp, err := authService.GetAuthStatusFromHeaders(ctx, input.Authorization, input.Cookie)
 		if err != nil {
+			fmt.Printf("[DEBUG] AuthStatus Handler: GetAuthStatusFromHeaders failed: %v\n", err)
 			return nil, huma.Error500InternalServerError("Failed to check auth status", err)
 		}
 
+		fmt.Printf("[DEBUG] AuthStatus Handler: Status response: authenticated=%v\n", statusResp.Authenticated)
+		fmt.Printf("[DEBUG] ===== /auth/status HUMA HANDLER END =====\n\n")
 		return &dto.AuthStatusOutput{Body: *statusResp}, nil
 	})
 

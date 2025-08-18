@@ -63,3 +63,20 @@ type CharacterListResponse struct {
 	Characters []CharacterSummaryResponse `json:"characters"`
 	Count      int                        `json:"count"`
 }
+
+// FullCharacterResponse represents complete character information for middleware resolution
+type FullCharacterResponse struct {
+	CharacterID     int        `json:"character_id"`
+	CharacterName   string     `json:"character_name"`
+	UserID          string     `json:"user_id"`
+	CorporationID   int        `json:"corporation_id"`
+	CorporationName string     `json:"corporation_name"`
+	AllianceID      int        `json:"alliance_id"`
+	AllianceName    string     `json:"alliance_name"`
+	Enabled         bool       `json:"enabled"`
+	Banned          bool       `json:"banned"`
+	Position        int        `json:"position"`
+	LastLogin       *time.Time `json:"last_login,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}

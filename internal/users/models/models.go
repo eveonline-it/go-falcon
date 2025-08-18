@@ -44,3 +44,34 @@ func (User) CollectionName() string {
 func (CharacterSummary) CollectionName() string {
 	return "user_profiles"
 }
+
+// Character Management Models (Phase 2: Character Resolution System)
+
+// UserWithCharacters represents a user with all their associated characters
+type UserWithCharacters struct {
+	ID         string           `json:"id"`
+	Characters []UserCharacter  `json:"characters"`
+	CreatedAt  time.Time        `json:"created_at"`
+	UpdatedAt  time.Time        `json:"updated_at"`
+}
+
+// UserCharacter represents a character associated with a user account
+type UserCharacter struct {
+	CharacterID   int64     `json:"character_id" bson:"character_id"`
+	Name          string    `json:"name" bson:"name"`
+	CorporationID int64     `json:"corporation_id" bson:"corporation_id"`
+	AllianceID    int64     `json:"alliance_id,omitempty" bson:"alliance_id,omitempty"`
+	IsPrimary     bool      `json:"is_primary" bson:"is_primary"`
+	AddedAt       time.Time `json:"added_at" bson:"added_at"`
+	LastActive    time.Time `json:"last_active" bson:"last_active"`
+}
+
+// CachedCharacter represents cached character information for performance
+type CachedCharacter struct {
+	CharacterID   int64     `json:"character_id" bson:"_id"`
+	Name          string    `json:"name" bson:"name"`
+	CorporationID int64     `json:"corporation_id" bson:"corporation_id"`
+	AllianceID    int64     `json:"alliance_id,omitempty" bson:"alliance_id,omitempty"`
+	LastUpdated   time.Time `json:"last_updated" bson:"last_updated"`
+	ExpiresAt     time.Time `json:"expires_at" bson:"expires_at"`
+}

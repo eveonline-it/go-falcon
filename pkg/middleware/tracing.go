@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 
 	"go-falcon/pkg/config"
@@ -14,12 +15,15 @@ import (
 func TracingMiddleware(next http.Handler) http.Handler {
 	// If telemetry is disabled, return the handler without tracing
 	if !config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		fmt.Printf("[DEBUG] TracingMiddleware: Telemetry disabled, skipping tracing\n")
 		return next
 	}
+	fmt.Printf("[DEBUG] TracingMiddleware: Telemetry enabled, setting up tracing\n")
 
 	tracer := otel.Tracer("api-falcon")
 	
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("[DEBUG] TracingMiddleware: Processing request %s %s\n", r.Method, r.URL.Path)
 		ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 		
 		ctx, span := tracer.Start(ctx, r.Method+" "+r.URL.Path,
@@ -37,6 +41,7 @@ func TracingMiddleware(next http.Handler) http.Handler {
 		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(rw, r)
 		
+		fmt.Printf("[DEBUG] TracingMiddleware: Request completed with status %d\n", rw.statusCode)
 		span.SetAttributes(
 			attribute.Int("http.status_code", rw.statusCode),
 		)

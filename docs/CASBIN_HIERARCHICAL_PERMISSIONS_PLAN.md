@@ -23,9 +23,10 @@ Alliance Level (Broad permissions - inherited by all corp members)
 ```
 
 ### Permission Inheritance Rules
-- **Additive Model**: Higher levels grant additional permissions to lower levels
-- **Override Capability**: Lower levels can restrict permissions granted at higher levels
-- **Explicit Deny**: Direct denial takes precedence over inherited grants
+- **Priority Order**: Member > Corporation > Alliance (member permissions take highest priority)
+- **Explicit Override**: More specific levels override broader levels
+- **Explicit Deny**: Direct denial takes precedence over any inherited grants
+- **Default Deny**: No permission granted unless explicitly allowed
 
 ### CASBIN Model Structure
 ```ini
@@ -93,17 +94,17 @@ type RoleAssignment struct {
 
 ### Policy Examples
 ```
-# Alliance-level permissions
+# Alliance-level permissions (lowest priority - broad access)
 p, alliance:123456, scheduler.tasks, read, global, allow
 p, alliance:123456, users.profiles, read, global, allow
 
-# Corporation-level permissions (more specific)
+# Corporation-level permissions (higher priority - overrides alliance)
 p, corp:789012, scheduler.tasks, write, global, allow
-p, corp:789012, users.profiles, admin, global, deny  # Override alliance permission
+p, corp:789012, users.profiles, admin, global, deny  # Overrides alliance permission
 
-# Member-level permissions (most granular)
-p, member:345678, scheduler.tasks, admin, global, allow
-p, member:345678, sensitive.data, read, global, deny  # Explicit denial
+# Member-level permissions (highest priority - overrides corp and alliance)
+p, member:345678, scheduler.tasks, admin, global, allow  # Overrides corp write
+p, member:345678, sensitive.data, read, global, deny     # Explicit denial (highest priority)
 ```
 
 ### Hierarchy Relationships
@@ -118,11 +119,12 @@ g2, member:345678, corp:789012, global
 ## 4. Permission Evaluation Algorithm
 
 ### Multi-Level Resolution Process
-1. **Collect All Applicable Policies**: Gather policies from member → corp → alliance
-2. **Apply Hierarchy Rules**: Process inheritance and overrides
-3. **Evaluate Explicit Denials**: Check for explicit deny policies (highest priority)
-4. **Evaluate Grants**: Check for allow policies at all levels
-5. **Default Behavior**: Deny if no explicit allow found
+1. **Priority Order**: Member > Corporation > Alliance (most specific wins)
+2. **Evaluate Explicit Denials**: Check for explicit deny policies (highest priority)
+3. **Evaluate Member Permissions**: Check individual member permissions first
+4. **Evaluate Corporation Permissions**: Check corp permissions if no member override
+5. **Evaluate Alliance Permissions**: Check alliance permissions as final fallback
+6. **Default Behavior**: Deny if no explicit allow found
 
 ### Implementation Strategy
 ```go
@@ -140,7 +142,7 @@ func (h *HierarchicalPermissionChecker) CheckPermission(
     // 1. Get user's hierarchy (alliance, corp, character)
     hierarchy := h.getUserHierarchy(characterID)
     
-    // 2. Check explicit denials first
+    // 2. Check explicit denials first (in priority order: member > corp > alliance)
     for _, level := range []string{
         fmt.Sprintf("member:%d", characterID),
         fmt.Sprintf("corp:%d", hierarchy.CorporationID),
@@ -153,7 +155,7 @@ func (h *HierarchicalPermissionChecker) CheckPermission(
         }
     }
     
-    // 3. Check for allows at any level
+    // 3. Check for allows in priority order (member > corp > alliance)
     for _, level := range []string{
         fmt.Sprintf("member:%d", characterID),
         fmt.Sprintf("corp:%d", hierarchy.CorporationID), 

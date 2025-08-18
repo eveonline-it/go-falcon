@@ -168,28 +168,34 @@ func (s *AuthService) GetCurrentUser(ctx context.Context, r *http.Request) (*dto
 
 // GetAuthStatusFromHeaders returns current authentication status from header strings
 func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, cookieHeader string) (*dto.AuthStatusResponse, error) {
+	fmt.Printf("[DEBUG] AuthService.GetAuthStatusFromHeaders: authHeader=%q cookieHeader=%q\n", authHeader, cookieHeader)
 	// Try to extract JWT token from headers
 	var jwtToken string
 	
 	// Try Authorization header first
 	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 		jwtToken = authHeader[7:]
+		fmt.Printf("[DEBUG] AuthService: Extracted JWT from Authorization header (length=%d)\n", len(jwtToken))
 	}
 	
 	// If not found, try cookie header
 	if jwtToken == "" && cookieHeader != "" {
+		fmt.Printf("[DEBUG] AuthService: No JWT in Authorization header, checking cookies\n")
 		// Parse cookie header to find falcon_auth_token
 		cookies := strings.Split(cookieHeader, ";")
+		fmt.Printf("[DEBUG] AuthService: Found %d cookies\n", len(cookies))
 		for _, cookie := range cookies {
 			cookie = strings.TrimSpace(cookie)
 			if strings.HasPrefix(cookie, "falcon_auth_token=") {
 				jwtToken = strings.TrimPrefix(cookie, "falcon_auth_token=")
+				fmt.Printf("[DEBUG] AuthService: Extracted JWT from cookie (length=%d)\n", len(jwtToken))
 				break
 			}
 		}
 	}
 
 	if jwtToken == "" {
+		fmt.Printf("[DEBUG] AuthService: No JWT token found, returning unauthenticated\n")
 		return &dto.AuthStatusResponse{
 			Authenticated: false,
 			UserID:        nil,
@@ -201,8 +207,10 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 	}
 
 	// Validate JWT and get user info
+	fmt.Printf("[DEBUG] AuthService: Validating JWT token\n")
 	user, err := s.eveService.ValidateJWT(jwtToken)
 	if err != nil {
+		fmt.Printf("[DEBUG] AuthService: JWT validation failed: %v\n", err)
 		return &dto.AuthStatusResponse{
 			Authenticated: false,
 			UserID:        nil,
