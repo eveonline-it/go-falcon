@@ -172,17 +172,34 @@ func main() {
 		URL:  "https://github.com/your-org/go-falcon",
 	}
 	
-	// Add servers based on API prefix and environment
-	frontendURL := config.GetFrontendURL()
-	if apiPrefix == "" {
-		humaConfig.Servers = []*huma.Server{
-			{URL: frontendURL, Description: "Production server"},
-			{URL: "http://localhost:3000", Description: "Local development"},
+	// Add servers based on environment configuration or defaults
+	customServers := config.GetOpenAPIServers()
+	if customServers != nil {
+		// Use custom servers from environment variable
+		humaConfig.Servers = make([]*huma.Server, len(customServers))
+		for i, server := range customServers {
+			serverURL := server.URL
+			if apiPrefix != "" && !strings.HasSuffix(serverURL, apiPrefix) {
+				serverURL = serverURL + apiPrefix
+			}
+			humaConfig.Servers[i] = &huma.Server{
+				URL:         serverURL,
+				Description: server.Description,
+			}
 		}
 	} else {
-		humaConfig.Servers = []*huma.Server{
-			{URL: frontendURL + apiPrefix, Description: "Production server"},
-			{URL: "http://localhost:3000" + apiPrefix, Description: "Local development"},
+		// Use default server configuration
+		frontendURL := config.GetFrontendURL()
+		if apiPrefix == "" {
+			humaConfig.Servers = []*huma.Server{
+				{URL: frontendURL, Description: "Production server"},
+				{URL: "http://localhost:3000", Description: "Local development"},
+			}
+		} else {
+			humaConfig.Servers = []*huma.Server{
+				{URL: frontendURL + apiPrefix, Description: "Production server"},
+				{URL: "http://localhost:3000" + apiPrefix, Description: "Local development"},
+			}
 		}
 	}
 	

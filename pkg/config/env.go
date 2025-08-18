@@ -142,3 +142,46 @@ func GetHost() string {
 func GetHumaHost() string {
 	return GetEnv("HUMA_HOST", GetHost())
 }
+
+// GetOpenAPIServers returns the OpenAPI servers configuration from environment variables
+// Format: OPENAPI_SERVERS="url1|description1,url2|description2"
+// Example: OPENAPI_SERVERS="https://api.example.com|Production,http://localhost:3000|Development"
+func GetOpenAPIServers() []*OpenAPIServer {
+	serversEnv := GetEnv("OPENAPI_SERVERS", "")
+	if serversEnv == "" {
+		return nil // Return nil to use default configuration
+	}
+	
+	var servers []*OpenAPIServer
+	serverPairs := strings.Split(serversEnv, ",")
+	
+	for _, pair := range serverPairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		
+		parts := strings.Split(pair, "|")
+		if len(parts) != 2 {
+			continue // Skip invalid format
+		}
+		
+		url := strings.TrimSpace(parts[0])
+		description := strings.TrimSpace(parts[1])
+		
+		if url != "" && description != "" {
+			servers = append(servers, &OpenAPIServer{
+				URL:         url,
+				Description: description,
+			})
+		}
+	}
+	
+	return servers
+}
+
+// OpenAPIServer represents an OpenAPI server configuration
+type OpenAPIServer struct {
+	URL         string
+	Description string
+}

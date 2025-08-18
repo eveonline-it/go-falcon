@@ -153,6 +153,11 @@ PORT="8080"                    # Main server port
 API_PREFIX="/api"              # API route prefix (empty for root)
 JWT_SECRET="your-secret-key"   # JWT signing key
 
+# OpenAPI Configuration
+OPENAPI_SERVERS=""             # Custom OpenAPI servers (optional)
+                              # Format: "url1|description1,url2|description2"
+                              # Example: "https://api.prod.com|Production,https://api.staging.com|Staging"
+
 # HUMA Server Configuration (Future Feature)
 # HUMA_PORT="8081"               # Reserved for future separate HUMA server
 # HUMA_HOST="0.0.0.0"            # Reserved for future separate HUMA server  
