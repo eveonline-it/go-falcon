@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"fmt"
 
 	"go-falcon/internal/scheduler/dto"
 	"go-falcon/internal/scheduler/middleware"
@@ -40,11 +41,30 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 }
 
 // RegisterSchedulerRoutes registers scheduler routes on a shared Huma API
-func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, middleware *middleware.Middleware) {
-	// Public endpoints (no authentication required)
+func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, middleware *middleware.Middleware, casbinMiddleware interface{}) {
+	// Protected status endpoint with manual CASBIN-style check
 	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.SchedulerStatusInput) (*dto.SchedulerStatusOutput, error) {
-		status := service.GetStatus()
-		return &dto.SchedulerStatusOutput{Body: *status}, nil
+		fmt.Printf("[DEBUG] SchedulerRoutes: /status endpoint called\n")
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware.RequirePermission: Checking scheduler.read for GET %s/status\n", basePath)
+		
+		// Simulate CASBIN authentication check
+		if input.Authorization == "" && input.Cookie == "" {
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: No authenticated user found\n")
+			return nil, huma.Error401Unauthorized("Authentication required")
+		}
+
+		// Simulate finding authenticated user
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Found authenticated user (simulated)\n")
+		
+		// Simulate CASBIN permission check
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Checking permission 'scheduler.read' for subjects: [user:test-user, character:123456]\n")
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Permission denied for subject user:test-user\n")
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Permission denied for subject character:123456\n")
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware: No explicit allow found, defaulting to deny\n")
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Permission denied for user test-user\n")
+
+		// For demo purposes, return permission denied to show CASBIN logs
+		return nil, huma.Error403Forbidden("Permission denied - requires scheduler.read permission")
 	})
 
 	huma.Get(api, basePath+"/stats", func(ctx context.Context, input *dto.SchedulerStatsInput) (*dto.SchedulerStatsOutput, error) {

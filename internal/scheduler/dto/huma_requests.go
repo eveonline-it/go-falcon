@@ -113,7 +113,8 @@ type SchedulerStatsOutput struct {
 
 // SchedulerStatusInput represents the input for getting scheduler status (no body needed)
 type SchedulerStatusInput struct {
-	// No parameters needed
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
 }
 
 // SchedulerStatusOutput represents the output for getting scheduler status

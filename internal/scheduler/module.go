@@ -211,6 +211,6 @@ func (m *Module) Shutdown() error {
 }
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterSchedulerRoutes(api, basePath, m.schedulerService, m.middleware)
+	routes.RegisterSchedulerRoutes(api, basePath, m.schedulerService, m.middleware, nil) // TODO: Pass CASBIN middleware
 	log.Printf("Scheduler module unified routes registered at %s", basePath)
 }

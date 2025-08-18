@@ -69,16 +69,16 @@ func NewAuthMiddleware(validator JWTValidator) *AuthMiddleware {
 
 // ValidateAuthFromHeaders validates authentication from request headers
 func (m *AuthMiddleware) ValidateAuthFromHeaders(authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
-	fmt.Printf("[DEBUG] ValidateAuthFromHeaders: authHeader=%q cookieHeader=%q\n", authHeader, cookieHeader)
+	fmt.Printf("[DEBUG] ValidateAuthFromHeaders: authHeader present=%t cookieHeader present=%t\n", authHeader != "", cookieHeader != "")
 	// Try to get token from Authorization header first
 	token := m.ExtractTokenFromHeaders(authHeader)
 	
 	// If not found, try cookie
 	if token == "" && cookieHeader != "" {
 		token = m.ExtractTokenFromCookie(cookieHeader)
-		fmt.Printf("[DEBUG] ValidateAuthFromHeaders: extracted token from cookie: %q\n", token)
+		fmt.Printf("[DEBUG] ValidateAuthFromHeaders: extracted token from cookie (length=%d)\n", len(token))
 	} else if token != "" {
-		fmt.Printf("[DEBUG] ValidateAuthFromHeaders: extracted token from header: %q\n", token)
+		fmt.Printf("[DEBUG] ValidateAuthFromHeaders: extracted token from header (length=%d)\n", len(token))
 	}
 
 	if token == "" {
@@ -132,13 +132,13 @@ func (m *AuthMiddleware) ExtractTokenFromHeaders(authHeader string) string {
 
 // ExtractTokenFromCookie extracts JWT token from cookie header string
 func (m *AuthMiddleware) ExtractTokenFromCookie(cookieHeader string) string {
-	fmt.Printf("[DEBUG] ExtractTokenFromCookie: cookieHeader=%q\n", cookieHeader)
+	fmt.Printf("[DEBUG] ExtractTokenFromCookie: parsing cookie header with %d cookie(s)\n", len(strings.Split(cookieHeader, ";")))
 	// Parse cookie header to find falcon_auth_token
 	cookies := strings.Split(cookieHeader, ";")
-	fmt.Printf("[DEBUG] ExtractTokenFromCookie: found %d cookies\n", len(cookies))
 	for i, cookie := range cookies {
 		cookie = strings.TrimSpace(cookie)
-		fmt.Printf("[DEBUG] ExtractTokenFromCookie: cookie[%d]=%q\n", i, cookie)
+		cookieName := strings.Split(cookie, "=")[0]
+		fmt.Printf("[DEBUG] ExtractTokenFromCookie: cookie[%d] name='%s'\n", i, cookieName)
 		if strings.HasPrefix(cookie, "falcon_auth_token=") {
 			token := strings.TrimPrefix(cookie, "falcon_auth_token=")
 			fmt.Printf("[DEBUG] ExtractTokenFromCookie: found falcon_auth_token (length=%d)\n", len(token))

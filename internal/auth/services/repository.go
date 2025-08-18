@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go-falcon/internal/auth/models"
@@ -126,6 +127,13 @@ func (r *Repository) GetAllUserProfilesByUserID(ctx context.Context, userID stri
 		attribute.String("user_id", userID),
 	)
 
+	// Check MongoDB connection health before query
+	err := r.mongodb.HealthCheck(ctx)
+	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("mongodb connection unhealthy: %w", err)
+	}
+
 	collection := r.mongodb.Collection("user_profiles")
 	
 	cursor, err := collection.Find(ctx, bson.M{"user_id": userID})
@@ -165,10 +173,17 @@ func (r *Repository) GetUserProfileByCharacterID(ctx context.Context, characterI
 		attribute.Int("character_id", characterID),
 	)
 
+	// Check MongoDB connection health before query
+	err := r.mongodb.HealthCheck(ctx)
+	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("mongodb connection unhealthy: %w", err)
+	}
+
 	collection := r.mongodb.Collection("user_profiles")
 	
 	var profile models.UserProfile
-	err := collection.FindOne(ctx, bson.M{"character_id": characterID}).Decode(&profile)
+	err = collection.FindOne(ctx, bson.M{"character_id": characterID}).Decode(&profile)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil // Profile not found
@@ -192,10 +207,17 @@ func (r *Repository) GetUserProfileByUserID(ctx context.Context, userID string) 
 		attribute.String("user_id", userID),
 	)
 
+	// Check MongoDB connection health before query
+	err := r.mongodb.HealthCheck(ctx)
+	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("mongodb connection unhealthy: %w", err)
+	}
+
 	collection := r.mongodb.Collection("user_profiles")
 	
 	var profile models.UserProfile
-	err := collection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&profile)
+	err = collection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&profile)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil // Profile not found

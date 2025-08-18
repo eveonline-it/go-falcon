@@ -39,8 +39,14 @@ func (r *Repository) CreateTask(ctx context.Context, task *models.Task) error {
 
 // GetTask retrieves a task by ID
 func (r *Repository) GetTask(ctx context.Context, taskID string) (*models.Task, error) {
+	// Check MongoDB connection health before query
+	err := r.mongodb.HealthCheck(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("mongodb connection unhealthy: %w", err)
+	}
+
 	var task models.Task
-	err := r.tasks.FindOne(ctx, bson.M{"_id": taskID}).Decode(&task)
+	err = r.tasks.FindOne(ctx, bson.M{"_id": taskID}).Decode(&task)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +96,12 @@ func (r *Repository) ListTasks(ctx context.Context, filter bson.M, page, pageSiz
 
 // GetActiveTasks retrieves all enabled tasks
 func (r *Repository) GetActiveTasks(ctx context.Context) ([]models.Task, error) {
+	// Check MongoDB connection health before query
+	err := r.mongodb.HealthCheck(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("mongodb connection unhealthy: %w", err)
+	}
+
 	filter := bson.M{
 		"enabled": true,
 		"status": bson.M{"$nin": []string{"paused", "disabled"}},

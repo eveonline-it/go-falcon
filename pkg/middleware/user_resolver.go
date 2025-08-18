@@ -66,6 +66,15 @@ func (r *UserCharacterResolverImpl) GetUserWithCharacters(ctx context.Context, u
 		SetSort(bson.D{{Key: "character_name", Value: 1}})
 	fmt.Printf("[DEBUG] UserCharacterResolver: Find options configured with projection and sort\n")
 
+	// Check MongoDB connection health before query
+	fmt.Printf("[DEBUG] UserCharacterResolver: Checking MongoDB connection health...\n")
+	err := r.mongodb.HealthCheck(ctx)
+	if err != nil {
+		fmt.Printf("[DEBUG] UserCharacterResolver: MongoDB health check failed: %v\n", err)
+		return nil, fmt.Errorf("mongodb connection unhealthy: %w", err)
+	}
+	fmt.Printf("[DEBUG] UserCharacterResolver: MongoDB connection is healthy\n")
+
 	fmt.Printf("[DEBUG] UserCharacterResolver: Executing MongoDB query...\n")
 	cursor, err := collection.Find(ctx, filter, findOptions)
 	if err != nil {

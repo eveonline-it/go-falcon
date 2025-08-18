@@ -26,16 +26,16 @@ func NewHumaAuthHelper(validator JWTValidator, resolver UserCharacterResolver) *
 
 // ValidateAuthFromHeaders validates authentication from request headers (HUMA pattern)
 func (h *HumaAuthHelper) ValidateAuthFromHeaders(authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
-	fmt.Printf("[DEBUG] HumaAuthHelper.ValidateAuthFromHeaders: authHeader=%q cookieHeader=%q\n", authHeader, cookieHeader)
+	fmt.Printf("[DEBUG] HumaAuthHelper.ValidateAuthFromHeaders: authHeader present=%t cookieHeader present=%t\n", authHeader != "", cookieHeader != "")
 	// Try to get token from Authorization header first
 	token := h.ExtractTokenFromHeaders(authHeader)
 	
 	// If not found, try cookie
 	if token == "" && cookieHeader != "" {
 		token = h.ExtractTokenFromCookie(cookieHeader)
-		fmt.Printf("[DEBUG] HumaAuthHelper: Extracted token from cookie: %q\n", token)
+		fmt.Printf("[DEBUG] HumaAuthHelper: Extracted token from cookie (length=%d)\n", len(token))
 	} else if token != "" {
-		fmt.Printf("[DEBUG] HumaAuthHelper: Extracted token from header: %q\n", token)
+		fmt.Printf("[DEBUG] HumaAuthHelper: Extracted token from header (length=%d)\n", len(token))
 	}
 
 	if token == "" {
