@@ -243,7 +243,6 @@ REDIS_URL=redis://localhost:6379
 2. **Configure your credentials**:
    - Set your EVE Online application credentials (register at [developers.eveonline.com](https://developers.eveonline.com/))
    - Generate a strong JWT secret: `openssl rand -base64 64`
-   - Set your super admin character ID
    - Configure database passwords
 
 ### Required Environment Variables
@@ -253,18 +252,18 @@ EVE_CLIENT_ID=your_client_id
 EVE_CLIENT_SECRET=your_client_secret
 JWT_SECRET=your_jwt_secret
 
-# Super Admin
-SUPER_ADMIN_CHARACTER_ID=your_character_id
-
 # Database
 MONGODB_URI=mongodb://admin:your_password@localhost:27017/falcon?authSource=admin
 ```
+
+### Super Admin Setup
+The first user to successfully authenticate via EVE Online SSO will automatically be granted super admin privileges. No environment configuration is required - the system automatically detects when it's the first user registration and assigns admin status.
 
 ### Security Features
 - **JWT Authentication**: Secure token-based authentication
 - **EVE SSO Integration**: Official EVE Online authentication
 - **Granular Permissions**: Fine-grained access control system
-- **Super Admin Controls**: Dedicated super admin management
+- **Super Admin**: First registered user becomes super admin
 - **Audit Logging**: Complete audit trail for all actions
 - **CORS Configuration**: Proper cross-origin resource sharing
 - **Input Validation**: Comprehensive request validation

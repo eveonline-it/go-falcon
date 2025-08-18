@@ -10,7 +10,6 @@ import (
 
 	"go-falcon/internal/auth/dto"
 	"go-falcon/internal/auth/models"
-	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/handlers"
@@ -83,10 +82,10 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 		}, nil
 	}
 
-	// Check if user is super admin via environment variable
+	// Check if user is super admin from their profile
 	permissions := []string{}
-	superAdminCharacterID := config.GetSuperAdminCharacterID()
-	if superAdminCharacterID != 0 && user.CharacterID == superAdminCharacterID {
+	userProfile, err := s.repository.GetUserProfileByCharacterID(ctx, user.CharacterID)
+	if err == nil && userProfile != nil && userProfile.IsSuperAdmin {
 		// Grant super admin status (specific permissions will be handled by CASBIN)
 		permissions = []string{
 			"super_admin",
@@ -183,10 +182,10 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 		}, nil
 	}
 
-	// Check if user is super admin via environment variable
+	// Check if user is super admin from their profile
 	permissions := []string{}
-	superAdminCharacterID := config.GetSuperAdminCharacterID()
-	if superAdminCharacterID != 0 && user.CharacterID == superAdminCharacterID {
+	userProfile, err := s.repository.GetUserProfileByCharacterID(ctx, user.CharacterID)
+	if err == nil && userProfile != nil && userProfile.IsSuperAdmin {
 		// Grant super admin status (specific permissions will be handled by CASBIN)
 		permissions = []string{
 			"super_admin",

@@ -26,6 +26,13 @@ func NewRepository(mongodb *database.MongoDB) *Repository {
 	}
 }
 
+// CountUsers returns the total number of user profiles
+func (r *Repository) CountUsers(ctx context.Context) (int64, error) {
+	collection := r.mongodb.Collection("user_profiles")
+	count, err := collection.CountDocuments(ctx, bson.M{})
+	return count, err
+}
+
 // CreateOrUpdateUserProfile creates or updates a user profile
 func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *models.UserProfile) (*models.UserProfile, error) {
 	tracer := otel.Tracer("go-falcon/auth")
@@ -39,6 +46,18 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 	)
 
 	collection := r.mongodb.Collection("user_profiles")
+	
+	// Check if this is the first user
+	userCount, err := r.CountUsers(ctx)
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	
+	// If this is the first user, make them super admin
+	if userCount == 0 {
+		profile.IsSuperAdmin = true
+	}
 	
 	now := time.Now()
 	profile.UpdatedAt = now
@@ -65,6 +84,7 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 		"last_login":             profile.LastLogin,
 		"profile_updated":        profile.ProfileUpdated,
 		"valid":                  profile.Valid,
+		"is_super_admin":         profile.IsSuperAdmin,
 		"metadata":               profile.Metadata,
 		"updated_at":             profile.UpdatedAt,
 	}
@@ -77,7 +97,7 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 	}
 	
 	opts := options.Update().SetUpsert(true)
-	_, err := collection.UpdateOne(ctx, filter, update, opts)
+	_, err = collection.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err

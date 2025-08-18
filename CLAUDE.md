@@ -144,7 +144,6 @@ OPENAPI_SERVERS=""             # Custom OpenAPI servers (optional)
 # EVE Online Integration
 EVE_CLIENT_ID="your-client-id"
 EVE_CLIENT_SECRET="your-secret"
-SUPER_ADMIN_CHARACTER_ID="123456789"
 
 # Observability
 ENABLE_TELEMETRY="true"        # Enable OpenTelemetry
