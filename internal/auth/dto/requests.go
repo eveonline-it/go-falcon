@@ -79,7 +79,8 @@ type EVETokenExchangeOutput struct {
 
 // AuthStatusInput represents the input for authentication status (no body needed)
 type AuthStatusInput struct {
-	// No parameters needed - status is determined from context/cookies
+	Authorization string `header:"Authorization" doc:"Optional Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Optional session cookie for authentication"`
 }
 
 // AuthStatusOutput represents the output for authentication status
@@ -89,7 +90,8 @@ type AuthStatusOutput struct {
 
 // UserInfoInput represents the input for current user information (no body needed)
 type UserInfoInput struct {
-	// No parameters needed - user info comes from authenticated context
+	Authorization string `header:"Authorization" doc:"Optional Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Optional session cookie for authentication"`
 }
 
 // UserInfoOutput represents the output for current user information

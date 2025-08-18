@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"go-falcon/internal/auth/dto"
@@ -121,6 +122,122 @@ func (s *AuthService) GetCurrentUser(ctx context.Context, r *http.Request) (*dto
 		authHeader := r.Header.Get("Authorization")
 		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 			jwtToken = authHeader[7:]
+		}
+	}
+
+	if jwtToken == "" {
+		return nil, fmt.Errorf("no authentication token")
+	}
+
+	// Validate JWT and get user info
+	user, err := s.eveService.ValidateJWT(jwtToken)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %w", err)
+	}
+
+	return &dto.UserInfoResponse{
+		UserID:        user.UserID,
+		CharacterID:   user.CharacterID,
+		CharacterName: user.CharacterName,
+		Scopes:        user.Scopes,
+	}, nil
+}
+
+// GetAuthStatusFromHeaders returns current authentication status from header strings
+func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, cookieHeader string) (*dto.AuthStatusResponse, error) {
+	// Try to extract JWT token from headers
+	var jwtToken string
+	
+	// Try Authorization header first
+	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		jwtToken = authHeader[7:]
+	}
+	
+	// If not found, try cookie header
+	if jwtToken == "" && cookieHeader != "" {
+		// Parse cookie header to find falcon_auth_token
+		cookies := strings.Split(cookieHeader, ";")
+		for _, cookie := range cookies {
+			cookie = strings.TrimSpace(cookie)
+			if strings.HasPrefix(cookie, "falcon_auth_token=") {
+				jwtToken = strings.TrimPrefix(cookie, "falcon_auth_token=")
+				break
+			}
+		}
+	}
+
+	if jwtToken == "" {
+		return &dto.AuthStatusResponse{
+			Authenticated: false,
+			UserID:        nil,
+			CharacterID:   nil,
+			CharacterName: nil,
+			Characters:    []string{},
+			Permissions:   []string{},
+		}, nil
+	}
+
+	// Validate JWT and get user info
+	user, err := s.eveService.ValidateJWT(jwtToken)
+	if err != nil {
+		return &dto.AuthStatusResponse{
+			Authenticated: false,
+			UserID:        nil,
+			CharacterID:   nil,
+			CharacterName: nil,
+			Characters:    []string{},
+			Permissions:   []string{},
+		}, nil
+	}
+
+	// Check if user is super admin via environment variable
+	permissions := []string{}
+	superAdminCharacterID := config.GetSuperAdminCharacterID()
+	if superAdminCharacterID != 0 && user.CharacterID == superAdminCharacterID {
+		// Grant all permissions to super admin
+		permissions = []string{
+			"super_admin",
+			"auth.users.admin",
+			"groups.management.admin",
+			"sde.entities.admin",
+			"scheduler.tasks.admin",
+			"users.profiles.admin",
+			"notifications.messages.admin",
+			"dev.tools.admin",
+		}
+	}
+
+	// Return authenticated response with user info
+	return &dto.AuthStatusResponse{
+		Authenticated: true,
+		UserID:        &user.UserID,
+		CharacterID:   &user.CharacterID,
+		CharacterName: &user.CharacterName,
+		Characters:    []string{user.CharacterName}, // For now, just include current character
+		Permissions:   permissions,
+	}, nil
+}
+
+// GetCurrentUserFromHeaders returns current user information from header strings
+func (s *AuthService) GetCurrentUserFromHeaders(ctx context.Context, authHeader, cookieHeader string) (*dto.UserInfoResponse, error) {
+	// Try to extract JWT token from headers
+	var jwtToken string
+	
+	// Try Authorization header first
+	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		jwtToken = authHeader[7:]
+	}
+	
+	// If not found, try cookie header
+	if jwtToken == "" && cookieHeader != "" {
+		// Parse cookie header to find falcon_auth_token
+		cookies := strings.Split(cookieHeader, ";")
+		for _, cookie := range cookies {
+			cookie = strings.TrimSpace(cookie)
+			if strings.HasPrefix(cookie, "falcon_auth_token=") {
+				jwtToken = strings.TrimPrefix(cookie, "falcon_auth_token=")
+				break
+			}
 		}
 	}
 

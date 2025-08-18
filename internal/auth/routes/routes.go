@@ -2,7 +2,6 @@ package routes
 
 import (
 	"context"
-	"net/http"
 
 	"go-falcon/internal/auth/dto"
 	"go-falcon/internal/auth/middleware"
@@ -124,11 +123,8 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 	// Authentication status and user info (public with optional auth)
 	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.AuthStatusInput) (*dto.AuthStatusOutput, error) {
-		// TODO: Extract HTTP request from context for cookie checking
-		// For now, create a minimal request object
-		req := &http.Request{}
-		
-		statusResp, err := authService.GetAuthStatus(ctx, req)
+		// Use the new method that accepts header strings
+		statusResp, err := authService.GetAuthStatusFromHeaders(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to check auth status", err)
 		}
@@ -137,10 +133,8 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 	})
 
 	huma.Get(api, basePath+"/user", func(ctx context.Context, input *dto.UserInfoInput) (*dto.UserInfoOutput, error) {
-		// TODO: Extract HTTP request from context
-		req := &http.Request{}
-		
-		userInfo, err := authService.GetCurrentUser(ctx, req)
+		// Use the new method that accepts header strings
+		userInfo, err := authService.GetCurrentUserFromHeaders(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, huma.Error401Unauthorized("User not authenticated", err)
 		}
@@ -368,11 +362,8 @@ func (hr *Routes) eveVerify(ctx context.Context, input *dto.VerifyTokenInput) (*
 // Authentication status and user info handlers
 
 func (hr *Routes) authStatus(ctx context.Context, input *dto.AuthStatusInput) (*dto.AuthStatusOutput, error) {
-	// TODO: Extract HTTP request from context for cookie checking
-	// For now, create a minimal request object
-	req := &http.Request{}
-	
-	statusResp, err := hr.authService.GetAuthStatus(ctx, req)
+	// Use the new method that accepts header strings
+	statusResp, err := hr.authService.GetAuthStatusFromHeaders(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to check auth status", err)
 	}
@@ -381,10 +372,8 @@ func (hr *Routes) authStatus(ctx context.Context, input *dto.AuthStatusInput) (*
 }
 
 func (hr *Routes) userInfo(ctx context.Context, input *dto.UserInfoInput) (*dto.UserInfoOutput, error) {
-	// TODO: Extract HTTP request from context
-	req := &http.Request{}
-	
-	userInfo, err := hr.authService.GetCurrentUser(ctx, req)
+	// Use the new method that accepts header strings
+	userInfo, err := hr.authService.GetCurrentUserFromHeaders(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, huma.Error401Unauthorized("User not authenticated", err)
 	}
