@@ -180,6 +180,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		fmt.Printf("[DEBUG] AuthStatus Handler: Got user profile for UserID: %s\n", profile.UserID)
 		
 		// Create UserCharacterResolver and resolve all characters
+		// Note: Redis not available in this context, using without caching
 		resolver := humaMiddleware.NewUserCharacterResolver(mongodb)
 		fmt.Printf("[DEBUG] AuthStatus Handler: Created UserCharacterResolver, now resolving characters...\n")
 		

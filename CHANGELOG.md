@@ -11,6 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Hierarchical permissions support for character/corporation/alliance levels
+
+### Added
+
+- 11 HUMA v2 API endpoints for role assignment and permission management
+
+### Added
+
+- Comprehensive CASBIN role-based authorization system with MongoDB adapter and Redis caching
+
+### Added
+
+- CASBIN middleware with debug logging for granular permission system
+
+### Fixed
+
+- Enhance /auth/status endpoint with character resolution and remove debug endpoint - Add character_ids, corporation_ids, alliance_ids fields to AuthStatusResponse - Remove unused /auth/debug/characters endpoint and debug DTOs - Remove unused permissions field from auth responses - Hide sensitive cookie values in debug logs for improved security - Provide unified endpoint for comprehensive auth status and character data
+
+### Added
+
+- Clean up middleware package and add character resolver debug endpoint - Remove 6 unnecessary files (test files, examples, duplicates) and consolidate functionality - Add comprehensive debug logging to UserCharacterResolver - Create debug endpoint /auth/debug/characters to test character resolution - Reduce middleware package from 15 to 8 core files for better maintainability
+
+### Added
+
 - Comprehensive middleware system with enhanced authentication and debug logging
 
 ### Added
