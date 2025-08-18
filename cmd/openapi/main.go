@@ -1263,9 +1263,9 @@ func countUniqueModules(routes []RouteInfo) int {
 func getAuthRoutes() []RouteInfo {
 	return []RouteInfo{
 		{Method: "GET", Path: "/health", ModuleName: "auth", HandlerName: "HealthHandler", Description: "Auth module health check"},
-		// Basic auth endpoints
-		{Method: "POST", Path: "/login", ModuleName: "auth", HandlerName: "loginHandler", Description: "Basic login endpoint"},
-		{Method: "POST", Path: "/register", ModuleName: "auth", HandlerName: "registerHandler", Description: "User registration endpoint"},
+		// Basic auth endpoints (legacy - not implemented)
+		// {Method: "POST", Path: "/login", ModuleName: "auth", HandlerName: "loginHandler", Description: "Basic login endpoint"},
+		// {Method: "POST", Path: "/register", ModuleName: "auth", HandlerName: "registerHandler", Description: "User registration endpoint"},
 		{Method: "GET", Path: "/status", ModuleName: "auth", HandlerName: "statusHandler", Description: "Check authentication status"},
 		// EVE SSO endpoints  
 		{Method: "GET", Path: "/eve/login", ModuleName: "auth", HandlerName: "eveLoginHandler", Description: "Initiate EVE SSO login"},
