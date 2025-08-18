@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Added
+
+- Smart commit script with interactive changelog prompts and commit workflow documentation
 - Initial version management and changelog system
 - Comprehensive version information tracking
 - Build metadata collection
