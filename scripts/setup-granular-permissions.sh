@@ -92,47 +92,6 @@ create_service '{
   ]
 }'
 
-# Create SDE Service
-print_info "Setting up SDE service..."
-create_service '{
-  "name": "sde",
-  "display_name": "Static Data Export",
-  "description": "EVE Online static data management with automated processing and scheduler integration",
-  "resources": [
-    {
-      "name": "entities",
-      "display_name": "SDE Entities",
-      "description": "EVE Online static data entities including agents, blueprints, types, and universe data",
-      "actions": ["read"],
-      "enabled": true
-    },
-    {
-      "name": "management",
-      "display_name": "SDE Management",
-      "description": "SDE update processes, index rebuilding, and administrative operations",
-      "actions": ["read", "write", "admin"],
-      "enabled": true
-    }
-  ]
-}'
-
-# Create Dev Service
-print_info "Setting up Dev service..."
-create_service '{
-  "name": "dev",
-  "display_name": "Development Tools",
-  "description": "ESI testing and SDE data access tools for development and debugging",
-  "resources": [
-    {
-      "name": "tools",
-      "display_name": "Development Tools",
-      "description": "ESI testing endpoints, SDE data access, and development utilities",
-      "actions": ["read", "write"],
-      "enabled": true
-    }
-  ]
-}'
-
 # Create Users Service
 print_info "Setting up Users service..."
 create_service '{
@@ -150,23 +109,6 @@ create_service '{
   ]
 }'
 
-# Create Notifications Service
-print_info "Setting up Notifications service..."
-create_service '{
-  "name": "notifications",
-  "display_name": "Notification System",
-  "description": "User notification management and messaging system",
-  "resources": [
-    {
-      "name": "messages",
-      "display_name": "Notification Messages",
-      "description": "User notifications, alerts, and messaging functionality",
-      "actions": ["read", "write", "delete"],
-      "enabled": true
-    }
-  ]
-}'
-
 print_success "All services created successfully!"
 
 print_info "Next steps:"
@@ -176,11 +118,11 @@ print_info "3. Monitor the system for proper access control"
 
 print_info "Example permission grant commands:"
 echo ""
-print_info "Grant SDE read access to authenticated users:"
+print_info "Grant user profile read access to authenticated users:"
 echo "curl -X POST \"\${API_BASE_URL}/admin/permissions/assignments\" \\"
 echo "  -H \"Authorization: Bearer \$SUPER_ADMIN_JWT\" \\"
 echo "  -H \"Content-Type: application/json\" \\"
-echo "  -d '{\"service\": \"sde\", \"resource\": \"entities\", \"action\": \"read\", \"subject_type\": \"group\", \"subject_id\": \"full_group_id\", \"reason\": \"Allow authenticated users to read SDE data\"}'"
+echo "  -d '{\"service\": \"users\", \"resource\": \"profiles\", \"action\": \"read\", \"subject_type\": \"group\", \"subject_id\": \"full_group_id\", \"reason\": \"Allow authenticated users to read user profiles\"}'"
 
 echo ""
 print_info "Grant scheduler admin access to administrators:"

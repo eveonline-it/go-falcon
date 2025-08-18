@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"go-falcon/internal/auth"
-	"go-falcon/internal/groups"
 	"go-falcon/internal/users/routes"
 	"go-falcon/internal/users/services"
 	"go-falcon/pkg/database"
@@ -23,11 +22,10 @@ type Module struct {
 	service      *services.Service
 	routes       *routes.Routes
 	authModule   *auth.Module
-	groupsModule *groups.Module
 }
 
 // New creates a new users module instance
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule *auth.Module, groupsModule *groups.Module) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule *auth.Module, groupsModule interface{}) *Module {
 	service := services.NewService(mongodb)
 
 	return &Module{
@@ -35,7 +33,6 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 		service:      service,
 		routes:       nil, // Will be created when needed
 		authModule:   authModule,
-		groupsModule: groupsModule,
 	}
 }
 

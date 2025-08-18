@@ -91,12 +91,8 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 		permissions = []string{
 			"super_admin",
 			"auth.users.admin",
-			"groups.management.admin",
-			"sde.entities.admin",
 			"scheduler.tasks.admin",
 			"users.profiles.admin",
-			"notifications.messages.admin",
-			"dev.tools.admin",
 		}
 	}
 
@@ -198,12 +194,8 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 		permissions = []string{
 			"super_admin",
 			"auth.users.admin",
-			"groups.management.admin",
-			"sde.entities.admin",
 			"scheduler.tasks.admin",
 			"users.profiles.admin",
-			"notifications.messages.admin",
-			"dev.tools.admin",
 		}
 	}
 

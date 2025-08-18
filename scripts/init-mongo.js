@@ -8,8 +8,7 @@ db = db.getSiblingDB('admin');
 const databases = [
   'gateway',
   'auth', 
-  'users',
-  'notifications'
+  'users'
 ];
 
 databases.forEach(dbName => {
@@ -26,10 +25,6 @@ databases.forEach(dbName => {
   
   if (dbName === 'users') {
     serviceDb.profiles.createIndex({ userId: 1 }, { unique: true });
-  }
-  
-  if (dbName === 'notifications') {
-    serviceDb.notifications.createIndex({ userId: 1, createdAt: -1 });
   }
   
   print(`Database '${dbName}' initialized successfully`);

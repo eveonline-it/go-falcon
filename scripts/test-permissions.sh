@@ -71,16 +71,11 @@ test_endpoint "GET" "/auth/status" 200 "Auth status endpoint (public)"
 test_endpoint "GET" "/users/stats" 200 "User stats endpoint (public)"
 test_endpoint "GET" "/scheduler/status" 200 "Scheduler status endpoint (public)"
 test_endpoint "GET" "/scheduler/stats" 200 "Scheduler stats endpoint (public)"
-test_endpoint "GET" "/sde/status" 200 "SDE status endpoint (public)"
-test_endpoint "GET" "/dev/status" 200 "Dev status endpoint (public)"
 
 # Test 2: Protected endpoints without authentication (should return 401)
 print_info "=== Testing Protected Endpoints Without Authentication ==="
 test_endpoint "GET" "/scheduler/tasks" 401 "Scheduler tasks endpoint (should require auth)"
-test_endpoint "GET" "/sde/entity/agents/3008416" 401 "SDE entity endpoint (should require auth)"
-test_endpoint "GET" "/dev/esi-status" 401 "Dev ESI status endpoint (should require auth)"
 test_endpoint "GET" "/users" 401 "Users list endpoint (should require auth)"
-test_endpoint "GET" "/notifications" 401 "Notifications endpoint (should require auth)"
 
 # Test 3: Admin endpoints (should require super admin)
 print_info "=== Testing Admin Endpoints Without Authentication ==="

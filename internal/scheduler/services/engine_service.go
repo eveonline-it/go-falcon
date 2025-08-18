@@ -39,8 +39,6 @@ type EngineService struct {
 	
 	// Module dependencies
 	authModule   AuthModule
-	sdeModule    SDEModule
-	groupsModule GroupsModule
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -48,18 +46,7 @@ type AuthModule interface {
 	RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error)
 }
 
-// SDEModule interface defines the methods needed from the SDE module for scheduler integration
-type SDEModule interface {
-	CheckSDEUpdate(ctx context.Context) error
-}
 
-// GroupsModule interface defines the methods needed from the groups module
-type GroupsModule interface {
-	ValidateCorporateMemberships(ctx context.Context) error
-	CleanupExpiredMemberships(ctx context.Context) (int, error)
-	SyncDiscordRoles(ctx context.Context) error
-	ValidateGroupIntegrity(ctx context.Context) error
-}
 
 // TaskExecutor interface for different task types
 type TaskExecutor interface {
@@ -67,7 +54,7 @@ type TaskExecutor interface {
 }
 
 // NewEngineService creates a new scheduler engine
-func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule, sdeModule SDEModule, groupsModule GroupsModule) *EngineService {
+func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule, groupsModule interface{}) *EngineService {
 	engine := &EngineService{
 		repository:   repository,
 		redis:        redis,
@@ -77,8 +64,6 @@ func NewEngineService(repository *Repository, redis *database.Redis, authModule 
 		executors:    make(map[models.TaskType]TaskExecutor),
 		stopChan:     make(chan struct{}),
 		authModule:   authModule,
-		sdeModule:    sdeModule,
-		groupsModule: groupsModule,
 	}
 
 	// Initialize cron scheduler
@@ -428,7 +413,7 @@ func (e *EngineService) finishExecution(ctx context.Context, execution *models.T
 // registerBuiltinExecutors registers the built-in task executors
 func (e *EngineService) registerBuiltinExecutors() {
 	e.executors[models.TaskTypeHTTP] = NewHTTPExecutor()
-	e.executors[models.TaskTypeSystem] = NewSystemExecutor(e.authModule, e.sdeModule, e.groupsModule)
+	e.executors[models.TaskTypeSystem] = NewSystemExecutor(e.authModule, nil)
 	e.executors[models.TaskTypeFunction] = NewFunctionExecutor()
 }
 

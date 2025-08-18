@@ -10,7 +10,6 @@ Go Falcon is a monolithic API gateway built with Go that provides:
 - **Modular Architecture**: Clean separation of concerns with internal modules
 - **EVE Online Integration**: Complete SSO authentication and ESI API integration
 - **Task Scheduling**: Distributed task scheduling with cron support
-- **Real-time Communication**: WebSocket support via Socket.io and Redis
 - **Observability**: OpenTelemetry logging and tracing
 - **API Standards**: Automatic OpenAPI 3.1.1 generation via Huma v2
 
@@ -43,20 +42,6 @@ go-falcon/
 │   │   ├── services/     # Business logic
 │   │   ├── models/       # Database schemas
 │   │   └── CLAUDE.md     # Module documentation
-│   ├── dev/              # Development utilities
-│   │   ├── dto/          # Request/Response structures
-│   │   ├── middleware/   # Auth-specific middleware
-│   │   ├── routes/       # Route definitions
-│   │   ├── services/     # Business logic
-│   │   ├── models/       # Database schemas
-│   │   └── CLAUDE.md     # Module documentation
-│   ├── notifications/    # Notification service
-│   │   ├── dto/          # Request/Response structures
-│   │   ├── middleware/   # Auth-specific middleware
-│   │   ├── routes/       # Route definitions
-│   │   ├── services/     # Business logic
-│   │   ├── models/       # Database schemas
-│   │   └── CLAUDE.md     # Module documentation
 │   ├── scheduler/        # Task scheduling syste
 │   │   ├── dto/          # Request/Response structures
 │   │   ├── middleware/   # Auth-specific middleware
@@ -64,13 +49,6 @@ go-falcon/
 │   │   ├── services/     # Business logic
 │   │   ├── models/       # Database schemas
 │   │   └── CLAUDE.md     # Module documentationm
-│   ├── sde/              # EVE SDE management
-│   │   ├── dto/          # Request/Response structures
-│   │   ├── middleware/   # Auth-specific middleware
-│   │   ├── routes/       # Route definitions
-│   │   ├── services/     # Business logic
-│   │   ├── models/       # Database schemas
-│   │   └── CLAUDE.md     # Module documentation
 │   └── users/            # User management
 │   │   ├── dto/          # Request/Response structures
 │   │   ├── middleware/   # Auth-specific middleware
@@ -213,15 +191,7 @@ The scheduler module provides:
 - **Execution History**: Complete audit trail
 - **Worker Pool**: Configurable concurrent execution
 
-### 4. EVE Online SDE Management
-
-Two-tier SDE (Static Data Export) system:
-- **In-Memory Service** (`pkg/sde`): Ultra-fast data access
-- **Web Management** (`internal/sde`): REST API for updates
-- **Automated Updates**: Background processing with progress tracking
-- **Scheduler Integration**: Automatic version checking
-
-### 5. Authentication & Security
+### 4. Authentication & Security
 
 - **EVE Online SSO**: OAuth2 integration
 - **JWT Tokens**: Stateless authentication
@@ -235,10 +205,9 @@ Two-tier SDE (Static Data Export) system:
 
 | Module | Location | Description |
 |--------|----------|-------------|
-| **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md) | EVE SSO integration, JWT management, user profiles |
-| **Development** | [`internal/dev/CLAUDE.md`](internal/dev/CLAUDE.md) | ESI testing, SDE validation, debugging tools |
+| **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md) | EVE SSO integration, JWT management |
+| **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User Management |
 | **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution |
-| **SDE Management** | [`internal/sde/CLAUDE.md`](internal/sde/CLAUDE.md) | EVE static data updates, Redis storage, REST API |
 
 ### Shared Package Documentation
 
@@ -257,7 +226,6 @@ Two-tier SDE (Static Data Export) system:
 ### Upcoming Documentation
 
 - `internal/users/CLAUDE.md` - User management with permissions
-- `internal/notifications/CLAUDE.md` - Notification delivery system
 
 ## 🚀 EVE Online Integration
 
@@ -311,7 +279,6 @@ Permissions follow a **Service.Resource.Action** pattern:
 
 ```
 scheduler.tasks.read     # Read scheduled tasks
-sde.entities.write      # Modify SDE data
 users.profiles.admin    # Full user management
 ```
 
@@ -535,11 +502,8 @@ The API gateway now provides a **single, comprehensive OpenAPI specification** t
 
 # All modules documented in one place:
 # - Auth Module: /auth/* endpoints
-# - Dev Module: /dev/* endpoints  
 # - Users Module: /users/* endpoints
 # - Scheduler Module: /scheduler/* endpoints
-# - SDE Module: /sde/* endpoints
-# - Notifications Module: /notifications/* endpoints
 ```
 
 **Modern API Features:**
@@ -558,7 +522,7 @@ The API gateway now provides a **single, comprehensive OpenAPI specification** t
 
 **Traditional Endpoints:** Available at standard module paths (`/auth`, `/dev`, `/users`, etc.)
 
-**Huma v2 Endpoints:** Available at prefixed paths (`/huma-auth`, `/huma-dev`, `/huma-users`, etc.) with:
+**Huma v2 Endpoints:** Available at prefixed paths (`/huma-auth`, `/huma-users`, `/huma-scheduler`, etc.) with:
 - Automatic OpenAPI 3.1.1 documentation
 - Type-safe request/response validation
 - Enhanced error handling
