@@ -578,6 +578,19 @@ func extractParameters(path string) []OpenAPIParameter {
 		})
 	}
 	
+	// Add character_id query parameter for public profile endpoint
+	if path == "/profile/public" {
+		parameters = append(parameters, OpenAPIParameter{
+			Name:        "character_id",
+			In:          "query",
+			Description: "EVE character ID",
+			Required:    true,
+			Schema: &OpenAPISchema{
+				Type: "integer",
+			},
+		})
+	}
+	
 	return parameters
 }
 
