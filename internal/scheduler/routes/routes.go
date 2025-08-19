@@ -44,22 +44,14 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 
 // RegisterSchedulerRoutes registers scheduler routes on a shared Huma API
 func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, middleware *middleware.Middleware, casbinMiddleware interface{}) {
-	// Protected scheduler status endpoint with manual CASBIN check (admin or super_admin)
+	// Protected scheduler status endpoint - requires admin or super_admin role
 	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.SchedulerStatusInput) (*dto.SchedulerStatusOutput, error) {
-		// Try scheduler.admin permission first (covers both admin and super_admin roles)
-		if err := checkSchedulerPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie, "scheduler", "admin"); err == nil {
-			// Permission granted via scheduler.admin
-			status := service.GetStatus()
-			return &dto.SchedulerStatusOutput{Body: *status}, nil
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
 		}
 		
-		// If scheduler.admin fails, try system.super_admin as fallback
-		if err := checkSchedulerPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie, "system", "super_admin"); err != nil {
-			// Both permission checks failed
-			return nil, huma.Error403Forbidden("Permission denied - requires admin or super_admin role")
-		}
-		
-		// Permission granted via system.super_admin
+		// Permission granted - return scheduler status
 		status := service.GetStatus()
 		return &dto.SchedulerStatusOutput{Body: *status}, nil
 	})
@@ -73,8 +65,12 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.SchedulerStatsOutput{Body: *stats}, nil
 	})
 
-	// Task management endpoints - protected (manual check for now)
+	// Protected task management endpoints - require admin or super_admin role
 	huma.Get(api, basePath+"/tasks", func(ctx context.Context, input *dto.TaskListInput) (*dto.TaskListOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		// Convert Huma input to service query format
 		query := &dto.TaskListQuery{
 			Page:     input.Page,
@@ -100,6 +96,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	huma.Post(api, basePath+"/tasks", func(ctx context.Context, input *dto.TaskCreateInput) (*dto.TaskCreateOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		task, err := service.CreateTask(ctx, &input.Body)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Failed to create task", err)
@@ -108,6 +108,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	huma.Get(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskGetInput) (*dto.TaskGetOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		task, err := service.GetTask(ctx, input.TaskID)
 		if err != nil {
 			if err.Error() == "task not found" {
@@ -119,6 +123,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	huma.Put(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskUpdateInput) (*dto.TaskUpdateOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		task, err := service.UpdateTask(ctx, input.TaskID, &input.Body)
 		if err != nil {
 			if err.Error() == "task not found" {
@@ -133,6 +141,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	huma.Delete(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskDeleteInput) (*dto.TaskDeleteOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		err := service.DeleteTask(ctx, input.TaskID)
 		if err != nil {
 			if err.Error() == "task not found" {
@@ -151,8 +163,12 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskDeleteOutput{Body: response}, nil
 	})
 
-	// Task control endpoints
+	// Task control endpoints - require admin or super_admin role
 	huma.Post(api, basePath+"/tasks/{task_id}/execute", func(ctx context.Context, input *dto.TaskExecuteInput) (*dto.TaskExecuteOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		execution, err := service.StartTask(ctx, input.TaskID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to execute task", err)
@@ -161,16 +177,28 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	huma.Post(api, basePath+"/tasks/{task_id}/enable", func(ctx context.Context, input *dto.TaskEnableInput) (*dto.TaskEnableOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		// TODO: Implement enable task in service
 		return nil, huma.Error501NotImplemented("Task enable not yet implemented")
 	})
 
 	huma.Post(api, basePath+"/tasks/{task_id}/disable", func(ctx context.Context, input *dto.TaskDisableInput) (*dto.TaskDisableOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		// TODO: Implement disable task in service
 		return nil, huma.Error501NotImplemented("Task disable not yet implemented")
 	})
 
 	huma.Post(api, basePath+"/tasks/{task_id}/pause", func(ctx context.Context, input *dto.TaskPauseInput) (*dto.TaskPauseOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		err := service.PauseTask(ctx, input.TaskID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to pause task", err)
@@ -185,6 +213,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	huma.Post(api, basePath+"/tasks/{task_id}/resume", func(ctx context.Context, input *dto.TaskResumeInput) (*dto.TaskResumeOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		err := service.ResumeTask(ctx, input.TaskID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to resume task", err)
@@ -198,8 +230,12 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskResumeOutput{Body: *task}, nil
 	})
 
-	// Execution endpoints
+	// Execution endpoints - require admin or super_admin role
 	huma.Get(api, basePath+"/tasks/{task_id}/history", func(ctx context.Context, input *dto.TaskExecutionHistoryInput) (*dto.TaskExecutionHistoryOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		query := &dto.TaskExecutionQuery{
 			Page:     input.Page,
 			PageSize: input.PageSize,
@@ -221,11 +257,19 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	huma.Get(api, basePath+"/executions", func(ctx context.Context, input *dto.ExecutionListInput) (*dto.ExecutionListOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		// TODO: Implement list all executions in service
 		return nil, huma.Error501NotImplemented("List all executions not yet implemented")
 	})
 
 	huma.Get(api, basePath+"/executions/{execution_id}", func(ctx context.Context, input *dto.ExecutionGetInput) (*dto.ExecutionGetOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		execution, err := service.GetExecution(ctx, input.ExecutionID)
 		if err != nil {
 			if err.Error() == "execution not found" {
@@ -236,13 +280,21 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.ExecutionGetOutput{Body: *execution}, nil
 	})
 
-	// Bulk operations
+	// Bulk operations - require admin or super_admin role
 	huma.Post(api, basePath+"/tasks/bulk", func(ctx context.Context, input *dto.BulkTaskOperationInput) (*dto.BulkTaskOperationOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		// TODO: Implement bulk operations in service
 		return nil, huma.Error501NotImplemented("Bulk operations not yet implemented")
 	})
 
 	huma.Post(api, basePath+"/tasks/import", func(ctx context.Context, input *dto.TaskImportInput) (*dto.TaskImportOutput, error) {
+		// Check admin or super_admin permission
+		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
+			return nil, err
+		}
 		// TODO: Implement task import in service
 		return nil, huma.Error501NotImplemented("Task import not yet implemented")
 	})
@@ -485,6 +537,22 @@ func (hr *Routes) bulkTaskOperation(ctx context.Context, input *dto.BulkTaskOper
 func (hr *Routes) importTasks(ctx context.Context, input *dto.TaskImportInput) (*dto.TaskImportOutput, error) {
 	// TODO: Implement task import in service
 	return nil, huma.Error501NotImplemented("Task import not yet implemented")
+}
+
+// checkSchedulerAdminPermission checks for admin or super_admin access to scheduler endpoints
+func checkSchedulerAdminPermission(casbinMiddleware interface{}, ctx context.Context, authHeader, cookieHeader string) error {
+	// Try scheduler.admin permission first (covers both admin and super_admin roles)
+	if err := checkSchedulerPermission(casbinMiddleware, ctx, authHeader, cookieHeader, "scheduler", "admin"); err == nil {
+		return nil // Permission granted via scheduler.admin
+	}
+	
+	// If scheduler.admin fails, try system.super_admin as fallback
+	if err := checkSchedulerPermission(casbinMiddleware, ctx, authHeader, cookieHeader, "system", "super_admin"); err != nil {
+		// Both permission checks failed
+		return huma.Error403Forbidden("Permission denied - requires admin or super_admin role")
+	}
+	
+	return nil // Permission granted via system.super_admin
 }
 
 // checkSchedulerPermission manually checks CASBIN permissions for scheduler endpoints

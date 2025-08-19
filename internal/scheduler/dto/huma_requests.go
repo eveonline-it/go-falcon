@@ -4,7 +4,9 @@ package dto
 
 // TaskCreateInput represents the input for creating a new task
 type TaskCreateInput struct {
-	Body TaskCreateRequest `json:"body"`
+	Authorization string            `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string            `header:"Cookie" doc:"Authentication cookies"`
+	Body          TaskCreateRequest `json:"body"`
 }
 
 // TaskCreateOutput represents the output for creating a new task
@@ -14,8 +16,10 @@ type TaskCreateOutput struct {
 
 // TaskUpdateInput represents the input for updating a task
 type TaskUpdateInput struct {
-	TaskID string            `path:"task_id" validate:"required" doc:"Task ID to update"`
-	Body   TaskUpdateRequest `json:"body"`
+	Authorization string            `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string            `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string            `path:"task_id" validate:"required" doc:"Task ID to update"`
+	Body          TaskUpdateRequest `json:"body"`
 }
 
 // TaskUpdateOutput represents the output for updating a task
@@ -25,7 +29,9 @@ type TaskUpdateOutput struct {
 
 // TaskGetInput represents the input for getting a single task
 type TaskGetInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to retrieve"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to retrieve"`
 }
 
 // TaskGetOutput represents the output for getting a single task
@@ -35,7 +41,9 @@ type TaskGetOutput struct {
 
 // TaskDeleteInput represents the input for deleting a task
 type TaskDeleteInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to delete"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to delete"`
 }
 
 // TaskDeleteOutput represents the output for deleting a task
@@ -45,12 +53,14 @@ type TaskDeleteOutput struct {
 
 // TaskListInput represents the input for listing tasks
 type TaskListInput struct {
-	Page     int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
-	PageSize int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
-	Status   string `query:"status" validate:"omitempty,oneof=pending running completed failed paused disabled" doc:"Filter by task status"`
-	Type     string `query:"type" validate:"omitempty,oneof=http function system custom" doc:"Filter by task type"`
-	Enabled  string `query:"enabled" validate:"omitempty,oneof=true false" doc:"Filter by enabled status"`
-	Tags     string `query:"tags" doc:"Comma-separated list of tags to filter by"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	Page          int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
+	PageSize      int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
+	Status        string `query:"status" validate:"omitempty,oneof=pending running completed failed paused disabled" doc:"Filter by task status"`
+	Type          string `query:"type" validate:"omitempty,oneof=http function system custom" doc:"Filter by task type"`
+	Enabled       string `query:"enabled" validate:"omitempty,oneof=true false" doc:"Filter by enabled status"`
+	Tags          string `query:"tags" doc:"Comma-separated list of tags to filter by"`
 }
 
 // TaskListOutput represents the output for listing tasks
@@ -60,8 +70,10 @@ type TaskListOutput struct {
 
 // TaskExecuteInput represents the input for manually executing a task
 type TaskExecuteInput struct {
-	TaskID string                 `path:"task_id" validate:"required" doc:"Task ID to execute"`
-	Body   ManualExecutionRequest `json:"body"`
+	Authorization string                 `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string                 `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string                 `path:"task_id" validate:"required" doc:"Task ID to execute"`
+	Body          ManualExecutionRequest `json:"body"`
 }
 
 // TaskExecuteOutput represents the output for manually executing a task
@@ -71,9 +83,11 @@ type TaskExecuteOutput struct {
 
 // TaskExecutionHistoryInput represents the input for getting task execution history
 type TaskExecutionHistoryInput struct {
-	TaskID   string `path:"task_id" validate:"required" doc:"Task ID to get execution history for"`
-	Page     int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
-	PageSize int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to get execution history for"`
+	Page          int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
+	PageSize      int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
 }
 
 // TaskExecutionHistoryOutput represents the output for getting task execution history
@@ -83,7 +97,9 @@ type TaskExecutionHistoryOutput struct {
 
 // BulkTaskOperationInput represents the input for bulk task operations
 type BulkTaskOperationInput struct {
-	Body BulkTaskOperationRequest `json:"body"`
+	Authorization string                    `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string                    `header:"Cookie" doc:"Authentication cookies"`
+	Body          BulkTaskOperationRequest `json:"body"`
 }
 
 // BulkTaskOperationOutput represents the output for bulk task operations
@@ -93,7 +109,9 @@ type BulkTaskOperationOutput struct {
 
 // TaskImportInput represents the input for importing tasks
 type TaskImportInput struct {
-	Body TaskImportRequest `json:"body"`
+	Authorization string            `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string            `header:"Cookie" doc:"Authentication cookies"`
+	Body          TaskImportRequest `json:"body"`
 }
 
 // TaskImportOutput represents the output for importing tasks
@@ -124,7 +142,9 @@ type SchedulerStatusOutput struct {
 
 // ExecutionGetInput represents the input for getting a single execution
 type ExecutionGetInput struct {
-	ExecutionID string `path:"execution_id" validate:"required" doc:"Execution ID to retrieve"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	ExecutionID   string `path:"execution_id" validate:"required" doc:"Execution ID to retrieve"`
 }
 
 // ExecutionGetOutput represents the output for getting a single execution
@@ -134,10 +154,12 @@ type ExecutionGetOutput struct {
 
 // ExecutionListInput represents the input for listing executions across all tasks
 type ExecutionListInput struct {
-	Page     int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
-	PageSize int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
-	Status   string `query:"status" validate:"omitempty,oneof=pending running completed failed" doc:"Filter by execution status"`
-	TaskID   string `query:"task_id" doc:"Filter by specific task ID"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	Page          int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
+	PageSize      int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
+	Status        string `query:"status" validate:"omitempty,oneof=pending running completed failed" doc:"Filter by execution status"`
+	TaskID        string `query:"task_id" doc:"Filter by specific task ID"`
 }
 
 // ExecutionListOutput represents the output for listing executions
@@ -147,7 +169,9 @@ type ExecutionListOutput struct {
 
 // TaskEnableInput represents the input for enabling a task
 type TaskEnableInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to enable"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to enable"`
 }
 
 // TaskEnableOutput represents the output for enabling a task
@@ -157,7 +181,9 @@ type TaskEnableOutput struct {
 
 // TaskDisableInput represents the input for disabling a task
 type TaskDisableInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to disable"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to disable"`
 }
 
 // TaskDisableOutput represents the output for disabling a task
@@ -167,7 +193,9 @@ type TaskDisableOutput struct {
 
 // TaskPauseInput represents the input for pausing a task
 type TaskPauseInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to pause"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to pause"`
 }
 
 // TaskPauseOutput represents the output for pausing a task
@@ -177,7 +205,9 @@ type TaskPauseOutput struct {
 
 // TaskResumeInput represents the input for resuming a task
 type TaskResumeInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to resume"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookies"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to resume"`
 }
 
 // TaskResumeOutput represents the output for resuming a task
