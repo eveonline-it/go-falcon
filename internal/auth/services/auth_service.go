@@ -13,6 +13,7 @@ import (
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/handlers"
+	"go-falcon/pkg/middleware"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -24,6 +25,7 @@ type AuthService struct {
 	repository     *Repository
 	eveService     *EVEService
 	profileService *ProfileService
+	casbinService  *middleware.CasbinService
 }
 
 // NewAuthService creates a new auth service with all dependencies
@@ -36,7 +38,13 @@ func NewAuthService(mongodb *database.MongoDB, esiClient *evegateway.Client) *Au
 		repository:     repository,
 		eveService:     eveService,
 		profileService: profileService,
+		casbinService:  nil, // Will be set via SetCasbinService
 	}
+}
+
+// SetCasbinService sets the CASBIN service for permission hierarchy sync
+func (s *AuthService) SetCasbinService(casbinService *middleware.CasbinService) {
+	s.casbinService = casbinService
 }
 
 // HealthCheck handles health check requests
@@ -351,6 +359,25 @@ func (s *AuthService) HandleEVECallback(ctx context.Context, code, state string)
 		return "", nil, fmt.Errorf("failed to create/update profile: %w", err)
 	}
 
+	// Sync user hierarchy to CASBIN for permission system
+	if s.casbinService != nil {
+		// Create UserCharacter struct for CASBIN
+		userChar := middleware.UserCharacter{
+			CharacterID:   int64(profile.CharacterID),
+			Name:          profile.CharacterName,
+			CorporationID: int64(profile.CorporationID),
+			AllianceID:    int64(profile.AllianceID),
+			IsPrimary:     true, // This is the character they just logged in with
+		}
+		
+		// Sync the character hierarchy
+		if syncErr := s.casbinService.SyncUserHierarchy(ctx, profile.UserID, []middleware.UserCharacter{userChar}); syncErr != nil {
+			// Log the error but don't fail the authentication
+			span.RecordError(syncErr)
+			// TODO: Add proper logging here
+		}
+	}
+
 	// Generate JWT token
 	jwtToken, _, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes)
 	if err != nil {
@@ -391,6 +418,25 @@ func (s *AuthService) ExchangeEVEToken(ctx context.Context, req *dto.EVETokenExc
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to create/update profile: %w", err)
+	}
+
+	// Sync user hierarchy to CASBIN for permission system (mobile flow)
+	if s.casbinService != nil {
+		// Create UserCharacter struct for CASBIN
+		userChar := middleware.UserCharacter{
+			CharacterID:   int64(profile.CharacterID),
+			Name:          profile.CharacterName,
+			CorporationID: int64(profile.CorporationID),
+			AllianceID:    int64(profile.AllianceID),
+			IsPrimary:     true, // This is the character they just logged in with
+		}
+		
+		// Sync the character hierarchy
+		if syncErr := s.casbinService.SyncUserHierarchy(ctx, profile.UserID, []middleware.UserCharacter{userChar}); syncErr != nil {
+			// Log the error but don't fail the authentication
+			span.RecordError(syncErr)
+			// TODO: Add proper logging here
+		}
 	}
 
 	// Generate JWT token

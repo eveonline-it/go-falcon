@@ -57,10 +57,6 @@ func (tm *TelemetryManager) Initialize(ctx context.Context) error {
 
 	// Only initialize telemetry if enabled
 	if !tm.config.EnableTelemetry {
-		slog.Info("Telemetry disabled",
-			slog.String("service", tm.config.ServiceName),
-			slog.Bool("telemetry_enabled", false),
-		)
 		return nil
 	}
 
@@ -86,12 +82,6 @@ func (tm *TelemetryManager) Initialize(ctx context.Context) error {
 		slog.Warn("Failed to initialize OpenTelemetry logging", "error", err)
 	}
 
-	slog.Info("Telemetry initialized",
-		slog.String("service", tm.config.ServiceName),
-		slog.Bool("telemetry_enabled", tm.config.EnableTelemetry),
-		slog.String("log_level", tm.config.LogLevel),
-		slog.Bool("pretty_logs", tm.config.EnablePrettyLogs),
-	)
 
 	return nil
 }
@@ -119,10 +109,6 @@ func (tm *TelemetryManager) initTracing(ctx context.Context, res *resource.Resou
 	))
 
 	tm.shutdownFuncs = append(tm.shutdownFuncs, tp.Shutdown)
-	
-	slog.Info("OpenTelemetry tracing initialized", 
-		"endpoint", tm.config.OTLPEndpoint,
-		"service", tm.config.ServiceName)
 	return nil
 }
 
@@ -143,8 +129,6 @@ func (tm *TelemetryManager) initLogging(ctx context.Context, res *resource.Resou
 
 	global.SetLoggerProvider(lp)
 	tm.shutdownFuncs = append(tm.shutdownFuncs, lp.Shutdown)
-
-	slog.Info("OpenTelemetry logging initialized", "endpoint", tm.config.OTLPEndpoint)
 	return nil
 }
 
@@ -180,14 +164,11 @@ func (tm *TelemetryManager) setupLogger() {
 }
 
 func (tm *TelemetryManager) Shutdown(ctx context.Context) error {
-	slog.Info("Shutting down telemetry...")
-	
 	for _, shutdown := range tm.shutdownFuncs {
 		if err := shutdown(ctx); err != nil {
 			slog.Error("Error shutting down telemetry component", "error", err)
 		}
 	}
-	
 	return nil
 }
 

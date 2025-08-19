@@ -77,16 +77,8 @@ func main() {
 	
 	// Display version information
 	versionInfo := version.Get()
-	log.Printf("🏷️  Version: %s", version.GetVersionString())
-	log.Printf("🔧 Build: %s (%s)", versionInfo.BuildDate, versionInfo.Platform)
-
-	// Print CPU information (automaxprocs automatically adjusts GOMAXPROCS)
-	numCPU := runtime.NumCPU()
-	maxProcs := runtime.GOMAXPROCS(0)
-	log.Printf("🖥️  CPU Configuration:")
-	log.Printf(" - System CPUs: %d", numCPU)
-	log.Printf(" - GOMAXPROCS: %d", maxProcs)
-	log.Printf(" - automaxprocs: Automatically adjusting based on container limits")
+	log.Printf("🏷️  Version: %s | Build: %s", version.GetVersionString(), versionInfo.BuildDate)
+	log.Printf("🖥️  CPUs: %d | GOMAXPROCS: %d", runtime.NumCPU(), runtime.GOMAXPROCS(0))
 
 	ctx := context.Background()
 
@@ -97,21 +89,10 @@ func main() {
 	}
 	defer appCtx.Shutdown(ctx)
 
-	// Print memory information after app initialization (more accurate)
+	// Print memory stats (compact)
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	runtime.GC() // Force GC to get more accurate stats
-	runtime.ReadMemStats(&m)
-	
-	log.Printf("💾 Memory Configuration:")
-	log.Printf(" - Heap allocated: %s", formatBytes(m.HeapAlloc))
-	log.Printf(" - Heap system: %s", formatBytes(m.HeapSys))
-	log.Printf(" - Total system: %s", formatBytes(m.Sys))
-	log.Printf(" - Stack: %s", formatBytes(m.StackSys))
-	log.Printf(" - GC cycles: %d", m.NumGC)
-	log.Printf(" - Next GC target: %s", formatBytes(m.NextGC))
-	
-	// Print memory limits if available (cgroups v1/v2)
+	log.Printf("💾 Memory: %s heap | %s total", formatBytes(m.HeapAlloc), formatBytes(m.Sys))
 	printMemoryLimits()
 
 	// Initialize Chi router
@@ -137,56 +118,34 @@ func main() {
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, evegateClient)
 	
 	// Initialize CASBIN middleware factory for authorization
-	log.Printf("🔒 Initializing CASBIN authorization system...")
-	
-	// Declare CASBIN factory at function level
 	var casbinFactory *falconMiddleware.CasbinMiddlewareFactory
-	
-	// Create user character resolver for CASBIN with Redis caching
 	characterResolver := falconMiddleware.NewUserCharacterResolver(appCtx.MongoDB, appCtx.Redis)
-	
-	// Create CASBIN middleware factory
 	casbinFactory, err = falconMiddleware.NewCasbinMiddlewareFactory(
-		authModule.GetAuthService(), // JWT validator from auth module
-		characterResolver,            // Character resolver
-		appCtx.MongoDB.Client,       // MongoDB client
-		"falcon",                     // Database name
+		authModule.GetAuthService(),
+		characterResolver,
+		appCtx.MongoDB.Client,
+		"falcon",
 	)
 	if err != nil {
-		log.Printf("⚠️  Warning: CASBIN middleware initialization failed: %v", err)
-		log.Printf("⚠️  Continuing without CASBIN authorization (using basic auth only)")
-		// Continue without CASBIN - modules will use basic authentication
+		log.Printf("⚠️  CASBIN disabled: %v", err)
 	} else {
-		log.Printf("✅ CASBIN authorization system initialized successfully")
+		// Set CASBIN service in auth module for hierarchy sync
+		authModule.GetAuthService().SetCasbinService(casbinFactory.GetCasbinService())
 		
-		// Initialize basic roles and permissions
-		log.Printf("🔑 Setting up initial CASBIN roles and permissions...")
 		if setupErr := setupInitialCasbinPolicies(casbinFactory); setupErr != nil {
-			log.Printf("⚠️  Warning: Failed to setup initial CASBIN policies: %v", setupErr)
+			log.Printf("⚠️  CASBIN policies setup failed: %v", setupErr)
 		} else {
-			log.Printf("✅ Initial CASBIN roles and permissions configured")
+			log.Printf("🔒 CASBIN authorization enabled")
 		}
-		
-		// Register CASBIN API endpoints for permission management
-		log.Printf("📝 CASBIN management API will be registered on /admin/permissions/*")
-		// Note: We'll register these routes after the Huma API is created
-		
-		// Make CASBIN available to modules
-		log.Printf("🔗 CASBIN middleware factory available for route protection")
 	}
 	
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, nil)
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, nil)
 	
 	modules = append(modules, authModule, usersModule, schedulerModule)
-	log.Printf("🚀 EVE Online ESI client initialized")
 
 	// Mount module routes with configurable API prefix
 	apiPrefix := config.GetAPIPrefix()
-	log.Printf("🔗 Using API prefix: '%s'", apiPrefix)
-	
-	// Create unified Huma v2 API for integrated mode
-	log.Printf("🚀 Creating unified Huma v2 API (type-safe APIs with single OpenAPI specification)")
 	
 	// Create unified Huma API configuration
 	humaConfig := huma.DefaultConfig("Go Falcon API Server", "1.0.0")
@@ -238,54 +197,29 @@ func main() {
 		})
 	}
 	
-	log.Printf("✅ Unified Huma v2 API created")
-	log.Printf("🔧 Single OpenAPI 3.1.1 specification will be available at %s/openapi.json", apiPrefix)
-	
 	// Register all module routes on the unified API
-	log.Printf("📝 Registering module routes on unified API:")
-	
-	// Register auth module routes
-	log.Printf("   🔐 Auth module: /auth/*")
 	authModule.RegisterUnifiedRoutes(unifiedAPI, "/auth")
-	
-	
-	// Register users module routes
-	log.Printf("   👥 Users module: /users/*")
 	usersModule.RegisterUnifiedRoutes(unifiedAPI, "/users")
-	
-	// Register scheduler module routes
-	log.Printf("   ⏰ Scheduler module: /scheduler/*")
 	schedulerModule.RegisterUnifiedRoutes(unifiedAPI, "/scheduler")
 	
 	// Register role management routes if CASBIN is available
 	if casbinFactory != nil {
-		log.Printf("   🔐 Role Management: /admin/roles/*, /admin/policies/*, /permissions/*")
 		roleManagementRoutes := falconMiddleware.NewRoleManagementRoutes(
 			falconMiddleware.NewRoleAssignmentService(casbinFactory.GetEnhanced().GetCasbinAuth().GetEnforcer()),
 			casbinFactory.GetEnhanced().GetCasbinAuth(),
 		)
 		roleManagementRoutes.RegisterRoleManagementRoutes(unifiedAPI, "")
-		log.Printf("✅ Role management routes registered on unified API")
 	}
-	
-	log.Printf("✅ All modules registered on unified API")
 	
 	// Register CASBIN management API if initialized
 	if casbinFactory != nil {
-		log.Printf("   🔐 CASBIN Admin: /admin/permissions/*")
 		apiHandler := casbinFactory.GetAPIHandler()
-		
-		// Create a Chi subrouter for CASBIN admin endpoints
 		r.Route(apiPrefix+"/admin/permissions", func(adminRouter chi.Router) {
-			// Apply CASBIN super admin middleware
 			adminRouter.Use(func(next http.Handler) http.Handler {
 				return casbinFactory.GetConvenience().SuperAdminOnly()(next)
 			})
-			
-			// Register CASBIN API routes
 			apiHandler.RegisterRoutes(adminRouter)
 		})
-		log.Printf("✅ CASBIN management API registered")
 	}
 	
 	// Note: evegateway is now a shared package for EVE Online ESI integration
@@ -300,26 +234,7 @@ func main() {
 	// HTTP server setup
 	port := app.GetPort("8080")
 	host := config.GetHost()
-	humaPort := config.GetHumaPort()
-	humaHost := config.GetHumaHost()
-	separateHumaServer := config.GetHumaSeparateServer()
 	
-	// Display HUMA configuration
-	log.Printf("🔧 HUMA Configuration:")
-	log.Printf(" - Separate Server: %v", separateHumaServer)
-	log.Printf(" - Main Server: %s:%s", host, port)
-	if humaPort != "" {
-		log.Printf(" - HUMA Server: %s:%s", humaHost, humaPort)
-	} else {
-		log.Printf(" - HUMA Port: Not specified (would use main server)")
-	}
-	if separateHumaServer && humaPort != "" {
-		log.Printf(" - Mode: Separate server - HUMA APIs on %s:%s", humaHost, humaPort)
-	} else if separateHumaServer && humaPort == "" {
-		log.Printf(" - Mode: Separate server DISABLED - HUMA_PORT not set")
-	} else {
-		log.Printf(" - Mode: Integrated - HUMA APIs on main server %s:%s", host, port)
-	}
 	
 	// Main server
 	srv := &http.Server{
@@ -330,30 +245,12 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Optional separate HUMA server
-	var humaSrv *http.Server
-	if separateHumaServer && humaPort != "" {
-		log.Printf("🚀 Separate HUMA server mode is currently disabled in unified architecture")
-		log.Printf("⚠️  This feature will be reimplemented with unified OpenAPI support")
-		log.Printf("⚠️  For now, all routes are served from the main server")
-	}
-	
-	// Display final configuration
-	if separateHumaServer && humaPort != "" {
-		log.Printf("⚠️  HUMA_SEPARATE_SERVER=true but feature disabled - using integrated mode")
-	}
-	
-	if humaPort != "" && !separateHumaServer {
-		log.Printf("⚠️  HUMA_PORT=%s set but HUMA_SEPARATE_SERVER=false - using integrated mode", humaPort)
-	}
-	
-	log.Printf("✅ Unified HUMA API available on main server: %s:%s", host, port)
+	// Display server configuration
+	serverAddr := host + ":" + port
 	if host == "0.0.0.0" {
-		log.Printf("📋 Single OpenAPI specification: http://localhost:%s%s/openapi.json", port, apiPrefix)
-		log.Printf("🌐 Access all modules via unified API")
+		log.Printf("🚀 Server: http://localhost:%s%s | OpenAPI: %s/openapi.json", port, apiPrefix, apiPrefix)
 	} else {
-		log.Printf("📋 Single OpenAPI specification: http://%s:%s%s/openapi.json", host, port, apiPrefix)
-		log.Printf("🌐 Access all modules via unified API")
+		log.Printf("🚀 Server: http://%s%s | OpenAPI: %s/openapi.json", serverAddr, apiPrefix, apiPrefix)
 	}
 
 	// Start main server
@@ -381,12 +278,6 @@ func main() {
 		slog.Error("Main server forced to shutdown", "error", err)
 	}
 	
-	// Shutdown separate HUMA server if running
-	if humaSrv != nil {
-		if err := humaSrv.Shutdown(shutdownCtx); err != nil {
-			slog.Error("HUMA server forced to shutdown", "error", err)
-		}
-	}
 
 	// Stop background services for all modules
 	for _, mod := range modules {
@@ -476,17 +367,15 @@ func formatBytes(bytes uint64) string {
 func printMemoryLimits() {
 	// Try cgroups v2 first (newer systems)
 	if limit := readCgroupV2MemoryLimit(); limit > 0 {
-		log.Printf(" - Container limit: %s (cgroups v2)", formatBytes(uint64(limit)))
+		log.Printf("📦 Container limit: %s", formatBytes(uint64(limit)))
 		return
 	}
 	
 	// Try cgroups v1 (older systems)
 	if limit := readCgroupV1MemoryLimit(); limit > 0 {
-		log.Printf(" - Container limit: %s (cgroups v1)", formatBytes(uint64(limit)))
+		log.Printf("📦 Container limit: %s", formatBytes(uint64(limit)))
 		return
 	}
-	
-	log.Printf(" - Container limit: Not detected (running outside container or unsupported)")
 }
 
 // readCgroupV2MemoryLimit reads memory limit from cgroups v2
@@ -606,9 +495,7 @@ func setupInitialCasbinPolicies(factory *falconMiddleware.CasbinMiddlewareFactor
 		subject := fmt.Sprintf("character:%s", superAdminCharID)
 		err := casbinAuth.AddRoleForUser(subject, "role:super_admin")
 		if err != nil && !strings.Contains(err.Error(), "already exists") {
-			log.Printf("⚠️  Warning: Failed to assign super admin role to character %s: %v", superAdminCharID, err)
-		} else {
-			log.Printf("👑 Super admin role assigned to character %s", superAdminCharID)
+			log.Printf("⚠️  Failed to assign super admin: %v", err)
 		}
 	}
 	

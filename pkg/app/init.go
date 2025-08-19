@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"log"
 	"log/slog"
 
 	"go-falcon/pkg/config"
@@ -27,7 +26,7 @@ type AppContext struct {
 func InitializeApp(serviceName string) (*AppContext, error) {
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
-		log.Printf("No .env file found or error loading it: %v", err)
+		// Silent - .env is optional
 	}
 
 	ctx := context.Background()
@@ -35,7 +34,6 @@ func InitializeApp(serviceName string) (*AppContext, error) {
 	// Initialize telemetry
 	telemetryManager := logging.NewTelemetryManager()
 	if err := telemetryManager.Initialize(ctx); err != nil {
-		log.Printf("Warning: Failed to initialize telemetry: %v", err)
 		// Continue without telemetry rather than failing
 	}
 
@@ -44,21 +42,16 @@ func InitializeApp(serviceName string) (*AppContext, error) {
 	if err != nil {
 		slog.Error("Failed to connect to MongoDB", "error", err)
 		// Continue without MongoDB for now - some applications might not need it
-	} else {
-		slog.Info("Connected to MongoDB")
 	}
 
 	redis, err := database.NewRedis(ctx)
 	if err != nil {
 		slog.Error("Failed to connect to Redis", "error", err)
 		// Continue without Redis for now - some applications might not need it
-	} else {
-		slog.Info("Connected to Redis")
 	}
 
 	// Initialize SDE service
 	sdeService := sde.NewService("data/sde")
-	slog.Info("SDE service initialized", "dataDir", "data/sde")
 
 	appCtx := &AppContext{
 		MongoDB:          mongodb,
@@ -86,15 +79,11 @@ func InitializeApp(serviceName string) (*AppContext, error) {
 
 // Shutdown gracefully shuts down all application dependencies
 func (a *AppContext) Shutdown(ctx context.Context) error {
-	slog.Info("Shutting down application", "service", a.ServiceName)
-
 	for _, shutdown := range a.shutdownFuncs {
 		if err := shutdown(ctx); err != nil {
 			slog.Error("Error during shutdown", "error", err)
 		}
 	}
-
-	slog.Info("Application shutdown completed", "service", a.ServiceName)
 	return nil
 }
 

@@ -21,6 +21,7 @@ Go Falcon is a monolithic API server built with Go that provides:
 - [Module Documentation](#module-documentation)
 - [EVE Online Integration](#eve-online-integration)
 - [Permission System](#permission-system)
+- [Database Access & MCP Setup](#database-access--mcp-setup)
 - [Development Guidelines](#development-guidelines)
 - [API Documentation](#api-documentation)
 
@@ -196,8 +197,16 @@ The scheduler module provides:
 - **EVE Online SSO**: OAuth2 integration
 - **JWT Tokens**: Stateless authentication
 - **Dual Auth Support**: Cookies (web) and Bearer tokens (mobile)
-- **Granular Permissions**: Fine-grained access control
+- **CASBIN Authorization**: Role-based access control with hierarchical permissions
+- **Permission Hierarchies**: User→Character→Corporation→Alliance relationship tracking
 - **CSRF Protection**: State validation
+
+### 5. Database Access & Monitoring
+
+- **MongoDB Integration**: Primary data storage with authentication
+- **Redis Caching**: Session storage and performance optimization
+- **MCP Server**: Direct database access via Model Context Protocol for Claude Code CLI
+- **Real-time Queries**: Live database inspection and monitoring capabilities
 
 ## 📚 Module Documentation
 
@@ -316,6 +325,44 @@ POST /admin/permissions/check
 - **group** - User groups (recommended)
 - **corporation** - EVE corporation
 - **alliance** - EVE alliance
+
+## 🗄️ Database Access & MCP Setup
+
+### MongoDB MCP Server Integration
+
+Go Falcon includes a MongoDB MCP (Model Context Protocol) server for direct database access via Claude Code CLI:
+
+#### Setup Instructions
+```bash
+# Start infrastructure with MCP server
+docker compose -f docker-compose.infra.yml up -d
+
+# Configure MCP server for Claude Code CLI
+claude mcp add mongodb-falcon -- docker exec -i go-falcon-mongodb-mcp mongodb-mcp-server
+
+# Verify connection
+claude mcp list
+```
+
+#### Available Collections
+- **`casbin_policies`** - CASBIN authorization rules and role assignments
+- **`permission_hierarchies`** - User→Character→Corporation→Alliance relationships
+- **`user_profiles`** - EVE Online authentication and profile data
+- **`scheduler_tasks`** - Task scheduling definitions and execution history
+
+#### Documentation
+See [`docs/MCP_MONGODB_SETUP.md`](docs/MCP_MONGODB_SETUP.md) for complete setup instructions and troubleshooting.
+
+### Permission Hierarchy Flow
+```
+1. User authenticates via EVE SSO
+2. Character data synced to permission_hierarchies
+3. CASBIN evaluates permissions hierarchically:
+   - Character level (highest priority)
+   - User level
+   - Corporation level  
+   - Alliance level (lowest priority)
+```
 
 ## 🛠️ Development Guidelines
 
