@@ -166,17 +166,13 @@ func (e *HTTPExecutor) parseHTTPConfig(config map[string]interface{}) (*models.H
 
 // SystemExecutor executes system tasks
 type SystemExecutor struct {
-	authModule   AuthModule
-	sdeModule    SDEModule
-	groupsModule GroupsModule
+	authModule AuthModule
 }
 
 // NewSystemExecutor creates a new system executor
-func NewSystemExecutor(authModule AuthModule, sdeModule SDEModule, groupsModule GroupsModule) *SystemExecutor {
+func NewSystemExecutor(authModule AuthModule) *SystemExecutor {
 	return &SystemExecutor{
-		authModule:   authModule,
-		sdeModule:    sdeModule,
-		groupsModule: groupsModule,
+		authModule: authModule,
 	}
 }
 
@@ -197,10 +193,6 @@ func (e *SystemExecutor) Execute(ctx context.Context, task *models.Task) (*model
 		return e.executeStateCleanup(ctx, config, start)
 	case "health_check":
 		return e.executeHealthCheck(ctx, config, start)
-	case "group_validation":
-		return e.executeGroupValidation(ctx, config, start)
-	case "sde_update_check":
-		return e.executeSDEUpdateCheck(ctx, config, start)
 	default:
 		return &models.TaskResult{
 			Success:  false,
@@ -273,120 +265,6 @@ func (e *SystemExecutor) executeHealthCheck(ctx context.Context, config *models.
 	}, nil
 }
 
-// executeGroupValidation executes group validation system tasks
-func (e *SystemExecutor) executeGroupValidation(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
-	if e.groupsModule == nil {
-		return &models.TaskResult{
-			Success:  false,
-			Error:    "Groups module not available",
-			Duration: time.Since(start),
-		}, nil
-	}
-
-	// Execute different group validation tasks based on parameters
-	validationType := "membership" // default
-	if params, ok := config.Parameters["type"].(string); ok {
-		validationType = params
-	}
-
-	switch validationType {
-	case "membership":
-		err := e.groupsModule.ValidateCorporateMemberships(ctx)
-		if err != nil {
-			return &models.TaskResult{
-				Success:  false,
-				Error:    fmt.Sprintf("Membership validation failed: %v", err),
-				Duration: time.Since(start),
-			}, nil
-		}
-		return &models.TaskResult{
-			Success:  true,
-			Output:   "Corporate membership validation completed",
-			Duration: time.Since(start),
-		}, nil
-
-	case "cleanup":
-		count, err := e.groupsModule.CleanupExpiredMemberships(ctx)
-		if err != nil {
-			return &models.TaskResult{
-				Success:  false,
-				Error:    fmt.Sprintf("Membership cleanup failed: %v", err),
-				Duration: time.Since(start),
-			}, nil
-		}
-		return &models.TaskResult{
-			Success:  true,
-			Output:   fmt.Sprintf("Cleaned up %d expired memberships", count),
-			Duration: time.Since(start),
-			Metadata: map[string]interface{}{
-				"cleaned_count": count,
-			},
-		}, nil
-
-	case "discord":
-		err := e.groupsModule.SyncDiscordRoles(ctx)
-		if err != nil {
-			return &models.TaskResult{
-				Success:  false,
-				Error:    fmt.Sprintf("Discord role sync failed: %v", err),
-				Duration: time.Since(start),
-			}, nil
-		}
-		return &models.TaskResult{
-			Success:  true,
-			Output:   "Discord role synchronization completed",
-			Duration: time.Since(start),
-		}, nil
-
-	case "integrity":
-		err := e.groupsModule.ValidateGroupIntegrity(ctx)
-		if err != nil {
-			return &models.TaskResult{
-				Success:  false,
-				Error:    fmt.Sprintf("Group integrity validation failed: %v", err),
-				Duration: time.Since(start),
-			}, nil
-		}
-		return &models.TaskResult{
-			Success:  true,
-			Output:   "Group integrity validation completed",
-			Duration: time.Since(start),
-		}, nil
-
-	default:
-		return &models.TaskResult{
-			Success:  false,
-			Error:    fmt.Sprintf("Unknown validation type: %s", validationType),
-			Duration: time.Since(start),
-		}, nil
-	}
-}
-
-// executeSDEUpdateCheck executes SDE update check system task
-func (e *SystemExecutor) executeSDEUpdateCheck(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
-	if e.sdeModule == nil {
-		return &models.TaskResult{
-			Success:  false,
-			Error:    "SDE module not available",
-			Duration: time.Since(start),
-		}, nil
-	}
-
-	err := e.sdeModule.CheckSDEUpdate(ctx)
-	if err != nil {
-		return &models.TaskResult{
-			Success:  false,
-			Error:    fmt.Sprintf("SDE update check failed: %v", err),
-			Duration: time.Since(start),
-		}, nil
-	}
-
-	return &models.TaskResult{
-		Success:  true,
-		Output:   "SDE update check completed",
-		Duration: time.Since(start),
-	}, nil
-}
 
 // parseSystemConfig parses system task configuration
 func (e *SystemExecutor) parseSystemConfig(config map[string]interface{}) (*models.SystemTaskConfig, error) {

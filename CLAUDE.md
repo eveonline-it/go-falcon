@@ -43,28 +43,7 @@ go-falcon/
 │   │   ├── services/     # Business logic
 │   │   ├── models/       # Database schemas
 │   │   └── CLAUDE.md     # Module documentation
-│   ├── dev/              # Development utilities
-│   │   ├── dto/          # Request/Response structures
-│   │   ├── middleware/   # Auth-specific middleware
-│   │   ├── routes/       # Route definitions
-│   │   ├── services/     # Business logic
-│   │   ├── models/       # Database schemas
-│   │   └── CLAUDE.md     # Module documentation
-│   ├── notifications/    # Notification service
-│   │   ├── dto/          # Request/Response structures
-│   │   ├── middleware/   # Auth-specific middleware
-│   │   ├── routes/       # Route definitions
-│   │   ├── services/     # Business logic
-│   │   ├── models/       # Database schemas
-│   │   └── CLAUDE.md     # Module documentation
-│   ├── scheduler/        # Task scheduling syste
-│   │   ├── dto/          # Request/Response structures
-│   │   ├── middleware/   # Auth-specific middleware
-│   │   ├── routes/       # Route definitions
-│   │   ├── services/     # Business logic
-│   │   ├── models/       # Database schemas
-│   │   └── CLAUDE.md     # Module documentationm
-│   ├── sde/              # EVE SDE management
+│   ├── scheduler/        # Task scheduling system
 │   │   ├── dto/          # Request/Response structures
 │   │   ├── middleware/   # Auth-specific middleware
 │   │   ├── routes/       # Route definitions
@@ -215,11 +194,9 @@ The scheduler module provides:
 
 ### 4. EVE Online SDE Management
 
-Two-tier SDE (Static Data Export) system:
-- **In-Memory Service** (`pkg/sde`): Ultra-fast data access
-- **Web Management** (`internal/sde`): REST API for updates
-- **Automated Updates**: Background processing with progress tracking
-- **Scheduler Integration**: Automatic version checking
+In-memory SDE (Static Data Export) service:
+- **In-Memory Service** (`pkg/sde`): Ultra-fast data access for EVE game data
+- **Preserved Interface**: Maintains compatibility for modules that may need SDE data
 
 ### 5. Authentication & Security
 
@@ -236,9 +213,8 @@ Two-tier SDE (Static Data Export) system:
 | Module | Location | Description |
 |--------|----------|-------------|
 | **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md) | EVE SSO integration, JWT management, user profiles |
-| **Development** | [`internal/dev/CLAUDE.md`](internal/dev/CLAUDE.md) | ESI testing, SDE validation, debugging tools |
 | **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution |
-| **SDE Management** | [`internal/sde/CLAUDE.md`](internal/sde/CLAUDE.md) | EVE static data updates, Redis storage, REST API |
+| **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User management and profile operations |
 
 ### Shared Package Documentation
 
@@ -253,11 +229,6 @@ Two-tier SDE (Static Data Export) system:
 | **Middleware** | [`pkg/middleware/CLAUDE.md`](pkg/middleware/CLAUDE.md) | Request processing |
 | **Module** | [`pkg/module/CLAUDE.md`](pkg/module/CLAUDE.md) | Module system base |
 | **SDE Service** | [`pkg/sde/CLAUDE.md`](pkg/sde/CLAUDE.md) | In-memory data service |
-
-### Upcoming Documentation
-
-- `internal/users/CLAUDE.md` - User management with permissions
-- `internal/notifications/CLAUDE.md` - Notification delivery system
 
 ## 🚀 EVE Online Integration
 

@@ -6,12 +6,10 @@ import (
 	"log/slog"
 
 	"go-falcon/internal/auth"
-	"go-falcon/internal/groups"
 	"go-falcon/internal/users/routes"
 	"go-falcon/internal/users/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
-	"go-falcon/pkg/sde"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -20,22 +18,20 @@ import (
 // Module represents the users module
 type Module struct {
 	*module.BaseModule
-	service      *services.Service
-	routes       *routes.Routes
-	authModule   *auth.Module
-	groupsModule *groups.Module
+	service    *services.Service
+	routes     *routes.Routes
+	authModule *auth.Module
 }
 
 // New creates a new users module instance
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule *auth.Module, groupsModule *groups.Module) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module) *Module {
 	service := services.NewService(mongodb)
 
 	return &Module{
-		BaseModule:   module.NewBaseModule("users", mongodb, redis, sdeService),
-		service:      service,
-		routes:       nil, // Will be created when needed
-		authModule:   authModule,
-		groupsModule: groupsModule,
+		BaseModule: module.NewBaseModule("users", mongodb, redis),
+		service:    service,
+		routes:     nil, // Will be created when needed
+		authModule: authModule,
 	}
 }
 

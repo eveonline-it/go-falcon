@@ -22,7 +22,6 @@ import (
 	"go-falcon/pkg/config"
 	evegateway "go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
-	pkgsde "go-falcon/pkg/sde"
 	"go-falcon/pkg/version"
 
 	"github.com/go-chi/chi/v5"
@@ -133,9 +132,9 @@ func main() {
 	
 	// Initialize modules
 	var modules []module.Module
-	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, evegateClient)
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule)
+	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	
 	modules = append(modules, authModule, usersModule, schedulerModule)
 	log.Printf("🚀 EVE Online ESI client initialized")

@@ -8,7 +8,6 @@ import (
 
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/handlers"
-	"go-falcon/pkg/sde"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -71,23 +70,21 @@ type Module interface {
 
 // BaseModule provides common functionality for all modules
 type BaseModule struct {
-	name       string
-	mongodb    *database.MongoDB
-	redis      *database.Redis
-	sdeService sde.SDEService
-	stopCh     chan struct{}
-	stopOnce   chan struct{} // Ensures Stop() can only be called once
+	name     string
+	mongodb  *database.MongoDB
+	redis    *database.Redis
+	stopCh   chan struct{}
+	stopOnce chan struct{} // Ensures Stop() can only be called once
 }
 
 // NewBaseModule creates a new base module with common dependencies
-func NewBaseModule(name string, mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService) *BaseModule {
+func NewBaseModule(name string, mongodb *database.MongoDB, redis *database.Redis) *BaseModule {
 	return &BaseModule{
-		name:       name,
-		mongodb:    mongodb,
-		redis:      redis,
-		sdeService: sdeService,
-		stopCh:     make(chan struct{}),
-		stopOnce:   make(chan struct{}),
+		name:     name,
+		mongodb:  mongodb,
+		redis:    redis,
+		stopCh:   make(chan struct{}),
+		stopOnce: make(chan struct{}),
 	}
 }
 
@@ -106,10 +103,6 @@ func (b *BaseModule) Redis() *database.Redis {
 	return b.redis
 }
 
-// SDEService returns the SDE service
-func (b *BaseModule) SDEService() sde.SDEService {
-	return b.sdeService
-}
 
 // StopChannel returns the stop channel for background tasks
 func (b *BaseModule) StopChannel() <-chan struct{} {

@@ -8,19 +8,17 @@ import (
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/logging"
-	"go-falcon/pkg/sde"
 
 	"github.com/joho/godotenv"
 )
 
 // AppContext holds the shared application context and dependencies
 type AppContext struct {
-	MongoDB           *database.MongoDB
-	Redis             *database.Redis
-	TelemetryManager  *logging.TelemetryManager
-	SDEService        sde.SDEService
-	ServiceName       string
-	shutdownFuncs     []func(context.Context) error
+	MongoDB          *database.MongoDB
+	Redis            *database.Redis
+	TelemetryManager *logging.TelemetryManager
+	ServiceName      string
+	shutdownFuncs    []func(context.Context) error
 }
 
 // InitializeApp initializes common application dependencies
@@ -56,15 +54,10 @@ func InitializeApp(serviceName string) (*AppContext, error) {
 		slog.Info("Connected to Redis")
 	}
 
-	// Initialize SDE service
-	sdeService := sde.NewService("data/sde")
-	slog.Info("SDE service initialized", "dataDir", "data/sde")
-
 	appCtx := &AppContext{
 		MongoDB:          mongodb,
 		Redis:            redis,
 		TelemetryManager: telemetryManager,
-		SDEService:       sdeService,
 		ServiceName:      serviceName,
 	}
 

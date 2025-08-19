@@ -11,7 +11,6 @@ import (
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
-	"go-falcon/pkg/sde"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -26,8 +25,8 @@ type Module struct {
 }
 
 // New creates a new auth module with standardized structure
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, esiClient *evegateway.Client) *Module {
-	baseModule := module.NewBaseModule("auth", mongodb, redis, sdeService)
+func New(mongodb *database.MongoDB, redis *database.Redis, esiClient *evegateway.Client) *Module {
+	baseModule := module.NewBaseModule("auth", mongodb, redis)
 	
 	// Create services
 	authService := services.NewAuthService(mongodb, esiClient)

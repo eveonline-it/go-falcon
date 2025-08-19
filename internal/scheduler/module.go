@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"log"
-	"net/http"
 	"time"
 
 	"go-falcon/internal/scheduler/middleware"
@@ -12,7 +11,6 @@ import (
 	"go-falcon/internal/scheduler/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
-	"go-falcon/pkg/sde"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/danielgtaylor/huma/v2"
@@ -26,9 +24,7 @@ type Module struct {
 	routes           *routes.Routes
 	
 	// Dependencies
-	authModule   AuthModule
-	sdeModule    SDEModule
-	groupsModule GroupsModule
+	authModule AuthModule
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -36,26 +32,12 @@ type AuthModule interface {
 	RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error)
 }
 
-// SDEModule interface defines the methods needed from the SDE module for scheduler integration
-type SDEModule interface {
-	CheckSDEUpdate(ctx context.Context) error
-}
-
-// GroupsModule interface defines the methods needed from the groups module
-type GroupsModule interface {
-	ValidateCorporateMemberships(ctx context.Context) error
-	CleanupExpiredMemberships(ctx context.Context) (int, error)
-	SyncDiscordRoles(ctx context.Context) error
-	ValidateGroupIntegrity(ctx context.Context) error
-	RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
-}
-
 // New creates a new scheduler module with standardized structure
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule AuthModule, sdeModule SDEModule, groupsModule GroupsModule) *Module {
-	baseModule := module.NewBaseModule("scheduler", mongodb, redis, sdeService)
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule) *Module {
+	baseModule := module.NewBaseModule("scheduler", mongodb, redis)
 	
 	// Create services
-	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, sdeModule, groupsModule)
+	schedulerService := services.NewSchedulerService(mongodb, redis, authModule)
 	
 	// Create middleware
 	middlewareLayer := middleware.New()
@@ -66,8 +48,6 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 		middleware:       middlewareLayer,
 		routes:           nil, // Will be created when needed
 		authModule:       authModule,
-		sdeModule:        sdeModule,
-		groupsModule:     groupsModule,
 	}
 }
 
