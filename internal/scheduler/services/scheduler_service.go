@@ -322,6 +322,82 @@ func (s *SchedulerService) ResumeTask(ctx context.Context, taskID string) error 
 	return nil
 }
 
+// EnableTask enables a disabled task
+func (s *SchedulerService) EnableTask(ctx context.Context, taskID string) error {
+	task, err := s.repository.GetTask(ctx, taskID)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return fmt.Errorf("task not found")
+		}
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Prevent enabling system tasks if they are disabled intentionally
+	if task.Metadata.IsSystem {
+		return fmt.Errorf("cannot modify system tasks")
+	}
+
+	// Enable the task
+	task.Enabled = true
+	task.UpdatedAt = time.Now()
+	task.UpdatedBy = "api" // TODO: Get from authenticated user
+
+	if err := s.repository.UpdateTask(ctx, task); err != nil {
+		return fmt.Errorf("failed to enable task: %w", err)
+	}
+
+	// Reload tasks in engine
+	s.engineService.ReloadTasks()
+
+	// Invalidate related caches
+	if s.cache != nil {
+		if err := s.cache.InvalidateOnTaskChange(ctx, "enable"); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.EnableTask: Failed to invalidate cache: %v\n", err)
+		}
+	}
+
+	slog.Info("Task enabled successfully", slog.String("task_id", taskID))
+	return nil
+}
+
+// DisableTask disables an enabled task
+func (s *SchedulerService) DisableTask(ctx context.Context, taskID string) error {
+	task, err := s.repository.GetTask(ctx, taskID)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return fmt.Errorf("task not found")
+		}
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Prevent disabling system tasks if they are enabled intentionally
+	if task.Metadata.IsSystem {
+		return fmt.Errorf("cannot modify system tasks")
+	}
+
+	// Disable the task
+	task.Enabled = false
+	task.UpdatedAt = time.Now()
+	task.UpdatedBy = "api" // TODO: Get from authenticated user
+
+	if err := s.repository.UpdateTask(ctx, task); err != nil {
+		return fmt.Errorf("failed to disable task: %w", err)
+	}
+
+	// Reload tasks in engine
+	s.engineService.ReloadTasks()
+
+	// Invalidate related caches
+	if s.cache != nil {
+		if err := s.cache.InvalidateOnTaskChange(ctx, "disable"); err != nil {
+			fmt.Printf("[DEBUG] SchedulerService.DisableTask: Failed to invalidate cache: %v\n", err)
+		}
+	}
+
+	slog.Info("Task disabled successfully", slog.String("task_id", taskID))
+	return nil
+}
+
 // Execution History
 
 // GetTaskExecutions retrieves execution history for a task

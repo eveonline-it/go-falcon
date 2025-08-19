@@ -181,8 +181,23 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
 			return nil, err
 		}
-		// TODO: Implement enable task in service
-		return nil, huma.Error501NotImplemented("Task enable not yet implemented")
+		err := service.EnableTask(ctx, input.TaskID)
+		if err != nil {
+			if err.Error() == "task not found" {
+				return nil, huma.Error404NotFound("Task not found")
+			}
+			if err.Error() == "cannot modify system tasks" {
+				return nil, huma.Error403Forbidden("Cannot modify system tasks")
+			}
+			return nil, huma.Error500InternalServerError("Failed to enable task", err)
+		}
+
+		// Get updated task to return
+		task, err := service.GetTask(ctx, input.TaskID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get updated task", err)
+		}
+		return &dto.TaskEnableOutput{Body: *task}, nil
 	})
 
 	huma.Post(api, basePath+"/tasks/{task_id}/disable", func(ctx context.Context, input *dto.TaskDisableInput) (*dto.TaskDisableOutput, error) {
@@ -190,8 +205,23 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		if err := checkSchedulerAdminPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie); err != nil {
 			return nil, err
 		}
-		// TODO: Implement disable task in service
-		return nil, huma.Error501NotImplemented("Task disable not yet implemented")
+		err := service.DisableTask(ctx, input.TaskID)
+		if err != nil {
+			if err.Error() == "task not found" {
+				return nil, huma.Error404NotFound("Task not found")
+			}
+			if err.Error() == "cannot modify system tasks" {
+				return nil, huma.Error403Forbidden("Cannot modify system tasks")
+			}
+			return nil, huma.Error500InternalServerError("Failed to disable task", err)
+		}
+
+		// Get updated task to return
+		task, err := service.GetTask(ctx, input.TaskID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get updated task", err)
+		}
+		return &dto.TaskDisableOutput{Body: *task}, nil
 	})
 
 	huma.Post(api, basePath+"/tasks/{task_id}/pause", func(ctx context.Context, input *dto.TaskPauseInput) (*dto.TaskPauseOutput, error) {
@@ -447,13 +477,43 @@ func (hr *Routes) executeTask(ctx context.Context, input *dto.TaskExecuteInput) 
 }
 
 func (hr *Routes) enableTask(ctx context.Context, input *dto.TaskEnableInput) (*dto.TaskEnableOutput, error) {
-	// TODO: Implement enable task in service
-	return nil, huma.Error501NotImplemented("Task enable not yet implemented")
+	err := hr.service.EnableTask(ctx, input.TaskID)
+	if err != nil {
+		if err.Error() == "task not found" {
+			return nil, huma.Error404NotFound("Task not found")
+		}
+		if err.Error() == "cannot modify system tasks" {
+			return nil, huma.Error403Forbidden("Cannot modify system tasks")
+		}
+		return nil, huma.Error500InternalServerError("Failed to enable task", err)
+	}
+
+	// Get updated task to return
+	task, err := hr.service.GetTask(ctx, input.TaskID)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to get updated task", err)
+	}
+	return &dto.TaskEnableOutput{Body: *task}, nil
 }
 
 func (hr *Routes) disableTask(ctx context.Context, input *dto.TaskDisableInput) (*dto.TaskDisableOutput, error) {
-	// TODO: Implement disable task in service
-	return nil, huma.Error501NotImplemented("Task disable not yet implemented")
+	err := hr.service.DisableTask(ctx, input.TaskID)
+	if err != nil {
+		if err.Error() == "task not found" {
+			return nil, huma.Error404NotFound("Task not found")
+		}
+		if err.Error() == "cannot modify system tasks" {
+			return nil, huma.Error403Forbidden("Cannot modify system tasks")
+		}
+		return nil, huma.Error500InternalServerError("Failed to disable task", err)
+	}
+
+	// Get updated task to return
+	task, err := hr.service.GetTask(ctx, input.TaskID)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to get updated task", err)
+	}
+	return &dto.TaskDisableOutput{Body: *task}, nil
 }
 
 func (hr *Routes) pauseTask(ctx context.Context, input *dto.TaskPauseInput) (*dto.TaskPauseOutput, error) {
