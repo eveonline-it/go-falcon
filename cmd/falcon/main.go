@@ -28,6 +28,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/danielgtaylor/huma/v2"
 	falconMiddleware "go-falcon/pkg/middleware"
+	casbinPkg "go-falcon/pkg/middleware/casbin"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	_ "go.uber.org/automaxprocs"
 )
@@ -118,9 +119,9 @@ func main() {
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, evegateClient)
 	
 	// Initialize CASBIN middleware factory for authorization
-	var casbinFactory *falconMiddleware.CasbinMiddlewareFactory
+	var casbinFactory *casbinPkg.CasbinMiddlewareFactory
 	characterResolver := falconMiddleware.NewUserCharacterResolver(appCtx.MongoDB, appCtx.Redis)
-	casbinFactory, err = falconMiddleware.NewCasbinMiddlewareFactory(
+	casbinFactory, err = casbinPkg.NewCasbinMiddlewareFactory(
 		authModule.GetAuthService(),
 		characterResolver,
 		appCtx.MongoDB.Client,
@@ -204,8 +205,8 @@ func main() {
 	
 	// Register role management routes if CASBIN is available
 	if casbinFactory != nil {
-		roleManagementRoutes := falconMiddleware.NewRoleManagementRoutes(
-			falconMiddleware.NewRoleAssignmentService(casbinFactory.GetEnhanced().GetCasbinAuth().GetEnforcer()),
+		roleManagementRoutes := casbinPkg.NewRoleManagementRoutes(
+			casbinPkg.NewRoleAssignmentService(casbinFactory.GetEnhanced().GetCasbinAuth().GetEnforcer()),
 			casbinFactory.GetEnhanced().GetCasbinAuth(),
 		)
 		roleManagementRoutes.RegisterRoleManagementRoutes(unifiedAPI, "")
@@ -421,7 +422,7 @@ func readCgroupV1MemoryLimit() int64 {
 }
 
 // setupInitialCasbinPolicies sets up initial roles and permissions for CASBIN
-func setupInitialCasbinPolicies(factory *falconMiddleware.CasbinMiddlewareFactory) error {
+func setupInitialCasbinPolicies(factory *casbinPkg.CasbinMiddlewareFactory) error {
 	casbinAuth := factory.GetEnhanced().GetCasbinAuth()
 	
 	// Define basic roles and their permissions

@@ -14,6 +14,7 @@ import (
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/handlers"
 	"go-falcon/pkg/middleware"
+	"go-falcon/pkg/middleware/casbin"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -25,7 +26,7 @@ type AuthService struct {
 	repository     *Repository
 	eveService     *EVEService
 	profileService *ProfileService
-	casbinService  *middleware.CasbinService
+	casbinService  *casbin.CasbinService
 }
 
 // NewAuthService creates a new auth service with all dependencies
@@ -43,7 +44,7 @@ func NewAuthService(mongodb *database.MongoDB, esiClient *evegateway.Client) *Au
 }
 
 // SetCasbinService sets the CASBIN service for permission hierarchy sync
-func (s *AuthService) SetCasbinService(casbinService *middleware.CasbinService) {
+func (s *AuthService) SetCasbinService(casbinService *casbin.CasbinService) {
 	s.casbinService = casbinService
 }
 
