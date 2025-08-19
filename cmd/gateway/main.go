@@ -16,11 +16,7 @@ import (
 	"time"
 
 	"go-falcon/internal/auth"
-	"go-falcon/internal/dev"
-	"go-falcon/internal/groups"
-	"go-falcon/internal/notifications"
 	"go-falcon/internal/scheduler"
-	"go-falcon/internal/sde"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
@@ -138,26 +134,10 @@ func main() {
 	// Initialize modules
 	var modules []module.Module
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, evegateClient)
-	groupsModule := groups.New(appCtx.MongoDB, appCtx.Redis)
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule)
 	
-	// Set auth module dependency for groups module
-	groupsModule.SetAuthModule(authModule)
-	
-	devModule, err := dev.NewModule(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
-	if err != nil {
-		log.Fatalf("Failed to initialize dev module: %v", err)
-	}
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, groupsModule)
-	notificationsModule := notifications.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, groupsModule)
-	// Initialize SDE module - need to type assert the interface
-	sdeService, ok := appCtx.SDEService.(*pkgsde.Service)
-	if !ok {
-		log.Fatalf("SDE Service is not the expected type")
-	}
-	sdeModule := sde.NewModule(appCtx.MongoDB, appCtx.Redis, sdeService)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, sdeModule, groupsModule)
-	
-	modules = append(modules, authModule, groupsModule, devModule, usersModule, notificationsModule, sdeModule, schedulerModule)
+	modules = append(modules, authModule, usersModule, schedulerModule)
 	log.Printf("🚀 EVE Online ESI client initialized")
 
 	// Mount module routes with configurable API prefix
@@ -227,29 +207,13 @@ func main() {
 	log.Printf("   🔐 Auth module: /auth/*")
 	authModule.RegisterUnifiedRoutes(unifiedAPI, "/auth")
 	
-	// Register dev module routes  
-	log.Printf("   🔧 Dev module: /dev/*")
-	devModule.RegisterUnifiedRoutes(unifiedAPI, "/dev")
-	
 	// Register users module routes
 	log.Printf("   👥 Users module: /users/*")
 	usersModule.RegisterUnifiedRoutes(unifiedAPI, "/users")
 	
-	// Register notifications module routes
-	log.Printf("   📬 Notifications module: /notifications/*")
-	notificationsModule.RegisterUnifiedRoutes(unifiedAPI, "/notifications")
-	
-	// Register SDE module routes
-	log.Printf("   📊 SDE module: /sde/*")
-	sdeModule.RegisterUnifiedRoutes(unifiedAPI, "/sde")
-	
 	// Register scheduler module routes
 	log.Printf("   ⏰ Scheduler module: /scheduler/*")
 	schedulerModule.RegisterUnifiedRoutes(unifiedAPI, "/scheduler")
-	
-	// Register groups module routes
-	log.Printf("   👤 Groups module: /groups/*")
-	groupsModule.RegisterUnifiedRoutes(unifiedAPI, "/groups")
 	
 	log.Printf("✅ All modules registered on unified API")
 	
