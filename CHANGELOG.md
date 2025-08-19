@@ -11,6 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enhanced scheduler API DTOs with authentication headers for improved Huma v2 integration
+
+### Added
+
+- Comprehensive unified Huma API registration enforcement documentation with mandatory implementation guidelines and verification procedures
+
+### Changed
+
+- Updated development workflow documentation with hot reload instructions
+
+### Added
+
+- Automatic super_admin role assignment for first user registration
+
+### Added
+
+- Enhanced scheduler endpoint access control with dual permission checking for admin and super_admin roles
+
+### Added
+
+- Comprehensive CASBIN debug logging system for troubleshooting authentication and authorization issues
+
+### Changed
+
 - Reorganize CASBIN middleware into dedicated package structure for better maintainability
 
 - Database optimization with comprehensive indexing strategy and monitoring tools
