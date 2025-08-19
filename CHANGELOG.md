@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+- Reorganize CASBIN middleware into dedicated package structure for better maintainability
+
 - Database optimization with comprehensive indexing strategy and monitoring tools
 - Hierarchical permissions support for character/corporation/alliance levels
 - 11 HUMA v2 API endpoints for role assignment and permission management
