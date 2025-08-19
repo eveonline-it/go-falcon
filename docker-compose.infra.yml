@@ -23,8 +23,8 @@ services:
     container_name: go-falcon-mongodb-mcp
     restart: unless-stopped
     environment:
-      MDB_MCP_CONNECTION_STRING: mongodb://admin:password123@mongodb:27017/falcon?authSource=admin
-      MDB_MCP_INDEX_CHECK: true
+      MDB_MCP_CONNECTION_STRING: mongodb://admin:password123@go-falcon-mongodb:27017/falcon?authSource=admin
+      MDB_MCP_INDEX_CHECK: false
       MDB_MCP_TELEMETRY: disabled
       DO_NOT_TRACK: 1
     ports:

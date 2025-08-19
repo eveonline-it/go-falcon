@@ -3,10 +3,12 @@ package routes
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"go-falcon/internal/scheduler/dto"
 	"go-falcon/internal/scheduler/middleware"
 	"go-falcon/internal/scheduler/services"
+	casbinPkg "go-falcon/pkg/middleware/casbin"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -42,31 +44,27 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 
 // RegisterSchedulerRoutes registers scheduler routes on a shared Huma API
 func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, middleware *middleware.Middleware, casbinMiddleware interface{}) {
-	// Protected status endpoint with manual CASBIN-style check
+	// Protected scheduler status endpoint with manual CASBIN check (admin or super_admin)
 	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.SchedulerStatusInput) (*dto.SchedulerStatusOutput, error) {
-		fmt.Printf("[DEBUG] SchedulerRoutes: /status endpoint called\n")
-		fmt.Printf("[DEBUG] CasbinAuthMiddleware.RequirePermission: Checking scheduler.read for GET %s/status\n", basePath)
-		
-		// Simulate CASBIN authentication check
-		if input.Authorization == "" && input.Cookie == "" {
-			fmt.Printf("[DEBUG] CasbinAuthMiddleware: No authenticated user found\n")
-			return nil, huma.Error401Unauthorized("Authentication required")
+		// Try scheduler.admin permission first (covers both admin and super_admin roles)
+		if err := checkSchedulerPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie, "scheduler", "admin"); err == nil {
+			// Permission granted via scheduler.admin
+			status := service.GetStatus()
+			return &dto.SchedulerStatusOutput{Body: *status}, nil
 		}
-
-		// Simulate finding authenticated user
-		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Found authenticated user (simulated)\n")
 		
-		// Simulate CASBIN permission check
-		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Checking permission 'scheduler.read' for subjects: [user:test-user, character:123456]\n")
-		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Permission denied for subject user:test-user\n")
-		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Permission denied for subject character:123456\n")
-		fmt.Printf("[DEBUG] CasbinAuthMiddleware: No explicit allow found, defaulting to deny\n")
-		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Permission denied for user test-user\n")
-
-		// For demo purposes, return permission denied to show CASBIN logs
-		return nil, huma.Error403Forbidden("Permission denied - requires scheduler.read permission")
+		// If scheduler.admin fails, try system.super_admin as fallback
+		if err := checkSchedulerPermission(casbinMiddleware, ctx, input.Authorization, input.Cookie, "system", "super_admin"); err != nil {
+			// Both permission checks failed
+			return nil, huma.Error403Forbidden("Permission denied - requires admin or super_admin role")
+		}
+		
+		// Permission granted via system.super_admin
+		status := service.GetStatus()
+		return &dto.SchedulerStatusOutput{Body: *status}, nil
 	})
 
+	// Public stats endpoint (no authentication required)
 	huma.Get(api, basePath+"/stats", func(ctx context.Context, input *dto.SchedulerStatsInput) (*dto.SchedulerStatsOutput, error) {
 		stats, err := service.GetStats(ctx)
 		if err != nil {
@@ -75,7 +73,7 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.SchedulerStatsOutput{Body: *stats}, nil
 	})
 
-	// Task management endpoints (require authentication and permissions)
+	// Task management endpoints - protected (manual check for now)
 	huma.Get(api, basePath+"/tasks", func(ctx context.Context, input *dto.TaskListInput) (*dto.TaskListOutput, error) {
 		// Convert Huma input to service query format
 		query := &dto.TaskListQuery{
@@ -488,3 +486,102 @@ func (hr *Routes) importTasks(ctx context.Context, input *dto.TaskImportInput) (
 	// TODO: Implement task import in service
 	return nil, huma.Error501NotImplemented("Task import not yet implemented")
 }
+
+// checkSchedulerPermission manually checks CASBIN permissions for scheduler endpoints
+func checkSchedulerPermission(casbinMiddleware interface{}, ctx context.Context, authHeader, cookieHeader, resource, action string) error {
+	// Check if CASBIN is available
+	if casbinMiddleware == nil {
+		return huma.Error503ServiceUnavailable("Authentication system not available")
+	}
+	
+	// Check for authentication headers
+	if authHeader == "" && cookieHeader == "" {
+		return huma.Error401Unauthorized("Authentication required - provide Authorization header or falcon_auth_token cookie")
+	}
+	
+	// This will help identify what type we're actually getting
+	fmt.Printf("[DEBUG] checkSchedulerPermission: casbinMiddleware type: %T\n", casbinMiddleware)
+	fmt.Printf("[DEBUG] checkSchedulerPermission: authHeader present: %t\n", authHeader != "")
+	fmt.Printf("[DEBUG] checkSchedulerPermission: cookieHeader present: %t\n", cookieHeader != "")
+	fmt.Printf("[DEBUG] checkSchedulerPermission: checking %s.%s permission\n", resource, action)
+	
+	// Type cast the CASBIN factory
+	factory, ok := casbinMiddleware.(*casbinPkg.CasbinMiddlewareFactory)
+	if !ok {
+		fmt.Printf("[DEBUG] checkSchedulerPermission: Failed to cast CASBIN factory\n")
+		return huma.Error500InternalServerError("Failed to access authentication system")
+	}
+	
+	fmt.Printf("[DEBUG] checkSchedulerPermission: Successfully cast CASBIN factory\n")
+	
+	// Create a mock HTTP request to trigger the CASBIN middleware debugging
+	req, err := http.NewRequestWithContext(ctx, "GET", "/scheduler/status", nil)
+	if err != nil {
+		fmt.Printf("[DEBUG] checkSchedulerPermission: Failed to create mock request: %v\n", err)
+		return huma.Error500InternalServerError("Internal error creating request")
+	}
+	
+	// Add authentication headers to the mock request
+	if authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	}
+	if cookieHeader != "" {
+		req.Header.Set("Cookie", cookieHeader)
+	}
+	
+	fmt.Printf("[DEBUG] checkSchedulerPermission: Created mock request with headers\n")
+	
+	// Get the enhanced middleware that includes auth + character resolution + permissions
+	enhancedMiddleware := factory.GetEnhanced()
+	
+	// Create a test response writer to capture the middleware behavior
+	testResponseWriter := &testResponseWriter{statusCode: 200}
+	
+	// Create the complete middleware chain: Auth -> Character Resolution -> Permissions
+	fullMiddleware := enhancedMiddleware.RequireAuthWithPermission(resource, action)
+	
+	fmt.Printf("[DEBUG] checkSchedulerPermission: About to call complete CASBIN middleware chain\n")
+	
+	// This will trigger authentication, character resolution, AND permission checking!
+	fullMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("[DEBUG] checkSchedulerPermission: Complete CASBIN middleware chain passed - access granted!\n")
+		w.WriteHeader(http.StatusOK)
+	})).ServeHTTP(testResponseWriter, req)
+	
+	fmt.Printf("[DEBUG] checkSchedulerPermission: CASBIN middleware completed with status: %d\n", testResponseWriter.statusCode)
+	
+	// Check the result
+	if testResponseWriter.statusCode == http.StatusOK {
+		return nil // Permission granted
+	} else if testResponseWriter.statusCode == http.StatusUnauthorized {
+		return huma.Error401Unauthorized("Authentication failed")
+	} else if testResponseWriter.statusCode == http.StatusForbidden {
+		return huma.Error403Forbidden("Permission denied - requires admin or super_admin role")
+	} else {
+		return huma.Error500InternalServerError("Authentication system error")
+	}
+}
+
+// testResponseWriter captures the HTTP response for testing middleware
+type testResponseWriter struct {
+	statusCode int
+	headers    http.Header
+	body       []byte
+}
+
+func (w *testResponseWriter) Header() http.Header {
+	if w.headers == nil {
+		w.headers = make(http.Header)
+	}
+	return w.headers
+}
+
+func (w *testResponseWriter) Write(data []byte) (int, error) {
+	w.body = append(w.body, data...)
+	return len(data), nil
+}
+
+func (w *testResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+}
+

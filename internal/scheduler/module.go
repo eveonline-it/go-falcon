@@ -37,7 +37,7 @@ type AuthModule interface {
 
 
 // New creates a new scheduler module with standardized structure
-func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule AuthModule, groupsModule interface{}) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDEService, authModule AuthModule, casbinFactory interface{}) *Module {
 	baseModule := module.NewBaseModule("scheduler", mongodb, redis, sdeService)
 	
 	// Create services
@@ -52,7 +52,7 @@ func New(mongodb *database.MongoDB, redis *database.Redis, sdeService sde.SDESer
 		middleware:       middlewareLayer,
 		routes:           nil, // Will be created when needed
 		authModule:       authModule,
-		groupsModule:     nil,
+		groupsModule:     casbinFactory,
 	}
 }
 
@@ -211,6 +211,6 @@ func (m *Module) Shutdown() error {
 }
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterSchedulerRoutes(api, basePath, m.schedulerService, m.middleware, nil) // TODO: Pass CASBIN middleware
+	routes.RegisterSchedulerRoutes(api, basePath, m.schedulerService, m.middleware, m.groupsModule)
 	log.Printf("Scheduler module unified routes registered at %s", basePath)
 }

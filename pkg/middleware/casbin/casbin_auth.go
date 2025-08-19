@@ -78,11 +78,25 @@ func (c *CasbinAuthMiddleware) RequirePermission(resource, action string) func(h
 
 			// Get expanded auth context
 			expandedCtx := middleware.GetExpandedAuthContext(r.Context())
-			if expandedCtx == nil || !expandedCtx.IsAuthenticated {
-				fmt.Printf("[DEBUG] CasbinAuthMiddleware: No authenticated user found\n")
+			if expandedCtx == nil {
+				fmt.Printf("[DEBUG] CasbinAuthMiddleware: No expanded auth context found\n")
 				http.Error(w, "Authentication required", http.StatusUnauthorized)
 				return
 			}
+			
+			if !expandedCtx.IsAuthenticated {
+				fmt.Printf("[DEBUG] CasbinAuthMiddleware: User not authenticated (IsAuthenticated=false)\n")
+				http.Error(w, "Authentication required", http.StatusUnauthorized)
+				return
+			}
+			
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Found authenticated user: %s (Character: %d)\n", 
+				expandedCtx.UserID, expandedCtx.PrimaryCharacter.ID)
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Character IDs: %v\n", expandedCtx.CharacterIDs)
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Corporation IDs: %v\n", expandedCtx.CorporationIDs)
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Alliance IDs: %v\n", expandedCtx.AllianceIDs)
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Roles: %v\n", expandedCtx.Roles)
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Permissions: %v\n", expandedCtx.Permissions)
 
 			// Check permissions at all hierarchy levels
 			allowed, err := c.checkHierarchicalPermission(r.Context(), expandedCtx, resource, action)
@@ -113,13 +127,36 @@ func (c *CasbinAuthMiddleware) checkHierarchicalPermission(ctx context.Context, 
 	subjects := c.buildSubjects(authCtx)
 
 	fmt.Printf("[DEBUG] CasbinAuthMiddleware: Checking permission '%s.%s' for subjects: %v\n", resource, action, subjects)
+	
+	// Show all current policies for debugging
+	allPolicies, _ := c.enforcer.GetPolicy()
+	fmt.Printf("[DEBUG] CasbinAuthMiddleware: Current policies count: %d\n", len(allPolicies))
+	for _, policy := range allPolicies {
+		if len(policy) >= 5 {
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Policy: [%s, %s, %s, %s, %s]\n", 
+				policy[0], policy[1], policy[2], policy[3], policy[4])
+		}
+	}
+	
+	// Show all role assignments
+	allRoles, _ := c.enforcer.GetGroupingPolicy()
+	fmt.Printf("[DEBUG] CasbinAuthMiddleware: Current role assignments count: %d\n", len(allRoles))
+	for _, role := range allRoles {
+		if len(role) >= 3 {
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Role: [%s -> %s in %s]\n", 
+				role[0], role[1], role[2])
+		}
+	}
 
 	// Use the single enforce call - CASBIN handles allow/deny logic internally
 	for _, subject := range subjects {
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Enforcing: (%s, %s, %s, %s)\n", subject, resource, action, domain)
 		result, err := c.enforcer.Enforce(subject, resource, action, domain)
 		if err != nil {
+			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Enforce error for subject %s: %v\n", subject, err)
 			return false, fmt.Errorf("failed to check policy for subject %s: %w", subject, err)
 		}
+		fmt.Printf("[DEBUG] CasbinAuthMiddleware: Enforce result for subject %s: %t\n", subject, result)
 		if result {
 			fmt.Printf("[DEBUG] CasbinAuthMiddleware: Permission granted for subject %s\n", subject)
 			return true, nil

@@ -271,11 +271,15 @@ func (r *RoleManagementRoutes) registerListAllRoles(api huma.API, basePath strin
 		r.logger.Debug("List all roles request received")
 
 		// TODO: Implement when CASBIN API is clarified
-		// For now return common roles
+		// For now return the new role structure
 		roles := []RoleInfo{
+			{Role: "super_admin", Domain: "global"},
 			{Role: "admin", Domain: "global"},
-			{Role: "monitoring", Domain: "global"},
-			{Role: "scheduler_manager", Domain: "global"},
+			{Role: "alliance_member", Domain: "global"},
+			{Role: "corporation_member", Domain: "global"},
+			{Role: "member", Domain: "global"},
+			{Role: "registered", Domain: "global"},
+			{Role: "login", Domain: "global"},
 		}
 
 		result := &RoleListResponse{

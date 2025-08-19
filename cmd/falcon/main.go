@@ -140,8 +140,8 @@ func main() {
 		}
 	}
 	
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, nil)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, nil)
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, casbinFactory)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService, authModule, casbinFactory)
 	
 	modules = append(modules, authModule, usersModule, schedulerModule)
 
@@ -209,6 +209,7 @@ func main() {
 			casbinPkg.NewRoleAssignmentService(casbinFactory.GetEnhanced().GetCasbinAuth().GetEnforcer()),
 			casbinFactory.GetEnhanced().GetCasbinAuth(),
 		)
+		// Register on unified API with empty basePath since unifiedAPI already has the prefix
 		roleManagementRoutes.RegisterRoleManagementRoutes(unifiedAPI, "")
 	}
 	
@@ -425,12 +426,17 @@ func readCgroupV1MemoryLimit() int64 {
 func setupInitialCasbinPolicies(factory *casbinPkg.CasbinMiddlewareFactory) error {
 	casbinAuth := factory.GetEnhanced().GetCasbinAuth()
 	
-	// Define basic roles and their permissions
+	// Define basic roles and their permissions based on user journey
 	rolePolicies := map[string][][]string{
-		// Super Admin role - full system access
+		// Super Admin role - full system access (assigned to first user)
 		"role:super_admin": {
 			{"system", "super_admin", "allow"},
 			{"system", "admin", "allow"},
+			{"users", "admin", "allow"},
+			{"scheduler", "admin", "allow"},
+			{"auth", "admin", "allow"},
+			{"alliance", "admin", "allow"},
+			{"corporation", "admin", "allow"},
 		},
 		
 		// Admin role - general administration
@@ -443,35 +449,46 @@ func setupInitialCasbinPolicies(factory *casbinPkg.CasbinMiddlewareFactory) erro
 			{"auth", "admin", "allow"},
 		},
 		
-		// User role - basic authenticated user
-		"role:user": {
+		// Alliance Member role - alliance-level permissions
+		"role:alliance_member": {
+			{"alliance", "read", "allow"},
+			{"users.alliance", "read", "allow"},
+			{"scheduler.alliance", "read", "allow"},
 			{"auth.profile", "read", "allow"},
 			{"auth.profile", "write", "allow"},
+		},
+		
+		// Corporation Member role - corporation-level permissions
+		"role:corporation_member": {
+			{"corporation", "read", "allow"},
+			{"users.corporation", "read", "allow"},
+			{"scheduler.corporation", "read", "allow"},
+			{"auth.profile", "read", "allow"},
+			{"auth.profile", "write", "allow"},
+		},
+		
+		// Member role - basic authenticated member
+		"role:member": {
 			{"users.profiles", "read", "allow"},
 			{"scheduler.tasks", "read", "allow"},
 			{"scheduler.tasks", "write", "allow"},
+			{"auth.profile", "read", "allow"},
+			{"auth.profile", "write", "allow"},
 		},
 		
-		// Guest role - minimal public access
-		"role:guest": {
+		// Registered role - newly registered user
+		"role:registered": {
+			{"auth.profile", "read", "allow"},
+			{"auth.profile", "write", "allow"},
+			{"users.profiles", "read", "allow"},
 			{"public", "read", "allow"},
+		},
+		
+		// Login role - basic login access
+		"role:login": {
 			{"auth.status", "read", "allow"},
-		},
-		
-		// Corporation Manager role
-		"role:corp_manager": {
-			{"corporation", "admin", "allow"},
-			{"users.corporation", "read", "allow"},
-			{"users.corporation", "write", "allow"},
-			{"scheduler.corporation", "admin", "allow"},
-		},
-		
-		// Alliance Manager role
-		"role:alliance_manager": {
-			{"alliance", "admin", "allow"},
-			{"users.alliance", "read", "allow"},
-			{"users.alliance", "write", "allow"},
-			{"scheduler.alliance", "admin", "allow"},
+			{"auth.profile", "read", "allow"},
+			{"public", "read", "allow"},
 		},
 	}
 	
@@ -489,16 +506,8 @@ func setupInitialCasbinPolicies(factory *casbinPkg.CasbinMiddlewareFactory) erro
 		}
 	}
 	
-	// Check for super admin character ID from environment
-	superAdminCharID := os.Getenv("SUPER_ADMIN_CHARACTER_ID")
-	if superAdminCharID != "" {
-		// Grant super admin role to the specified character
-		subject := fmt.Sprintf("character:%s", superAdminCharID)
-		err := casbinAuth.AddRoleForUser(subject, "role:super_admin")
-		if err != nil && !strings.Contains(err.Error(), "already exists") {
-			log.Printf("⚠️  Failed to assign super admin: %v", err)
-		}
-	}
+	// Note: Super admin role is assigned to the first user that registers in the system
+	// This is handled in the user registration logic, not here
 	
 	return nil
 }

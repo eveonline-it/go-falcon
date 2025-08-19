@@ -350,6 +350,28 @@ func (s *AuthService) HandleEVECallback(ctx context.Context, code, state string)
 			userID = existingProfile.UserID
 		} else {
 			userID = uuid.New().String()
+			
+			// Check if this is the first user in the system and assign super admin role
+			if s.casbinService != nil {
+				isFirstUser, err := s.isFirstUserInSystem(ctx)
+				if err != nil {
+					span.RecordError(err)
+					// Log error but don't fail registration
+					fmt.Printf("Warning: Failed to check if first user: %v\n", err)
+				} else if isFirstUser {
+					// Assign super admin role to first user
+					if err := s.casbinService.AssignRole(ctx, &casbin.RoleCreateRequest{
+						SubjectType: "user",
+						SubjectID:   userID,
+						RoleName:    "role:super_admin",
+					}, 0); err != nil {
+						span.RecordError(err)
+						fmt.Printf("Warning: Failed to assign super admin role to first user: %v\n", err)
+					} else {
+						fmt.Printf("✅ First user registered - assigned super admin role to user: %s\n", userID)
+					}
+				}
+			}
 		}
 	}
 
@@ -572,4 +594,16 @@ func (s *AuthService) profileToDTO(profile *models.UserProfile) *dto.ProfileResp
 		Valid:             profile.Valid,
 		Metadata:          profile.Metadata,
 	}
+}
+
+// isFirstUserInSystem checks if this is the first user being registered
+func (s *AuthService) isFirstUserInSystem(ctx context.Context) (bool, error) {
+	// Count the number of existing user profiles
+	count, err := s.repository.CountUsers(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to count existing profiles: %w", err)
+	}
+	
+	// If count is 0, this is the first user
+	return count == 0, nil
 }
