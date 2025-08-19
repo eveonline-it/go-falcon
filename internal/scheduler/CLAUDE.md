@@ -141,6 +141,8 @@ User-defined task executors with flexible configuration:
 
 ## API Endpoints
 
+**IMPORTANT**: All endpoints are registered through the unified Huma API via `RegisterSchedulerRoutes()` function. They automatically appear in the OpenAPI specification at `/openapi.json`.
+
 | Endpoint | Method | Description | Permission Required |
 |----------|--------|-------------|-------------------|
 | `/scheduler/status` | GET | Get scheduler status | `scheduler.read` (CASBIN protected) |

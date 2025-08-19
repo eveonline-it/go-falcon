@@ -242,6 +242,55 @@ All modules follow a unified Huma v2 pattern:
 - Use `huma.Register()` for routes with middleware
 - Use `huma.Get()`, `huma.Post()`, etc. for simple routes
 
+### CRITICAL: Unified API Registration Requirements
+
+**MANDATORY**: ALL endpoints MUST be registered through the unified Huma API. This is non-negotiable.
+
+#### ❌ NEVER DO THIS (Standalone Registration):
+```go
+// WRONG: Creating standalone Huma API instances
+func (r *Routes) registerRoutes() {
+    huma.Get(r.api, "/status", r.getStatus)  // DON'T use module's own API instance
+}
+
+// WRONG: Using Chi router directly
+func (m *Module) Routes(r chi.Router) {
+    r.Get("/status", handler)  // NEVER register directly on Chi router
+}
+```
+
+#### ✅ ALWAYS DO THIS (Unified Registration):
+```go
+// CORRECT: Register through RegisterUnifiedRoutes
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+    routes.RegisterSchedulerRoutes(api, basePath, m.service, m.middleware, m.casbinFactory)
+}
+
+// CORRECT: In routes package, register on the shared API
+func RegisterSchedulerRoutes(api huma.API, basePath string, ...) {
+    huma.Get(api, basePath+"/status", statusHandler)  // Use the shared API instance
+}
+```
+
+#### Enforcement Checklist:
+1. **Module Structure**: Every module MUST implement `RegisterUnifiedRoutes(api huma.API, basePath string)`
+2. **No Standalone APIs**: NEVER create module-specific Huma API instances
+3. **No Direct Chi Routes**: NEVER register endpoints directly on Chi router
+4. **Single OpenAPI Spec**: All endpoints appear in one unified OpenAPI specification
+5. **Consistent DTOs**: Use Huma v2 input/output DTOs in `dto/` package
+6. **Automatic Documentation**: All endpoints automatically documented in `/openapi.json`
+
+#### Verification:
+```bash
+# All endpoints should appear in the unified OpenAPI spec:
+curl http://localhost:3000/openapi.json | jq '.paths | keys'
+
+# Verify module endpoints are present:
+curl http://localhost:3000/openapi.json | jq '.paths | keys | map(select(contains("scheduler")))'
+curl http://localhost:3000/openapi.json | jq '.paths | keys | map(select(contains("auth")))'
+curl http://localhost:3000/openapi.json | jq '.paths | keys | map(select(contains("users")))'
+```
+
 ## 🚀 EVE Online Integration
 
 ### ESI (EVE Swagger Interface) Best Practices
@@ -365,6 +414,51 @@ See [`docs/MCP_MONGODB_SETUP.md`](docs/MCP_MONGODB_SETUP.md) for complete setup 
 ```
 
 ## 🛠️ Development Guidelines
+
+### Unified API Registration (MANDATORY)
+
+**CRITICAL REQUIREMENT**: All API endpoints MUST be registered through the unified Huma API system. This ensures:
+- Single, comprehensive OpenAPI specification
+- Consistent API documentation
+- Type-safe request/response handling
+- Automatic validation and error handling
+
+#### Implementation Steps for New Endpoints:
+
+1. **Create DTOs** in `internal/yourmodule/dto/`:
+   ```go
+   // huma_requests.go
+   type YourEndpointInput struct {
+       Authorization string `header:"Authorization" doc:"Bearer token"`
+       Body YourRequestBody `json:"body"`
+   }
+   
+   type YourEndpointOutput struct {
+       Body YourResponseBody `json:"body"`
+   }
+   ```
+
+2. **Register in Module's RegisterUnifiedRoutes**:
+   ```go
+   // module.go
+   func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+       routes.RegisterYourModuleRoutes(api, basePath, m.service, m.middleware)
+   }
+   ```
+
+3. **Implement Route Registration**:
+   ```go
+   // routes/routes.go
+   func RegisterYourModuleRoutes(api huma.API, basePath string, ...) {
+       huma.Get(api, basePath+"/endpoint", handler)
+   }
+   ```
+
+4. **Verify Registration**:
+   ```bash
+   # Check endpoint appears in OpenAPI spec
+   curl http://localhost:3000/openapi.json | jq '.paths["/yourmodule/endpoint"]'
+   ```
 
 ### Module Structure Standards
 
