@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Added
+
+- Implemented scheduler task enable/disable functionality with proper error handling and system task protection
+
 ### Changed
 
 - Enhanced scheduler API DTOs with authentication headers for improved Huma v2 integration
