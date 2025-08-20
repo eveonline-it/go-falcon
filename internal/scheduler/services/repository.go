@@ -220,6 +220,35 @@ func (r *Repository) GetTaskExecutions(ctx context.Context, taskID string, page,
 	return executions, nil
 }
 
+// ListExecutions retrieves all executions with filtering and pagination
+func (r *Repository) ListExecutions(ctx context.Context, filter bson.M, page, pageSize int) ([]models.TaskExecution, int64, error) {
+	// Count total documents
+	total, err := r.executions.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Find with pagination
+	skip := (page - 1) * pageSize
+	opts := options.Find().
+		SetSkip(int64(skip)).
+		SetLimit(int64(pageSize)).
+		SetSort(bson.D{{Key: "started_at", Value: -1}})
+
+	cursor, err := r.executions.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var executions []models.TaskExecution
+	if err := cursor.All(ctx, &executions); err != nil {
+		return nil, 0, err
+	}
+
+	return executions, total, nil
+}
+
 // CleanupExecutions removes old execution records
 func (r *Repository) CleanupExecutions(ctx context.Context, retentionPeriod time.Duration) error {
 	cutoff := time.Now().Add(-retentionPeriod)

@@ -317,6 +317,51 @@ func (s *SchedulerService) GetExecution(ctx context.Context, executionID string)
 	return &dto, nil
 }
 
+// ListExecutions retrieves all executions with filtering and pagination
+func (s *SchedulerService) ListExecutions(ctx context.Context, query *dto.ExecutionListInput) (*dto.ExecutionListResponse, error) {
+	// Build filter
+	filter := bson.M{}
+	
+	if query.Status != "" {
+		filter["status"] = query.Status
+	}
+	
+	if query.TaskID != "" {
+		filter["task_id"] = query.TaskID
+	}
+
+	// Set defaults
+	page := query.Page
+	pageSize := query.PageSize
+	if page == 0 {
+		page = 1
+	}
+	if pageSize == 0 {
+		pageSize = 20
+	}
+
+	executions, total, err := s.repository.ListExecutions(ctx, filter, page, pageSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list executions: %w", err)
+	}
+
+	// Convert to DTOs
+	executionDTOs := make([]dto.ExecutionResponse, len(executions))
+	for i, execution := range executions {
+		executionDTOs[i] = s.executionToDTO(&execution)
+	}
+
+	response := &dto.ExecutionListResponse{
+		Executions: executionDTOs,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: int((total + int64(pageSize) - 1) / int64(pageSize)),
+	}
+
+	return response, nil
+}
+
 // Statistics
 
 // GetStats retrieves scheduler statistics

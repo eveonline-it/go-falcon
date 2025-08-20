@@ -309,12 +309,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Method:      "GET",
 		Path:        basePath + "/executions",
 		Summary:     "List all executions",
-		Description: "List all task executions across all tasks",
+		Description: "List all task executions across all tasks with filtering and pagination support",
 		Tags:        []string{"Scheduler / Executions"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.ExecutionListInput) (*dto.ExecutionListOutput, error) {
-		// TODO: Implement list all executions in service
-		return nil, huma.Error501NotImplemented("List all executions not yet implemented")
+		executions, err := service.ListExecutions(ctx, input)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to list executions", err)
+		}
+		return &dto.ExecutionListOutput{Body: *executions}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -575,8 +578,11 @@ func (hr *Routes) getTaskHistory(ctx context.Context, input *dto.TaskExecutionHi
 }
 
 func (hr *Routes) listExecutions(ctx context.Context, input *dto.ExecutionListInput) (*dto.ExecutionListOutput, error) {
-	// TODO: Implement list all executions in service
-	return nil, huma.Error501NotImplemented("List all executions not yet implemented")
+	executions, err := hr.service.ListExecutions(ctx, input)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to list executions", err)
+	}
+	return &dto.ExecutionListOutput{Body: *executions}, nil
 }
 
 func (hr *Routes) getExecution(ctx context.Context, input *dto.ExecutionGetInput) (*dto.ExecutionGetOutput, error) {
