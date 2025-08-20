@@ -161,6 +161,36 @@ func main() {
 	// Disable default docs path since we're using Scalar
 	humaConfig.DocsPath = ""
 	
+	// Add security schemes for authentication
+	humaConfig.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
+		"bearerAuth": {
+			Type:   "http",
+			Scheme: "bearer",
+			BearerFormat: "JWT",
+			Description: "JWT Bearer token authentication",
+		},
+		"cookieAuth": {
+			Type: "apiKey",
+			In:   "cookie",
+			Name: "falcon_auth_token",
+			Description: "JWT authentication cookie",
+		},
+	}
+	
+	// Add tags for better organization in Scalar docs
+	humaConfig.Tags = []*huma.Tag{
+		{Name: "Auth", Description: "EVE Online SSO authentication and JWT management"},
+		{Name: "Auth / EVE", Description: "EVE Online SSO integration endpoints"},
+		{Name: "Auth / Profile", Description: "User profile management and character information"},
+		{Name: "Users", Description: "User management and character administration"},
+		{Name: "Users / Management", Description: "Administrative user management operations"},
+		{Name: "Users / Characters", Description: "Character listing and management"},
+		{Name: "Scheduler", Description: "Task scheduling, execution, and monitoring"},
+		{Name: "Scheduler / Status", Description: "Task scheduler status and statistics"},
+		{Name: "Scheduler / Tasks", Description: "Scheduled task management and configuration"},
+		{Name: "Scheduler / Executions", Description: "Task execution history and monitoring"},
+	}
+	
 	// Add servers based on environment configuration or defaults
 	customServers := config.GetOpenAPIServers()
 	if customServers != nil {

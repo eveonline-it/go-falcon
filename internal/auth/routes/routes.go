@@ -52,7 +52,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 	authMiddleware := humaMiddleware.NewAuthMiddleware(authService)
 
 	// EVE Online SSO endpoints (public)
-	huma.Get(api, basePath+"/eve/login", func(ctx context.Context, input *dto.EVELoginInput) (*dto.EVELoginOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-eve-login",
+		Method:      "GET",
+		Path:        basePath + "/eve/login",
+		Summary:     "Initiate EVE SSO login (basic, no scopes)",
+		Description: "Start EVE Online SSO authentication flow without additional scopes",
+		Tags:        []string{"Auth / EVE"},
+	}, func(ctx context.Context, input *dto.EVELoginInput) (*dto.EVELoginOutput, error) {
 		// Extract user ID from context if authenticated
 		userID := ""
 		
@@ -65,7 +72,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		return &dto.EVELoginOutput{Body: *loginResp}, nil
 	})
 	
-	huma.Get(api, basePath+"/eve/register", func(ctx context.Context, input *dto.EVERegisterInput) (*dto.EVERegisterOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-eve-register",
+		Method:      "GET",
+		Path:        basePath + "/eve/register",
+		Summary:     "Initiate EVE SSO registration (full scopes)",
+		Description: "Start EVE Online SSO authentication flow with all required scopes",
+		Tags:        []string{"Auth / EVE"},
+	}, func(ctx context.Context, input *dto.EVERegisterInput) (*dto.EVERegisterOutput, error) {
 		// Extract user ID from context if authenticated
 		userID := ""
 		
@@ -78,7 +92,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		return &dto.EVERegisterOutput{Body: *loginResp}, nil
 	})
 
-	huma.Get(api, basePath+"/eve/callback", func(ctx context.Context, input *dto.EVECallbackInput) (*dto.EVECallbackOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-eve-callback",
+		Method:      "GET",
+		Path:        basePath + "/eve/callback",
+		Summary:     "EVE SSO OAuth2 callback",
+		Description: "Handle OAuth2 callback from EVE Online SSO",
+		Tags:        []string{"Auth / EVE"},
+	}, func(ctx context.Context, input *dto.EVECallbackInput) (*dto.EVECallbackOutput, error) {
 		// Handle the OAuth callback
 		jwtToken, _, err := authService.HandleEVECallback(ctx, input.Code, input.State)
 		if err != nil {
@@ -101,7 +122,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		}, nil
 	})
 
-	huma.Post(api, basePath+"/eve/token", func(ctx context.Context, input *dto.EVETokenExchangeInput) (*dto.EVETokenExchangeOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-eve-token-exchange",
+		Method:      "POST",
+		Path:        basePath + "/eve/token",
+		Summary:     "Exchange EVE token for JWT",
+		Description: "Exchange EVE SSO access token for internal JWT (mobile apps)",
+		Tags:        []string{"Auth / EVE"},
+	}, func(ctx context.Context, input *dto.EVETokenExchangeInput) (*dto.EVETokenExchangeOutput, error) {
 		// Exchange EVE token for JWT
 		tokenResp, err := authService.ExchangeEVEToken(ctx, &input.Body)
 		if err != nil {
@@ -111,18 +139,39 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		return &dto.EVETokenExchangeOutput{Body: *tokenResp}, nil
 	})
 
-	huma.Post(api, basePath+"/eve/refresh", func(ctx context.Context, input *dto.RefreshTokenInput) (*dto.RefreshTokenOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-eve-refresh",
+		Method:      "POST",
+		Path:        basePath + "/eve/refresh",
+		Summary:     "Refresh access token",
+		Description: "Refresh an expired EVE access token using refresh token",
+		Tags:        []string{"Auth / EVE"},
+	}, func(ctx context.Context, input *dto.RefreshTokenInput) (*dto.RefreshTokenOutput, error) {
 		// TODO: Implement token refresh
 		return nil, huma.Error501NotImplemented("Token refresh not yet implemented")
 	})
 
-	huma.Get(api, basePath+"/eve/verify", func(ctx context.Context, input *dto.VerifyTokenInput) (*dto.VerifyTokenOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-eve-verify",
+		Method:      "GET",
+		Path:        basePath + "/eve/verify",
+		Summary:     "Verify JWT token",
+		Description: "Verify the validity of a JWT token",
+		Tags:        []string{"Auth / EVE"},
+	}, func(ctx context.Context, input *dto.VerifyTokenInput) (*dto.VerifyTokenOutput, error) {
 		// TODO: Implement token verification
 		return nil, huma.Error501NotImplemented("Token verification not yet implemented")
 	})
 
 	// Authentication status and user info (public with optional auth)
-	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.AuthStatusInput) (*dto.AuthStatusOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-status",
+		Method:      "GET",
+		Path:        basePath + "/status",
+		Summary:     "Check authentication status",
+		Description: "Quick check if user is authenticated",
+		Tags:        []string{"Auth"},
+	}, func(ctx context.Context, input *dto.AuthStatusInput) (*dto.AuthStatusOutput, error) {
 		// Use the new method that accepts header strings
 		statusResp, err := authService.GetAuthStatusFromHeaders(ctx, input.Authorization, input.Cookie)
 		if err != nil {
@@ -132,7 +181,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		return &dto.AuthStatusOutput{Body: *statusResp}, nil
 	})
 
-	huma.Get(api, basePath+"/user", func(ctx context.Context, input *dto.UserInfoInput) (*dto.UserInfoOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-user-info",
+		Method:      "GET",
+		Path:        basePath + "/user",
+		Summary:     "Get current user info",
+		Description: "Get information about the currently authenticated user",
+		Tags:        []string{"Auth"},
+	}, func(ctx context.Context, input *dto.UserInfoInput) (*dto.UserInfoOutput, error) {
 		// Use the new method that accepts header strings
 		userInfo, err := authService.GetCurrentUserFromHeaders(ctx, input.Authorization, input.Cookie)
 		if err != nil {
@@ -143,7 +199,15 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 	})
 
 	// Profile endpoints (require authentication)
-	huma.Get(api, basePath+"/profile", func(ctx context.Context, input *dto.ProfileInput) (*dto.ProfileOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-get-profile",
+		Method:      "GET",
+		Path:        basePath + "/profile",
+		Summary:     "Get user profile",
+		Description: "Get full user profile with character information (requires authentication)",
+		Tags:        []string{"Auth / Profile"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.ProfileInput) (*dto.ProfileOutput, error) {
 		// Validate authentication using Huma auth middleware
 		user, err := authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 		if err != nil {
@@ -174,7 +238,15 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		return &dto.ProfileOutput{Body: *response}, nil
 	})
 
-	huma.Post(api, basePath+"/profile/refresh", func(ctx context.Context, input *dto.ProfileRefreshInput) (*dto.ProfileRefreshOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-refresh-profile",
+		Method:      "POST",
+		Path:        basePath + "/profile/refresh",
+		Summary:     "Refresh user profile",
+		Description: "Refresh user profile data from EVE Online ESI (requires authentication)",
+		Tags:        []string{"Auth / Profile"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.ProfileRefreshInput) (*dto.ProfileRefreshOutput, error) {
 		// Validate authentication using Huma auth middleware
 		user, err := authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 		if err != nil {
@@ -205,7 +277,15 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		return &dto.ProfileRefreshOutput{Body: *response}, nil
 	})
 
-	huma.Get(api, basePath+"/token", func(ctx context.Context, input *dto.TokenInput) (*dto.TokenOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-get-token",
+		Method:      "GET",
+		Path:        basePath + "/token",
+		Summary:     "Get bearer token",
+		Description: "Get current JWT bearer token for API access (requires authentication)",
+		Tags:        []string{"Auth"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TokenInput) (*dto.TokenOutput, error) {
 		// Validate authentication using Huma auth middleware
 		user, err := authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 		if err != nil {
@@ -234,7 +314,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 	})
 
 	// Public endpoints
-	huma.Get(api, basePath+"/profile/public", func(ctx context.Context, input *dto.PublicProfileInput) (*dto.PublicProfileOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-public-profile",
+		Method:      "GET",
+		Path:        basePath + "/profile/public",
+		Summary:     "Get public profile",
+		Description: "Get public profile information by character ID",
+		Tags:        []string{"Auth / Profile"},
+	}, func(ctx context.Context, input *dto.PublicProfileInput) (*dto.PublicProfileOutput, error) {
 		profile, err := authService.GetPublicProfile(ctx, input.CharacterID)
 		if err != nil {
 			return nil, huma.Error404NotFound("Character not found", err)
@@ -243,7 +330,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		return &dto.PublicProfileOutput{Body: *profile}, nil
 	})
 
-	huma.Post(api, basePath+"/logout", func(ctx context.Context, input *dto.LogoutInput) (*dto.LogoutOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-logout",
+		Method:      "POST",
+		Path:        basePath + "/logout",
+		Summary:     "Logout user",
+		Description: "Clear authentication cookie and logout the user",
+		Tags:        []string{"Auth"},
+	}, func(ctx context.Context, input *dto.LogoutInput) (*dto.LogoutOutput, error) {
 		// Clear authentication cookie
 		response := dto.LogoutResponse{
 			Success: true,

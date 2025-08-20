@@ -42,12 +42,26 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 // RegisterSchedulerRoutes registers scheduler routes on a shared Huma API
 func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, middleware *middleware.Middleware) {
 	// Public endpoints (no authentication required)
-	huma.Get(api, basePath+"/status", func(ctx context.Context, input *dto.SchedulerStatusInput) (*dto.SchedulerStatusOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-get-status",
+		Method:      "GET",
+		Path:        basePath + "/status",
+		Summary:     "Get scheduler status",
+		Description: "Get current scheduler status including worker count and running tasks",
+		Tags:        []string{"Scheduler / Status"},
+	}, func(ctx context.Context, input *dto.SchedulerStatusInput) (*dto.SchedulerStatusOutput, error) {
 		status := service.GetStatus()
 		return &dto.SchedulerStatusOutput{Body: *status}, nil
 	})
 
-	huma.Get(api, basePath+"/stats", func(ctx context.Context, input *dto.SchedulerStatsInput) (*dto.SchedulerStatsOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-get-stats",
+		Method:      "GET",
+		Path:        basePath + "/stats",
+		Summary:     "Get scheduler statistics",
+		Description: "Get comprehensive scheduler statistics including task counts and execution metrics",
+		Tags:        []string{"Scheduler / Status"},
+	}, func(ctx context.Context, input *dto.SchedulerStatsInput) (*dto.SchedulerStatsOutput, error) {
 		stats, err := service.GetStats(ctx)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get scheduler stats", err)
@@ -56,7 +70,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	// Task management endpoints (require authentication and permissions)
-	huma.Get(api, basePath+"/tasks", func(ctx context.Context, input *dto.TaskListInput) (*dto.TaskListOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-list-tasks",
+		Method:      "GET",
+		Path:        basePath + "/tasks",
+		Summary:     "List scheduled tasks",
+		Description: "List all scheduled tasks with filtering and pagination support",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskListInput) (*dto.TaskListOutput, error) {
 		// Convert Huma input to service query format
 		query := &dto.TaskListQuery{
 			Page:     input.Page,
@@ -81,7 +103,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskListOutput{Body: *tasks}, nil
 	})
 
-	huma.Post(api, basePath+"/tasks", func(ctx context.Context, input *dto.TaskCreateInput) (*dto.TaskCreateOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-create-task",
+		Method:      "POST",
+		Path:        basePath + "/tasks",
+		Summary:     "Create new task",
+		Description: "Create a new scheduled task with cron-like scheduling",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskCreateInput) (*dto.TaskCreateOutput, error) {
 		task, err := service.CreateTask(ctx, &input.Body)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Failed to create task", err)
@@ -89,7 +119,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskCreateOutput{Body: *task}, nil
 	})
 
-	huma.Get(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskGetInput) (*dto.TaskGetOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-get-task",
+		Method:      "GET",
+		Path:        basePath + "/tasks/{task_id}",
+		Summary:     "Get task details",
+		Description: "Get detailed information about a specific scheduled task",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskGetInput) (*dto.TaskGetOutput, error) {
 		task, err := service.GetTask(ctx, input.TaskID)
 		if err != nil {
 			if err.Error() == "task not found" {
@@ -100,7 +138,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskGetOutput{Body: *task}, nil
 	})
 
-	huma.Put(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskUpdateInput) (*dto.TaskUpdateOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-update-task",
+		Method:      "PUT",
+		Path:        basePath + "/tasks/{task_id}",
+		Summary:     "Update task",
+		Description: "Update an existing scheduled task configuration",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskUpdateInput) (*dto.TaskUpdateOutput, error) {
 		task, err := service.UpdateTask(ctx, input.TaskID, &input.Body)
 		if err != nil {
 			if err.Error() == "task not found" {
@@ -114,7 +160,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskUpdateOutput{Body: *task}, nil
 	})
 
-	huma.Delete(api, basePath+"/tasks/{task_id}", func(ctx context.Context, input *dto.TaskDeleteInput) (*dto.TaskDeleteOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-delete-task",
+		Method:      "DELETE",
+		Path:        basePath + "/tasks/{task_id}",
+		Summary:     "Delete task",
+		Description: "Delete a scheduled task (system tasks cannot be deleted)",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskDeleteInput) (*dto.TaskDeleteOutput, error) {
 		err := service.DeleteTask(ctx, input.TaskID)
 		if err != nil {
 			if err.Error() == "task not found" {
@@ -134,7 +188,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	// Task control endpoints
-	huma.Post(api, basePath+"/tasks/{task_id}/execute", func(ctx context.Context, input *dto.TaskExecuteInput) (*dto.TaskExecuteOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-execute-task",
+		Method:      "POST",
+		Path:        basePath + "/tasks/{task_id}/execute",
+		Summary:     "Execute task immediately",
+		Description: "Manually trigger immediate execution of a scheduled task",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskExecuteInput) (*dto.TaskExecuteOutput, error) {
 		execution, err := service.StartTask(ctx, input.TaskID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to execute task", err)
@@ -142,17 +204,41 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskExecuteOutput{Body: *execution}, nil
 	})
 
-	huma.Post(api, basePath+"/tasks/{task_id}/enable", func(ctx context.Context, input *dto.TaskEnableInput) (*dto.TaskEnableOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-enable-task",
+		Method:      "POST",
+		Path:        basePath + "/tasks/{task_id}/enable",
+		Summary:     "Enable task",
+		Description: "Enable a disabled scheduled task",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskEnableInput) (*dto.TaskEnableOutput, error) {
 		// TODO: Implement enable task in service
 		return nil, huma.Error501NotImplemented("Task enable not yet implemented")
 	})
 
-	huma.Post(api, basePath+"/tasks/{task_id}/disable", func(ctx context.Context, input *dto.TaskDisableInput) (*dto.TaskDisableOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-disable-task",
+		Method:      "POST",
+		Path:        basePath + "/tasks/{task_id}/disable",
+		Summary:     "Disable task",
+		Description: "Disable a scheduled task without deleting it",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskDisableInput) (*dto.TaskDisableOutput, error) {
 		// TODO: Implement disable task in service
 		return nil, huma.Error501NotImplemented("Task disable not yet implemented")
 	})
 
-	huma.Post(api, basePath+"/tasks/{task_id}/pause", func(ctx context.Context, input *dto.TaskPauseInput) (*dto.TaskPauseOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-pause-task",
+		Method:      "POST",
+		Path:        basePath + "/tasks/{task_id}/pause",
+		Summary:     "Pause task",
+		Description: "Pause execution of a scheduled task",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskPauseInput) (*dto.TaskPauseOutput, error) {
 		err := service.PauseTask(ctx, input.TaskID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to pause task", err)
@@ -166,7 +252,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskPauseOutput{Body: *task}, nil
 	})
 
-	huma.Post(api, basePath+"/tasks/{task_id}/resume", func(ctx context.Context, input *dto.TaskResumeInput) (*dto.TaskResumeOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-resume-task",
+		Method:      "POST",
+		Path:        basePath + "/tasks/{task_id}/resume",
+		Summary:     "Resume task",
+		Description: "Resume execution of a paused scheduled task",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskResumeInput) (*dto.TaskResumeOutput, error) {
 		err := service.ResumeTask(ctx, input.TaskID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to resume task", err)
@@ -181,7 +275,15 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	// Execution endpoints
-	huma.Get(api, basePath+"/tasks/{task_id}/history", func(ctx context.Context, input *dto.TaskExecutionHistoryInput) (*dto.TaskExecutionHistoryOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-task-history",
+		Method:      "GET",
+		Path:        basePath + "/tasks/{task_id}/history",
+		Summary:     "Get task execution history",
+		Description: "Get execution history for a specific scheduled task",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskExecutionHistoryInput) (*dto.TaskExecutionHistoryOutput, error) {
 		query := &dto.TaskExecutionQuery{
 			Page:     input.Page,
 			PageSize: input.PageSize,
@@ -202,12 +304,28 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskExecutionHistoryOutput{Body: *executions}, nil
 	})
 
-	huma.Get(api, basePath+"/executions", func(ctx context.Context, input *dto.ExecutionListInput) (*dto.ExecutionListOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-list-executions",
+		Method:      "GET",
+		Path:        basePath + "/executions",
+		Summary:     "List all executions",
+		Description: "List all task executions across all tasks",
+		Tags:        []string{"Scheduler / Executions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.ExecutionListInput) (*dto.ExecutionListOutput, error) {
 		// TODO: Implement list all executions in service
 		return nil, huma.Error501NotImplemented("List all executions not yet implemented")
 	})
 
-	huma.Get(api, basePath+"/executions/{execution_id}", func(ctx context.Context, input *dto.ExecutionGetInput) (*dto.ExecutionGetOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-get-execution",
+		Method:      "GET",
+		Path:        basePath + "/executions/{execution_id}",
+		Summary:     "Get execution details",
+		Description: "Get detailed information about a specific task execution",
+		Tags:        []string{"Scheduler / Executions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.ExecutionGetInput) (*dto.ExecutionGetOutput, error) {
 		execution, err := service.GetExecution(ctx, input.ExecutionID)
 		if err != nil {
 			if err.Error() == "execution not found" {
@@ -219,12 +337,28 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 	})
 
 	// Bulk operations
-	huma.Post(api, basePath+"/tasks/bulk", func(ctx context.Context, input *dto.BulkTaskOperationInput) (*dto.BulkTaskOperationOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-bulk-operations",
+		Method:      "POST",
+		Path:        basePath + "/tasks/bulk",
+		Summary:     "Bulk task operations",
+		Description: "Perform bulk operations on multiple tasks",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.BulkTaskOperationInput) (*dto.BulkTaskOperationOutput, error) {
 		// TODO: Implement bulk operations in service
 		return nil, huma.Error501NotImplemented("Bulk operations not yet implemented")
 	})
 
-	huma.Post(api, basePath+"/tasks/import", func(ctx context.Context, input *dto.TaskImportInput) (*dto.TaskImportOutput, error) {
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-import-tasks",
+		Method:      "POST",
+		Path:        basePath + "/tasks/import",
+		Summary:     "Import tasks",
+		Description: "Import task configurations from JSON",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskImportInput) (*dto.TaskImportOutput, error) {
 		// TODO: Implement task import in service
 		return nil, huma.Error501NotImplemented("Task import not yet implemented")
 	})
