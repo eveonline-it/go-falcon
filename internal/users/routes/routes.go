@@ -47,8 +47,11 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Description: "Get aggregate statistics about users in the system",
 		Tags:        []string{"Users"},
 	}, func(ctx context.Context, input *dto.UserStatsInput) (*dto.UserStatsOutput, error) {
-		// TODO: Implement once service method is available
-		return nil, huma.Error501NotImplemented("User statistics not yet implemented")
+		stats, err := service.GetUserStats(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get user statistics", err)
+		}
+		return &dto.UserStatsOutput{Body: *stats}, nil
 	})
 
 	// Administrative endpoints (require authentication and permissions)
@@ -110,8 +113,11 @@ func (hr *Routes) registerRoutes() {
 // Public endpoint handlers
 
 func (hr *Routes) getUserStats(ctx context.Context, input *dto.UserStatsInput) (*dto.UserStatsOutput, error) {
-	// TODO: Implement once service method is available
-	return nil, huma.Error501NotImplemented("User statistics not yet implemented")
+	stats, err := hr.service.GetUserStats(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to get user statistics", err)
+	}
+	return &dto.UserStatsOutput{Body: *stats}, nil
 }
 
 // Administrative endpoint handlers
