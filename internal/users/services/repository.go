@@ -3,8 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"math"
-	"strconv"
 	"time"
 
 	"go-falcon/internal/users/dto"
@@ -12,7 +10,6 @@ import (
 	"go-falcon/pkg/database"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -65,112 +62,6 @@ func (r *Repository) GetUserByUserID(ctx context.Context, userID string) (*model
 	return &user, nil
 }
 
-// ListUsers retrieves users with pagination and filtering
-func (r *Repository) ListUsers(ctx context.Context, req dto.UserSearchRequest) (*dto.UserListResponse, error) {
-	collection := r.mongodb.Collection(models.User{}.CollectionName())
-	
-	// Build filter
-	filter := bson.M{}
-	
-	// Search by character name or ID
-	if req.Query != "" {
-		// Try to parse as character ID first
-		if characterID, err := strconv.Atoi(req.Query); err == nil {
-			filter["character_id"] = characterID
-		} else {
-			// Search by character name (case-insensitive regex)
-			filter["character_name"] = bson.M{
-				"$regex": primitive.Regex{
-					Pattern: req.Query,
-					Options: "i",
-				},
-			}
-		}
-	}
-	
-	// Filter by enabled status
-	if req.Enabled != nil {
-		filter["enabled"] = *req.Enabled
-	}
-	
-	// Filter by banned status
-	if req.Banned != nil {
-		filter["banned"] = *req.Banned
-	}
-	
-	// Filter by invalid status
-	if req.Invalid != nil {
-		filter["invalid"] = *req.Invalid
-	}
-	
-	// Filter by position
-	if req.Position != nil {
-		filter["position"] = *req.Position
-	}
-
-	// Build sort options
-	sortOrder := 1
-	if req.SortOrder == "desc" {
-		sortOrder = -1
-	}
-	
-	sortOptions := bson.D{{req.SortBy, sortOrder}}
-
-	// Count total documents matching filter
-	total, err := collection.CountDocuments(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count users: %w", err)
-	}
-
-	// Calculate pagination
-	skip := (req.Page - 1) * req.PageSize
-	totalPages := int(math.Ceil(float64(total) / float64(req.PageSize)))
-
-	// Find users with pagination
-	findOptions := options.Find().
-		SetSkip(int64(skip)).
-		SetLimit(int64(req.PageSize)).
-		SetSort(sortOptions)
-
-	cursor, err := collection.Find(ctx, filter, findOptions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find users: %w", err)
-	}
-	defer cursor.Close(ctx)
-
-	var users []models.User
-	if err := cursor.All(ctx, &users); err != nil {
-		return nil, fmt.Errorf("failed to decode users: %w", err)
-	}
-
-	// Convert to response DTOs
-	userResponses := make([]dto.UserResponse, len(users))
-	for i, user := range users {
-		userResponses[i] = dto.UserResponse{
-			CharacterID:   user.CharacterID,
-			UserID:        user.UserID,
-			Enabled:       user.Enabled,
-			Banned:        user.Banned,
-			Invalid:       user.Invalid,
-			Scopes:        user.Scopes,
-			Position:      user.Position,
-			Notes:         user.Notes,
-			CreatedAt:     user.CreatedAt,
-			UpdatedAt:     user.UpdatedAt,
-			LastLogin:     user.LastLogin,
-			CharacterName: user.CharacterName,
-			Valid:         user.Valid,
-		}
-	}
-
-	return &dto.UserListResponse{
-		Users:      userResponses,
-		Total:      int(total),
-		Page:       req.Page,
-		PageSize:   req.PageSize,
-		TotalPages: totalPages,
-	}, nil
-}
 
 // UpdateUser updates user status and administrative fields
 func (r *Repository) UpdateUser(ctx context.Context, characterID int, req dto.UserUpdateRequest) (*models.User, error) {

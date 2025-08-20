@@ -30,16 +30,6 @@ func (s *Service) GetUserByUserID(ctx context.Context, userID string) (*models.U
 	return s.repository.GetUserByUserID(ctx, userID)
 }
 
-// ListUsers retrieves users with pagination and filtering
-func (s *Service) ListUsers(ctx context.Context, req dto.UserSearchRequest) (*dto.UserListResponse, error) {
-	// Set defaults and validate
-	req.SetDefaults()
-	if err := dto.ValidateUserSearchRequest(&req); err != nil {
-		return nil, err
-	}
-
-	return s.repository.ListUsers(ctx, req)
-}
 
 // UpdateUser updates user status and administrative fields
 func (s *Service) UpdateUser(ctx context.Context, characterID int, req dto.UserUpdateRequest) (*models.User, error) {

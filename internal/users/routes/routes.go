@@ -45,10 +45,6 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 	})
 
 	// Administrative endpoints (require authentication and permissions)
-	huma.Get(api, basePath+"/users", func(ctx context.Context, input *dto.UserListInput) (*dto.UserListOutput, error) {
-		// TODO: Implement once service method is available
-		return nil, huma.Error501NotImplemented("User listing not yet implemented")
-	})
 
 	huma.Get(api, basePath+"/users/{character_id}", func(ctx context.Context, input *dto.UserGetInput) (*dto.UserGetOutput, error) {
 		// TODO: Implement once service method is available
@@ -73,7 +69,6 @@ func (hr *Routes) registerRoutes() {
 	huma.Get(hr.api, "/stats", hr.getUserStats)
 
 	// Administrative endpoints (require authentication and permissions)
-	huma.Get(hr.api, "/users", hr.listUsers)
 	huma.Get(hr.api, "/users/{character_id}", hr.getUser)
 	huma.Put(hr.api, "/users/{character_id}", hr.updateUser)
 
@@ -89,11 +84,6 @@ func (hr *Routes) getUserStats(ctx context.Context, input *dto.UserStatsInput) (
 }
 
 // Administrative endpoint handlers
-
-func (hr *Routes) listUsers(ctx context.Context, input *dto.UserListInput) (*dto.UserListOutput, error) {
-	// TODO: Implement once service method is available
-	return nil, huma.Error501NotImplemented("User listing not yet implemented")
-}
 
 func (hr *Routes) getUser(ctx context.Context, input *dto.UserGetInput) (*dto.UserGetOutput, error) {
 	// TODO: Implement once service method is available
