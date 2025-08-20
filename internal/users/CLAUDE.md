@@ -156,7 +156,7 @@ PUT /api/users/mgt/{character_id}
 
 #### List User Characters
 ```
-GET /api/users/by-user-id/{user_id}/characters
+GET /api/users/{user_id}/characters
 ```
 **Authentication:** Required  
 **Permission:** Self-access or Authentication required
@@ -204,7 +204,7 @@ The following permissions should be configured in the Groups module:
 | `/api/users` | GET | Yes | Authentication required | List and search users |
 | `/api/users/mgt/{character_id}` | GET | Yes | Authentication required | Get specific user details |
 | `/api/users/mgt/{character_id}` | PUT | Yes | Authentication required | Update user status and settings |
-| `/api/users/by-user-id/{user_id}/characters` | GET | Yes | Self or Authentication required | List characters for a user |
+| `/api/users/{user_id}/characters` | GET | Yes | Self or Authentication required | List characters for a user |
 
 ### Authorization Logic
 

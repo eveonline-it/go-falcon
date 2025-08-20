@@ -102,14 +102,24 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 	huma.Register(api, huma.Operation{
 		OperationID: "users-get-user-characters",
 		Method:      "GET",
-		Path:        basePath + "/by-user-id/{user_id}/characters",
+		Path:        basePath + "/{user_id}/characters",
 		Summary:     "List user characters",
 		Description: "List all characters associated with a user ID",
 		Tags:        []string{"Users / Characters"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserCharactersInput) (*dto.UserCharactersOutput, error) {
-		// TODO: Implement once service method is available
-		return nil, huma.Error501NotImplemented("User characters listing not yet implemented")
+		characters, err := service.ListCharacters(ctx, input.UserID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get user characters", err)
+		}
+		
+		response := dto.CharacterListResponse{
+			UserID:     input.UserID,
+			Characters: characters,
+			Count:      len(characters),
+		}
+		
+		return &dto.UserCharactersOutput{Body: response}, nil
 	})
 }
 
@@ -123,7 +133,7 @@ func (hr *Routes) registerRoutes() {
 	huma.Put(hr.api, "/mgt/{character_id}", hr.updateUser)
 
 	// User character management
-	huma.Get(hr.api, "/by-user-id/{user_id}/characters", hr.getUserCharacters)
+	huma.Get(hr.api, "/{user_id}/characters", hr.getUserCharacters)
 }
 
 // Public endpoint handlers
@@ -167,6 +177,16 @@ func (hr *Routes) updateUser(ctx context.Context, input *dto.UserUpdateInput) (*
 // User management handlers
 
 func (hr *Routes) getUserCharacters(ctx context.Context, input *dto.UserCharactersInput) (*dto.UserCharactersOutput, error) {
-	// TODO: Implement once service method is available
-	return nil, huma.Error501NotImplemented("User characters listing not yet implemented")
+	characters, err := hr.service.ListCharacters(ctx, input.UserID)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to get user characters", err)
+	}
+	
+	response := dto.CharacterListResponse{
+		UserID:     input.UserID,
+		Characters: characters,
+		Count:      len(characters),
+	}
+	
+	return &dto.UserCharactersOutput{Body: response}, nil
 }
