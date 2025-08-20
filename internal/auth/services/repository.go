@@ -46,6 +46,15 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 	// Use upsert to create or update based on character_id
 	filter := bson.M{"character_id": profile.CharacterID}
 	
+	// Check if this is the first user (super admin logic)
+	if !profile.IsSuperAdmin {
+		count, err := collection.CountDocuments(ctx, bson.M{})
+		if err == nil && count == 0 {
+			// This is the first user, make them super admin
+			profile.IsSuperAdmin = true
+		}
+	}
+
 	// Prepare update document - exclude created_at from $set to avoid conflict
 	updateFields := bson.M{
 		"user_id":                profile.UserID,
@@ -65,6 +74,7 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 		"last_login":             profile.LastLogin,
 		"profile_updated":        profile.ProfileUpdated,
 		"valid":                  profile.Valid,
+		"is_super_admin":         profile.IsSuperAdmin,
 		"metadata":               profile.Metadata,
 		"updated_at":             profile.UpdatedAt,
 	}

@@ -125,33 +125,6 @@ health-infra: ## Check infrastructure health
 	@echo "Redis:"
 	@docker exec -it go-falcon-redis redis-cli ping || echo "Redis not running"
 
-# Development tools
-postman: ## Generate Postman collection for all gateway endpoints
-	@echo "📋 Generating Postman collection..."
-	@set -a && [ -f .env ] && . ./.env && set +a && go run ./cmd/postman
-	@echo "✅ Postman collection generated."
-
-postman-build: ## Build and run postman exporter
-	@echo "🔨 Building postman exporter..."
-	@mkdir -p bin
-	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
-	@echo "📋 Generating Postman collection..."
-	@set -a && [ -f .env ] && . ./.env && set +a && ./bin/postman
-	@echo "✅ Postman collection generated."
-
-openapi: ## Generate OpenAPI 3.1 specification for all gateway endpoints
-	@echo "📋 Generating OpenAPI 3.1 specification..."
-	@set -a && [ -f .env ] && . ./.env && set +a && go run ./cmd/openapi
-	@echo "✅ OpenAPI specification generated."
-
-openapi-build: ## Build and run openapi exporter
-	@echo "🔨 Building openapi exporter..."
-	@mkdir -p bin
-	@go build $(LDFLAGS) -o bin/openapi ./cmd/openapi
-	@echo "📋 Generating OpenAPI 3.1 specification..."
-	@set -a && [ -f .env ] && . ./.env && set +a && ./bin/openapi
-	@echo "✅ OpenAPI specification generated."
-
 # SDE management is now handled via the web interface
 # Use: curl -X POST http://localhost:8080/sde/update
 

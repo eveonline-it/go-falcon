@@ -180,17 +180,19 @@ func (s *EVEService) ValidateJWT(tokenString string) (*models.AuthenticatedUser,
 	characterID := int(characterIDFloat)
 	characterName, _ := claims["character_name"].(string)
 	scopes, _ := claims["scopes"].(string)
+	isSuperAdmin, _ := claims["is_super_admin"].(bool)
 
 	return &models.AuthenticatedUser{
 		UserID:        userID,
 		CharacterID:   characterID,
 		CharacterName: characterName,
 		Scopes:        scopes,
+		IsSuperAdmin:  isSuperAdmin,
 	}, nil
 }
 
 // GenerateJWT creates a JWT token for the authenticated user
-func (s *EVEService) GenerateJWT(userID string, characterID int, characterName, scopes string) (string, time.Time, error) {
+func (s *EVEService) GenerateJWT(userID string, characterID int, characterName, scopes string, isSuperAdmin bool) (string, time.Time, error) {
 	expiresAt := time.Now().Add(config.GetCookieDuration())
 	
 	claims := jwt.MapClaims{
@@ -198,6 +200,7 @@ func (s *EVEService) GenerateJWT(userID string, characterID int, characterName, 
 		"character_id":   characterID,
 		"character_name": characterName,
 		"scopes":         scopes,
+		"is_super_admin": isSuperAdmin,
 		"exp":            expiresAt.Unix(),
 		"iat":            time.Now().Unix(),
 		"iss":            "go-falcon",

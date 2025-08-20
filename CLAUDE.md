@@ -37,21 +37,21 @@ go-falcon/
 │   └── restore/           # Data restoration utility
 ├── internal/              # Private application modules
 │   ├── auth/             # EVE SSO authentication
-│   │   ├── dto/          # Request/Response structures
+│   │   ├── dto/          # Input/Output structures
 │   │   ├── middleware/   # Auth-specific middleware
 │   │   ├── routes/       # Route definitions
 │   │   ├── services/     # Business logic
 │   │   ├── models/       # Database schemas
 │   │   └── CLAUDE.md     # Module documentation
 │   ├── scheduler/        # Task scheduling system
-│   │   ├── dto/          # Request/Response structures
+│   │   ├── dto/          # Input/Output structures
 │   │   ├── middleware/   # Auth-specific middleware
 │   │   ├── routes/       # Route definitions
 │   │   ├── services/     # Business logic
 │   │   ├── models/       # Database schemas
 │   │   └── CLAUDE.md     # Module documentation
 │   └── users/            # User management
-│   │   ├── dto/          # Request/Response structures
+│       ├── dto/          # Input/Output structures
 │   │   ├── middleware/   # Auth-specific middleware
 │   │   ├── routes/       # Route definitions
 │   │   ├── services/     # Business logic
@@ -276,44 +276,22 @@ req.Header.Set("Accept", "application/json")
 
 ## 🔐 Permission System
 
-### Granular Permissions Model
+### Simplified Permission Model
 
-Permissions follow a **Service.Resource.Action** pattern:
+The system now uses a simplified permission model with super admin status:
 
-```
-scheduler.tasks.read     # Read scheduled tasks
-sde.entities.write      # Modify SDE data
-users.profiles.admin    # Full user management
-```
+- **super_admin** - Full administrative access to all modules and functions
+- **authenticated** - Standard authenticated user access to public and user-specific endpoints
 
-### Action Hierarchy
+### Super Admin Configuration
 
-1. **read** - View data
-2. **write** - Modify data
-3. **delete** - Remove data
-4. **admin** - Full control
-
-### Permission Management
-
-Super admin endpoints for permission control:
+Set the `SUPER_ADMIN_CHARACTER_ID` environment variable to grant super admin status to a specific EVE Online character:
 
 ```bash
-# Create service definition
-POST /admin/permissions/services
-
-# Assign permissions to groups
-POST /admin/permissions/assignments
-
-# Check user permissions
-POST /admin/permissions/check
+SUPER_ADMIN_CHARACTER_ID=123456789
 ```
 
-### Subject Types
-
-- **member** - Individual character
-- **group** - User groups (recommended)
-- **corporation** - EVE corporation
-- **alliance** - EVE alliance
+This character will have the `super_admin` permission and full access to all system functionality.
 
 ## 🛠️ Development Guidelines
 
@@ -324,8 +302,8 @@ Each module in `internal/` **MUST** follow this standardized structure:
 ```
 internal/modulename/
 ├── dto/                    # Data Transfer Objects
-│   ├── requests.go        # Request DTOs with validation
-│   ├── responses.go       # Response DTOs
+│   ├── inputs.go          # Request input DTOs with validation
+│   ├── outputs.go         # Response output DTOs
 │   └── validators.go      # Custom validation logic
 ├── middleware/            # Module-specific middleware
 │   ├── auth.go           # Authentication middleware
@@ -348,65 +326,62 @@ internal/modulename/
 #### Example Module Structure Implementation
 
 ```go
-// internal/mymodule/dto/requests.go
+// internal/mymodule/dto/inputs.go
 package dto
 
-import "github.com/go-playground/validator/v10"
-
-type CreateTaskRequest struct {
-    Name        string `json:"name" validate:"required,min=3,max=100"`
-    Description string `json:"description" validate:"max=500"`
-    CronExpr    string `json:"cron_expression" validate:"required,cron"`
+type CreateTaskInput struct {
+    Name        string `json:"name" minLength:"3" maxLength:"100" required:"true" description:"Task name"`
+    Description string `json:"description" maxLength:"500" description:"Task description"`
+    CronExpr    string `json:"cron_expression" required:"true" pattern:"^(@(hourly|daily|weekly|monthly)|\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\S+)$" description:"Cron expression"`
 }
 
-// internal/mymodule/dto/responses.go
+// internal/mymodule/dto/outputs.go
 package dto
 
-type TaskResponse struct {
-    ID          string    `json:"id"`
-    Name        string    `json:"name"`
-    Description string    `json:"description"`
-    CreatedAt   time.Time `json:"created_at"`
+type TaskOutput struct {
+    ID          string    `json:"id" description:"Task ID"`
+    Name        string    `json:"name" description:"Task name"`
+    Description string    `json:"description" description:"Task description"`
+    CreatedAt   time.Time `json:"created_at" description:"Creation timestamp"`
 }
 
 // internal/mymodule/routes/routes.go
 package routes
 
-func (m *Module) RegisterRoutes(r chi.Router) {
-    // Public routes
-    r.Group(func(r chi.Router) {
-        r.Get("/health", m.HealthCheck)
+import (
+    "github.com/danielgtaylor/huma/v2"
+    "github.com/danielgtaylor/huma/v2/adapters/humachi"
+)
+
+func (m *Module) RegisterUnifiedRoutes(api huma.API) {
+    // Health check endpoint
+    huma.Get(api, "/health", func(ctx context.Context, input *struct{}) (*HealthOutput, error) {
+        return &HealthOutput{Status: "healthy"}, nil
     })
     
-    // Protected routes
-    r.Group(func(r chi.Router) {
-        r.Use(m.middleware.RequireAuth)
-        r.Use(m.middleware.ValidateRequest)
-        
-        r.Post("/tasks", m.CreateTask)
-        r.Get("/tasks", m.ListTasks)
-        r.Get("/tasks/{id}", m.GetTask)
-    })
-}
-
-// internal/mymodule/middleware/validation.go
-package middleware
-
-func ValidateRequest(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Validation logic here
-        next.ServeHTTP(w, r)
-    })
+    // Task management endpoints with authentication
+    huma.Post(api, "/tasks", func(ctx context.Context, input *CreateTaskInput) (*TaskOutput, error) {
+        // Delegate to service layer
+        return m.service.CreateTask(ctx, input)
+    }, huma.Middlewares(m.middleware.RequireAuth))
+    
+    huma.Get(api, "/tasks", func(ctx context.Context, input *ListTasksInput) (*ListTasksOutput, error) {
+        return m.service.ListTasks(ctx, input)
+    }, huma.Middlewares(m.middleware.RequireAuth))
+    
+    huma.Get(api, "/tasks/{id}", func(ctx context.Context, input *GetTaskInput) (*TaskOutput, error) {
+        return m.service.GetTask(ctx, input.ID)
+    }, huma.Middlewares(m.middleware.RequireAuth))
 }
 ```
 
 ### Code Standards
 
 1. **DTO Requirements**
-   - All request/response structures in `dto/` package
-   - Use struct tags for validation
-   - Separate files for requests and responses
-   - Include OpenAPI annotations
+   - All input/output structures in `dto/` package
+   - Use Huma v2 struct tags for validation and OpenAPI generation
+   - Separate files for inputs and outputs
+   - Include descriptions in struct tags for documentation
 
 2. **Route Organization**
    - All routes defined in `routes/` package
@@ -454,8 +429,9 @@ func ValidateRequest(next http.Handler) http.Handler {
 2. **API Changes**
    ```bash
    # OpenAPI specification is automatically generated by Huma v2
-   # Access the live specification at: http://localhost:8080/huma-{module}/openapi.json
-   # No manual generation required
+   # Access the unified specification at: http://localhost:8080/openapi.json
+   # Or with API prefix: http://localhost:8080/api/openapi.json
+   # No manual generation required - updates in real-time
    ```
 
 3. **Documentation**
@@ -466,7 +442,7 @@ func ValidateRequest(next http.Handler) http.Handler {
 ### Best Practices
 
 - ✅ Follow the standardized module structure (dto/, routes/, middleware/, services/)
-- ✅ Use DTOs for all request/response handling
+- ✅ Use DTOs for all input/output handling with Huma v2 patterns
 - ✅ Implement validation at the DTO level
 - ✅ Keep routes clean - delegate to services
 - ✅ Use shared libraries for common functionality
@@ -506,11 +482,8 @@ The API gateway now provides a **single, comprehensive OpenAPI specification** t
 
 # All modules documented in one place:
 # - Auth Module: /auth/* endpoints
-# - Dev Module: /dev/* endpoints  
 # - Users Module: /users/* endpoints
 # - Scheduler Module: /scheduler/* endpoints
-# - SDE Module: /sde/* endpoints
-# - Notifications Module: /notifications/* endpoints
 ```
 
 **Modern API Features:**
@@ -527,9 +500,12 @@ The API gateway now provides a **single, comprehensive OpenAPI specification** t
 
 ### Available Endpoints
 
-**Traditional Endpoints:** Available at standard module paths (`/auth`, `/dev`, `/users`, etc.)
+**Unified API Endpoints:** All modules use Huma v2 for type-safe operations:
+- Auth Module: `/auth/*` endpoints with EVE SSO integration
+- Users Module: `/users/*` endpoints for user management
+- Scheduler Module: `/scheduler/*` endpoints for task scheduling
 
-**Huma v2 Endpoints:** Available at prefixed paths (`/huma-auth`, `/huma-dev`, `/huma-users`, etc.) with:
+**Features:**
 - Automatic OpenAPI 3.1.1 documentation
 - Type-safe request/response validation
 - Enhanced error handling

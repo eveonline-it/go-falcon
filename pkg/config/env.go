@@ -131,10 +131,6 @@ func GetEnvIntSlice(key string) []int {
 	return result
 }
 
-// GetSuperAdminCharacterID returns the super admin character ID from environment
-func GetSuperAdminCharacterID() int {
-	return GetIntEnv("SUPER_ADMIN_CHARACTER_ID", 0)
-}
 
 // GetHumaPort returns the HUMA server port from environment
 func GetHumaPort() string {

@@ -18,11 +18,11 @@ import (
 type Routes struct {
 	authService *services.AuthService
 	middleware  *middleware.Middleware
-	humaAuth    *humaMiddleware.HumaAuthMiddleware
+	authMiddleware *humaMiddleware.AuthMiddleware
 	api         huma.API
 }
 
-// NewRoutes creates a new Huma Auth routes handler
+// NewRoutes creates a new Auth routes handler
 func NewRoutes(authService *services.AuthService, middleware *middleware.Middleware, router chi.Router) *Routes {
 	// Create Huma API with Chi adapter
 	config := huma.DefaultConfig("Go Falcon Auth Module", "1.0.0")
@@ -30,13 +30,13 @@ func NewRoutes(authService *services.AuthService, middleware *middleware.Middlew
 	
 	api := humachi.New(router, config)
 
-	// Create Huma authentication middleware using the auth service as JWT validator
-	humaAuth := humaMiddleware.NewHumaAuthMiddleware(authService)
+	// Create authentication middleware using the auth service as JWT validator
+	authMiddleware := humaMiddleware.NewAuthMiddleware(authService)
 
 	hr := &Routes{
 		authService: authService,
 		middleware:  middleware,
-		humaAuth:    humaAuth,
+		authMiddleware: authMiddleware,
 		api:         api,
 	}
 
@@ -46,10 +46,10 @@ func NewRoutes(authService *services.AuthService, middleware *middleware.Middlew
 	return hr
 }
 
-// RegisterAuthRoutes registers auth routes on a shared Huma API
+// RegisterAuthRoutes registers auth routes on a shared API
 func RegisterAuthRoutes(api huma.API, basePath string, authService *services.AuthService, middleware *middleware.Middleware) {
-	// Create Huma authentication middleware using the auth service as JWT validator
-	humaAuth := humaMiddleware.NewHumaAuthMiddleware(authService)
+	// Create authentication middleware using the auth service as JWT validator
+	authMiddleware := humaMiddleware.NewAuthMiddleware(authService)
 
 	// EVE Online SSO endpoints (public)
 	huma.Get(api, basePath+"/eve/login", func(ctx context.Context, input *dto.EVELoginInput) (*dto.EVELoginOutput, error) {
@@ -145,7 +145,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 	// Profile endpoints (require authentication)
 	huma.Get(api, basePath+"/profile", func(ctx context.Context, input *dto.ProfileInput) (*dto.ProfileOutput, error) {
 		// Validate authentication using Huma auth middleware
-		user, err := humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+		user, err := authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err // Returns proper Huma error response
 		}
@@ -176,7 +176,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 	huma.Post(api, basePath+"/profile/refresh", func(ctx context.Context, input *dto.ProfileRefreshInput) (*dto.ProfileRefreshOutput, error) {
 		// Validate authentication using Huma auth middleware
-		user, err := humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+		user, err := authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err // Returns proper Huma error response
 		}
@@ -207,7 +207,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 	huma.Get(api, basePath+"/token", func(ctx context.Context, input *dto.TokenInput) (*dto.TokenOutput, error) {
 		// Validate authentication using Huma auth middleware
-		user, err := humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+		user, err := authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err // Returns proper Huma error response
 		}
@@ -385,7 +385,7 @@ func (hr *Routes) userInfo(ctx context.Context, input *dto.UserInfoInput) (*dto.
 
 func (hr *Routes) profile(ctx context.Context, input *dto.ProfileInput) (*dto.ProfileOutput, error) {
 	// Validate authentication using Huma auth middleware
-	user, err := hr.humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+	user, err := hr.authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err // Returns proper Huma error response
 	}
@@ -416,7 +416,7 @@ func (hr *Routes) profile(ctx context.Context, input *dto.ProfileInput) (*dto.Pr
 
 func (hr *Routes) profileRefresh(ctx context.Context, input *dto.ProfileRefreshInput) (*dto.ProfileRefreshOutput, error) {
 	// Validate authentication using Huma auth middleware
-	user, err := hr.humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+	user, err := hr.authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err // Returns proper Huma error response
 	}
@@ -447,7 +447,7 @@ func (hr *Routes) profileRefresh(ctx context.Context, input *dto.ProfileRefreshI
 
 func (hr *Routes) token(ctx context.Context, input *dto.TokenInput) (*dto.TokenOutput, error) {
 	// Validate authentication using Huma auth middleware
-	user, err := hr.humaAuth.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
+	user, err := hr.authMiddleware.ValidateAuthFromHeaders(input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err // Returns proper Huma error response
 	}

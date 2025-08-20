@@ -91,7 +91,7 @@ All administrative endpoints require JWT authentication and appropriate permissi
 GET /api/users?page=1&page_size=20&query=search&enabled=true&banned=false
 ```
 **Authentication:** Required  
-**Permission:** `users.profiles.read`
+**Permission:** Authentication required
 
 **Query Parameters:**
 - `page`: Page number (default: 1)
@@ -120,7 +120,7 @@ GET /api/users?page=1&page_size=20&query=search&enabled=true&banned=false
 GET /api/users/{character_id}
 ```
 **Authentication:** Required  
-**Permission:** `users.profiles.read`
+**Permission:** Authentication required
 
 **Response:** Complete user object with all fields.
 
@@ -129,7 +129,7 @@ GET /api/users/{character_id}
 PUT /api/users/{character_id}
 ```
 **Authentication:** Required  
-**Permission:** `users.profiles.write`
+**Permission:** Authentication required
 
 **Request Body:**
 ```json
@@ -159,9 +159,9 @@ PUT /api/users/{character_id}
 GET /api/users/by-user-id/{user_id}/characters
 ```
 **Authentication:** Required  
-**Permission:** Self-access or `users.profiles.read`
+**Permission:** Self-access or Authentication required
 
-Users can always view their own characters. Admin users with `users.profiles.read` permission can view any user's characters.
+Users can always view their own characters. Admin users (super_admin) can view any user's characters.
 
 **Response:**
 ```json
@@ -201,57 +201,25 @@ The following permissions should be configured in the Groups module:
 | Endpoint | Method | Authentication | Permission Required | Description |
 |----------|--------|---------------|-------------------|-------------|
 | `/api/users/stats` | GET | No | Public | Get user statistics |
-| `/api/users` | GET | Yes | `users.profiles.read` | List and search users |
-| `/api/users/{character_id}` | GET | Yes | `users.profiles.read` | Get specific user details |
-| `/api/users/{character_id}` | PUT | Yes | `users.profiles.write` | Update user status and settings |
-| `/api/users/by-user-id/{user_id}/characters` | GET | Yes | Self or `users.profiles.read` | List characters for a user |
+| `/api/users` | GET | Yes | Authentication required | List and search users |
+| `/api/users/{character_id}` | GET | Yes | Authentication required | Get specific user details |
+| `/api/users/{character_id}` | PUT | Yes | Authentication required | Update user status and settings |
+| `/api/users/by-user-id/{user_id}/characters` | GET | Yes | Self or Authentication required | List characters for a user |
 
 ### Authorization Logic
 
 #### Self-Access vs Admin Access
 - **Character Lists**: Users can always view their own characters (when `user_id` matches authenticated user's `user_id`)
-- **Admin Override**: Users with `users.profiles.read` permission can view any user's characters
-- **Status Updates**: Only users with `users.profiles.write` permission can modify user status
+- **Admin Override**: Users with super_admin permission can view any user's characters
+- **Status Updates**: Only users with super_admin permission can modify user status
 
-#### Required Group Configuration
+#### Permission Model
 
-The following groups should have users module permissions:
+The users module now uses a simplified permission model:
 
-##### Administrators Group
-```json
-{
-  "name": "administrators", 
-  "permissions": {
-    "users": {
-      "profiles": ["read", "write"]
-    }
-  }
-}
-```
-
-##### User Managers Group (Optional)
-```json
-{
-  "name": "user_managers",
-  "permissions": {
-    "users": {
-      "profiles": ["read", "write"]
-    }
-  }
-}
-```
-
-##### Support Staff Group (Optional)  
-```json
-{
-  "name": "support_staff",
-  "permissions": {
-    "users": {
-      "profiles": ["read"]
-    }
-  }
-}
-```
+- **super_admin**: Full administrative access to all user management functions
+- **authenticated**: Access to own character information and profile data
+- **public**: Access to public user statistics only
 
 ### Integration with Auth Module
 

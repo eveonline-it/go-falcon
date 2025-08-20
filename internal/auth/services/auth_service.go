@@ -10,7 +10,6 @@ import (
 
 	"go-falcon/internal/auth/dto"
 	"go-falcon/internal/auth/models"
-	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/handlers"
@@ -83,21 +82,11 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 		}, nil
 	}
 
-	// Check if user is super admin via environment variable
+	// Check if user is super admin via database
 	permissions := []string{}
-	superAdminCharacterID := config.GetSuperAdminCharacterID()
-	if superAdminCharacterID != 0 && user.CharacterID == superAdminCharacterID {
-		// Grant all permissions to super admin
-		permissions = []string{
-			"super_admin",
-			"auth.users.admin",
-			"groups.management.admin",
-			"sde.entities.admin",
-			"scheduler.tasks.admin",
-			"users.profiles.admin",
-			"notifications.messages.admin",
-			"dev.tools.admin",
-		}
+	if user.IsSuperAdmin {
+		// Grant super admin status
+		permissions = []string{"super_admin"}
 	}
 
 	// Return authenticated response with user info
@@ -190,21 +179,11 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 		}, nil
 	}
 
-	// Check if user is super admin via environment variable
+	// Check if user is super admin via database
 	permissions := []string{}
-	superAdminCharacterID := config.GetSuperAdminCharacterID()
-	if superAdminCharacterID != 0 && user.CharacterID == superAdminCharacterID {
-		// Grant all permissions to super admin
-		permissions = []string{
-			"super_admin",
-			"auth.users.admin",
-			"groups.management.admin",
-			"sde.entities.admin",
-			"scheduler.tasks.admin",
-			"users.profiles.admin",
-			"notifications.messages.admin",
-			"dev.tools.admin",
-		}
+	if user.IsSuperAdmin {
+		// Grant super admin status
+		permissions = []string{"super_admin"}
 	}
 
 	// Return authenticated response with user info
@@ -327,7 +306,7 @@ func (s *AuthService) HandleEVECallback(ctx context.Context, code, state string)
 	}
 
 	// Generate JWT token
-	jwtToken, _, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes)
+	jwtToken, _, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes, profile.IsSuperAdmin)
 	if err != nil {
 		span.RecordError(err)
 		return "", nil, fmt.Errorf("failed to generate JWT: %w", err)
@@ -369,7 +348,7 @@ func (s *AuthService) ExchangeEVEToken(ctx context.Context, req *dto.EVETokenExc
 	}
 
 	// Generate JWT token
-	jwtToken, expiresAt, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes)
+	jwtToken, expiresAt, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes, profile.IsSuperAdmin)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
@@ -427,7 +406,14 @@ func (s *AuthService) GetPublicProfile(ctx context.Context, characterID int) (*d
 
 // GetBearerToken generates a bearer token for authenticated user
 func (s *AuthService) GetBearerToken(ctx context.Context, userID string, characterID int, characterName, scopes string) (*dto.TokenResponse, error) {
-	jwtToken, expiresAt, err := s.eveService.GenerateJWT(userID, characterID, characterName, scopes)
+	// Look up user profile to get super admin status
+	profile, err := s.repository.GetUserProfileByCharacterID(ctx, characterID)
+	isSuperAdmin := false
+	if err == nil && profile != nil {
+		isSuperAdmin = profile.IsSuperAdmin
+	}
+
+	jwtToken, expiresAt, err := s.eveService.GenerateJWT(userID, characterID, characterName, scopes, isSuperAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}

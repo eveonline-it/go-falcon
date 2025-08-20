@@ -21,6 +21,7 @@ type UserProfile struct {
 	LastLogin           time.Time         `bson:"last_login" json:"last_login"`
 	ProfileUpdated      time.Time         `bson:"profile_updated" json:"profile_updated"`
 	Valid               bool              `bson:"valid" json:"valid"`
+	IsSuperAdmin        bool              `bson:"is_super_admin" json:"is_super_admin"`
 	Metadata            map[string]string `bson:"metadata" json:"metadata,omitempty"`
 	CreatedAt           time.Time         `bson:"created_at" json:"created_at"`
 	UpdatedAt           time.Time         `bson:"updated_at" json:"updated_at"`
@@ -32,6 +33,7 @@ type AuthenticatedUser struct {
 	CharacterID   int    `json:"character_id"`
 	CharacterName string `json:"character_name"`
 	Scopes        string `json:"scopes"`
+	IsSuperAdmin  bool   `json:"is_super_admin"`
 }
 
 // EVETokenResponse represents the response from EVE's OAuth token endpoint
