@@ -32,7 +32,7 @@ Go Falcon is a monolithic API gateway built with Go that provides:
 ```
 go-falcon/
 ├── cmd/                    # Executable applications
-│   ├── gateway/           # Main API gateway
+│   ├── falcon/            # Main API falcon
 │   ├── backup/            # MongoDB/Redis backup utility
 │   └── restore/           # Data restoration utility
 ├── internal/              # Private application modules

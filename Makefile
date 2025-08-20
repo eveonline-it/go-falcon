@@ -34,13 +34,13 @@ version: ## Show version information
 build: ## Build the falcon application
 	@echo "🔨 Building falcon application..."
 	@mkdir -p bin
-	@go build $(LDFLAGS) -o bin/falcon ./cmd/gateway
+	@go build $(LDFLAGS) -o bin/falcon ./cmd/falcon
 	@echo "✅ Build complete: bin/falcon"
 
-build-all: ## Build all applications (gateway, backup, restore, postman, openapi)
+build-all: ## Build all applications (falcon, backup, restore, postman, openapi)
 	@echo "🔨 Building all applications..."
 	@mkdir -p bin
-	@go build $(LDFLAGS) -o bin/falcon ./cmd/gateway
+	@go build $(LDFLAGS) -o bin/falcon ./cmd/falcon
 	@go build $(LDFLAGS) -o bin/backup ./cmd/backup
 	@go build $(LDFLAGS) -o bin/restore ./cmd/restore
 	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
@@ -61,7 +61,7 @@ clean: ## Clean build artifacts and temporary files
 	@rm -rf bin/
 	@rm -rf tmp/
 	@rm -rf data/sde
-	@rm -f falcon gateway backup restore postman openapi sde
+	@rm -f falcon backup restore postman openapi sde
 	@rm -f *.postman_collection.json
 	@rm -f falcon-openapi.json
 	@echo "✅ Clean complete"
@@ -85,7 +85,7 @@ docker-logs: ## View infrastructure logs
 
 docker-logs-app: ## View production application logs
 	@echo "📋 Viewing production application logs..."
-	@docker-compose -f docker-compose.prod.yml logs -f gateway
+	@docker-compose -f docker-compose.prod.yml logs -f falcon
 
 docker-stop: ## Stop infrastructure services
 	@echo "🛑 Stopping infrastructure services..."
