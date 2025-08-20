@@ -45,16 +45,18 @@ func (m *ValidationMiddleware) ValidateJSON(target interface{}) func(http.Handle
 }
 
 // ValidateLoginRequest validates login request
-func (m *ValidationMiddleware) ValidateLoginRequest(next http.Handler) http.Handler {
-	var req dto.LoginRequest
-	return m.ValidateJSON(&req)(next)
-}
+// TODO: Implement when LoginRequest DTO is defined
+// func (m *ValidationMiddleware) ValidateLoginRequest(next http.Handler) http.Handler {
+// 	var req dto.LoginRequest
+// 	return m.ValidateJSON(&req)(next)
+// }
 
-// ValidateRegisterRequest validates registration request
-func (m *ValidationMiddleware) ValidateRegisterRequest(next http.Handler) http.Handler {
-	var req dto.RegisterRequest
-	return m.ValidateJSON(&req)(next)
-}
+// ValidateRegisterRequest validates registration request  
+// TODO: Implement when RegisterRequest DTO is defined
+// func (m *ValidationMiddleware) ValidateRegisterRequest(next http.Handler) http.Handler {
+// 	var req dto.RegisterRequest
+// 	return m.ValidateJSON(&req)(next)
+// }
 
 // ValidateEVETokenRequest validates EVE token exchange request
 func (m *ValidationMiddleware) ValidateEVETokenRequest(next http.Handler) http.Handler {

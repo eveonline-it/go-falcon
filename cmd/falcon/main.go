@@ -50,8 +50,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		
-		// Allow requests from any subdomain of eveonline.it
-		if strings.HasSuffix(origin, ".eveonline.it") || origin == "https://eveonline.it" {
+		// Allow requests from any subdomain of eveonline.it or localhost for development
+		if strings.HasSuffix(origin, ".eveonline.it") || origin == "https://eveonline.it" || 
+		   strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "https://localhost") {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
@@ -143,6 +144,9 @@ func main() {
 	apiPrefix := config.GetAPIPrefix()
 	log.Printf("🔗 Using API prefix: '%s'", apiPrefix)
 	
+	// Scalar API Documentation
+	r.Get("/docs", scalarDocsHandler(apiPrefix))
+	
 	// Create unified Huma v2 API for integrated mode
 	log.Printf("🚀 Creating unified Huma v2 API (type-safe APIs with single OpenAPI specification)")
 	
@@ -153,6 +157,9 @@ func main() {
 		Name: "Go Falcon",
 		URL:  "https://github.com/your-org/go-falcon",
 	}
+	
+	// Disable default docs path since we're using Scalar
+	humaConfig.DocsPath = ""
 	
 	// Add servers based on environment configuration or defaults
 	customServers := config.GetOpenAPIServers()
@@ -198,6 +205,7 @@ func main() {
 	
 	log.Printf("✅ Unified Huma v2 API created")
 	log.Printf("🔧 Single OpenAPI 3.1.1 specification will be available at %s/openapi.json", apiPrefix)
+	log.Printf("📚 Scalar API Documentation available at /docs")
 	
 	// Register all module routes on the unified API
 	log.Printf("📝 Registering module routes on unified API:")
@@ -278,9 +286,11 @@ func main() {
 	log.Printf("✅ Unified HUMA API available on main server: %s:%s", host, port)
 	if host == "0.0.0.0" {
 		log.Printf("📋 Single OpenAPI specification: http://localhost:%s%s/openapi.json", port, apiPrefix)
+		log.Printf("📚 Scalar API Documentation: http://localhost:%s/docs", port)
 		log.Printf("🌐 Access all modules via unified API")
 	} else {
 		log.Printf("📋 Single OpenAPI specification: http://%s:%s%s/openapi.json", host, port, apiPrefix)
+		log.Printf("📚 Scalar API Documentation: http://%s:%s/docs", host, port)
 		log.Printf("🌐 Access all modules via unified API")
 	}
 
@@ -344,6 +354,56 @@ func enhancedHealthHandler(w http.ResponseWriter, r *http.Request) {
 	}`, versionInfo.Version, versionInfo.GitCommit, versionInfo.BuildDate, versionInfo.GoVersion, versionInfo.Platform)
 	
 	w.Write([]byte(response))
+}
+
+// scalarDocsHandler returns a handler that serves the Scalar API documentation interface
+func scalarDocsHandler(apiPrefix string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Build the full OpenAPI URL based on the current request
+		scheme := "http"
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			scheme = "https"
+		}
+		
+		host := r.Host
+		if host == "" {
+			host = r.Header.Get("Host")
+		}
+		
+		openAPIPath := "/openapi.json"
+		if apiPrefix != "" {
+			openAPIPath = apiPrefix + "/openapi.json"
+		}
+		
+		// Build absolute URL for OpenAPI spec
+		openAPIURL := fmt.Sprintf("%s://%s%s", scheme, host, openAPIPath)
+		
+		// Serve the Scalar documentation HTML
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		
+		// Scalar HTML with simpler configuration
+		html := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Go Falcon API Documentation</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    <script id="api-reference" data-url="%s"></script>
+    <script>
+        var configuration = {
+            theme: 'purple',
+            darkMode: true
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>`, openAPIURL)
+		
+		w.Write([]byte(html))
+	}
 }
 
 func displayBanner() {

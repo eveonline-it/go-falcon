@@ -486,12 +486,32 @@ The API gateway now provides a **single, comprehensive OpenAPI specification** t
 # - Scheduler Module: /scheduler/* endpoints
 ```
 
+### Scalar API Documentation
+
+The gateway includes **Scalar**, a modern, interactive API documentation interface:
+
+```bash
+# Access Scalar Documentation:
+http://localhost:3000/docs
+```
+
+**Scalar Features:**
+- **Modern Interface**: Beautiful, responsive documentation UI with purple theme
+- **Dark Mode**: Built-in dark theme for comfortable viewing
+- **Interactive Testing**: Try API endpoints directly from the documentation
+- **Search**: Quick search with keyboard shortcut (Ctrl/Cmd + K)
+- **Server Selection**: Switch between different API servers
+- **Authentication**: Built-in support for JWT Bearer tokens
+- **Code Generation**: Generate API client code in multiple languages
+- **Request Examples**: View and copy request examples
+
 **Modern API Features:**
 - **Single OpenAPI 3.1.1 Specification**: All modules documented together
 - **Unified Schema Registry**: Shared schemas across all modules
 - **Environment-aware Servers**: Multiple server URLs for different environments
 - **Type-Safe Operations**: Complete type safety with compile-time validation
 - **Real Request/Response Bodies**: Accurate JSON schemas with proper field types
+- **Scalar Documentation**: Interactive API documentation with try-it-out functionality
 - **Postman Compatible**: Generated specs can be imported directly into Postman
 - **Live Documentation**: Specification updates automatically with code changes
 - **Modern API Standards**: Follows OpenAPI 3.1.1 best practices
