@@ -24,10 +24,10 @@ import (
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/version"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -424,8 +424,10 @@ func scalarDocsHandler(apiPrefix string) http.HandlerFunc {
     <script id="api-reference" data-url="%s"></script>
     <script>
         var configuration = {
-            theme: 'purple',
-            darkMode: true
+            theme: 'kepler',
+						layout: 'classic',
+            darkMode: true,
+						hideModels: false
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>

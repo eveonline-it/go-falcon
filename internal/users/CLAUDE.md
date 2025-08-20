@@ -117,7 +117,7 @@ GET /api/users?page=1&page_size=20&query=search&enabled=true&banned=false
 
 #### Get User Details
 ```
-GET /api/users/{character_id}
+GET /api/users/mgt/{character_id}
 ```
 **Authentication:** Required  
 **Permission:** Authentication required
@@ -126,7 +126,7 @@ GET /api/users/{character_id}
 
 #### Update User
 ```
-PUT /api/users/{character_id}
+PUT /api/users/mgt/{character_id}
 ```
 **Authentication:** Required  
 **Permission:** Authentication required
@@ -202,8 +202,8 @@ The following permissions should be configured in the Groups module:
 |----------|--------|---------------|-------------------|-------------|
 | `/api/users/stats` | GET | No | Public | Get user statistics |
 | `/api/users` | GET | Yes | Authentication required | List and search users |
-| `/api/users/{character_id}` | GET | Yes | Authentication required | Get specific user details |
-| `/api/users/{character_id}` | PUT | Yes | Authentication required | Update user status and settings |
+| `/api/users/mgt/{character_id}` | GET | Yes | Authentication required | Get specific user details |
+| `/api/users/mgt/{character_id}` | PUT | Yes | Authentication required | Update user status and settings |
 | `/api/users/by-user-id/{user_id}/characters` | GET | Yes | Self or Authentication required | List characters for a user |
 
 ### Authorization Logic

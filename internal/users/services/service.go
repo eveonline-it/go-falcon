@@ -50,3 +50,22 @@ func (s *Service) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, err
 func (s *Service) ListCharacters(ctx context.Context, userID string) ([]dto.CharacterSummaryResponse, error) {
 	return s.repository.ListCharacters(ctx, userID)
 }
+
+// UserToResponse converts a User model to UserResponse DTO
+func (s *Service) UserToResponse(user *models.User) *dto.UserResponse {
+	return &dto.UserResponse{
+		CharacterID:   user.CharacterID,
+		UserID:        user.UserID,
+		Enabled:       user.Enabled,
+		Banned:        user.Banned,
+		Invalid:       user.Invalid,
+		Scopes:        user.Scopes,
+		Position:      user.Position,
+		Notes:         user.Notes,
+		CreatedAt:     user.CreatedAt,
+		UpdatedAt:     user.UpdatedAt,
+		LastLogin:     user.LastLogin,
+		CharacterName: user.CharacterName,
+		Valid:         user.Valid,
+	}
+}
