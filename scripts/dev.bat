@@ -18,7 +18,7 @@ if exist .env (
     set ENABLE_TELEMETRY=false
     set ENABLE_PRETTY_LOGS=true
     set LOG_LEVEL=debug
-    set SERVICE_NAME=gateway-dev
+    set SERVICE_NAME=falcon-dev
 )
 
 :: Create tmp directory if it doesn't exist
