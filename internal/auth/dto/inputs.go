@@ -26,18 +26,19 @@ type ProfileRefreshRequest struct {
 
 // EVELoginInput represents the input for EVE SSO login initiation (no body needed)
 type EVELoginInput struct {
-	// No body parameters needed - this is a simple GET endpoint
+	Cookie string `header:"Cookie" doc:"Optional session cookie for authentication"`
 }
 
 // EVERegisterInput represents the input for EVE SSO registration initiation (no body needed)
 type EVERegisterInput struct {
-	// No body parameters needed - this is a simple GET endpoint
+	Cookie string `header:"Cookie" doc:"Optional session cookie for authentication"`
 }
 
 // EVECallbackInput represents the input for EVE SSO callback
 type EVECallbackInput struct {
-	Code  string `query:"code" validate:"required" doc:"OAuth2 authorization code from EVE Online"`
-	State string `query:"state" validate:"required" doc:"CSRF protection state parameter"`
+	Code   string `query:"code" validate:"required" doc:"OAuth2 authorization code from EVE Online"`
+	State  string `query:"state" validate:"required" doc:"CSRF protection state parameter"`
+	Cookie string `header:"Cookie" doc:"Optional session cookie for authentication"`
 }
 
 // EVETokenExchangeInput represents the input for mobile token exchange

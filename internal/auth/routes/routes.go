@@ -60,8 +60,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		Description: "Start EVE Online SSO authentication flow without additional scopes",
 		Tags:        []string{"Auth / EVE"},
 	}, func(ctx context.Context, input *dto.EVELoginInput) (*dto.EVELoginOutput, error) {
-		// Extract user ID from context if authenticated
+		// Extract user ID from cookie if present
 		userID := ""
+		if input.Cookie != "" {
+			user, err := authService.GetCurrentUserFromHeaders(ctx, "", input.Cookie)
+			if err == nil && user != nil {
+				userID = user.UserID
+			}
+		}
 		
 		// Generate login URL without scopes (basic login)
 		loginResp, err := authService.InitiateEVELogin(ctx, false, userID)
@@ -80,8 +86,14 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		Description: "Start EVE Online SSO authentication flow with all required scopes",
 		Tags:        []string{"Auth / EVE"},
 	}, func(ctx context.Context, input *dto.EVERegisterInput) (*dto.EVERegisterOutput, error) {
-		// Extract user ID from context if authenticated
+		// Extract user ID from cookie if present
 		userID := ""
+		if input.Cookie != "" {
+			user, err := authService.GetCurrentUserFromHeaders(ctx, "", input.Cookie)
+			if err == nil && user != nil {
+				userID = user.UserID
+			}
+		}
 		
 		// Generate login URL with full scopes (registration)
 		loginResp, err := authService.InitiateEVELogin(ctx, true, userID)
@@ -100,8 +112,18 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		Description: "Handle OAuth2 callback from EVE Online SSO",
 		Tags:        []string{"Auth / EVE"},
 	}, func(ctx context.Context, input *dto.EVECallbackInput) (*dto.EVECallbackOutput, error) {
-		// Handle the OAuth callback
-		jwtToken, _, err := authService.HandleEVECallback(ctx, input.Code, input.State)
+		// Extract existing user_id from cookie if present
+		var existingUserID string
+		if input.Cookie != "" {
+			// Try to validate the existing JWT from cookie
+			user, err := authService.GetCurrentUserFromHeaders(ctx, "", input.Cookie)
+			if err == nil && user != nil {
+				existingUserID = user.UserID
+			}
+		}
+		
+		// Handle the OAuth callback with existing user ID if available
+		jwtToken, _, err := authService.HandleEVECallbackWithUserID(ctx, input.Code, input.State, existingUserID)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Authentication failed", err)
 		}
@@ -383,9 +405,14 @@ func (hr *Routes) registerRoutes() {
 // EVE SSO endpoint handlers
 
 func (hr *Routes) eveLogin(ctx context.Context, input *dto.EVELoginInput) (*dto.EVELoginOutput, error) {
-	// Extract user ID from context if authenticated (similar to original handler)
+	// Extract user ID from cookie if present
 	userID := ""
-	// TODO: Extract from context/cookies in Huma middleware
+	if input.Cookie != "" {
+		user, err := hr.authService.GetCurrentUserFromHeaders(ctx, "", input.Cookie)
+		if err == nil && user != nil {
+			userID = user.UserID
+		}
+	}
 
 	// Generate login URL without scopes (basic login)
 	loginResp, err := hr.authService.InitiateEVELogin(ctx, false, userID)
@@ -397,9 +424,14 @@ func (hr *Routes) eveLogin(ctx context.Context, input *dto.EVELoginInput) (*dto.
 }
 
 func (hr *Routes) eveRegister(ctx context.Context, input *dto.EVERegisterInput) (*dto.EVERegisterOutput, error) {
-	// Extract user ID from context if authenticated
+	// Extract user ID from cookie if present
 	userID := ""
-	// TODO: Extract from context/cookies in Huma middleware
+	if input.Cookie != "" {
+		user, err := hr.authService.GetCurrentUserFromHeaders(ctx, "", input.Cookie)
+		if err == nil && user != nil {
+			userID = user.UserID
+		}
+	}
 
 	// Generate login URL with full scopes (registration)
 	loginResp, err := hr.authService.InitiateEVELogin(ctx, true, userID)
@@ -411,8 +443,18 @@ func (hr *Routes) eveRegister(ctx context.Context, input *dto.EVERegisterInput) 
 }
 
 func (hr *Routes) eveCallback(ctx context.Context, input *dto.EVECallbackInput) (*dto.EVECallbackOutput, error) {
-	// Handle the OAuth callback
-	jwtToken, _, err := hr.authService.HandleEVECallback(ctx, input.Code, input.State)
+	// Extract existing user_id from cookie if present
+	var existingUserID string
+	if input.Cookie != "" {
+		// Try to validate the existing JWT from cookie
+		user, err := hr.authService.GetCurrentUserFromHeaders(ctx, "", input.Cookie)
+		if err == nil && user != nil {
+			existingUserID = user.UserID
+		}
+	}
+	
+	// Handle the OAuth callback with existing user ID if available
+	jwtToken, _, err := hr.authService.HandleEVECallbackWithUserID(ctx, input.Code, input.State, existingUserID)
 	if err != nil {
 		return nil, huma.Error400BadRequest("Authentication failed", err)
 	}

@@ -262,8 +262,13 @@ func (s *AuthService) InitiateEVELogin(ctx context.Context, withScopes bool, use
 	}, nil
 }
 
-// HandleEVECallback processes EVE SSO callback
+// HandleEVECallback processes EVE SSO callback (legacy, without user ID from cookie)
 func (s *AuthService) HandleEVECallback(ctx context.Context, code, state string) (string, *dto.UserInfoResponse, error) {
+	return s.HandleEVECallbackWithUserID(ctx, code, state, "")
+}
+
+// HandleEVECallbackWithUserID processes EVE SSO callback with optional existing user ID from cookie
+func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, state, cookieUserID string) (string, *dto.UserInfoResponse, error) {
 	tracer := otel.Tracer("go-falcon/auth")
 	ctx, span := tracer.Start(ctx, "auth.service.handle_eve_callback")
 	defer span.End()
@@ -272,19 +277,33 @@ func (s *AuthService) HandleEVECallback(ctx context.Context, code, state string)
 		attribute.String("service", "auth"),
 		attribute.String("operation", "handle_eve_callback"),
 		attribute.String("state", state),
+		attribute.Bool("has_cookie_user_id", cookieUserID != ""),
 	)
 
 	// Handle OAuth callback
-	charInfo, tokenResp, existingUserID, err := s.eveService.HandleCallback(ctx, code, state)
+	charInfo, tokenResp, stateUserID, err := s.eveService.HandleCallback(ctx, code, state)
 	if err != nil {
 		span.RecordError(err)
 		return "", nil, fmt.Errorf("failed to handle callback: %w", err)
 	}
 
-	// Check if user already exists
-	userID := existingUserID
-	if userID == "" {
-		// Check if character already has a profile
+	// Determine the user ID with priority:
+	// 1. User ID from valid cookie (if user is already logged in)
+	// 2. User ID from state (if stored during login initiation)
+	// 3. User ID from existing profile for this character
+	// 4. Generate new user ID
+	userID := ""
+	
+	// First priority: use user ID from valid cookie if available
+	if cookieUserID != "" {
+		userID = cookieUserID
+		span.SetAttributes(attribute.String("user_id_source", "cookie"))
+	} else if stateUserID != "" {
+		// Second priority: use user ID from state
+		userID = stateUserID
+		span.SetAttributes(attribute.String("user_id_source", "state"))
+	} else {
+		// Third priority: check if character already has a profile
 		existingProfile, err := s.profileService.GetProfile(ctx, charInfo.CharacterID)
 		if err != nil {
 			span.RecordError(err)
@@ -293,8 +312,11 @@ func (s *AuthService) HandleEVECallback(ctx context.Context, code, state string)
 		
 		if existingProfile != nil {
 			userID = existingProfile.UserID
+			span.SetAttributes(attribute.String("user_id_source", "existing_profile"))
 		} else {
+			// Last resort: generate new user ID
 			userID = uuid.New().String()
+			span.SetAttributes(attribute.String("user_id_source", "new_uuid"))
 		}
 	}
 
