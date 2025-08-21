@@ -20,12 +20,12 @@ type UpdateSiteSettingInput struct {
 	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
 	Key           string `path:"key" required:"true" description:"Setting key"`
 	Body          struct {
-		Value       interface{} `json:"value" description:"Setting value (can be string, number, boolean, or object)"`
-		Type        *string     `json:"type" enum:"string,number,boolean,object" description:"Data type of the setting value"`
-		Category    *string     `json:"category" maxLength:"50" description:"Setting category for organization"`
-		Description *string     `json:"description" maxLength:"500" description:"Description of what this setting controls"`
-		IsPublic    *bool       `json:"is_public" description:"Whether this setting can be read by non-admin users"`
-		IsActive    *bool       `json:"is_active" description:"Whether this setting is active"`
+		Value       interface{} `json:"value,omitempty" description:"Setting value (can be string, number, boolean, or object)"`
+		Type        *string     `json:"type,omitempty" enum:"string,number,boolean,object" description:"Data type of the setting value"`
+		Category    *string     `json:"category,omitempty" maxLength:"50" description:"Setting category for organization"`
+		Description *string     `json:"description,omitempty" maxLength:"500" description:"Description of what this setting controls"`
+		IsPublic    *bool       `json:"is_public,omitempty" description:"Whether this setting can be read by non-admin users"`
+		IsActive    *bool       `json:"is_active,omitempty" description:"Whether this setting is active"`
 	}
 }
 

@@ -39,7 +39,6 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Site Settings"},
 	}, m.healthHandler)
 
-
 	// Public endpoints (no authentication required)
 	huma.Register(api, huma.Operation{
 		OperationID: "site-settings-get-public",
@@ -134,7 +133,6 @@ func (m *Module) getPublicSettingsHandler(ctx context.Context, input *dto.GetPub
 		},
 	}, nil
 }
-
 
 // Create setting handler
 func (m *Module) createSettingHandler(ctx context.Context, input *dto.CreateSiteSettingInput) (*dto.CreateSiteSettingOutput, error) {
