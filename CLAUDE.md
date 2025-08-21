@@ -9,7 +9,7 @@ Go Falcon is a monolithic API gateway built with Go that provides:
 - **Type-Safe APIs**: Huma v2 framework with compile-time validation
 - **Modular Architecture**: Clean separation of concerns with internal modules
 - **EVE Online Integration**: Complete SSO authentication and ESI API integration
-- **Task Scheduling**: Distributed task scheduling with cron support
+- **Task Scheduling**: Distributed task scheduling with cron support and execution cancellation
 - **Real-time Communication**: WebSocket support via Socket.io and Redis
 - **Observability**: OpenTelemetry logging and tracing
 - **API Standards**: Automatic OpenAPI 3.1.1 generation via Huma v2
@@ -190,6 +190,7 @@ The scheduler module provides:
 - **Task Types**: HTTP webhooks, functions, system tasks, custom executors
 - **System Tasks**: Automated background operations including character affiliation updates
 - **Distributed Locking**: Redis-based coordination preventing duplicate executions
+- **Execution Cancellation**: Real-time cancellation of running task executions via context-based system
 - **Execution History**: Complete audit trail with performance metrics
 - **Worker Pool**: Configurable concurrent execution (default: 10 workers)
 - **Module Integration**: Direct integration with character module for ESI-based updates

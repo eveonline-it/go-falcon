@@ -14,6 +14,7 @@ The scheduler module provides a comprehensive task scheduling and management sys
 - **Hardcoded Tasks**: Predefined system tasks for critical operations
 - **Task Types**: Support for HTTP, function, system, and custom tasks
 - **Distributed Locking**: Redis-based locking to prevent duplicate executions
+- **Execution Cancellation**: Context-based cancellation system for running tasks
 - **Module Integration**: Direct integration with auth module for token refresh operations
 
 ### Files Structure
@@ -31,6 +32,28 @@ internal/scheduler/
 
 ## Features
 
+### Execution Cancellation System
+
+The scheduler provides **real-time execution cancellation** capability:
+
+#### Architecture
+- **Context-based Cancellation**: Each execution runs with a cancellable Go context
+- **Execution Tracking**: Running executions are tracked in memory with cancellation functions
+- **Thread-safe Operations**: Concurrent access to execution tracking is protected by mutexes
+- **Graceful Termination**: Tasks can check context cancellation and terminate cleanly
+
+#### Cancellation Process
+1. **Stop Request**: `POST /tasks/{id}/stop` endpoint is called
+2. **Find Running Executions**: System identifies all active executions for the task
+3. **Cancel Contexts**: Each execution's context is cancelled using `context.Cancel()`
+4. **Status Updates**: Cancelled executions are marked as "failed" with descriptive messages
+5. **Task Pausing**: Task scheduling is paused to prevent new executions
+
+#### Execution States
+- **Active Executions**: Tracked in `runningExecutions` map with cancellation contexts
+- **Cancelled Executions**: Status = "failed", Error = "Task execution was cancelled"
+- **Cleanup**: Execution tracking is automatically removed when tasks complete
+
 ### Task Management
 - **CRUD Operations**: Complete task lifecycle management
 - **Task Types**: HTTP requests, function calls, system tasks, and custom executors
@@ -44,6 +67,7 @@ internal/scheduler/
 - **Distributed Safe**: Redis-based locking prevents duplicate runs
 - **Retry Logic**: Configurable retry attempts with exponential backoff
 - **Timeout Handling**: Per-task execution timeouts
+- **Execution Cancellation**: Real-time cancellation of running task executions
 
 ### Monitoring & History
 - **Execution History**: Complete audit trail of task runs
@@ -158,7 +182,7 @@ User-defined task executors with flexible configuration:
 | `/scheduler/tasks/{id}` | PUT | Update task configuration | Authentication required |
 | `/scheduler/tasks/{id}` | DELETE | Delete task (system tasks protected) | Authentication required |
 | `/scheduler/tasks/{id}/execute` | POST | Manually execute task immediately | Authentication required |
-| `/scheduler/tasks/{id}/stop` | POST | Stop currently running task (pauses task) | Authentication required |
+| `/scheduler/tasks/{id}/stop` | POST | Stop currently running task and cancel active executions | Authentication required |
 | `/scheduler/tasks/{id}/pause` | POST | Pause task scheduling | Authentication required |
 | `/scheduler/tasks/{id}/resume` | POST | Resume paused task | Authentication required |
 | `/scheduler/tasks/{id}/enable` | POST | Enable a disabled task | Authentication required |
@@ -208,6 +232,22 @@ curl -X POST "/scheduler/tasks/task-id-123/execute"
 #### Stop Running Task
 ```bash
 curl -X POST "/scheduler/tasks/task-id-123/stop"
+```
+
+**Execution Cancellation**: The stop endpoint now provides **true execution cancellation** capability:
+- **Cancels Active Executions**: Immediately interrupts any currently running executions for the specified task
+- **Context-based Cancellation**: Uses Go's context cancellation for graceful termination
+- **Status Tracking**: Cancelled executions are marked as "failed" with descriptive error messages
+- **Prevents Future Scheduling**: Task status is updated to "paused" to prevent new executions
+
+**Response for Cancelled Executions**:
+```json
+{
+  "status": "failed",
+  "error": "Task execution was cancelled",
+  "output": "Execution stopped by user request",
+  "completed_at": "2025-08-21T20:39:40.473Z"
+}
 ```
 
 ## Configuration
@@ -591,6 +631,8 @@ curl /scheduler/tasks/task-id/history
 2. **Timeout Setting**: Set appropriate timeouts for task complexity
 3. **Error Handling**: Implement proper error handling and logging
 4. **Resource Cleanup**: Ensure tasks clean up resources properly
+5. **Context Awareness**: Tasks should check context cancellation for graceful termination
+6. **Cancellation Handling**: Design tasks to handle cancellation gracefully and save state
 
 ### Scheduling
 1. **Avoid Overlaps**: Use appropriate intervals to prevent task overlaps
@@ -613,6 +655,12 @@ curl /scheduler/tasks/task-id/history
 - Verify cron schedule syntax
 - Check worker availability
 - Review execution history for errors
+
+**Long-Running or Stuck Tasks**
+- Use the stop endpoint to cancel running executions: `POST /tasks/{id}/stop`
+- Check execution history for cancelled tasks with error "Task execution was cancelled"
+- Monitor task execution duration and set appropriate timeouts
+- Review system task logs for EVE ESI rate limiting issues
 
 **High Failure Rates**
 - Review task configurations
@@ -638,7 +686,13 @@ curl /scheduler/tasks/task-id/history
 curl /scheduler/stats
 
 # Manually trigger task
-curl -X POST /scheduler/tasks/task-id/start
+curl -X POST /scheduler/tasks/task-id/execute
+
+# Stop running task and cancel executions
+curl -X POST /scheduler/tasks/task-id/stop
+
+# Check for cancelled executions
+curl "/scheduler/executions?task_id=task-id&status=failed" | jq '.executions[] | select(.error == "Task execution was cancelled")'
 ```
 
 ## Dependencies

@@ -14,6 +14,13 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+// ExecutionContext holds cancellation context for a running execution
+type ExecutionContext struct {
+	Execution *models.TaskExecution
+	Cancel    context.CancelFunc
+	Context   context.Context
+}
+
 // EngineService handles task scheduling and execution
 type EngineService struct {
 	repository *Repository
@@ -28,6 +35,10 @@ type EngineService struct {
 	// Task management
 	activeTasks   map[string]*models.Task
 	tasksMutex    sync.RWMutex
+	
+	// Execution tracking with cancellation
+	runningExecutions map[string]*ExecutionContext
+	executionsMutex   sync.RWMutex
 	
 	// Executors
 	executors map[models.TaskType]TaskExecutor
@@ -55,15 +66,16 @@ type TaskExecutor interface {
 // NewEngineService creates a new scheduler engine
 func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule, characterModule CharacterModule) *EngineService {
 	engine := &EngineService{
-		repository:      repository,
-		redis:           redis,
-		workers:         10, // Default worker count
-		taskQueue:       make(chan *models.TaskExecution, 1000),
-		activeTasks:     make(map[string]*models.Task),
-		executors:       make(map[models.TaskType]TaskExecutor),
-		stopChan:        make(chan struct{}),
-		authModule:      authModule,
-		characterModule: characterModule,
+		repository:        repository,
+		redis:             redis,
+		workers:           10, // Default worker count
+		taskQueue:         make(chan *models.TaskExecution, 1000),
+		activeTasks:       make(map[string]*models.Task),
+		runningExecutions: make(map[string]*ExecutionContext),
+		executors:         make(map[models.TaskType]TaskExecutor),
+		stopChan:          make(chan struct{}),
+		authModule:        authModule,
+		characterModule:   characterModule,
 	}
 
 	// Initialize cron scheduler
@@ -180,12 +192,51 @@ func (e *EngineService) ExecuteTaskNow(ctx context.Context, taskID string) (*mod
 	}
 }
 
-// StopTask stops a currently running task
+// StopTask stops a currently running task and cancels any running executions
 func (e *EngineService) StopTask(taskID string) error {
-	// In a real implementation, this would signal the specific task to stop
-	// For now, we'll just update the status in the database
+	slog.Info("Stopping task", slog.String("task_id", taskID))
+	
+	// Find and cancel all running executions for this task
+	var cancelledExecutions []string
+	
+	e.executionsMutex.Lock()
+	for executionID, execContext := range e.runningExecutions {
+		if execContext.Execution.TaskID == taskID {
+			slog.Info("Cancelling running execution",
+				slog.String("task_id", taskID),
+				slog.String("execution_id", executionID))
+			
+			// Cancel the execution context
+			execContext.Cancel()
+			cancelledExecutions = append(cancelledExecutions, executionID)
+		}
+	}
+	e.executionsMutex.Unlock()
+	
+	// Update task status to paused to prevent future scheduling
 	ctx := context.Background()
-	return e.repository.UpdateTaskStatus(ctx, taskID, models.TaskStatusPaused)
+	if err := e.repository.UpdateTaskStatus(ctx, taskID, models.TaskStatusPaused); err != nil {
+		return fmt.Errorf("failed to pause task: %w", err)
+	}
+	
+	slog.Info("Task stopped successfully",
+		slog.String("task_id", taskID),
+		slog.Int("cancelled_executions", len(cancelledExecutions)))
+	
+	return nil
+}
+
+// GetRunningExecutions returns information about currently running executions
+func (e *EngineService) GetRunningExecutions() map[string]*ExecutionContext {
+	e.executionsMutex.RLock()
+	defer e.executionsMutex.RUnlock()
+	
+	// Return a copy to avoid race conditions
+	result := make(map[string]*ExecutionContext)
+	for id, execContext := range e.runningExecutions {
+		result[id] = execContext
+	}
+	return result
 }
 
 // GetStats returns engine statistics
@@ -311,6 +362,28 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 	execution.WorkerID = workerID
 	execution.Status = models.TaskStatusRunning
 
+	// Create cancellable context for this execution
+	executionCtx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+
+	// Track this execution for cancellation
+	execContext := &ExecutionContext{
+		Execution: execution,
+		Cancel:    cancel,
+		Context:   executionCtx,
+	}
+
+	e.executionsMutex.Lock()
+	e.runningExecutions[execution.ID] = execContext
+	e.executionsMutex.Unlock()
+
+	// Defer cleanup of running execution tracking
+	defer func() {
+		e.executionsMutex.Lock()
+		delete(e.runningExecutions, execution.ID)
+		e.executionsMutex.Unlock()
+	}()
+
 	// Save execution start
 	if err := e.repository.CreateExecution(parentCtx, execution); err != nil {
 		slog.Error("Failed to create execution record", 
@@ -331,19 +404,33 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 	// Update task status
 	e.repository.UpdateTaskStatus(parentCtx, task.ID, models.TaskStatusRunning)
 
-	// Execute the task
-	result := e.executeTask(parentCtx, task)
+	// Execute the task with cancellable context
+	result := e.executeTask(executionCtx, task)
 
-	// Update execution with result
-	execution.CompletedAt = &result.CompletedAt
-	execution.Duration = result.Duration
-	execution.Output = result.Output
-	execution.Error = result.Error
-
-	if result.Success {
-		execution.Status = models.TaskStatusCompleted
-	} else {
+	// Check if execution was cancelled
+	if executionCtx.Err() == context.Canceled {
 		execution.Status = models.TaskStatusFailed
+		execution.Error = "Task execution was cancelled"
+		execution.Output = "Execution stopped by user request"
+		now := time.Now()
+		execution.CompletedAt = &now
+		execution.Duration = now.Sub(execution.StartedAt)
+		
+		slog.Info("Task execution cancelled",
+			slog.String("task_id", task.ID),
+			slog.String("execution_id", execution.ID))
+	} else {
+		// Update execution with result
+		execution.CompletedAt = &result.CompletedAt
+		execution.Duration = result.Duration
+		execution.Output = result.Output
+		execution.Error = result.Error
+
+		if result.Success {
+			execution.Status = models.TaskStatusCompleted
+		} else {
+			execution.Status = models.TaskStatusFailed
+		}
 	}
 
 	// Finish execution
