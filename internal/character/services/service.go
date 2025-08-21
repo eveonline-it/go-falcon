@@ -124,6 +124,34 @@ func (s *Service) GetCharacterProfile(ctx context.Context, characterID int) (*dt
 	return result, nil
 }
 
+// SearchCharactersByName searches characters by name
+func (s *Service) SearchCharactersByName(ctx context.Context, name string) (*dto.SearchCharactersByNameOutput, error) {
+	log.Printf("SearchCharactersByName called with name: %s", name)
+	
+	characters, err := s.repository.SearchCharactersByName(ctx, name)
+	if err != nil {
+		log.Printf("Error searching characters: %v", err)
+		return nil, err
+	}
+	
+	log.Printf("Found %d characters matching name: %s", len(characters), name)
+	
+	// Convert to DTOs
+	profiles := make([]dto.CharacterProfile, len(characters))
+	for i, character := range characters {
+		profiles[i] = *s.characterToProfile(character)
+	}
+	
+	result := &dto.SearchCharactersByNameOutput{
+		Body: dto.SearchCharactersResult{
+			Characters: profiles,
+			Count:      len(profiles),
+		},
+	}
+	
+	return result, nil
+}
+
 // characterToProfile converts Character model to CharacterProfile DTO
 func (s *Service) characterToProfile(character *models.Character) *dto.CharacterProfile {
 	return &dto.CharacterProfile{

@@ -24,3 +24,14 @@ type CharacterProfile struct {
 type CharacterProfileOutput struct {
 	Body CharacterProfile `json:"body"`
 }
+
+// SearchCharactersResult represents search results for characters
+type SearchCharactersResult struct {
+	Characters []CharacterProfile `json:"characters" doc:"List of matching characters"`
+	Count      int                `json:"count" doc:"Number of characters found"`
+}
+
+// SearchCharactersByNameOutput represents the search response (Huma wrapper)
+type SearchCharactersByNameOutput struct {
+	Body SearchCharactersResult `json:"body"`
+}

@@ -29,4 +29,20 @@ func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Se
 		}
 		return profile, nil
 	})
+
+	// Search characters by name endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "character-search-by-name",
+		Method:      "GET",
+		Path:        basePath + "/search",
+		Summary:     "Search characters by name",
+		Description: "Search characters by name with a minimum of 3 characters. Performs case-insensitive search in the database.",
+		Tags:        []string{"Character"},
+	}, func(ctx context.Context, input *dto.SearchCharactersByNameInput) (*dto.SearchCharactersByNameOutput, error) {
+		result, err := service.SearchCharactersByName(ctx, input.Name)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to search characters", err)
+		}
+		return result, nil
+	})
 }
