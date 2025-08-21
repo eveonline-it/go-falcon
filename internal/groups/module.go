@@ -35,17 +35,15 @@ func NewModule(db *database.MongoDB, authModule AuthModule) (*Module, error) {
 	// Create service
 	service := services.NewService(db)
 
-	// Try to get auth service for character context resolution
-	var groupMiddleware *groupsMiddleware.AuthMiddleware
-	if authService := authModule.GetAuthService(); authService != nil {
-		// Create full auth middleware with character context resolution
-		groupMiddleware = groupsMiddleware.NewAuthMiddleware(authService, service)
-		slog.Info("Groups module initialized with character context middleware")
-	} else {
-		// Fallback to simple middleware for Phase 1 testing
-		groupMiddleware = groupsMiddleware.NewSimpleAuthMiddleware(service)
-		slog.Info("Groups module initialized with simple auth middleware (Phase 1 mode)")
+	// Get auth service for character context resolution
+	authService := authModule.GetAuthService()
+	if authService == nil {
+		return nil, fmt.Errorf("auth service is required for groups module")
 	}
+	
+	// Create auth middleware with character context resolution
+	groupMiddleware := groupsMiddleware.NewAuthMiddleware(authService, service)
+	slog.Info("Groups module initialized with character context middleware")
 
 	// Create routes
 	routesModule := routes.NewModule(service, groupMiddleware)

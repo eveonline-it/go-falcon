@@ -15,16 +15,6 @@ type AuthMiddleware struct {
 	characterContext   *CharacterContextMiddleware
 }
 
-// NewSimpleAuthMiddleware creates a simple auth middleware for Phase 1 (no real auth)
-func NewSimpleAuthMiddleware(groupService *services.Service) *AuthMiddleware {
-	// Create character context middleware with no auth service (dummy mode)
-	characterContext := NewCharacterContextMiddleware(nil, groupService)
-	
-	return &AuthMiddleware{
-		groupService:     groupService,
-		characterContext: characterContext,
-	}
-}
 
 // NewAuthMiddleware creates a full auth middleware with character context resolution
 func NewAuthMiddleware(authService interface{}, groupService *services.Service) *AuthMiddleware {

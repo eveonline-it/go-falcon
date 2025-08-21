@@ -18,6 +18,7 @@ import (
 	"go-falcon/internal/auth"
 	"go-falcon/internal/groups"
 	"go-falcon/internal/scheduler"
+	"go-falcon/internal/site_settings"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
@@ -144,11 +145,21 @@ func main() {
 		log.Fatalf("Failed to initialize groups module: %v", err)
 	}
 	
-	modules = append(modules, authModule, usersModule, schedulerModule, groupsModule)
+	// Initialize site settings module
+	siteSettingsModule, err := site_settings.NewModule(appCtx.MongoDB, authModule.GetAuthService(), groupsModule.GetService())
+	if err != nil {
+		log.Fatalf("Failed to initialize site settings module: %v", err)
+	}
 	
-	// Initialize groups module (only groups module has specific initialization requirements)
+	modules = append(modules, authModule, usersModule, schedulerModule, groupsModule, siteSettingsModule)
+	
+	// Initialize modules with specific initialization requirements
 	if err := groupsModule.Initialize(ctx); err != nil {
 		log.Fatalf("Failed to initialize groups module: %v", err)
+	}
+	
+	if err := siteSettingsModule.Initialize(ctx); err != nil {
+		log.Fatalf("Failed to initialize site settings module: %v", err)
 	}
 	
 	// Set up cross-module dependencies after initialization
@@ -275,6 +286,10 @@ func main() {
 	// Register groups module routes
 	log.Printf("   👥 Groups module: /groups/*")
 	groupsModule.RegisterUnifiedRoutes(unifiedAPI)
+	
+	// Register site settings module routes
+	log.Printf("   ⚙️  Site Settings module: /site-settings/*")
+	siteSettingsModule.RegisterUnifiedRoutes(unifiedAPI)
 	
 	log.Printf("✅ All modules registered on unified API")
 	

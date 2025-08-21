@@ -51,9 +51,9 @@ func (m *CharacterContextMiddleware) ResolveCharacterContext(ctx context.Context
 		return nil, fmt.Errorf("no authentication token provided")
 	}
 	
-	// If no auth service available, return dummy context (Phase 1 fallback)
+	// Auth service is required for character context resolution
 	if m.authService == nil {
-		return m.getDummyContext(), nil
+		return nil, fmt.Errorf("auth service not available")
 	}
 	
 	// Validate JWT token and get basic user info
@@ -186,16 +186,6 @@ func (m *CharacterContextMiddleware) checkSuperAdminStatus(charContext *Characte
 	}
 }
 
-// getDummyContext returns a dummy super admin context for Phase 1 testing
-func (m *CharacterContextMiddleware) getDummyContext() *CharacterContext {
-	return &CharacterContext{
-		UserID:           "00000000-0000-0000-0000-000000000000",
-		CharacterID:      99999999,
-		CharacterName:    "Test SuperAdmin",
-		IsSuperAdmin:     true,
-		GroupMemberships: []string{"Super Administrator"},
-	}
-}
 
 // ResolveCharacterContextWithBypass resolves character context (bypass removed - now uses groups)
 func (m *CharacterContextMiddleware) ResolveCharacterContextWithBypass(ctx context.Context, characterID int64, authHeader, cookieHeader string) (*CharacterContext, error) {
