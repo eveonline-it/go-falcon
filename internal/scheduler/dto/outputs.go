@@ -196,3 +196,8 @@ type TaskPauseOutput struct {
 type TaskResumeOutput struct {
 	Body TaskResponse `json:"body"`
 }
+
+// TaskStopOutput represents the output for stopping a task
+type TaskStopOutput struct {
+	Body map[string]interface{} `json:"body"`
+}

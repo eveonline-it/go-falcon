@@ -274,6 +274,27 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		return &dto.TaskResumeOutput{Body: *task}, nil
 	})
 
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-stop-task",
+		Method:      "POST",
+		Path:        basePath + "/tasks/{task_id}/stop",
+		Summary:     "Stop running task",
+		Description: "Stop a currently running scheduled task execution",
+		Tags:        []string{"Scheduler / Tasks"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.TaskStopInput) (*dto.TaskStopOutput, error) {
+		err := service.StopTask(ctx, input.TaskID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to stop task", err)
+		}
+
+		response := map[string]interface{}{
+			"message": "Task stopped successfully",
+			"task_id": input.TaskID,
+		}
+		return &dto.TaskStopOutput{Body: response}, nil
+	})
+
 	// Execution endpoints
 	huma.Register(api, huma.Operation{
 		OperationID: "scheduler-task-history",
@@ -386,6 +407,7 @@ func (hr *Routes) registerRoutes() {
 	huma.Post(hr.api, "/tasks/{task_id}/disable", hr.disableTask)
 	huma.Post(hr.api, "/tasks/{task_id}/pause", hr.pauseTask)
 	huma.Post(hr.api, "/tasks/{task_id}/resume", hr.resumeTask)
+	huma.Post(hr.api, "/tasks/{task_id}/stop", hr.stopTask)
 
 	// Execution endpoints
 	huma.Get(hr.api, "/tasks/{task_id}/history", hr.getTaskHistory)
@@ -551,6 +573,20 @@ func (hr *Routes) resumeTask(ctx context.Context, input *dto.TaskResumeInput) (*
 	}
 
 	return &dto.TaskResumeOutput{Body: *task}, nil
+}
+
+func (hr *Routes) stopTask(ctx context.Context, input *dto.TaskStopInput) (*dto.TaskStopOutput, error) {
+	err := hr.service.StopTask(ctx, input.TaskID)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to stop task", err)
+	}
+
+	response := map[string]interface{}{
+		"message": "Task stopped successfully",
+		"task_id": input.TaskID,
+	}
+
+	return &dto.TaskStopOutput{Body: response}, nil
 }
 
 // Execution handlers

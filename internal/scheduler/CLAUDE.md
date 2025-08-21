@@ -157,10 +157,12 @@ User-defined task executors with flexible configuration:
 | `/scheduler/tasks/{id}` | GET | Get specific task details | Authentication required |
 | `/scheduler/tasks/{id}` | PUT | Update task configuration | Authentication required |
 | `/scheduler/tasks/{id}` | DELETE | Delete task (system tasks protected) | Authentication required |
-| `/scheduler/tasks/{id}/start` | POST | Manually execute task immediately | Authentication required |
-| `/scheduler/tasks/{id}/stop` | POST | Stop currently running task | Authentication required |
+| `/scheduler/tasks/{id}/execute` | POST | Manually execute task immediately | Authentication required |
+| `/scheduler/tasks/{id}/stop` | POST | Stop currently running task (pauses task) | Authentication required |
 | `/scheduler/tasks/{id}/pause` | POST | Pause task scheduling | Authentication required |
 | `/scheduler/tasks/{id}/resume` | POST | Resume paused task | Authentication required |
+| `/scheduler/tasks/{id}/enable` | POST | Enable a disabled task | Authentication required |
+| `/scheduler/tasks/{id}/disable` | POST | Disable a task without deleting it | Authentication required |
 | `/scheduler/tasks/{id}/history` | GET | Get task execution history | Authentication required |
 | `/scheduler/tasks/{id}/executions/{exec_id}` | GET | Get specific execution details | Authentication required |
 | `/scheduler/reload` | POST | Reload tasks from database | Authentication required |
@@ -200,7 +202,12 @@ curl "/scheduler/tasks/task-id-123/history?page=1&page_size=50"
 
 #### Manually Execute Task
 ```bash
-curl -X POST "/scheduler/tasks/task-id-123/start"
+curl -X POST "/scheduler/tasks/task-id-123/execute"
+```
+
+#### Stop Running Task
+```bash
+curl -X POST "/scheduler/tasks/task-id-123/stop"
 ```
 
 ## Configuration

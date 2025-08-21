@@ -162,3 +162,8 @@ type TaskPauseInput struct {
 type TaskResumeInput struct {
 	TaskID string `path:"task_id" validate:"required" doc:"Task ID to resume"`
 }
+
+// TaskStopInput represents the input for stopping a task
+type TaskStopInput struct {
+	TaskID string `path:"task_id" validate:"required" doc:"Task ID to stop"`
+}
