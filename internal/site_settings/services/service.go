@@ -128,13 +128,30 @@ func (s *Service) DeleteSetting(ctx context.Context, key string) error {
 
 // ListSettings returns a paginated list of settings with filters
 func (s *Service) ListSettings(ctx context.Context, input *dto.ListSiteSettingsInput) ([]*models.SiteSetting, int, error) {
-	// Convert bool values to pointers for repository layer
-	// For simplicity, we'll pass the values directly. The repository can handle nil checks.
+	// Convert string filters to boolean pointers
 	var isPublic, isActive *bool
 	
-	// Always set the pointers since we have concrete bool values
-	isPublic = &input.IsPublic
-	isActive = &input.IsActive
+	// Parse IsPublicFilter
+	if input.IsPublicFilter != "" {
+		if input.IsPublicFilter == "true" {
+			val := true
+			isPublic = &val
+		} else if input.IsPublicFilter == "false" {
+			val := false
+			isPublic = &val
+		}
+	}
+	
+	// Parse IsActiveFilter
+	if input.IsActiveFilter != "" {
+		if input.IsActiveFilter == "true" {
+			val := true
+			isActive = &val
+		} else if input.IsActiveFilter == "false" {
+			val := false
+			isActive = &val
+		}
+	}
 	
 	return s.repo.ListSettings(
 		ctx,
@@ -208,11 +225,30 @@ func (s *Service) validateValueType(value interface{}, settingType string) error
 }
 
 // GetHealth returns the health status of the site settings module
-func (s *Service) GetHealth(ctx context.Context) (string, error) {
+func (s *Service) GetHealth(ctx context.Context) (*dto.SiteSettingsHealthResponse, error) {
 	// Test database connectivity by attempting to count documents
-	_, err := s.repo.collection.CountDocuments(ctx, bson.M{})
+	totalCount, err := s.repo.collection.CountDocuments(ctx, bson.M{})
 	if err != nil {
-		return "unhealthy", err
+		return &dto.SiteSettingsHealthResponse{
+			Health:      "unhealthy",
+			TotalCount:  0,
+			PublicCount: 0,
+		}, err
 	}
-	return "healthy", nil
+	
+	// Count public settings
+	publicCount, err := s.repo.collection.CountDocuments(ctx, bson.M{"is_public": true})
+	if err != nil {
+		return &dto.SiteSettingsHealthResponse{
+			Health:      "unhealthy",
+			TotalCount:  int(totalCount),
+			PublicCount: 0,
+		}, err
+	}
+	
+	return &dto.SiteSettingsHealthResponse{
+		Health:      "healthy",
+		TotalCount:  int(totalCount),
+		PublicCount: int(publicCount),
+	}, nil
 }

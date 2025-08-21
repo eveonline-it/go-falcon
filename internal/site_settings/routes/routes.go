@@ -39,6 +39,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Site Settings"},
 	}, m.healthHandler)
 
+
 	// Public endpoints (no authentication required)
 	huma.Register(api, huma.Operation{
 		OperationID: "site-settings-get-public",
@@ -98,15 +99,13 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 
 // Health check handler
 func (m *Module) healthHandler(ctx context.Context, input *struct{}) (*dto.HealthOutput, error) {
-	status, err := m.service.GetHealth(ctx)
+	healthResponse, err := m.service.GetHealth(ctx)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Site settings service is unhealthy", err)
 	}
 
 	return &dto.HealthOutput{
-		Body: dto.SiteSettingsHealthResponse{
-			Health: status,
-		},
+		Body: *healthResponse,
 	}, nil
 }
 
@@ -126,13 +125,16 @@ func (m *Module) getPublicSettingsHandler(ctx context.Context, input *dto.GetPub
 	totalPages := int(math.Ceil(float64(total) / float64(input.Limit)))
 
 	return &dto.ListSiteSettingsOutput{
-		Settings:   settingOutputs,
-		Total:      total,
-		Page:       input.Page,
-		Limit:      input.Limit,
-		TotalPages: totalPages,
+		Body: dto.ListSiteSettingsResponseBody{
+			Settings:   settingOutputs,
+			Total:      total,
+			Page:       input.Page,
+			Limit:      input.Limit,
+			TotalPages: totalPages,
+		},
 	}, nil
 }
+
 
 // Create setting handler
 func (m *Module) createSettingHandler(ctx context.Context, input *dto.CreateSiteSettingInput) (*dto.CreateSiteSettingOutput, error) {
@@ -148,8 +150,10 @@ func (m *Module) createSettingHandler(ctx context.Context, input *dto.CreateSite
 	}
 
 	return &dto.CreateSiteSettingOutput{
-		Setting: m.convertToOutput(setting),
-		Message: fmt.Sprintf("Site setting '%s' created successfully", setting.Key),
+		Body: dto.CreateSiteSettingResponseBody{
+			Setting: m.convertToOutput(setting),
+			Message: fmt.Sprintf("Site setting '%s' created successfully", setting.Key),
+		},
 	}, nil
 }
 
@@ -175,11 +179,13 @@ func (m *Module) listSettingsHandler(ctx context.Context, input *dto.ListSiteSet
 	totalPages := int(math.Ceil(float64(total) / float64(input.Limit)))
 
 	return &dto.ListSiteSettingsOutput{
-		Settings:   settingOutputs,
-		Total:      total,
-		Page:       input.Page,
-		Limit:      input.Limit,
-		TotalPages: totalPages,
+		Body: dto.ListSiteSettingsResponseBody{
+			Settings:   settingOutputs,
+			Total:      total,
+			Page:       input.Page,
+			Limit:      input.Limit,
+			TotalPages: totalPages,
+		},
 	}, nil
 }
 
@@ -197,7 +203,9 @@ func (m *Module) getSettingHandler(ctx context.Context, input *dto.GetSiteSettin
 	}
 
 	return &dto.GetSiteSettingOutput{
-		Setting: m.convertToOutput(setting),
+		Body: dto.GetSiteSettingResponseBody{
+			Setting: m.convertToOutput(setting),
+		},
 	}, nil
 }
 
@@ -215,8 +223,10 @@ func (m *Module) updateSettingHandler(ctx context.Context, input *dto.UpdateSite
 	}
 
 	return &dto.UpdateSiteSettingOutput{
-		Setting: m.convertToOutput(setting),
-		Message: fmt.Sprintf("Site setting '%s' updated successfully", setting.Key),
+		Body: dto.UpdateSiteSettingResponseBody{
+			Setting: m.convertToOutput(setting),
+			Message: fmt.Sprintf("Site setting '%s' updated successfully", setting.Key),
+		},
 	}, nil
 }
 
@@ -234,7 +244,9 @@ func (m *Module) deleteSettingHandler(ctx context.Context, input *dto.DeleteSite
 	}
 
 	return &dto.DeleteSiteSettingOutput{
-		Message: fmt.Sprintf("Site setting '%s' deleted successfully", input.Key),
+		Body: dto.DeleteSiteSettingResponseBody{
+			Message: fmt.Sprintf("Site setting '%s' deleted successfully", input.Key),
+		},
 	}, nil
 }
 
