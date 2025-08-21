@@ -220,6 +220,9 @@ func main() {
 		{Name: "Scheduler / Status", Description: "Task scheduler status and statistics"},
 		{Name: "Scheduler / Tasks", Description: "Scheduled task management and configuration"},
 		{Name: "Scheduler / Executions", Description: "Task execution history and monitoring"},
+		{Name: "Site Settings", Description: "Application configuration and site settings management"},
+		{Name: "Site Settings / Public", Description: "Public site settings accessible without authentication"},
+		{Name: "Site Settings / Management", Description: "Administrative site settings management operations"},
 	}
 	
 	// Add servers based on environment configuration or defaults

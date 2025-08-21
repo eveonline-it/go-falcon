@@ -30,17 +30,70 @@ func NewModule(service *services.Service, authMiddleware *middleware.AuthMiddlew
 // RegisterUnifiedRoutes registers all site settings routes with the Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 	// Health check endpoint
-	huma.Get(api, "/site-settings/health", m.healthHandler)
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-health-check",
+		Method:      "GET",
+		Path:        "/site-settings/health",
+		Summary:     "Site Settings module health check",
+		Description: "Check if the site settings module is healthy",
+		Tags:        []string{"Site Settings"},
+	}, m.healthHandler)
 
 	// Public endpoints (no authentication required)
-	huma.Get(api, "/site-settings/public", m.getPublicSettingsHandler)
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-get-public",
+		Method:      "GET",
+		Path:        "/site-settings/public",
+		Summary:     "Get public site settings",
+		Description: "Retrieve public site settings that can be accessed without authentication",
+		Tags:        []string{"Site Settings / Public"},
+	}, m.getPublicSettingsHandler)
 
 	// Protected endpoints (super admin only)
-	huma.Post(api, "/site-settings", m.createSettingHandler)
-	huma.Get(api, "/site-settings", m.listSettingsHandler)
-	huma.Get(api, "/site-settings/{key}", m.getSettingHandler)
-	huma.Put(api, "/site-settings/{key}", m.updateSettingHandler)
-	huma.Delete(api, "/site-settings/{key}", m.deleteSettingHandler)
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-create",
+		Method:      "POST",
+		Path:        "/site-settings",
+		Summary:     "Create site setting",
+		Description: "Create a new site configuration setting (super admin only)",
+		Tags:        []string{"Site Settings / Management"},
+	}, m.createSettingHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-list",
+		Method:      "GET",
+		Path:        "/site-settings",
+		Summary:     "List site settings",
+		Description: "List all site settings with filtering and pagination (super admin only)",
+		Tags:        []string{"Site Settings / Management"},
+	}, m.listSettingsHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-get",
+		Method:      "GET",
+		Path:        "/site-settings/{key}",
+		Summary:     "Get site setting",
+		Description: "Get a specific site setting by key (super admin only)",
+		Tags:        []string{"Site Settings / Management"},
+	}, m.getSettingHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-update",
+		Method:      "PUT",
+		Path:        "/site-settings/{key}",
+		Summary:     "Update site setting",
+		Description: "Update an existing site setting (super admin only)",
+		Tags:        []string{"Site Settings / Management"},
+	}, m.updateSettingHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-delete",
+		Method:      "DELETE",
+		Path:        "/site-settings/{key}",
+		Summary:     "Delete site setting",
+		Description: "Delete a site setting (super admin only)",
+		Tags:        []string{"Site Settings / Management"},
+	}, m.deleteSettingHandler)
 }
 
 // Health check handler
