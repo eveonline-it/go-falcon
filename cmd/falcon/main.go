@@ -151,6 +151,9 @@ func main() {
 		log.Fatalf("Failed to initialize groups module: %v", err)
 	}
 	
+	// Set up cross-module dependencies after initialization
+	authModule.GetAuthService().SetGroupsService(groupsModule.GetService())
+	
 	log.Printf("🚀 EVE Online ESI client initialized")
 
 	// Mount module routes with configurable API prefix

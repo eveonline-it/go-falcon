@@ -145,7 +145,7 @@ OPENAPI_SERVERS=""             # Custom OpenAPI servers (optional)
 # EVE Online Integration
 EVE_CLIENT_ID="your-client-id"
 EVE_CLIENT_SECRET="your-secret"
-SUPER_ADMIN_CHARACTER_ID="123456789"
+# SUPER_ADMIN_CHARACTER_ID="123456789" # DEPRECATED: First user is now auto-assigned to super_admin group
 
 # Observability
 ENABLE_TELEMETRY="true"        # Enable OpenTelemetry
@@ -273,6 +273,18 @@ req.Header.Set("Accept", "application/json")
 - **Public Info**: `GET /auth/profile/public` (open)
 - **Refresh Data**: `POST /auth/profile/refresh`
 - **Token Access**: `GET /auth/token` (get bearer token)
+
+### Super Admin System
+
+The super admin system now uses **group-based membership** instead of user profile flags:
+
+- **First User Auto-Assignment**: The very first user to authenticate is automatically added to the "Super Administrator" group
+- **Group-Based Permissions**: Super admin status is determined by membership in the "Super Administrator" system group
+- **No Configuration Required**: The `SUPER_ADMIN_CHARACTER_ID` environment variable is deprecated and no longer needed
+- **Database-Driven**: All super admin permissions are managed through the groups module
+- **Persistent**: Super admin status persists across sessions and is stored in the MongoDB groups collections
+
+**Migration**: Existing super admins will need to be manually added to the "Super Administrator" group via the groups API or by clearing the database to trigger first-user assignment.
 
 ## 🛠️ Development Guidelines
 

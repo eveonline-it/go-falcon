@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -24,6 +25,13 @@ type AuthService struct {
 	repository     *Repository
 	eveService     *EVEService
 	profileService *ProfileService
+	groupsService  GroupsService // Interface to avoid circular dependency
+}
+
+// GroupsService interface for groups module dependency
+type GroupsService interface {
+	EnsureFirstUserSuperAdmin(ctx context.Context, characterID int64) error
+	IsCharacterInGroup(ctx context.Context, characterID int64, groupName string) (bool, error)
 }
 
 // NewAuthService creates a new auth service with all dependencies
@@ -36,7 +44,13 @@ func NewAuthService(mongodb *database.MongoDB, esiClient *evegateway.Client) *Au
 		repository:     repository,
 		eveService:     eveService,
 		profileService: profileService,
+		groupsService:  nil, // Will be set after groups module initialization
 	}
+}
+
+// SetGroupsService sets the groups service after initialization to avoid circular dependency
+func (s *AuthService) SetGroupsService(groupsService GroupsService) {
+	s.groupsService = groupsService
 }
 
 // HealthCheck handles health check requests
@@ -82,11 +96,14 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 		}, nil
 	}
 
-	// Check if user is super admin via database
+	// Check if user is super admin via groups service
 	permissions := []string{}
-	if user.IsSuperAdmin {
-		// Grant super admin status
-		permissions = []string{"super_admin"}
+	if s.groupsService != nil {
+		isSuperAdmin, err := s.groupsService.IsCharacterInGroup(ctx, int64(user.CharacterID), "Super Administrator")
+		if err == nil && isSuperAdmin {
+			// Grant super admin status
+			permissions = []string{"super_admin"}
+		}
 	}
 
 	// Return authenticated response with user info
@@ -179,11 +196,14 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 		}, nil
 	}
 
-	// Check if user is super admin via database
+	// Check if user is super admin via groups service
 	permissions := []string{}
-	if user.IsSuperAdmin {
-		// Grant super admin status
-		permissions = []string{"super_admin"}
+	if s.groupsService != nil {
+		isSuperAdmin, err := s.groupsService.IsCharacterInGroup(ctx, int64(user.CharacterID), "Super Administrator")
+		if err == nil && isSuperAdmin {
+			// Grant super admin status
+			permissions = []string{"super_admin"}
+		}
 	}
 
 	// Return authenticated response with user info
@@ -327,8 +347,16 @@ func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, sta
 		return "", nil, fmt.Errorf("failed to create/update profile: %w", err)
 	}
 
+	// Check if this should be the first super admin (only if groups service is available)
+	if s.groupsService != nil {
+		if err := s.groupsService.EnsureFirstUserSuperAdmin(ctx, int64(profile.CharacterID)); err != nil {
+			// Log error but don't fail the authentication process
+			slog.Error("Failed to ensure first user super admin", "error", err, "character_id", profile.CharacterID)
+		}
+	}
+
 	// Generate JWT token
-	jwtToken, _, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes, profile.IsSuperAdmin)
+	jwtToken, _, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes)
 	if err != nil {
 		span.RecordError(err)
 		return "", nil, fmt.Errorf("failed to generate JWT: %w", err)
@@ -370,7 +398,7 @@ func (s *AuthService) ExchangeEVEToken(ctx context.Context, req *dto.EVETokenExc
 	}
 
 	// Generate JWT token
-	jwtToken, expiresAt, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes, profile.IsSuperAdmin)
+	jwtToken, expiresAt, err := s.eveService.GenerateJWT(profile.UserID, profile.CharacterID, profile.CharacterName, profile.Scopes)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
@@ -428,14 +456,7 @@ func (s *AuthService) GetPublicProfile(ctx context.Context, characterID int) (*d
 
 // GetBearerToken generates a bearer token for authenticated user
 func (s *AuthService) GetBearerToken(ctx context.Context, userID string, characterID int, characterName, scopes string) (*dto.TokenResponse, error) {
-	// Look up user profile to get super admin status
-	profile, err := s.repository.GetUserProfileByCharacterID(ctx, characterID)
-	isSuperAdmin := false
-	if err == nil && profile != nil {
-		isSuperAdmin = profile.IsSuperAdmin
-	}
-
-	jwtToken, expiresAt, err := s.eveService.GenerateJWT(userID, characterID, characterName, scopes, isSuperAdmin)
+	jwtToken, expiresAt, err := s.eveService.GenerateJWT(userID, characterID, characterName, scopes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}

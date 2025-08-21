@@ -197,19 +197,8 @@ func (m *CharacterContextMiddleware) getDummyContext() *CharacterContext {
 	}
 }
 
-// ResolveCharacterContextWithBypass resolves character context with super admin bypass
+// ResolveCharacterContextWithBypass resolves character context (bypass removed - now uses groups)
 func (m *CharacterContextMiddleware) ResolveCharacterContextWithBypass(ctx context.Context, characterID int64, authHeader, cookieHeader string) (*CharacterContext, error) {
-	// Check if this is the super admin character (661916654)
-	if characterID == 661916654 {
-		return &CharacterContext{
-			UserID:           "super-admin-user-id",
-			CharacterID:      661916654,
-			CharacterName:    "Black Dharma",
-			IsSuperAdmin:     true,
-			GroupMemberships: []string{"Super Administrator"},
-		}, nil
-	}
-	
-	// For non-super admin characters, use normal authentication flow
+	// Use normal authentication flow - first user gets auto-assigned to super_admin group
 	return m.ResolveCharacterContext(ctx, authHeader, cookieHeader)
 }

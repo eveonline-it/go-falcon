@@ -113,9 +113,10 @@ POST /auth/logout
 ### JWT Tokens
 - HMAC-SHA256 signed tokens
 - 24-hour expiration
-- Contains character ID, name, and scopes
+- Contains character ID, name, and scopes (super admin status now via groups)
 - Server-side validation
 - Supports both cookie and Bearer token authentication
+- **Note**: Super admin claims removed - now determined by Groups module membership
 
 ## User Profile Management
 
@@ -126,6 +127,7 @@ POST /auth/logout
 - EVE Online scopes
 - Login timestamps
 - Encrypted refresh token storage
+- **Note**: Super admin flag removed - now managed via Groups module
 
 ### Bulk Token Management
 - **RefreshExpiringTokens**: Batch refresh tokens for users with expiring access tokens

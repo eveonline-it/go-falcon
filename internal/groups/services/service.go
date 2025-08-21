@@ -645,3 +645,39 @@ func (s *Service) CleanupInvalidMemberships(ctx context.Context) error {
 	
 	return nil
 }
+
+// EnsureFirstUserSuperAdmin checks if this is the first user and adds them to super_admin group
+func (s *Service) EnsureFirstUserSuperAdmin(ctx context.Context, characterID int64) error {
+	// Check if super_admin group has any members
+	superAdminGroup, err := s.repo.GetGroupBySystemName(ctx, "super_admin")
+	if err != nil {
+		return fmt.Errorf("failed to get super_admin group: %w", err)
+	}
+	if superAdminGroup == nil {
+		return fmt.Errorf("super_admin group not found")
+	}
+
+	// Check if super_admin group has any active members
+	memberCount, err := s.repo.GetGroupMemberCount(ctx, superAdminGroup.ID)
+	if err != nil {
+		return fmt.Errorf("failed to check super_admin member count: %w", err)
+	}
+
+	// If no super admins exist, make this user the first super admin
+	if memberCount == 0 {
+		membership := &models.GroupMembership{
+			GroupID:     superAdminGroup.ID,
+			CharacterID: characterID,
+			IsActive:    true,
+			AddedBy:     nil, // System-assigned
+		}
+
+		if err := s.repo.AddMembership(ctx, membership); err != nil {
+			return fmt.Errorf("failed to add first user to super_admin group: %w", err)
+		}
+
+		slog.Info("[Groups] First user assigned to super_admin group", "character_id", characterID)
+	}
+
+	return nil
+}

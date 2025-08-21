@@ -26,7 +26,7 @@ The Group Management module provides hierarchical, role-based access control (RB
 - `authenticated` - Any logged-in character with valid session
 - `guest` - Logged-in character with minimal/no ESI scopes
 
-**Note**: `super_admin` is not a group but a boolean flag in the user_profiles collection. Users with `super_admin: true` bypass all permission checks and can manage the Administrator group.
+**Note**: `super_admin` is now a system group called "Super Administrator". The first user to authenticate is automatically added to this group. The previous boolean flag in user_profiles has been removed.
 
 #### EVE Organization Groups (Auto-assigned)
 - `corporation_member` - Character in an allowed corporation
@@ -80,12 +80,12 @@ Priority Order (Highest → Lowest):
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
 │          Character Context Middleware                       │
-│  (Resolve Character/Corp/Alliance + super_admin flag)       │
+│  (Resolve Character/Corp/Alliance + super_admin group)      │
 │                                                             │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  1. Load user profile from database                 │   │
-│  │  2. Check super_admin flag                          │   │
-│  │  3. If super_admin: true → Set bypass flag          │   │
+│  │  2. Check super_admin group membership              │   │
+│  │  3. If in Super Administrator group → Set flag     │   │
 │  │  4. Resolve character's corp/alliance               │   │
 │  │  5. Attach context to request                       │   │
 │  └──────────────────────────────────────────────────────┘   │
@@ -96,7 +96,7 @@ Priority Order (Highest → Lowest):
 │                                                             │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  Permission Check Flow:                             │   │
-│  │  1. Check context for super_admin bypass flag       │   │
+│  │  1. Check context for super_admin group flag        │   │
 │  │  2. If bypassed → Allow immediately                 │   │
 │  │  3. Otherwise, proceed with normal checks:          │   │
 │  └──────────────────────────────────────────────────────┘   │
@@ -704,12 +704,12 @@ groups:
 
 ### From Current System
 
-1. **Compatibility Mode**: Run alongside existing `super_admin` flag and `authenticated` checks
+1. **Integration Mode**: Fully integrated with `super_admin` group and `authenticated` checks
 2. **Gradual Migration**: Migrate permissions module by module
 3. **Rollback Plan**: Feature flag to disable and revert
 4. **Data Migration**: Script to convert existing permissions
 
-**Important**: The `super_admin` boolean flag in user_profiles takes precedence over all group permissions. Users with this flag bypass all group checks.
+**Important**: The `super_admin` group membership (Super Administrator system group) takes precedence over all other group permissions. Users in this group bypass all normal permission checks.
 
 ### Migration Steps
 
@@ -718,7 +718,7 @@ groups:
 -- Step 2: Create authenticated group  
 -- Step 3: Auto-assign authenticated users
 -- Step 4: Enable group middleware
--- Step 5: Update middleware to check super_admin flag first
+-- Step 5: Update middleware to check super_admin group membership first
 -- Step 6: Remove old permission checks
 ```
 
@@ -787,7 +787,7 @@ func CharacterContextMiddleware(userService *users.Service) func(next http.Handl
 // Usage in route protection
 router.Get("/admin/users", 
     middleware.RequireAuth(),
-    middleware.CharacterContext(),    // Resolves super_admin flag
+    middleware.CharacterContext(),    // Resolves super_admin group
     middleware.RequireGroup("administrator"),
     handlers.ListUsers,
 )
