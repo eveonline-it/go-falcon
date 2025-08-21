@@ -60,3 +60,4 @@ type GetPublicSiteSettingsInput struct {
 	Page     int    `query:"page" minimum:"1" default:"1" description:"Page number"`
 	Limit    int    `query:"limit" minimum:"1" maximum:"100" default:"20" description:"Items per page"`
 }
+

@@ -49,6 +49,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Site Settings / Public"},
 	}, m.getPublicSettingsHandler)
 
+
 	// Protected endpoints (super admin only)
 	huma.Register(api, huma.Operation{
 		OperationID: "site-settings-create",
@@ -264,3 +265,4 @@ func (m *Module) convertToOutput(setting *models.SiteSetting) dto.SiteSettingOut
 		UpdatedAt:   setting.UpdatedAt,
 	}
 }
+

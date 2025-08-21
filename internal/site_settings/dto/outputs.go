@@ -84,3 +84,4 @@ type SiteSettingsHealthResponse struct {
 	TotalCount  int    `json:"total_count" description:"Total number of settings"`
 	PublicCount int    `json:"public_count" description:"Number of public settings"`
 }
+

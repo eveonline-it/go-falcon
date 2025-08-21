@@ -46,6 +46,7 @@ func (s *Service) CreateSetting(ctx context.Context, input *dto.CreateSiteSettin
 	if err := s.validateValueType(input.Body.Value, input.Body.Type); err != nil {
 		return nil, fmt.Errorf("invalid value for type '%s': %w", input.Body.Type, err)
 	}
+	
 
 	setting := &models.SiteSetting{
 		Key:         input.Body.Key,
@@ -252,3 +253,5 @@ func (s *Service) GetHealth(ctx context.Context) (*dto.SiteSettingsHealthRespons
 		PublicCount: int(publicCount),
 	}, nil
 }
+
+
