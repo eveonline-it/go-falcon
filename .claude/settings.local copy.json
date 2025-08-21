@@ -1,0 +1,122 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(go mod:*)",
+      "Bash(go get:*)",
+      "Bash(mv:*)",
+      "Bash(go build:*)",
+      "Bash(rm:*)",
+      "Bash(true)",
+      "Bash(go install:*)",
+      "Bash(touch:*)",
+      "Bash(sudo chown:*)",
+      "Bash(ls:*)",
+      "Bash(make:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker exec:*)",
+      "Bash(env)",
+      "Bash(jq:*)",
+      "Bash(go run:*)",
+      "Bash(echo:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(timeout:*)",
+      "Bash(ENABLE_TELEMETRY=false timeout 10s go run main.go)",
+      "Bash(ENABLE_TELEMETRY=false timeout 10s go run ./cmd/falcon/main.go)",
+      "Bash(ENABLE_TELEMETRY=false timeout 10s go run cmd/falcon/main.go)",
+      "Bash(ENABLE_TELEMETRY=false timeout 5s ./postman)",
+      "Bash(git commit:*)",
+      "Bash(SUPER_ADMIN_CHARACTER_ID=123456789 timeout 10s ./falcon)",
+      "Bash(go test:*)",
+      "Bash(nc:*)",
+      "Bash(redis-cli:*)",
+      "Bash(sed:*)",
+      "Bash(curl:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(go clean:*)",
+      "Bash(PORT=3001 go run cmd/falcon/main.go)",
+      "WebFetch(domain:github.com)",
+      "Bash(HUMA_PORT=8081 HUMA_SEPARATE_SERVER=true go run test_huma_config.go)",
+      "Bash(HOST=localhost HUMA_HOST=192.168.1.100 HUMA_PORT=8081 HUMA_SEPARATE_SERVER=true go run test_huma_config.go)",
+      "Bash(PORT=9000 HOST=0.0.0.0 HUMA_PORT=8081 HUMA_SEPARATE_SERVER=true timeout 3s go run cmd/falcon/main.go)",
+      "Bash(chmod:*)",
+      "Bash(./add_unified_routes.sh:*)",
+      "Bash(OPENAPI_SERVERS=\"https://api.example.com|Production,http://localhost:3000|Development,https://staging.example.com|Staging\" timeout 5s ./tmp/falcon)",
+      "Bash(killall:*)",
+      "Bash(OPENAPI_SERVERS=\"https://api.example.com|Production,http://localhost:3000|Development,https://staging.example.com|Staging\" timeout 3s ./tmp/falcon)",
+      "Bash(git rm:*)",
+      "Bash(cat:*)",
+      "Bash(./scripts/changelog.sh:*)",
+      "Bash(./scripts/changelog.sh:*)",
+      "Bash(go doc:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp:*)",
+      "mcp__mongodb-falcon__list-databases",
+      "mcp__mongodb-falcon__list-collections",
+      "mcp__mongodb-falcon__find",
+      "mcp__mongodb-falcon__collection-indexes",
+      "mcp__mongodb-falcon__count",
+      "mcp__redis-falcon__scan_all_keys",
+      "mcp__redis-falcon__dbsize",
+      "mcp__mongodb-falcon__aggregate",
+      "mcp__mongodb-falcon__create-index",
+      "mcp__mongodb-falcon__drop-collection",
+      "mcp__mongodb-falcon__insert-many",
+      "Bash(/dev/null)",
+      "mcp__core-memory__search",
+      "mcp__core-memory__ingest",
+      "mcp__rewatch__list_processes",
+      "mcp__rewatch__restart_process",
+      "mcp__rewatch__get_process_logs",
+      "mcp__mongodb-falcon__switch-connection",
+      "WebFetch(domain:huma.rocks)",
+      "WebSearch",
+      "Bash(mongosh:*)",
+      "Bash(mongo:*)",
+      "Bash(pkill:*)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \":brain: SESSION STARTED: Search memory for context about: $(basename $(pwd)) project, previous conversations, and related work. Do this before responding to user queries.\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '💭 CONTEXT SEARCH: Before responding, use memory-search to search for: previous discussions about this topic, related project context, and similar problems solved before.'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '💾 FINAL STEP: Your response to the user is now complete. Before this conversation ends, you must use memory-ingest to store: [USER] their question/request + [ASSISTANT] your solution/explanation/reasoning. Do this storage now as the very last action.'"
+          }
+        ]
+      }
+    ]
+  }
+}
