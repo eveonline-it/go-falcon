@@ -119,15 +119,45 @@ func (m *CharacterContextMiddleware) enrichWithProfile(ctx context.Context, char
 		return fmt.Errorf("failed to get user profile: %w", err)
 	}
 	
-	// TODO: Extract corporation and alliance information from profile
-	// This will be implemented in Phase 2 when we have ESI integration
-	_ = profile
+	// Extract corporation and alliance information from profile
+	if profile.CorporationID > 0 {
+		corpID := int64(profile.CorporationID)
+		charContext.CorporationID = &corpID
+		
+		if profile.CorporationName != "" {
+			charContext.CorporationName = &profile.CorporationName
+		}
+	}
+	
+	if profile.AllianceID > 0 {
+		allianceID := int64(profile.AllianceID)
+		charContext.AllianceID = &allianceID
+		
+		if profile.AllianceName != "" {
+			charContext.AllianceName = &profile.AllianceName
+		}
+	}
+	
+	slog.Debug("[CharacterContext] Profile enrichment completed", 
+		"character_id", charContext.CharacterID,
+		"corporation_id", charContext.CorporationID,
+		"corporation_name", charContext.CorporationName,
+		"alliance_id", charContext.AllianceID,
+		"alliance_name", charContext.AllianceName)
 	
 	return nil
 }
 
 // enrichWithGroupMemberships resolves which groups this character belongs to
 func (m *CharacterContextMiddleware) enrichWithGroupMemberships(ctx context.Context, charContext *CharacterContext) error {
+	// First, sync corporation and alliance groups (auto-assignment)
+	if err := m.groupService.SyncCharacterGroups(ctx, charContext.CharacterID, charContext.CorporationID, charContext.AllianceID); err != nil {
+		slog.Warn("[CharacterContext] Failed to sync character groups", 
+			"character_id", charContext.CharacterID, 
+			"error", err)
+		// Continue without sync - don't fail the entire request
+	}
+	
 	// Get groups for this character
 	groups, err := m.groupService.GetCharacterGroups(ctx, &dto.GetCharacterGroupsInput{
 		CharacterID: fmt.Sprintf("%d", charContext.CharacterID),

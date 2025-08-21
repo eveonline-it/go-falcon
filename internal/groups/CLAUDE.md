@@ -4,16 +4,18 @@
 
 The groups module provides group and role-based access control management for the go-falcon EVE Online API gateway. This module implements a hierarchical permission system that supports EVE-specific groups (characters, corporations, alliances) as well as custom groups for fine-grained access control.
 
-**Current Status**: Phase 1 - Foundation completed
-**Authentication**: Simple auth middleware for testing (Phase 1 only)
+**Current Status**: Phase 2 - EVE Integration completed
+**Authentication**: Full integration with Character Context Middleware
 
 ## Architecture
 
 ### Core Components
 
 - **Group Management**: CRUD operations for custom groups and system groups
-- **Membership Management**: Character assignment to groups with audit trail
-- **Permission System**: Hierarchical permission checking (future phases)
+- **Membership Management**: Character assignment to groups with audit trail  
+- **EVE Integration**: Auto-assignment for corporation and alliance groups
+- **Character Context**: Corporation/alliance data extraction from user profiles
+- **Auto-Synchronization**: Automated group membership sync via scheduler
 - **System Groups**: Built-in groups (super_admin, authenticated, guest)
 - **MongoDB Storage**: Groups and memberships collections with proper indexing
 
@@ -25,7 +27,8 @@ internal/groups/
 │   ├── inputs.go         # Request input DTOs with Huma v2 validation
 │   └── outputs.go        # Response output DTOs
 ├── middleware/
-│   └── auth.go          # Authentication and authorization middleware
+│   ├── auth.go          # Authentication and authorization middleware
+│   └── context.go       # Character Context Middleware with corp/alliance resolution
 ├── routes/
 │   └── routes.go        # Huma v2 route definitions
 ├── services/
@@ -73,9 +76,49 @@ type GroupMembership struct {
 ### Group Types
 
 - **`system`**: Built-in groups (super_admin, authenticated, guest)
-- **`corporation`**: EVE Corporation groups (future phases)
-- **`alliance`**: EVE Alliance groups (future phases)
+- **`corporation`**: EVE Corporation groups (auto-created and auto-assigned)
+- **`alliance`**: EVE Alliance groups (auto-created and auto-assigned)
 - **`custom`**: User-created custom groups
+
+### Phase 2 Features (✅ COMPLETED)
+
+#### Character Context Middleware Integration
+The Character Context Middleware now extracts corporation and alliance information from user profiles and populates the `CharacterContext`:
+
+```go
+type CharacterContext struct {
+    UserID        string  `json:"user_id"`
+    CharacterID   int64   `json:"character_id"`
+    CharacterName string  `json:"character_name"`
+    IsSuperAdmin  bool    `json:"is_super_admin"`
+    
+    // Phase 2: Corporation and Alliance info
+    CorporationID   *int64  `json:"corporation_id,omitempty"`
+    CorporationName *string `json:"corporation_name,omitempty"`
+    AllianceID      *int64  `json:"alliance_id,omitempty"`
+    AllianceName    *string `json:"alliance_name,omitempty"`
+    
+    GroupMemberships []string `json:"group_memberships,omitempty"`
+}
+```
+
+#### Auto-Assignment System
+Characters are automatically assigned to corporation and alliance groups when:
+1. **Authentication occurs**: During Character Context resolution
+2. **Profile updates**: When ESI data is refreshed
+3. **Scheduled sync**: Via system task `system-groups-sync` (every 6 hours)
+
+#### Group Auto-Creation
+Corporation and alliance groups are automatically created with naming convention:
+- Corporation groups: `Corp_{corporation_id}` (e.g., `Corp_98000001`)
+- Alliance groups: `Alliance_{alliance_id}` (e.g., `Alliance_99000001`)
+
+#### Scheduler Integration
+Added system task for automated group synchronization:
+- **Task ID**: `system-groups-sync`
+- **Schedule**: Every 6 hours
+- **Purpose**: Validates and syncs character group memberships
+- **ESI Integration**: Placeholder for future ESI validation
 
 ## API Endpoints
 

@@ -135,6 +135,22 @@ func (r *Repository) GetGroupBySystemName(ctx context.Context, systemName string
 	return &group, nil
 }
 
+// GetGroupByEVEEntityID retrieves a group by EVE entity ID (corporation or alliance)
+func (r *Repository) GetGroupByEVEEntityID(ctx context.Context, eveEntityID int64) (*models.Group, error) {
+	filter := bson.M{"eve_entity_id": eveEntityID}
+	
+	var group models.Group
+	err := r.groupsCollection.FindOne(ctx, filter).Decode(&group)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get group by EVE entity ID: %w", err)
+	}
+	
+	return &group, nil
+}
+
 // ListGroups retrieves groups with filtering and pagination
 func (r *Repository) ListGroups(ctx context.Context, filter bson.M, page, limit int) ([]models.Group, int64, error) {
 	// Get total count

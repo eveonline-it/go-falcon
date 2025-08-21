@@ -35,7 +35,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups/health",
 		Summary:     "Group module health check",
 		Description: "Check if the groups module is healthy",
-		Tags:        []string{"Groups", "Health"},
+		Tags:        []string{"Groups"},
 	}, func(ctx context.Context, input *struct{}) (*dto.HealthOutput, error) {
 		return &dto.HealthOutput{
 			Body: dto.HealthResponse{
@@ -51,7 +51,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups",
 		Summary:     "Create a new group",
 		Description: "Create a new custom group (requires admin access)",
-		Tags:        []string{"Groups", "Management"},
+		Tags:        []string{"Groups / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.createGroup)
 
@@ -61,7 +61,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups",
 		Summary:     "List groups",
 		Description: "List groups with optional filtering (requires authentication)",
-		Tags:        []string{"Groups", "Management"},
+		Tags:        []string{"Groups / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.ListGroupsInput) (*dto.ListGroupsOutput, error) {
 		// Validate authentication
@@ -79,7 +79,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups/{id}",
 		Summary:     "Get a specific group",
 		Description: "Retrieve details of a specific group (requires authentication)",
-		Tags:        []string{"Groups", "Management"},
+		Tags:        []string{"Groups / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.getGroup)
 
@@ -89,7 +89,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups/{id}",
 		Summary:     "Update a group",
 		Description: "Update group details (requires admin access)",
-		Tags:        []string{"Groups", "Management"},
+		Tags:        []string{"Groups / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.updateGroup)
 
@@ -99,7 +99,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups/{id}",
 		Summary:     "Delete a group",
 		Description: "Delete a group and all its memberships (requires admin access)",
-		Tags:        []string{"Groups", "Management"},
+		Tags:        []string{"Groups / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.deleteGroup)
 
@@ -110,7 +110,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups/{group_id}/members",
 		Summary:     "Add a member to a group",
 		Description: "Add a character to a group (requires admin access)",
-		Tags:        []string{"Groups", "Memberships"},
+		Tags:        []string{"Groups / Memberships"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.addMember)
 
@@ -120,7 +120,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups/{group_id}/members/{character_id}",
 		Summary:     "Remove a member from a group",
 		Description: "Remove a character from a group (requires admin access)",
-		Tags:        []string{"Groups", "Memberships"},
+		Tags:        []string{"Groups / Memberships"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.removeMember)
 
@@ -130,7 +130,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups/{group_id}/members",
 		Summary:     "List group members",
 		Description: "List all members of a group (requires authentication)",
-		Tags:        []string{"Groups", "Memberships"},
+		Tags:        []string{"Groups / Memberships"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.listMembers)
 
@@ -140,7 +140,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/groups/{group_id}/members/{character_id}",
 		Summary:     "Check group membership",
 		Description: "Check if a character is a member of a group (requires authentication)",
-		Tags:        []string{"Groups", "Memberships"},
+		Tags:        []string{"Groups / Memberships"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.checkMembership)
 
@@ -151,7 +151,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/characters/{character_id}/groups",
 		Summary:     "Get character groups",
 		Description: "Get all groups a character belongs to (requires authentication)",
-		Tags:        []string{"Groups", "Characters"},
+		Tags:        []string{"Groups / Characters"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.getCharacterGroups)
 }

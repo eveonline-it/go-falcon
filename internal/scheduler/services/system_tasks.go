@@ -41,6 +41,36 @@ func GetSystemTasks() []*models.Task {
 			CreatedBy: "system",
 		},
 		{
+			ID:          "system-groups-sync",
+			Name:        "Groups Synchronization",
+			Description: "Synchronizes character group memberships and validates corp/alliance memberships via ESI",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 0 */6 * * *", // Every 6 hours
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "groups_sync",
+				"parameters": map[string]interface{}{
+					"batch_size": 50,
+					"timeout":    "10m",
+					"validate_memberships": true,
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: 5 * time.Minute,
+				Timeout:       15 * time.Minute,
+				Tags:          []string{"system", "groups", "esi"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
+		{
 			ID:          "system-state-cleanup",
 			Name:        "State Cleanup",
 			Description: "Cleans up expired states and temporary data",
