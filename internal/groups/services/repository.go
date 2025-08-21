@@ -219,9 +219,8 @@ func (r *Repository) DeleteGroup(ctx context.Context, id primitive.ObjectID) err
 
 // AddMembership adds a character to a group
 func (r *Repository) AddMembership(ctx context.Context, membership *models.GroupMembership) error {
-	membership.AddedAt = time.Now()
-	membership.UpdatedAt = time.Now()
-
+	now := time.Now()
+	
 	// Use upsert to handle duplicates gracefully
 	filter := bson.M{
 		"group_id":     membership.GroupID,
@@ -229,9 +228,13 @@ func (r *Repository) AddMembership(ctx context.Context, membership *models.Group
 	}
 
 	update := bson.M{
-		"$set": membership,
+		"$set": bson.M{
+			"is_active":  membership.IsActive,
+			"added_by":   membership.AddedBy,
+			"updated_at": now,
+		},
 		"$setOnInsert": bson.M{
-			"added_at": membership.AddedAt,
+			"added_at": now,
 		},
 	}
 
