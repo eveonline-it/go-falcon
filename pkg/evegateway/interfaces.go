@@ -29,6 +29,7 @@ type CacheManager interface {
 	Get(key string) ([]byte, bool, error)
 	GetWithExpiry(key string) ([]byte, bool, *time.Time, error)
 	GetForNotModified(key string) ([]byte, bool, error)
+	GetMetadata(key string) (map[string]interface{}, error)
 	Set(key string, data []byte, headers http.Header) error
 	RefreshExpiry(key string, headers http.Header) error
 	SetConditionalHeaders(req *http.Request, key string) error
@@ -95,6 +96,26 @@ func (c *DefaultCacheManager) GetForNotModified(key string) ([]byte, bool, error
 	}
 
 	return entry.Data, true, nil
+}
+
+// GetMetadata retrieves metadata about a cached entry
+func (c *DefaultCacheManager) GetMetadata(key string) (map[string]interface{}, error) {
+	c.cacheMutex.RLock()
+	defer c.cacheMutex.RUnlock()
+
+	entry, exists := c.cache[key]
+	if !exists {
+		return nil, nil
+	}
+
+	metadata := map[string]interface{}{
+		"expires_at":     entry.Expires,
+		"etag":          entry.ETag,
+		"last_modified": entry.LastModified,
+		"cached":        true,
+	}
+
+	return metadata, nil
 }
 
 // RefreshExpiry updates the expiry time of a cached entry (for 304 responses)

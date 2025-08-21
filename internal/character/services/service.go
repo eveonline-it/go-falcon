@@ -25,6 +25,11 @@ func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client) *Servi
 	}
 }
 
+// CreateIndexes creates database indexes for optimal performance
+func (s *Service) CreateIndexes(ctx context.Context) error {
+	return s.repository.CreateIndexes(ctx)
+}
+
 // GetCharacterProfile retrieves character profile from DB or ESI if not found
 func (s *Service) GetCharacterProfile(ctx context.Context, characterID int) (*dto.CharacterProfileOutput, error) {
 	log.Printf("GetCharacterProfile called for character ID: %d", characterID)

@@ -56,6 +56,7 @@ type StatusClient interface {
 type CharacterClient interface {
 	GetCharacterInfo(ctx context.Context, characterID int) (map[string]any, error)
 	GetCharacterPortrait(ctx context.Context, characterID int) (map[string]any, error)
+	GetCharactersAffiliation(ctx context.Context, characterIDs []int) ([]map[string]interface{}, error)
 }
 
 // UniverseClient interface for universe operations
@@ -465,6 +466,30 @@ func (c *characterClientImpl) GetCharacterPortrait(ctx context.Context, characte
 		"px256x256": portrait.Px256x256,
 		"px512x512": portrait.Px512x512,
 	}, nil
+}
+
+func (c *characterClientImpl) GetCharactersAffiliation(ctx context.Context, characterIDs []int) ([]map[string]interface{}, error) {
+	affiliations, err := c.client.GetCharactersAffiliation(ctx, characterIDs)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert structured response to map for backward compatibility
+	result := make([]map[string]interface{}, len(affiliations))
+	for i, aff := range affiliations {
+		result[i] = map[string]interface{}{
+			"character_id":   aff.CharacterID,
+			"corporation_id": aff.CorporationID,
+		}
+		if aff.AllianceID != 0 {
+			result[i]["alliance_id"] = aff.AllianceID
+		}
+		if aff.FactionID != 0 {
+			result[i]["faction_id"] = aff.FactionID
+		}
+	}
+	
+	return result, nil
 }
 
 // UniverseClient implementation

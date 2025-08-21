@@ -186,11 +186,13 @@ Modern API gateway with unified OpenAPI 3.1.1 specification:
 ### 3. Task Scheduling System
 
 The scheduler module provides:
-- **Cron Scheduling**: Standard cron expression support
-- **Task Types**: HTTP webhooks, functions, system tasks
-- **Distributed Locking**: Redis-based coordination
-- **Execution History**: Complete audit trail
-- **Worker Pool**: Configurable concurrent execution
+- **Cron Scheduling**: Standard cron expression support with 6-field format (including seconds)
+- **Task Types**: HTTP webhooks, functions, system tasks, custom executors
+- **System Tasks**: Automated background operations including character affiliation updates
+- **Distributed Locking**: Redis-based coordination preventing duplicate executions
+- **Execution History**: Complete audit trail with performance metrics
+- **Worker Pool**: Configurable concurrent execution (default: 10 workers)
+- **Module Integration**: Direct integration with character module for ESI-based updates
 
 ### 4. EVE Online SDE Management
 
@@ -213,9 +215,9 @@ In-memory SDE (Static Data Export) service:
 | Module | Location | Description |
 |--------|----------|-------------|
 | **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md) | EVE SSO integration, JWT management, user profiles |
-| **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution |
+| **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution, character affiliation updates |
 | **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User management and profile operations |
-| **Character** | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md) | Character information and portraits |
+| **Character** | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md) | Character information, portraits, background affiliation updates |
 | **Corporation** | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management |
 | **Alliance** | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md) | Alliance information, member corporations, relationship data |
 
@@ -234,6 +236,29 @@ In-memory SDE (Static Data Export) service:
 | **SDE Service** | [`pkg/sde/CLAUDE.md`](pkg/sde/CLAUDE.md) | In-memory data service |
 
 ## 🚀 EVE Online Integration
+
+### Background Data Updates
+
+The system provides automated background updates for EVE Online data:
+
+**Character Affiliation Updates**:
+- **Schedule**: Every 30 minutes via scheduler system task
+- **ESI Endpoint**: `POST /characters/affiliation/` (batch processing up to 1000 characters)
+- **Processing**: Parallel workers (3 concurrent) for optimal throughput
+- **Database Strategy**: Bulk updates with upsert logic for new characters
+- **Performance**: ~3000 characters per minute processing capability
+- **Monitoring**: Detailed debug logging showing character changes:
+  ```
+  🔄 Character 90000001 affiliation UPDATED: corp: 98000001→98000002, alliance: 0→99000001
+  📊 Character 90000002 affiliation checked (no changes)
+  ➕ Character 90000003 NOT FOUND in database, creating new record
+  ```
+
+**Integration Benefits**:
+- **Data Freshness**: Corporation and alliance affiliations updated automatically
+- **Scalability**: Handles large character databases efficiently with batch processing
+- **Reliability**: Retry logic with graceful failure handling
+- **Observability**: Complete execution statistics and error reporting
 
 ### ESI (EVE Swagger Interface) Best Practices
 
@@ -525,8 +550,8 @@ http://localhost:3000/docs
 **Unified API Endpoints:** All modules use Huma v2 for type-safe operations:
 - Auth Module: `/auth/*` endpoints with EVE SSO integration
 - Users Module: `/users/*` endpoints for user management  
-- Scheduler Module: `/scheduler/*` endpoints for task scheduling
-- Character Module: `/character/*` endpoints for character information
+- Scheduler Module: `/scheduler/*` endpoints for task scheduling and system task management
+- Character Module: `/character/*` endpoints for character information and name search
 - Corporation Module: `/corporations/*` endpoints for corporation data
 - Alliance Module: `/alliances/*` endpoints for alliance information
 

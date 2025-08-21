@@ -38,7 +38,8 @@ type EngineService struct {
 	stopChan  chan struct{}
 	
 	// Module dependencies
-	authModule AuthModule
+	authModule      AuthModule
+	characterModule CharacterModule
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -52,16 +53,17 @@ type TaskExecutor interface {
 }
 
 // NewEngineService creates a new scheduler engine
-func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule) *EngineService {
+func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule, characterModule CharacterModule) *EngineService {
 	engine := &EngineService{
-		repository:  repository,
-		redis:       redis,
-		workers:     10, // Default worker count
-		taskQueue:   make(chan *models.TaskExecution, 1000),
-		activeTasks: make(map[string]*models.Task),
-		executors:   make(map[models.TaskType]TaskExecutor),
-		stopChan:    make(chan struct{}),
-		authModule:  authModule,
+		repository:      repository,
+		redis:           redis,
+		workers:         10, // Default worker count
+		taskQueue:       make(chan *models.TaskExecution, 1000),
+		activeTasks:     make(map[string]*models.Task),
+		executors:       make(map[models.TaskType]TaskExecutor),
+		stopChan:        make(chan struct{}),
+		authModule:      authModule,
+		characterModule: characterModule,
 	}
 
 	// Initialize cron scheduler
@@ -411,7 +413,7 @@ func (e *EngineService) finishExecution(ctx context.Context, execution *models.T
 // registerBuiltinExecutors registers the built-in task executors
 func (e *EngineService) registerBuiltinExecutors() {
 	e.executors[models.TaskTypeHTTP] = NewHTTPExecutor()
-	e.executors[models.TaskTypeSystem] = NewSystemExecutor(e.authModule)
+	e.executors[models.TaskTypeSystem] = NewSystemExecutor(e.authModule, e.characterModule)
 	e.executors[models.TaskTypeFunction] = NewFunctionExecutor()
 }
 

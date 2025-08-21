@@ -63,6 +63,13 @@ Predefined tasks that are automatically created and managed by the scheduler. Th
   - Processes tokens in configurable batches (default: 100 users)
   - Uses `AuthModule.RefreshExpiringTokens()` for actual implementation
 
+- **Character Affiliation Update** (`system-character-affiliation-update`)
+  - Schedule: Every 30 minutes
+  - Updates character corporation and alliance affiliations from ESI
+  - Normal priority with 3 retry attempts and 5-minute retry intervals
+  - Processes all characters in database using EVE ESI affiliation endpoint
+  - Uses character module's UpdateService for batch processing with parallel workers
+
 - **State Cleanup** (`system-state-cleanup`)
   - Schedule: Every 2 hours
   - Cleans up expired states and temporary data
@@ -330,14 +337,20 @@ type AuthModule interface {
     RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error)
 }
 
+// CharacterModule interface for affiliation update operations
+type CharacterModule interface {
+    UpdateAllAffiliations(ctx context.Context) (*dto.AffiliationUpdateStats, error)
+}
+
 // GroupsModule interface for permission checking
 type GroupsModule interface {
     RequireGranularPermission(service, resource, action string) func(http.Handler) http.Handler
 }
 
-// SystemExecutor with auth module dependency
+// SystemExecutor with module dependencies
 type SystemExecutor struct {
-    authModule AuthModule
+    authModule      AuthModule
+    characterModule CharacterModule
 }
 ```
 
@@ -385,6 +398,67 @@ To add a new hardcoded system task, edit `hardcoded.go`:
     Priority:    "Normal",
 },
 ```
+
+#### Character Affiliation Update Integration
+
+The character affiliation update system task demonstrates how the scheduler integrates with other modules:
+
+```go
+// System task definition in hardcoded.go
+{
+    ID:          "system-character-affiliation-update",
+    Name:        "Character Affiliation Update",
+    Description: "Updates character corporation and alliance affiliations from ESI",
+    Type:        TaskTypeSystem,
+    Schedule:    "0 */30 * * * *", // Every 30 minutes
+    Status:      TaskStatusPending,
+    Priority:    TaskPriorityNormal,
+    Enabled:     true,
+    Config: map[string]interface{}{
+        "task_name": "character_affiliation_update",
+    },
+    Metadata: TaskMetadata{
+        MaxRetries:    3,
+        RetryInterval: 5 * time.Minute,
+        Timeout:       30 * time.Minute,
+        Tags:          []string{"system", "character", "esi"},
+        IsSystem:      true,
+        Source:        "system",
+        Version:       1,
+    },
+}
+
+// Execution in SystemExecutor
+case "character_affiliation_update":
+    if se.characterModule == nil {
+        return &TaskResult{
+            Success: false,
+            Output:  "Character module not available",
+        }, fmt.Errorf("character module not initialized")
+    }
+
+    stats, err := se.characterModule.UpdateAllAffiliations(ctx)
+    if err != nil {
+        return &TaskResult{
+            Success: false,
+            Output:  fmt.Sprintf("Failed to update affiliations: %v", err),
+        }, err
+    }
+
+    return &TaskResult{
+        Success: true,
+        Output: fmt.Sprintf("Updated %d characters (%d failed, %d skipped) in %d seconds",
+            stats.UpdatedCharacters, stats.FailedCharacters, stats.SkippedCharacters, stats.Duration),
+    }, nil
+```
+
+**Key Integration Features**:
+- **Module Interface**: Uses CharacterModule interface for loose coupling
+- **Dependency Injection**: Character module injected during scheduler initialization
+- **Error Handling**: Proper error propagation and reporting
+- **Statistics**: Detailed execution statistics returned to scheduler
+- **Timeout Management**: 30-minute timeout for large-scale updates
+- **Retry Logic**: 3 retry attempts with 5-minute intervals on failure
 
 
 ### Monitoring Integration
@@ -580,6 +654,7 @@ curl -X POST /scheduler/tasks/task-id/start
 - `go-falcon/pkg/handlers` - HTTP utilities
 - `go-falcon/pkg/config` - Configuration management
 - `go-falcon/internal/auth` - Auth module interface for token refresh operations
+- `go-falcon/internal/character` - Character module interface for affiliation updates
 
 ## Future Enhancements
 

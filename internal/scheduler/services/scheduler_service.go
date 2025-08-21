@@ -19,20 +19,22 @@ import (
 
 // SchedulerService is the main service that orchestrates scheduler operations
 type SchedulerService struct {
-	repository    *Repository
-	engineService *EngineService
-	authModule    AuthModule
+	repository      *Repository
+	engineService   *EngineService
+	authModule      AuthModule
+	characterModule CharacterModule
 }
 
 // NewSchedulerService creates a new scheduler service with all dependencies
-func NewSchedulerService(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule) *SchedulerService {
+func NewSchedulerService(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule) *SchedulerService {
 	repository := NewRepository(mongodb)
-	engineService := NewEngineService(repository, redis, authModule)
+	engineService := NewEngineService(repository, redis, authModule, characterModule)
 
 	return &SchedulerService{
-		repository:    repository,
-		engineService: engineService,
-		authModule:    authModule,
+		repository:      repository,
+		engineService:   engineService,
+		authModule:      authModule,
+		characterModule: characterModule,
 	}
 }
 

@@ -164,15 +164,22 @@ func (e *HTTPExecutor) parseHTTPConfig(config map[string]interface{}) (*models.H
 	return httpConfig, nil
 }
 
+// CharacterModule interface for character operations
+type CharacterModule interface {
+	UpdateAllAffiliations(ctx context.Context) (updated, failed, skipped int, err error)
+}
+
 // SystemExecutor executes system tasks
 type SystemExecutor struct {
-	authModule AuthModule
+	authModule      AuthModule
+	characterModule CharacterModule
 }
 
 // NewSystemExecutor creates a new system executor
-func NewSystemExecutor(authModule AuthModule) *SystemExecutor {
+func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule) *SystemExecutor {
 	return &SystemExecutor{
-		authModule: authModule,
+		authModule:      authModule,
+		characterModule: characterModule,
 	}
 }
 
@@ -193,6 +200,8 @@ func (e *SystemExecutor) Execute(ctx context.Context, task *models.Task) (*model
 		return e.executeStateCleanup(ctx, config, start)
 	case "health_check":
 		return e.executeHealthCheck(ctx, config, start)
+	case "character_affiliation_update":
+		return e.executeCharacterAffiliationUpdate(ctx, config, start)
 	default:
 		return &models.TaskResult{
 			Success:  false,
@@ -262,6 +271,46 @@ func (e *SystemExecutor) executeHealthCheck(ctx context.Context, config *models.
 		Success:  true,
 		Output:   "Health check passed",
 		Duration: time.Since(start),
+	}, nil
+}
+
+// executeCharacterAffiliationUpdate executes the character affiliation update system task
+func (e *SystemExecutor) executeCharacterAffiliationUpdate(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
+	if e.characterModule == nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    "Character module not available",
+			Duration: time.Since(start),
+		}, nil
+	}
+
+	// Execute affiliation update
+	updated, failed, skipped, err := e.characterModule.UpdateAllAffiliations(ctx)
+	if err != nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    fmt.Sprintf("Character affiliation update failed: %v", err),
+			Duration: time.Since(start),
+		}, nil
+	}
+
+	total := updated + failed + skipped
+	output := fmt.Sprintf("Processed %d characters: %d updated, %d failed, %d skipped", 
+		total, updated, failed, skipped)
+
+	// Consider it a success if at least some characters were updated
+	success := updated > 0 || (failed == 0 && skipped >= 0)
+
+	return &models.TaskResult{
+		Success:  success,
+		Output:   output,
+		Duration: time.Since(start),
+		Metadata: map[string]interface{}{
+			"total_characters":   total,
+			"updated_characters": updated,
+			"failed_characters":  failed,
+			"skipped_characters": skipped,
+		},
 	}, nil
 }
 

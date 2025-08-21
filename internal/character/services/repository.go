@@ -2,9 +2,12 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
 	"time"
 
+	"go-falcon/internal/character/dto"
 	"go-falcon/internal/character/models"
 	"go-falcon/pkg/database"
 
@@ -123,6 +126,168 @@ func (r *Repository) SearchCharactersByName(ctx context.Context, name string) ([
 	}
 	
 	return characters, nil
+}
+
+// GetAllCharacterIDs retrieves all character IDs from the database
+func (r *Repository) GetAllCharacterIDs(ctx context.Context) ([]int, error) {
+	// Find all documents, but only return the character_id field
+	cursor, err := r.collection.Find(ctx, bson.M{}, options.Find().SetProjection(bson.M{"character_id": 1}))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var characterIDs []int
+	for cursor.Next(ctx) {
+		var doc struct {
+			CharacterID int `bson:"character_id"`
+		}
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, err
+		}
+		characterIDs = append(characterIDs, doc.CharacterID)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return characterIDs, nil
+}
+
+// UpdateCharacterAffiliation updates a character's corporation and alliance affiliations
+func (r *Repository) UpdateCharacterAffiliation(ctx context.Context, affiliation *dto.CharacterAffiliation) error {
+	filter := bson.M{"character_id": affiliation.CharacterID}
+	
+	// Get the existing character to compare changes
+	var existingCharacter models.Character
+	err := r.collection.FindOne(ctx, filter).Decode(&existingCharacter)
+	foundExisting := err == nil
+
+	update := bson.M{
+		"$set": bson.M{
+			"corporation_id": affiliation.CorporationID,
+			"alliance_id":    affiliation.AllianceID,
+			"faction_id":     affiliation.FactionID,
+			"updated_at":     time.Now(),
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	// Debug logging for updates
+	if result.MatchedCount > 0 && foundExisting {
+		// Check what changed
+		var changes []string
+		if existingCharacter.CorporationID != affiliation.CorporationID {
+			changes = append(changes, fmt.Sprintf("corp: %d→%d", existingCharacter.CorporationID, affiliation.CorporationID))
+		}
+		if existingCharacter.AllianceID != affiliation.AllianceID {
+			changes = append(changes, fmt.Sprintf("alliance: %d→%d", existingCharacter.AllianceID, affiliation.AllianceID))
+		}
+		if existingCharacter.FactionID != affiliation.FactionID {
+			changes = append(changes, fmt.Sprintf("faction: %d→%d", existingCharacter.FactionID, affiliation.FactionID))
+		}
+		
+		if len(changes) > 0 {
+			log.Printf("🔄 Character %d affiliation UPDATED: %s", affiliation.CharacterID, strings.Join(changes, ", "))
+		}
+	}
+
+	// If no document was found, we might want to create a minimal character record
+	if result.MatchedCount == 0 {
+		log.Printf("➕ Character %d NOT FOUND in database, creating new record (corp: %d, alliance: %d, faction: %d)", 
+			affiliation.CharacterID, affiliation.CorporationID, affiliation.AllianceID, affiliation.FactionID)
+		
+		// Create a new character with minimal information
+		character := &models.Character{
+			CharacterID:   affiliation.CharacterID,
+			CorporationID: affiliation.CorporationID,
+			AllianceID:    affiliation.AllianceID,
+			FactionID:     affiliation.FactionID,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
+		
+		_, err = r.collection.InsertOne(ctx, character)
+		if err != nil {
+			// Check if it's a duplicate key error (character was created concurrently)
+			if mongo.IsDuplicateKeyError(err) {
+				log.Printf("⚠️  Character %d was created concurrently, retrying update", affiliation.CharacterID)
+				// Try the update again
+				_, err = r.collection.UpdateOne(ctx, filter, update)
+				return err
+			}
+			return err
+		}
+		log.Printf("✅ Character %d successfully created", affiliation.CharacterID)
+	}
+
+	return nil
+}
+
+// BatchUpdateAffiliations updates multiple character affiliations in a single operation
+func (r *Repository) BatchUpdateAffiliations(ctx context.Context, affiliations []*dto.CharacterAffiliation) error {
+	if len(affiliations) == 0 {
+		return nil
+	}
+
+	// Use bulk write for better performance
+	models := make([]mongo.WriteModel, 0, len(affiliations))
+	now := time.Now()
+
+	for _, aff := range affiliations {
+		filter := bson.M{"character_id": aff.CharacterID}
+		update := bson.M{
+			"$set": bson.M{
+				"corporation_id": aff.CorporationID,
+				"alliance_id":    aff.AllianceID,
+				"faction_id":     aff.FactionID,
+				"updated_at":     now,
+			},
+			"$setOnInsert": bson.M{
+				"character_id": aff.CharacterID,
+				"created_at":   now,
+			},
+		}
+		
+		model := mongo.NewUpdateOneModel().
+			SetFilter(filter).
+			SetUpdate(update).
+			SetUpsert(true)
+		
+		models = append(models, model)
+	}
+
+	opts := options.BulkWrite().SetOrdered(false)
+	_, err := r.collection.BulkWrite(ctx, models, opts)
+	return err
+}
+
+// GetCharactersByIDs retrieves multiple characters by their IDs
+func (r *Repository) GetCharactersByIDs(ctx context.Context, characterIDs []int) ([]*models.Character, error) {
+	filter := bson.M{"character_id": bson.M{"$in": characterIDs}}
+	
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	
+	var characters []*models.Character
+	if err := cursor.All(ctx, &characters); err != nil {
+		return nil, err
+	}
+	
+	return characters, nil
+}
+
+// CountCharacters returns the total number of characters in the database
+func (r *Repository) CountCharacters(ctx context.Context) (int64, error) {
+	return r.collection.CountDocuments(ctx, bson.M{})
 }
 
 // CreateIndexes creates necessary database indexes for the characters collection

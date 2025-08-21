@@ -155,6 +155,36 @@ func GetSystemTasks() []*models.Task {
 			CreatedBy: "system",
 		},
 		{
+			ID:          "system-character-affiliation-update",
+			Name:        "Character Affiliation Update",
+			Description: "Updates character corporation and alliance affiliations from EVE ESI",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 */30 * * * *", // Every 30 minutes
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "character_affiliation_update",
+				"parameters": map[string]interface{}{
+					"batch_size":    1000,  // ESI max batch size
+					"parallel_workers": 3,  // Concurrent ESI requests
+					"timeout":       "5m",
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    3,
+				RetryInterval: 5 * time.Minute,
+				Timeout:       10 * time.Minute,
+				Tags:          []string{"system", "character", "esi", "affiliation"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
+		{
 			ID:          "system-group-membership-validation",
 			Name:        "Group Membership Validation",
 			Description: "Validates corporate memberships and group integrity",

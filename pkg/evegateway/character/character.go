@@ -41,6 +41,8 @@ type Client interface {
 	GetCharacterInfoWithCache(ctx context.Context, characterID int) (*CharacterInfoResult, error)
 	GetCharacterPortrait(ctx context.Context, characterID int) (*CharacterPortraitResponse, error)
 	GetCharacterPortraitWithCache(ctx context.Context, characterID int) (*CharacterPortraitResult, error)
+	GetCharactersAffiliation(ctx context.Context, characterIDs []int) ([]CharacterAffiliation, error)
+	GetCharactersAffiliationWithCache(ctx context.Context, characterIDs []int) (*CharacterAffiliationResult, error)
 }
 
 // CharacterInfoResponse represents character public information
@@ -81,6 +83,7 @@ type CacheManager interface {
 	Get(key string) ([]byte, bool, error)
 	GetWithExpiry(key string) ([]byte, bool, *time.Time, error)
 	GetForNotModified(key string) ([]byte, bool, error)
+	GetMetadata(key string) (map[string]interface{}, error)
 	Set(key string, data []byte, headers http.Header) error
 	RefreshExpiry(key string, headers http.Header) error
 	SetConditionalHeaders(req *http.Request, key string) error

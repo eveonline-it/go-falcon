@@ -24,7 +24,8 @@ type Module struct {
 	routes           *routes.Routes
 	
 	// Dependencies
-	authModule AuthModule
+	authModule      AuthModule
+	characterModule CharacterModule
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -32,12 +33,17 @@ type AuthModule interface {
 	RefreshExpiringTokens(ctx context.Context, batchSize int) (successCount, failureCount int, err error)
 }
 
+// CharacterModule interface defines the methods needed from the character module
+type CharacterModule interface {
+	UpdateAllAffiliations(ctx context.Context) (updated, failed, skipped int, err error)
+}
+
 // New creates a new scheduler module with standardized structure
-func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule) *Module {
 	baseModule := module.NewBaseModule("scheduler", mongodb, redis)
 	
 	// Create services
-	schedulerService := services.NewSchedulerService(mongodb, redis, authModule)
+	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule)
 	
 	// Create middleware
 	middlewareLayer := middleware.New()
@@ -48,6 +54,7 @@ func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule
 		middleware:       middlewareLayer,
 		routes:           nil, // Will be created when needed
 		authModule:       authModule,
+		characterModule:  characterModule,
 	}
 }
 

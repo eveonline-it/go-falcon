@@ -140,8 +140,8 @@ func main() {
 	var modules []module.Module
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule)
 	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	
@@ -166,6 +166,10 @@ func main() {
 	
 	if err := siteSettingsModule.Initialize(ctx); err != nil {
 		log.Fatalf("Failed to initialize site settings module: %v", err)
+	}
+	
+	if err := characterModule.Initialize(ctx); err != nil {
+		log.Fatalf("Failed to initialize character module: %v", err)
 	}
 	
 	// Set up cross-module dependencies after initialization

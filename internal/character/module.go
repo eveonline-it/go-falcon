@@ -17,19 +17,50 @@ import (
 // Module represents the character module
 type Module struct {
 	*module.BaseModule
-	service    *services.Service
-	eveGateway *evegateway.Client
+	service       *services.Service
+	updateService *services.UpdateService
+	eveGateway    *evegateway.Client
 }
 
 // New creates a new character module instance
 func New(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client) *Module {
 	service := services.NewService(mongodb, eveGateway)
+	updateService := services.NewUpdateService(mongodb, eveGateway)
 
 	return &Module{
-		BaseModule: module.NewBaseModule("character", mongodb, redis),
-		service:    service,
-		eveGateway: eveGateway,
+		BaseModule:    module.NewBaseModule("character", mongodb, redis),
+		service:       service,
+		updateService: updateService,
+		eveGateway:    eveGateway,
 	}
+}
+
+// GetUpdateService returns the update service for scheduler integration
+func (m *Module) GetUpdateService() *services.UpdateService {
+	return m.updateService
+}
+
+// UpdateAllAffiliations implements the CharacterModule interface for scheduler integration
+func (m *Module) UpdateAllAffiliations(ctx context.Context) (updated, failed, skipped int, err error) {
+	stats, err := m.updateService.UpdateAllAffiliations(ctx)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return stats.UpdatedCharacters, stats.FailedCharacters, stats.SkippedCharacters, nil
+}
+
+// Initialize sets up the character module, creating necessary database indexes
+func (m *Module) Initialize(ctx context.Context) error {
+	log.Printf("Initializing character module...")
+	
+	// Create database indexes for optimal performance
+	if err := m.service.CreateIndexes(ctx); err != nil {
+		log.Printf("Failed to create character indexes: %v", err)
+		return err
+	}
+	
+	log.Printf("Character module initialized successfully")
+	return nil
 }
 
 // Routes is kept for compatibility
