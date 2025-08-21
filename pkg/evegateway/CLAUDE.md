@@ -13,12 +13,12 @@ Provides type-safe access to all EVE Online APIs with proper error handling and 
 - **Type Safety**: Structured Go types for all ESI responses
 
 ## ESI Client Categories
-- **Alliance**: Alliance information, corporations, icons
-- **Character**: Character data, portraits, skills, assets
-- **Corporation**: Corporation information, members, structures
-- **Universe**: Systems, stations, types, market data
-- **Status**: Server status, player counts, maintenance
-- **And many more**: Complete ESI API coverage
+- **Alliance**: Alliance information, corporations, icons (✅ Fully implemented with proper ESI integration)
+- **Character**: Character data, portraits, skills, assets (✅ Fully implemented with proper ESI integration)
+- **Corporation**: Corporation information, members, structures (✅ Fully implemented with proper ESI integration)
+- **Universe**: Systems, stations, types, market data (⚠️ Stub implementation - delegates to universe package)
+- **Status**: Server status, player counts, maintenance (✅ Fully implemented with proper ESI integration)
+- **And many more**: Complete ESI API coverage planned
 
 ## Cache Management
 - **Default Cache Manager**: In-memory caching with expiration
@@ -46,15 +46,65 @@ client := evegateway.NewClient()
 // Get server status with caching
 status, err := client.GetServerStatus(ctx)
 
-// Character information with cache support
-result, err := characterClient.GetCharacterInfoWithCache(ctx, characterID)
+// Character information (automatically uses real ESI integration)
+charInfo, err := client.GetCharacterInfo(ctx, characterID)
+// Returns map[string]any with character data from ESI
+
+// Character portrait information
+portrait, err := client.GetCharacterPortrait(ctx, characterID)
+// Returns map[string]any with portrait URLs
+
+// Direct access to typed character client
+result, err := client.Character.GetCharacterInfoWithCache(ctx, characterID)
+// Returns *CharacterInfoResult with cache metadata
 ```
 
 ## Key Interfaces
-- `Client`: Main ESI client interface
-- `CacheManager`: Cache storage and retrieval
-- `RetryClient`: Request retry and error handling
-- Individual service clients for each ESI category
+- `Client`: Main ESI client interface with unified access to all categories
+- `CacheManager`: Cache storage and retrieval with intelligent expiration
+- `RetryClient`: Request retry and error handling with exponential backoff
+- Individual service clients for each ESI category:
+  - `character.Client`: Type-safe character operations with structured responses
+  - `alliance.Client`: Alliance information and relationships
+  - `corporation.Client`: Corporation data and member management
+  - `status.Client`: Server status and maintenance information
+
+## Client Architecture
+The EVE Gateway uses a layered architecture:
+
+### Main Client Layer
+- Provides backward-compatible `map[string]any` responses
+- Handles legacy API consumers seamlessly
+- Unified interface for all ESI categories
+
+### Typed Client Layer  
+- Individual packages (`character`, `alliance`, `corporation`, etc.)
+- Structured Go types with proper validation
+- Full cache integration with metadata
+- Direct ESI API communication with retry logic
+
+### Implementation Pattern
+```go
+// Wrapper implementation for backward compatibility
+type characterClientImpl struct {
+    client character.Client  // Real typed client
+}
+
+func (c *characterClientImpl) GetCharacterInfo(ctx context.Context, characterID int) (map[string]any, error) {
+    // Call typed client
+    charInfo, err := c.client.GetCharacterInfo(ctx, characterID)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Convert to map for legacy compatibility
+    return map[string]any{
+        "character_id": charInfo.CharacterID,
+        "name": charInfo.Name,
+        // ... other fields
+    }, nil
+}
+```
 
 ## Best Practices
 - Always check cache before API calls

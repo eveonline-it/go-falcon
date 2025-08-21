@@ -12,6 +12,7 @@ import (
 
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/evegateway/alliance"
+	"go-falcon/pkg/evegateway/character"
 	"go-falcon/pkg/evegateway/corporation"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -132,7 +133,8 @@ func NewClient() *Client {
 	
 	// Create category clients using the shared infrastructure
 	statusClient := &statusClientImpl{cacheManager, retryClient, httpClient, "https://esi.evetech.net", userAgent}
-	characterClient := &characterClientImpl{cacheManager, retryClient, httpClient, "https://esi.evetech.net", userAgent}
+	characterClientDirect := character.NewCharacterClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	characterClient := &characterClientImpl{client: characterClientDirect}
 	universeClient := &universeClientImpl{cacheManager, retryClient, httpClient, "https://esi.evetech.net", userAgent}
 	allianceClientDirect := alliance.NewAllianceClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	allianceClient := &allianceClientImpl{client: allianceClientDirect}
@@ -323,8 +325,8 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 func (c *Client) GetCharacterInfo(ctx context.Context, characterID int) (map[string]any, error) {
 	slog.Info("Requesting character info from ESI", slog.Int("character_id", characterID))
 	
-	// TODO: Implement actual ESI call
-	return map[string]any{"character_id": characterID, "name": "placeholder"}, nil
+	// Delegate to character client
+	return c.Character.GetCharacterInfo(ctx, characterID)
 }
 
 // GetCorporationInfo retrieves corporation information from EVE ESI
@@ -361,11 +363,7 @@ type statusClientImpl struct {
 }
 
 type characterClientImpl struct {
-	cacheManager CacheManager
-	retryClient  RetryClient
-	httpClient   *http.Client
-	baseURL      string
-	userAgent    string
+	client character.Client
 }
 
 type universeClientImpl struct {
@@ -385,13 +383,51 @@ func (s *statusClientImpl) GetServerStatus(ctx context.Context) (*ESIStatusRespo
 
 // CharacterClient implementation
 func (c *characterClientImpl) GetCharacterInfo(ctx context.Context, characterID int) (map[string]any, error) {
-	slog.InfoContext(ctx, "Character info request delegated to character package", "character_id", characterID)
-	return map[string]any{"character_id": characterID, "name": "use character package"}, nil
+	charInfo, err := c.client.GetCharacterInfo(ctx, characterID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{
+		"character_id":    charInfo.CharacterID,
+		"name":           charInfo.Name,
+		"description":    charInfo.Description,
+		"corporation_id": charInfo.CorporationID,
+		"birthday":       charInfo.Birthday,
+		"gender":         charInfo.Gender,
+		"race_id":        charInfo.RaceID,
+		"bloodline_id":   charInfo.BloodlineID,
+		"security_status": charInfo.SecurityStatus,
+	}
+	
+	// Add optional fields if they exist
+	if charInfo.AllianceID != 0 {
+		result["alliance_id"] = charInfo.AllianceID
+	}
+	if charInfo.AncestryID != 0 {
+		result["ancestry_id"] = charInfo.AncestryID
+	}
+	if charInfo.FactionID != 0 {
+		result["faction_id"] = charInfo.FactionID
+	}
+	
+	return result, nil
 }
 
 func (c *characterClientImpl) GetCharacterPortrait(ctx context.Context, characterID int) (map[string]any, error) {
-	slog.InfoContext(ctx, "Character portrait request delegated to character package", "character_id", characterID)
-	return map[string]any{"character_id": characterID, "portrait": "use character package"}, nil
+	portrait, err := c.client.GetCharacterPortrait(ctx, characterID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert structured response to map for backward compatibility
+	return map[string]any{
+		"px64x64":   portrait.Px64x64,
+		"px128x128": portrait.Px128x128,
+		"px256x256": portrait.Px256x256,
+		"px512x512": portrait.Px512x512,
+	}, nil
 }
 
 // UniverseClient implementation
