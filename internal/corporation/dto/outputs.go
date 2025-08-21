@@ -2,8 +2,8 @@ package dto
 
 import "time"
 
-// CorporationInfoOutput represents corporation information from EVE ESI
-type CorporationInfoOutput struct {
+// CorporationInfo represents corporation information from EVE ESI
+type CorporationInfo struct {
 	AllianceID      *int      `json:"alliance_id,omitempty" description:"Alliance ID if corporation is in an alliance"`
 	CEOCharacterID  int       `json:"ceo_id" description:"Character ID of the corporation CEO" example:"661916654"`
 	CreatorID       int       `json:"creator_id" description:"Character ID who created the corporation" example:"661916654"`
@@ -18,6 +18,11 @@ type CorporationInfoOutput struct {
 	Ticker          string    `json:"ticker" description:"Corporation ticker" example:".IT"`
 	URL             *string   `json:"url,omitempty" description:"Corporation website URL"`
 	WarEligible     *bool     `json:"war_eligible,omitempty" description:"Whether the corporation is eligible for wars"`
+}
+
+// CorporationInfoOutput represents a corporation info response (Huma wrapper)
+type CorporationInfoOutput struct {
+	Body CorporationInfo `json:"body"`
 }
 
 // CorporationErrorOutput represents error responses

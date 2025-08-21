@@ -10,10 +10,15 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-// HealthResponse represents a health check response
-type HealthResponse struct {
+// HealthCheck represents a health check response data
+type HealthCheck struct {
 	Healthy bool   `json:"healthy" description:"Whether the module is healthy"`
 	Module  string `json:"module" description:"Module name"`
+}
+
+// HealthResponse represents a health check response (Huma wrapper)
+type HealthResponse struct {
+	Body HealthCheck `json:"body"`
 }
 
 // Module represents the corporation routes module
@@ -52,8 +57,10 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		Tags:        []string{"Health"},
 	}, func(ctx context.Context, input *struct{}) (*HealthResponse, error) {
 		return &HealthResponse{
-			Healthy: true,
-			Module:  "corporation",
+			Body: HealthCheck{
+				Healthy: true,
+				Module:  "corporation",
+			},
 		}, nil
 	})
 }

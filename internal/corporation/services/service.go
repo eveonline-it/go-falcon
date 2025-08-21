@@ -158,7 +158,7 @@ func getMapKeys(m map[string]any) []string {
 
 // convertModelToOutput converts corporation model to output DTO
 func (s *Service) convertModelToOutput(corporation *models.Corporation) *dto.CorporationInfoOutput {
-	return &dto.CorporationInfoOutput{
+	corporationInfo := dto.CorporationInfo{
 		AllianceID:      corporation.AllianceID,
 		CEOCharacterID:  corporation.CEOCharacterID,
 		CreatorID:       corporation.CreatorID,
@@ -173,5 +173,9 @@ func (s *Service) convertModelToOutput(corporation *models.Corporation) *dto.Cor
 		Ticker:          corporation.Ticker,
 		URL:             corporation.URL,
 		WarEligible:     corporation.WarEligible,
+	}
+	
+	return &dto.CorporationInfoOutput{
+		Body: corporationInfo,
 	}
 }
