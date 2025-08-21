@@ -1,5 +1,9 @@
 # Go Falcon - Go Gateway Project
 
+> **⚠️ WORK IN PROGRESS ⚠️**  
+> **This project is currently under active development and is not ready for production use.**  
+> **Features may be incomplete, APIs may change, and breaking changes are expected.**
+
 A production-ready Go gateway application with modular architecture featuring Chi router, background services, and comprehensive observability.
 
 ## 🏗️ Architecture Overview
