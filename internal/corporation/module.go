@@ -42,14 +42,13 @@ func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *eveg
 }
 
 // RegisterUnifiedRoutes registers all corporation routes with the provided Huma API
-func (m *Module) RegisterUnifiedRoutes(api huma.API) error {
-	slog.Info("Registering corporation unified routes")
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	slog.Info("Registering corporation unified routes", "basePath", basePath)
 	
-	// Register all routes through the routes module
-	m.routes.RegisterUnifiedRoutes(api)
+	// Register all routes through the routes module with basePath
+	m.routes.RegisterUnifiedRoutes(api, basePath)
 	
-	slog.Info("Corporation unified routes registered successfully")
-	return nil
+	slog.Info("Corporation unified routes registered successfully", "basePath", basePath)
 }
 
 // Name returns the module name

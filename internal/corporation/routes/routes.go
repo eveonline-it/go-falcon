@@ -29,12 +29,12 @@ func NewModule(service *services.Service) *Module {
 }
 
 // RegisterUnifiedRoutes registers all corporation routes with the provided Huma API
-func (m *Module) RegisterUnifiedRoutes(api huma.API) {
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 	// Corporation information endpoint
 	huma.Register(api, huma.Operation{
 		OperationID: "corporation-get-info",
 		Method:      "GET",
-		Path:        "/corporations/{corporation_id}",
+		Path:        basePath + "/{corporation_id}",
 		Summary:     "Get Corporation Information",
 		Description: "Retrieve detailed information about a corporation from EVE Online ESI API. Data is cached locally for performance.",
 		Tags:        []string{"Corporations"},
@@ -46,7 +46,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 	huma.Register(api, huma.Operation{
 		OperationID: "corporation-health-check",
 		Method:      "GET",
-		Path:        "/corporations/health",
+		Path:        basePath + "/health",
 		Summary:     "Corporation Module Health Check",
 		Description: "Check if the corporation module is functioning properly",
 		Tags:        []string{"Health"},

@@ -299,7 +299,7 @@ func main() {
 	
 	// Register corporation module routes
 	log.Printf("   🏢 Corporation module: /corporations/*")
-	corporationModule.RegisterUnifiedRoutes(unifiedAPI)
+	corporationModule.RegisterUnifiedRoutes(unifiedAPI, "/corporations")
 	
 	// Register groups module routes
 	log.Printf("   👥 Groups module: /groups/*")
