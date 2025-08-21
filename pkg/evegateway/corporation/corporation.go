@@ -356,6 +356,7 @@ func (c *CorporationClient) GetCorporationInfo(ctx context.Context, corporationI
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
+
 	if span != nil {
 		span.SetAttributes(
 			attribute.Int("http.response_size", len(body)),

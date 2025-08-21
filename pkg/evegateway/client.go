@@ -333,8 +333,45 @@ func (c *Client) GetCharacterInfo(ctx context.Context, characterID int) (map[str
 func (c *Client) GetCorporationInfo(ctx context.Context, corporationID int) (map[string]any, error) {
 	slog.Info("Requesting corporation info from ESI", slog.Int("corporation_id", corporationID))
 	
-	// TODO: Implement actual ESI call
-	return map[string]any{"corporation_id": corporationID, "name": "placeholder"}, nil
+	// Get corporation info from typed client
+	corpInfo, err := c.Corporation.GetCorporationInfo(ctx, corporationID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{
+		"corporation_id":   corpInfo.CorporationID,
+		"name":            corpInfo.Name,
+		"ticker":          corpInfo.Ticker,
+		"description":     corpInfo.Description,
+		"ceo_id":          corpInfo.CEOCharacterID,
+		"creator_id":      corpInfo.CreatorID,
+		"date_founded":    corpInfo.DateFounded.Format("2006-01-02T15:04:05Z"),
+		"member_count":    corpInfo.MemberCount,
+		"tax_rate":        corpInfo.TaxRate,
+	}
+	
+	// Add optional fields if they exist (check for non-zero values due to omitempty)
+	if corpInfo.URL != "" {
+		result["url"] = corpInfo.URL
+	}
+	if corpInfo.AllianceID != 0 {
+		result["alliance_id"] = corpInfo.AllianceID
+	}
+	if corpInfo.FactionID != 0 {
+		result["faction_id"] = corpInfo.FactionID
+	}
+	if corpInfo.HomeStationID != 0 {
+		result["home_station_id"] = corpInfo.HomeStationID
+	}
+	if corpInfo.Shares != 0 {
+		result["shares"] = corpInfo.Shares
+	}
+	// WarEligible is a bool, so we include it always since false is valid
+	result["war_eligible"] = corpInfo.WarEligible
+	
+	return result, nil
 }
 
 // GetAllianceInfo retrieves alliance information from EVE ESI

@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"go-falcon/internal/auth"
+	"go-falcon/internal/character"
+	"go-falcon/internal/corporation"
 	"go-falcon/internal/groups"
 	"go-falcon/internal/scheduler"
 	"go-falcon/internal/site_settings"
@@ -138,6 +140,8 @@ func main() {
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule)
+	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
+	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	
 	// Initialize groups module
 	groupsModule, err := groups.NewModule(appCtx.MongoDB, authModule)
@@ -151,7 +155,7 @@ func main() {
 		log.Fatalf("Failed to initialize site settings module: %v", err)
 	}
 	
-	modules = append(modules, authModule, usersModule, schedulerModule, groupsModule, siteSettingsModule)
+	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, groupsModule, siteSettingsModule)
 	
 	// Initialize modules with specific initialization requirements
 	if err := groupsModule.Initialize(ctx); err != nil {
@@ -206,12 +210,15 @@ func main() {
 	
 	// Add tags for better organization in Scalar docs
 	humaConfig.Tags = []*huma.Tag{
+		{Name: "Health", Description: "Module health checks and system status"},
 		{Name: "Auth", Description: "EVE Online SSO authentication and JWT management"},
 		{Name: "Auth / EVE", Description: "EVE Online SSO integration endpoints"},
 		{Name: "Auth / Profile", Description: "User profile management and character information"},
 		{Name: "Users", Description: "User management and character administration"},
 		{Name: "Users / Management", Description: "Administrative user management operations"},
 		{Name: "Users / Characters", Description: "Character listing and management"},
+		{Name: "Character", Description: "EVE Online character profiles and information"},
+		{Name: "Corporations", Description: "EVE Online corporation information and management"},
 		{Name: "Groups", Description: "Group and role-based access control management"},
 		{Name: "Groups / Management", Description: "Group creation, modification, and deletion"},
 		{Name: "Groups / Memberships", Description: "Character group membership operations"},
@@ -285,6 +292,14 @@ func main() {
 	// Register scheduler module routes
 	log.Printf("   ⏰ Scheduler module: /scheduler/*")
 	schedulerModule.RegisterUnifiedRoutes(unifiedAPI, "/scheduler")
+	
+	// Register character module routes
+	log.Printf("   🚀 Character module: /character/*")
+	characterModule.RegisterUnifiedRoutes(unifiedAPI, "/character")
+	
+	// Register corporation module routes
+	log.Printf("   🏢 Corporation module: /corporations/*")
+	corporationModule.RegisterUnifiedRoutes(unifiedAPI)
 	
 	// Register groups module routes
 	log.Printf("   👥 Groups module: /groups/*")
