@@ -86,6 +86,7 @@ static_data/
 bin/
 dist/
 build/
+falcon
 
 # EVE Online specific
 eve_data/

@@ -445,7 +445,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 - ✅ Cache ESI responses appropriately
 - ❌ Never put business logic in route handlers
 - ❌ Don't mix HTTP concerns with service logic
-- ❌ Never run gateway directly (use Docker)
+- ❌ Never run falcon directly because it's running with air in background (started manually by dev)
 - ❌ Don't ignore cache headers from ESI
 - ❌ Avoid tight coupling between modules
 
@@ -461,7 +461,7 @@ Control the API prefix via `API_PREFIX` environment variable:
 
 ### Unified OpenAPI 3.1.1 Specification
 
-The API gateway now provides a **single, comprehensive OpenAPI specification** that documents all modules in one unified specification:
+The Falcon API gateway now provides a **single, comprehensive OpenAPI specification** that documents all modules in one unified specification:
 
 ```bash
 # Unified OpenAPI specification (replaces per-module specs):
@@ -480,7 +480,7 @@ The API gateway now provides a **single, comprehensive OpenAPI specification** t
 
 ### Scalar API Documentation
 
-The gateway includes **Scalar**, a modern, interactive API documentation interface:
+The falcon gateway includes **Scalar**, a modern, interactive API documentation interface:
 
 ```bash
 # Access Scalar Documentation:
