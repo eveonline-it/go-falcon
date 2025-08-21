@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"go-falcon/internal/alliance"
 	"go-falcon/internal/auth"
 	"go-falcon/internal/character"
 	"go-falcon/internal/corporation"
@@ -142,6 +143,7 @@ func main() {
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
+	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	
 	// Initialize groups module
 	groupsModule, err := groups.NewModule(appCtx.MongoDB, authModule)
@@ -155,7 +157,7 @@ func main() {
 		log.Fatalf("Failed to initialize site settings module: %v", err)
 	}
 	
-	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, groupsModule, siteSettingsModule)
+	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, siteSettingsModule)
 	
 	// Initialize modules with specific initialization requirements
 	if err := groupsModule.Initialize(ctx); err != nil {
@@ -219,6 +221,7 @@ func main() {
 		{Name: "Users / Characters", Description: "Character listing and management"},
 		{Name: "Character", Description: "EVE Online character profiles and information"},
 		{Name: "Corporations", Description: "EVE Online corporation information and management"},
+		{Name: "Alliances", Description: "EVE Online alliance information and management"},
 		{Name: "Groups", Description: "Group and role-based access control management"},
 		{Name: "Groups / Management", Description: "Group creation, modification, and deletion"},
 		{Name: "Groups / Memberships", Description: "Character group membership operations"},
@@ -300,6 +303,10 @@ func main() {
 	// Register corporation module routes
 	log.Printf("   🏢 Corporation module: /corporations/*")
 	corporationModule.RegisterUnifiedRoutes(unifiedAPI, "/corporations")
+	
+	// Register alliance module routes
+	log.Printf("   🤝 Alliance module: /alliances/*")
+	allianceModule.RegisterUnifiedRoutes(unifiedAPI, "/alliances")
 	
 	// Register groups module routes
 	log.Printf("   👥 Groups module: /groups/*")

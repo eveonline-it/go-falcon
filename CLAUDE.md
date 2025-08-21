@@ -234,7 +234,14 @@ In-memory SDE (Static Data Export) service:
 
 ### ESI (EVE Swagger Interface) Best Practices
 
-The project strictly follows [CCP's ESI guidelines](https://developers.eveonline.com/docs/services/esi/best-practices/):
+The project strictly follows [CCP's ESI guidelines](https://developers.eveonline.com/docs/services/esi/best-practices/) and **MUST adhere to the official EVE Online ESI OpenAPI specification**:
+
+#### ESI Specification Compliance
+**MANDATORY**: All ESI integrations must follow the official specification at https://esi.evetech.net/meta/openapi.json
+- Field names must match the specification exactly
+- Data types must handle JSON unmarshaling correctly (numbers become `float64`)
+- Response structures must reflect the official schema
+- Endpoint paths and parameters must match the specification
 
 #### Required Headers
 ```go

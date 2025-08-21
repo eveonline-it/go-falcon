@@ -107,6 +107,7 @@ func (c *characterClientImpl) GetCharacterInfo(ctx context.Context, characterID 
 ```
 
 ## Best Practices
+- **ESI Specification Compliance**: Always follow the official EVE Online ESI OpenAPI specification at https://esi.evetech.net/meta/openapi.json
 - Always check cache before API calls
 - Monitor error limit headers
 - Use appropriate timeouts (30s recommended)

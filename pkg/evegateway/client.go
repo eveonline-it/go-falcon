@@ -378,8 +378,8 @@ func (c *Client) GetCorporationInfo(ctx context.Context, corporationID int) (map
 func (c *Client) GetAllianceInfo(ctx context.Context, allianceID int) (map[string]any, error) {
 	slog.Info("Requesting alliance info from ESI", slog.Int("alliance_id", allianceID))
 	
-	// TODO: Implement actual ESI call
-	return map[string]any{"alliance_id": allianceID, "name": "placeholder"}, nil
+	// Delegate to the alliance client
+	return c.Alliance.GetAllianceInfo(ctx, int64(allianceID))
 }
 
 // RefreshToken refreshes an EVE SSO access token
