@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"go-falcon/internal/auth"
+	"go-falcon/internal/groups"
 	"go-falcon/internal/scheduler"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
@@ -137,7 +138,19 @@ func main() {
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	
-	modules = append(modules, authModule, usersModule, schedulerModule)
+	// Initialize groups module
+	groupsModule, err := groups.NewModule(appCtx.MongoDB, authModule)
+	if err != nil {
+		log.Fatalf("Failed to initialize groups module: %v", err)
+	}
+	
+	modules = append(modules, authModule, usersModule, schedulerModule, groupsModule)
+	
+	// Initialize groups module (only groups module has specific initialization requirements)
+	if err := groupsModule.Initialize(ctx); err != nil {
+		log.Fatalf("Failed to initialize groups module: %v", err)
+	}
+	
 	log.Printf("🚀 EVE Online ESI client initialized")
 
 	// Mount module routes with configurable API prefix
@@ -185,6 +198,10 @@ func main() {
 		{Name: "Users", Description: "User management and character administration"},
 		{Name: "Users / Management", Description: "Administrative user management operations"},
 		{Name: "Users / Characters", Description: "Character listing and management"},
+		{Name: "Groups", Description: "Group and role-based access control management"},
+		{Name: "Groups / Management", Description: "Group creation, modification, and deletion"},
+		{Name: "Groups / Memberships", Description: "Character group membership operations"},
+		{Name: "Groups / Characters", Description: "Character-centric group operations"},
 		{Name: "Scheduler", Description: "Task scheduling, execution, and monitoring"},
 		{Name: "Scheduler / Status", Description: "Task scheduler status and statistics"},
 		{Name: "Scheduler / Tasks", Description: "Scheduled task management and configuration"},
@@ -251,6 +268,10 @@ func main() {
 	// Register scheduler module routes
 	log.Printf("   ⏰ Scheduler module: /scheduler/*")
 	schedulerModule.RegisterUnifiedRoutes(unifiedAPI, "/scheduler")
+	
+	// Register groups module routes
+	log.Printf("   👥 Groups module: /groups/*")
+	groupsModule.RegisterUnifiedRoutes(unifiedAPI)
 	
 	log.Printf("✅ All modules registered on unified API")
 	
