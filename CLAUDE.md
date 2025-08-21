@@ -215,6 +215,9 @@ In-memory SDE (Static Data Export) service:
 | **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md) | EVE SSO integration, JWT management, user profiles |
 | **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution |
 | **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User management and profile operations |
+| **Character** | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md) | Character information and portraits |
+| **Corporation** | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management |
+| **Alliance** | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md) | Alliance information, member corporations, relationship data |
 
 ### Shared Package Documentation
 
@@ -521,8 +524,11 @@ http://localhost:3000/docs
 
 **Unified API Endpoints:** All modules use Huma v2 for type-safe operations:
 - Auth Module: `/auth/*` endpoints with EVE SSO integration
-- Users Module: `/users/*` endpoints for user management
+- Users Module: `/users/*` endpoints for user management  
 - Scheduler Module: `/scheduler/*` endpoints for task scheduling
+- Character Module: `/character/*` endpoints for character information
+- Corporation Module: `/corporations/*` endpoints for corporation data
+- Alliance Module: `/alliances/*` endpoints for alliance information
 
 **Features:**
 - Automatic OpenAPI 3.1.1 documentation

@@ -18,3 +18,15 @@ type AllianceInfo struct {
 type AllianceInfoOutput struct {
 	Body AllianceInfo `json:"body"`
 }
+
+// AllianceListOutput represents the response for listing all alliances according to ESI specification
+// https://esi.evetech.net/meta/openapi.json - AlliancesGet schema
+type AllianceListOutput struct {
+	Body []int64 `json:"body" description:"List of alliance IDs"`
+}
+
+// AllianceCorporationsOutput represents the response for listing alliance member corporations according to ESI specification
+// https://esi.evetech.net/meta/openapi.json - AlliancesAllianceIdCorporationsGet schema
+type AllianceCorporationsOutput struct {
+	Body []int64 `json:"body" description:"List of corporation IDs that are members of the alliance"`
+}

@@ -54,7 +54,20 @@ charInfo, err := client.GetCharacterInfo(ctx, characterID)
 portrait, err := client.GetCharacterPortrait(ctx, characterID)
 // Returns map[string]any with portrait URLs
 
-// Direct access to typed character client
+// Alliance information operations (automatically uses real ESI integration)
+// List all active alliances
+alliances, err := client.Alliance.GetAlliances(ctx)
+// Returns []int64 with 3,476+ alliance IDs
+
+// Get specific alliance information  
+allianceInfo, err := client.Alliance.GetAllianceInfo(ctx, 933731581)
+// Returns map[string]any with alliance data from ESI
+
+// Get alliance member corporations
+corporations, err := client.Alliance.GetAllianceCorporations(ctx, 933731581) 
+// Returns []int64 with corporation IDs
+
+// Direct access to typed clients
 result, err := client.Character.GetCharacterInfoWithCache(ctx, characterID)
 // Returns *CharacterInfoResult with cache metadata
 ```

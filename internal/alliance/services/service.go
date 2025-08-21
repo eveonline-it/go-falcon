@@ -156,3 +156,39 @@ func (s *Service) convertModelToOutput(alliance *models.Alliance) *dto.AllianceI
 		Body: allianceInfo,
 	}
 }
+
+// GetAllAlliances retrieves list of all active alliance IDs from ESI
+func (s *Service) GetAllAlliances(ctx context.Context) (*dto.AllianceListOutput, error) {
+	slog.InfoContext(ctx, "Getting all alliances list from ESI")
+	
+	// Get all alliance IDs from EVE ESI
+	allianceIDs, err := s.eveClient.Alliance.GetAlliances(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get alliances from ESI", "error", err)
+		return nil, fmt.Errorf("failed to get alliances: %w", err)
+	}
+	
+	slog.InfoContext(ctx, "Successfully retrieved alliances list", "count", len(allianceIDs))
+	
+	return &dto.AllianceListOutput{
+		Body: allianceIDs,
+	}, nil
+}
+
+// GetAllianceCorporations retrieves list of corporation IDs that are members of the specified alliance
+func (s *Service) GetAllianceCorporations(ctx context.Context, allianceID int) (*dto.AllianceCorporationsOutput, error) {
+	slog.InfoContext(ctx, "Getting alliance member corporations", "alliance_id", allianceID)
+	
+	// Get alliance member corporations from EVE ESI
+	corporationIDs, err := s.eveClient.Alliance.GetAllianceCorporations(ctx, int64(allianceID))
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get alliance corporations from ESI", "error", err, "alliance_id", allianceID)
+		return nil, fmt.Errorf("failed to get alliance corporations: %w", err)
+	}
+	
+	slog.InfoContext(ctx, "Successfully retrieved alliance corporations", "alliance_id", allianceID, "count", len(corporationIDs))
+	
+	return &dto.AllianceCorporationsOutput{
+		Body: corporationIDs,
+	}, nil
+}

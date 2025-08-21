@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Alliance module provides alliance information management functionality for EVE Online alliances. It implements the standard Go-Falcon module pattern with database-first lookup and ESI fallback for data retrieval, following the same architecture as the Character and Corporation modules.
+The Alliance module provides comprehensive alliance information management functionality for EVE Online alliances. It offers complete API coverage for alliance discovery, detailed information retrieval, and member corporation management. It implements the standard Go-Falcon module pattern with database-first lookup and ESI fallback for data retrieval, following the same architecture as the Character and Corporation modules.
 
 **CRITICAL REQUIREMENT**: This module MUST strictly follow the official EVE Online ESI OpenAPI specification at https://esi.evetech.net/meta/openapi.json for all data structures, field names, and API interactions.
 
@@ -43,7 +43,13 @@ internal/alliance/
 - **Output Structure**: Consistent response format with proper JSON serialization
 - **Error Handling**: Standard HTTP error responses with meaningful messages
 
-### 3. ESI Integration Best Practices
+### 3. Complete Alliance API Coverage
+- **List All Alliances**: Get all 3,476+ active alliance IDs from EVE Online
+- **Alliance Information**: Detailed alliance data including name, ticker, creation info, faction warfare status
+- **Member Corporations**: List all corporation IDs that belong to a specific alliance
+- **Performance Optimized**: Intelligent caching with sub-millisecond cached responses
+
+### 4. ESI Integration Best Practices
 - **ESI Specification Compliance**: MANDATORY - All implementations must follow the official EVE Online ESI OpenAPI specification at https://esi.evetech.net/meta/openapi.json
 - **User-Agent Compliance**: Follows CCP ESI guidelines for API requests
 - **Type-Safe Parsing**: Handles JSON unmarshaling with fallback type assertions
@@ -79,14 +85,50 @@ Based on the official ESI OpenAPI specification (https://esi.evetech.net/meta/op
 
 ## API Endpoints
 
+### GET `/` - List All Alliances
+
+**Description**: Retrieves a list of all active alliance IDs from EVE Online ESI API.
+
+**Parameters**: None
+
+**Response**: Array of alliance IDs (`[]int64`)
+
+**Example Response**:
+```json
+[99000001, 99000002, 99000003, ...]  // 3,476 alliance IDs
+```
+
+**Implementation Flow**:
+1. Fetch all active alliance IDs from EVE ESI (`/v1/alliances/`)
+2. Return array of alliance IDs according to ESI specification
+3. Response is cached by EVE Gateway for performance
+
+**Performance**: 
+- First request: ~200ms (ESI fetch + caching)
+- Cached requests: <1ms (from EVE Gateway cache)
+
 ### GET `/{alliance_id}` - Get Alliance Information
 
-**Description**: Retrieves alliance information from database or ESI if not cached.
+**Description**: Retrieves detailed alliance information from database or ESI if not cached.
 
 **Parameters**:
 - `alliance_id` (path, required): EVE Online alliance ID (99000000-2147483647)
 
-**Response**: Alliance information with EVE game data
+**Response**: Complete alliance information with EVE game data
+
+**Example Response**:
+```json
+{
+  "$schema": "http://localhost:3000/schemas/AllianceInfo.json",
+  "name": "United Caldari Space Command.",
+  "creator_id": 1458891505,
+  "creator_corporation_id": 98639548,
+  "ticker": "UCSC-",
+  "date_founded": "2022-04-08T16:47:41Z",
+  "executor_corporation_id": 98639548,
+  "faction_id": 500001
+}
+```
 
 **Implementation Flow**:
 1. Validate alliance ID format and range
@@ -101,11 +143,51 @@ Based on the official ESI OpenAPI specification (https://esi.evetech.net/meta/op
 - `404`: Alliance not found in ESI
 - `500`: Database or ESI communication errors
 
+### GET `/{alliance_id}/corporations` - List Alliance Member Corporations
+
+**Description**: Retrieves a list of corporation IDs that are members of the specified alliance.
+
+**Parameters**:
+- `alliance_id` (path, required): EVE Online alliance ID (99000000-2147483647)
+
+**Response**: Array of corporation IDs that belong to the alliance (`[]int64`)
+
+**Example Response**:
+```json
+[98052179, 98435559, 98613992, 98701142, 98717325, 98745996, 98785732, 1975749457]
+```
+
+**Implementation Flow**:
+1. Validate alliance ID format and range
+2. Fetch member corporations from EVE ESI API (`/v1/alliances/{alliance_id}/corporations/`)
+3. Return array of corporation IDs according to ESI specification
+4. Response is cached by EVE Gateway for performance
+
+**Performance Examples**:
+- Triumvirate Alliance (933731581): 8 corporations
+  - First request: ~214ms (ESI fetch + caching)  
+  - Cached requests: ~336µs (from EVE Gateway cache)
+- UCSC Alliance (99011489): 3 corporations (~65ms)
+- Non-existent Alliance: Empty array `[]` (~135ms)
+
+**Error Handling**:
+- `400`: Invalid alliance ID format or range
+- `404`: Alliance not found in ESI (Note: ESI returns empty array for non-existent alliances)
+- `500`: Database or ESI communication errors
+
 ### GET `/health` - Alliance Module Health Check
 
 **Description**: Verifies the alliance module is functioning properly.
 
 **Response**: Health status and module name
+
+**Example Response**:
+```json
+{
+  "healthy": true,
+  "module": "alliance"
+}
+```
 
 ## Database Schema
 

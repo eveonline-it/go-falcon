@@ -35,6 +35,18 @@ func NewModule(service *services.Service) *Module {
 
 // RegisterUnifiedRoutes registers all alliance routes with the provided Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// List all alliances endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "alliance-list-all",
+		Method:      "GET",
+		Path:        basePath,
+		Summary:     "List All Alliances",
+		Description: "Retrieve a list of all active alliance IDs from EVE Online ESI API. Returns an array of alliance IDs.",
+		Tags:        []string{"Alliances"},
+	}, func(ctx context.Context, input *dto.ListAlliancesInput) (*dto.AllianceListOutput, error) {
+		return m.listAlliances(ctx, input)
+	})
+	
 	// Alliance information endpoint
 	huma.Register(api, huma.Operation{
 		OperationID: "alliance-get-info",
@@ -45,6 +57,18 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		Tags:        []string{"Alliances"},
 	}, func(ctx context.Context, input *dto.GetAllianceInput) (*dto.AllianceInfoOutput, error) {
 		return m.getAllianceInfo(ctx, input)
+	})
+	
+	// Alliance member corporations endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "alliance-get-corporations",
+		Method:      "GET",
+		Path:        basePath + "/{alliance_id}/corporations",
+		Summary:     "List Alliance Member Corporations",
+		Description: "Retrieve a list of corporation IDs that are members of the specified alliance from EVE Online ESI API.",
+		Tags:        []string{"Alliances"},
+	}, func(ctx context.Context, input *dto.GetAllianceCorporationsInput) (*dto.AllianceCorporationsOutput, error) {
+		return m.getAllianceCorporations(ctx, input)
 	})
 	
 	// Health check endpoint for the alliance module
@@ -63,6 +87,38 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 			},
 		}, nil
 	})
+}
+
+// listAlliances handles the list all alliances request
+func (m *Module) listAlliances(ctx context.Context, input *dto.ListAlliancesInput) (*dto.AllianceListOutput, error) {
+	// Call the service to get all alliance IDs
+	alliances, err := m.service.GetAllAlliances(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve alliances list", err)
+	}
+	
+	return alliances, nil
+}
+
+// getAllianceCorporations handles the alliance member corporations request
+func (m *Module) getAllianceCorporations(ctx context.Context, input *dto.GetAllianceCorporationsInput) (*dto.AllianceCorporationsOutput, error) {
+	if input.AllianceID <= 0 {
+		return nil, huma.Error400BadRequest("Alliance ID must be a positive integer")
+	}
+	
+	// Call the service to get alliance member corporations
+	corporations, err := m.service.GetAllianceCorporations(ctx, input.AllianceID)
+	if err != nil {
+		// Check if it's a 404 from ESI (alliance not found)
+		if isNotFoundError(err) {
+			return nil, huma.Error404NotFound(fmt.Sprintf("Alliance with ID %d not found", input.AllianceID))
+		}
+		
+		// For other errors, return a 500
+		return nil, huma.Error500InternalServerError("Failed to retrieve alliance corporations", err)
+	}
+	
+	return corporations, nil
 }
 
 // getAllianceInfo handles the alliance information request
