@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 
 	"go-falcon/internal/site_settings/dto"
 	"go-falcon/internal/site_settings/models"
@@ -252,6 +253,315 @@ func (s *Service) GetHealth(ctx context.Context) (*dto.SiteSettingsHealthRespons
 		TotalCount:  int(totalCount),
 		PublicCount: int(publicCount),
 	}, nil
+}
+
+// Corporation Management Methods
+
+// AddManagedCorporation adds a new managed corporation
+func (s *Service) AddManagedCorporation(ctx context.Context, input *dto.AddCorporationInput, addedBy int64) (*dto.ManagedCorporation, error) {
+	corporations, err := s.getManagedCorporationsData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if corporation already exists
+	for _, corp := range corporations {
+		if corp.CorporationID == input.Body.CorporationID {
+			return nil, fmt.Errorf("corporation with ID %d is already managed", input.Body.CorporationID)
+		}
+	}
+
+	// Default enabled to true if not specified
+	enabled := true
+	if input.Body.Enabled != nil {
+		enabled = *input.Body.Enabled
+	}
+
+	now := time.Now()
+	newCorp := dto.ManagedCorporation{
+		CorporationID: input.Body.CorporationID,
+		Name:          input.Body.Name,
+		Enabled:       enabled,
+		AddedAt:       now,
+		AddedBy:       &addedBy,
+		UpdatedAt:     now,
+		UpdatedBy:     &addedBy,
+	}
+
+	corporations = append(corporations, newCorp)
+
+	// Update the setting
+	if err := s.updateManagedCorporationsSetting(ctx, corporations, addedBy); err != nil {
+		return nil, err
+	}
+
+	return &newCorp, nil
+}
+
+// UpdateCorporationStatus enables or disables a managed corporation
+func (s *Service) UpdateCorporationStatus(ctx context.Context, corporationID int64, enabled bool, updatedBy int64) (*dto.ManagedCorporation, error) {
+	corporations, err := s.getManagedCorporationsData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find and update the corporation
+	for i, corp := range corporations {
+		if corp.CorporationID == corporationID {
+			corporations[i].Enabled = enabled
+			corporations[i].UpdatedAt = time.Now()
+			corporations[i].UpdatedBy = &updatedBy
+
+			// Update the setting
+			if err := s.updateManagedCorporationsSetting(ctx, corporations, updatedBy); err != nil {
+				return nil, err
+			}
+
+			return &corporations[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("corporation with ID %d not found", corporationID)
+}
+
+// RemoveManagedCorporation removes a managed corporation
+func (s *Service) RemoveManagedCorporation(ctx context.Context, corporationID int64, removedBy int64) error {
+	corporations, err := s.getManagedCorporationsData(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Find and remove the corporation
+	found := false
+	newCorporations := make([]dto.ManagedCorporation, 0, len(corporations))
+	for _, corp := range corporations {
+		if corp.CorporationID != corporationID {
+			newCorporations = append(newCorporations, corp)
+		} else {
+			found = true
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("corporation with ID %d not found", corporationID)
+	}
+
+	// Update the setting
+	return s.updateManagedCorporationsSetting(ctx, newCorporations, removedBy)
+}
+
+// GetManagedCorporations returns managed corporations with optional filtering
+func (s *Service) GetManagedCorporations(ctx context.Context, enabledFilter string, page, limit int) ([]dto.ManagedCorporation, int, error) {
+	corporations, err := s.getManagedCorporationsData(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Apply enabled filter
+	if enabledFilter != "" {
+		filtered := make([]dto.ManagedCorporation, 0, len(corporations))
+		var filterEnabled bool
+		if enabledFilter == "true" {
+			filterEnabled = true
+		} else if enabledFilter == "false" {
+			filterEnabled = false
+		} else {
+			return nil, 0, fmt.Errorf("invalid enabled filter value: %s", enabledFilter)
+		}
+
+		for _, corp := range corporations {
+			if corp.Enabled == filterEnabled {
+				filtered = append(filtered, corp)
+			}
+		}
+		corporations = filtered
+	}
+
+	// Apply pagination
+	total := len(corporations)
+	start := (page - 1) * limit
+	end := start + limit
+
+	if start >= len(corporations) {
+		return []dto.ManagedCorporation{}, total, nil
+	}
+
+	if end > len(corporations) {
+		end = len(corporations)
+	}
+
+	return corporations[start:end], total, nil
+}
+
+// GetManagedCorporation returns a specific managed corporation
+func (s *Service) GetManagedCorporation(ctx context.Context, corporationID int64) (*dto.ManagedCorporation, error) {
+	corporations, err := s.getManagedCorporationsData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, corp := range corporations {
+		if corp.CorporationID == corporationID {
+			return &corp, nil
+		}
+	}
+
+	return nil, fmt.Errorf("corporation with ID %d not found", corporationID)
+}
+
+// BulkUpdateCorporations performs bulk update of managed corporations
+func (s *Service) BulkUpdateCorporations(ctx context.Context, input *dto.BulkUpdateCorporationsInput, updatedBy int64) ([]dto.ManagedCorporation, int, int, error) {
+	corporations, err := s.getManagedCorporationsData(ctx)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Create a map of existing corporations for quick lookup
+	existingCorps := make(map[int64]*dto.ManagedCorporation)
+	for i := range corporations {
+		existingCorps[corporations[i].CorporationID] = &corporations[i]
+	}
+
+	updated := 0
+	added := 0
+	now := time.Now()
+
+	// Process input corporations
+	for _, inputCorp := range input.Body.Corporations {
+		if existing, exists := existingCorps[inputCorp.CorporationID]; exists {
+			// Update existing corporation
+			existing.Name = inputCorp.Name
+			existing.Enabled = inputCorp.Enabled
+			existing.UpdatedAt = now
+			existing.UpdatedBy = &updatedBy
+			updated++
+		} else {
+			// Add new corporation
+			newCorp := dto.ManagedCorporation{
+				CorporationID: inputCorp.CorporationID,
+				Name:          inputCorp.Name,
+				Enabled:       inputCorp.Enabled,
+				AddedAt:       now,
+				AddedBy:       &updatedBy,
+				UpdatedAt:     now,
+				UpdatedBy:     &updatedBy,
+			}
+			corporations = append(corporations, newCorp)
+			added++
+		}
+	}
+
+	// Update the setting
+	if err := s.updateManagedCorporationsSetting(ctx, corporations, updatedBy); err != nil {
+		return nil, 0, 0, err
+	}
+
+	return corporations, updated, added, nil
+}
+
+// IsCorporationEnabled checks if a corporation is enabled
+func (s *Service) IsCorporationEnabled(ctx context.Context, corporationID int64) (bool, error) {
+	corp, err := s.GetManagedCorporation(ctx, corporationID)
+	if err != nil {
+		return false, err
+	}
+	return corp.Enabled, nil
+}
+
+// Helper methods
+
+// getManagedCorporationsData retrieves the managed corporations from the setting
+func (s *Service) getManagedCorporationsData(ctx context.Context) ([]dto.ManagedCorporation, error) {
+	setting, err := s.repo.GetByKey(ctx, "managed_corporations")
+	if err != nil {
+		// If setting doesn't exist, return empty array
+		if err == mongo.ErrNoDocuments {
+			return []dto.ManagedCorporation{}, nil
+		}
+		// Handle the custom "not found" error from repository
+		if err.Error() == "setting with key 'managed_corporations' not found" {
+			return []dto.ManagedCorporation{}, nil
+		}
+		return nil, err
+	}
+
+	// Parse the setting value using proper BSON unmarshaling
+	var managedCorpsValue models.ManagedCorporationsValue
+	
+	// Marshal the setting.Value to BSON and then unmarshal to our struct
+	valueBytes, err := bson.Marshal(setting.Value)
+	if err != nil {
+		return []dto.ManagedCorporation{}, nil
+	}
+	
+	if err := bson.Unmarshal(valueBytes, &managedCorpsValue); err != nil {
+		return []dto.ManagedCorporation{}, nil
+	}
+
+	// Convert models to DTOs
+	corporations := make([]dto.ManagedCorporation, len(managedCorpsValue.Corporations))
+	for i, corp := range managedCorpsValue.Corporations {
+		corporations[i] = dto.ManagedCorporation{
+			CorporationID: corp.CorporationID,
+			Name:          corp.Name,
+			Enabled:       corp.Enabled,
+			AddedAt:       corp.AddedAt,
+			AddedBy:       corp.AddedBy,
+			UpdatedAt:     corp.UpdatedAt,
+			UpdatedBy:     corp.UpdatedBy,
+		}
+	}
+
+	return corporations, nil
+}
+
+// updateManagedCorporationsSetting updates the managed_corporations setting
+func (s *Service) updateManagedCorporationsSetting(ctx context.Context, corporations []dto.ManagedCorporation, updatedBy int64) error {
+	// Convert DTOs to models
+	modelCorps := make([]models.ManagedCorporation, len(corporations))
+	for i, corp := range corporations {
+		modelCorps[i] = models.ManagedCorporation{
+			CorporationID: corp.CorporationID,
+			Name:          corp.Name,
+			Enabled:       corp.Enabled,
+			AddedAt:       corp.AddedAt,
+			AddedBy:       corp.AddedBy,
+			UpdatedAt:     corp.UpdatedAt,
+			UpdatedBy:     corp.UpdatedBy,
+		}
+	}
+	
+	settingValue := models.ManagedCorporationsValue{
+		Corporations: modelCorps,
+	}
+
+	// Check if setting exists
+	exists, err := s.repo.SettingExists(ctx, "managed_corporations")
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		// Create new setting
+		setting := &models.SiteSetting{
+			Key:         "managed_corporations",
+			Value:       settingValue,
+			Type:        models.SettingTypeObject,
+			Category:    "eve",
+			Description: "Managed corporations with enable/disable status",
+			IsPublic:    false,
+			IsActive:    true,
+			CreatedBy:   &updatedBy,
+		}
+		return s.repo.Create(ctx, setting)
+	} else {
+		// Update existing setting
+		updates := bson.M{
+			"value": settingValue,
+		}
+		_, err := s.repo.Update(ctx, "managed_corporations", updates, updatedBy)
+		return err
+	}
 }
 
 

@@ -95,6 +95,61 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Description: "Delete a site setting (super admin only)",
 		Tags:        []string{"Site Settings / Management"},
 	}, m.deleteSettingHandler)
+
+	// Corporation Management endpoints (super admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-add-corporation",
+		Method:      "POST",
+		Path:        "/site-settings/corporations",
+		Summary:     "Add managed corporation",
+		Description: "Add a new managed corporation with enable/disable status (super admin only)",
+		Tags:        []string{"Site Settings / Corporations"},
+	}, m.addCorporationHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-list-corporations",
+		Method:      "GET",
+		Path:        "/site-settings/corporations",
+		Summary:     "List managed corporations",
+		Description: "List all managed corporations with optional filtering by enabled status (super admin only)",
+		Tags:        []string{"Site Settings / Corporations"},
+	}, m.listCorporationsHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-get-corporation",
+		Method:      "GET",
+		Path:        "/site-settings/corporations/{corp_id}",
+		Summary:     "Get managed corporation",
+		Description: "Get a specific managed corporation by ID (super admin only)",
+		Tags:        []string{"Site Settings / Corporations"},
+	}, m.getCorporationHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-update-corporation-status",
+		Method:      "PUT",
+		Path:        "/site-settings/corporations/{corp_id}/status",
+		Summary:     "Update corporation status",
+		Description: "Enable or disable a managed corporation (super admin only)",
+		Tags:        []string{"Site Settings / Corporations"},
+	}, m.updateCorporationStatusHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-remove-corporation",
+		Method:      "DELETE",
+		Path:        "/site-settings/corporations/{corp_id}",
+		Summary:     "Remove managed corporation",
+		Description: "Remove a managed corporation completely (super admin only)",
+		Tags:        []string{"Site Settings / Corporations"},
+	}, m.removeCorporationHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-bulk-update-corporations",
+		Method:      "PUT",
+		Path:        "/site-settings/corporations",
+		Summary:     "Bulk update corporations",
+		Description: "Bulk update or add multiple managed corporations (super admin only)",
+		Tags:        []string{"Site Settings / Corporations"},
+	}, m.bulkUpdateCorporationsHandler)
 }
 
 // Health check handler
@@ -264,5 +319,161 @@ func (m *Module) convertToOutput(setting *models.SiteSetting) dto.SiteSettingOut
 		CreatedAt:   setting.CreatedAt,
 		UpdatedAt:   setting.UpdatedAt,
 	}
+}
+
+// Corporation Management Handlers
+
+// Add corporation handler
+func (m *Module) addCorporationHandler(ctx context.Context, input *dto.AddCorporationInput) (*dto.AddCorporationOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	corporation, err := m.service.AddManagedCorporation(ctx, input, int64(user.CharacterID))
+	if err != nil {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("corporation with ID %d is already managed", input.Body.CorporationID) {
+			return nil, huma.Error409Conflict("Corporation already exists", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to add corporation", err)
+	}
+
+	return &dto.AddCorporationOutput{
+		Body: dto.AddCorporationResponseBody{
+			Corporation: *corporation,
+			Message:     fmt.Sprintf("Corporation '%s' (ID: %d) added successfully", corporation.Name, corporation.CorporationID),
+		},
+	}, nil
+}
+
+// List corporations handler
+func (m *Module) listCorporationsHandler(ctx context.Context, input *dto.ListManagedCorporationsInput) (*dto.ListManagedCorporationsOutput, error) {
+	// Require super admin authentication
+	_, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	corporations, total, err := m.service.GetManagedCorporations(ctx, input.EnabledFilter, input.Page, input.Limit)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve corporations", err)
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(input.Limit)))
+
+	return &dto.ListManagedCorporationsOutput{
+		Body: dto.ListManagedCorporationsResponseBody{
+			Corporations: corporations,
+			Total:        total,
+			Page:         input.Page,
+			Limit:        input.Limit,
+			TotalPages:   totalPages,
+		},
+	}, nil
+}
+
+// Get corporation handler
+func (m *Module) getCorporationHandler(ctx context.Context, input *dto.GetManagedCorporationInput) (*dto.GetManagedCorporationOutput, error) {
+	// Require super admin authentication
+	_, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	corporation, err := m.service.GetManagedCorporation(ctx, input.CorporationID)
+	if err != nil {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("corporation with ID %d not found", input.CorporationID) {
+			return nil, huma.Error404NotFound("Corporation not found", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to retrieve corporation", err)
+	}
+
+	return &dto.GetManagedCorporationOutput{
+		Body: dto.GetManagedCorporationResponseBody{
+			Corporation: *corporation,
+		},
+	}, nil
+}
+
+// Update corporation status handler
+func (m *Module) updateCorporationStatusHandler(ctx context.Context, input *dto.UpdateCorporationStatusInput) (*dto.UpdateCorporationStatusOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	corporation, err := m.service.UpdateCorporationStatus(ctx, input.CorporationID, input.Body.Enabled, int64(user.CharacterID))
+	if err != nil {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("corporation with ID %d not found", input.CorporationID) {
+			return nil, huma.Error404NotFound("Corporation not found", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to update corporation status", err)
+	}
+
+	status := "disabled"
+	if corporation.Enabled {
+		status = "enabled"
+	}
+
+	return &dto.UpdateCorporationStatusOutput{
+		Body: dto.UpdateCorporationStatusResponseBody{
+			Corporation: *corporation,
+			Message:     fmt.Sprintf("Corporation '%s' (ID: %d) %s successfully", corporation.Name, corporation.CorporationID, status),
+		},
+	}, nil
+}
+
+// Remove corporation handler
+func (m *Module) removeCorporationHandler(ctx context.Context, input *dto.RemoveCorporationInput) (*dto.RemoveCorporationOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	// Get corporation details before removing for the response message
+	corporation, err := m.service.GetManagedCorporation(ctx, input.CorporationID)
+	if err != nil {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("corporation with ID %d not found", input.CorporationID) {
+			return nil, huma.Error404NotFound("Corporation not found", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to retrieve corporation", err)
+	}
+
+	err = m.service.RemoveManagedCorporation(ctx, input.CorporationID, int64(user.CharacterID))
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to remove corporation", err)
+	}
+
+	return &dto.RemoveCorporationOutput{
+		Body: dto.RemoveCorporationResponseBody{
+			Message: fmt.Sprintf("Corporation '%s' (ID: %d) removed successfully", corporation.Name, corporation.CorporationID),
+		},
+	}, nil
+}
+
+// Bulk update corporations handler
+func (m *Module) bulkUpdateCorporationsHandler(ctx context.Context, input *dto.BulkUpdateCorporationsInput) (*dto.BulkUpdateCorporationsOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	corporations, updated, added, err := m.service.BulkUpdateCorporations(ctx, input, int64(user.CharacterID))
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to bulk update corporations", err)
+	}
+
+	return &dto.BulkUpdateCorporationsOutput{
+		Body: dto.BulkUpdateCorporationsResponseBody{
+			Corporations: corporations,
+			Updated:      updated,
+			Added:        added,
+			Message:      fmt.Sprintf("Bulk update completed: %d corporations updated, %d corporations added", updated, added),
+		},
+	}, nil
 }
 

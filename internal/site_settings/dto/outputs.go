@@ -85,3 +85,85 @@ type SiteSettingsHealthResponse struct {
 	PublicCount int    `json:"public_count" description:"Number of public settings"`
 }
 
+// Corporation Management DTOs
+
+// ManagedCorporation represents a managed corporation in API responses
+type ManagedCorporation struct {
+	CorporationID int64     `json:"corporation_id" description:"EVE Online corporation ID"`
+	Name          string    `json:"name" description:"Corporation name"`
+	Enabled       bool      `json:"enabled" description:"Whether the corporation is enabled"`
+	AddedAt       time.Time `json:"added_at" description:"When the corporation was added"`
+	AddedBy       *int64    `json:"added_by,omitempty" description:"Character ID who added the corporation"`
+	UpdatedAt     time.Time `json:"updated_at" description:"When the corporation was last updated"`
+	UpdatedBy     *int64    `json:"updated_by,omitempty" description:"Character ID who last updated the corporation"`
+}
+
+// AddCorporationOutput represents the response for adding a managed corporation
+type AddCorporationOutput struct {
+	Body AddCorporationResponseBody `json:"body"`
+}
+
+// AddCorporationResponseBody represents the body of the add corporation response
+type AddCorporationResponseBody struct {
+	Corporation ManagedCorporation `json:"corporation" description:"Added corporation details"`
+	Message     string             `json:"message" description:"Success message"`
+}
+
+// UpdateCorporationStatusOutput represents the response for updating corporation status
+type UpdateCorporationStatusOutput struct {
+	Body UpdateCorporationStatusResponseBody `json:"body"`
+}
+
+// UpdateCorporationStatusResponseBody represents the body of the update status response
+type UpdateCorporationStatusResponseBody struct {
+	Corporation ManagedCorporation `json:"corporation" description:"Updated corporation details"`
+	Message     string             `json:"message" description:"Success message"`
+}
+
+// RemoveCorporationOutput represents the response for removing a managed corporation
+type RemoveCorporationOutput struct {
+	Body RemoveCorporationResponseBody `json:"body"`
+}
+
+// RemoveCorporationResponseBody represents the body of the remove corporation response
+type RemoveCorporationResponseBody struct {
+	Message string `json:"message" description:"Success message"`
+}
+
+// ListManagedCorporationsOutput represents the response for listing managed corporations
+type ListManagedCorporationsOutput struct {
+	Body ListManagedCorporationsResponseBody `json:"body"`
+}
+
+// ListManagedCorporationsResponseBody represents the body of the list corporations response
+type ListManagedCorporationsResponseBody struct {
+	Corporations []ManagedCorporation `json:"corporations" description:"List of managed corporations"`
+	Total        int                  `json:"total" description:"Total number of corporations"`
+	Page         int                  `json:"page" description:"Current page number"`
+	Limit        int                  `json:"limit" description:"Items per page"`
+	TotalPages   int                  `json:"total_pages" description:"Total number of pages"`
+}
+
+// GetManagedCorporationOutput represents the response for getting a specific managed corporation
+type GetManagedCorporationOutput struct {
+	Body GetManagedCorporationResponseBody `json:"body"`
+}
+
+// GetManagedCorporationResponseBody represents the body of the get corporation response
+type GetManagedCorporationResponseBody struct {
+	Corporation ManagedCorporation `json:"corporation" description:"Corporation details"`
+}
+
+// BulkUpdateCorporationsOutput represents the response for bulk updating corporations
+type BulkUpdateCorporationsOutput struct {
+	Body BulkUpdateCorporationsResponseBody `json:"body"`
+}
+
+// BulkUpdateCorporationsResponseBody represents the body of the bulk update response
+type BulkUpdateCorporationsResponseBody struct {
+	Corporations []ManagedCorporation `json:"corporations" description:"Updated corporations"`
+	Message      string               `json:"message" description:"Success message"`
+	Updated      int                  `json:"updated" description:"Number of corporations updated"`
+	Added        int                  `json:"added" description:"Number of corporations added"`
+}
+

@@ -12,10 +12,11 @@ The site settings module provides centralized configuration management for the g
 ### Core Components
 
 - **Settings Management**: CRUD operations for site configuration settings
+- **Corporation Management**: Complete CRUD operations for managed corporations with enable/disable functionality
 - **Type Safety**: Strongly typed setting values with validation
 - **Public/Private Settings**: Fine-grained visibility control
 - **Category Organization**: Logical grouping of related settings
-- **Audit Trail**: Complete history of setting changes
+- **Audit Trail**: Complete history of setting changes and corporation management
 - **Default Settings**: Predefined essential configuration settings
 
 ### Files Structure
@@ -76,6 +77,46 @@ type SiteSetting struct {
 - **`notifications`**: Notification system configuration
 - **`security`**: Security policies and restrictions
 - **`ui`**: User interface customization
+
+### Managed Corporations Data Model
+
+The module stores managed corporations in a special site setting with key `"managed_corporations"` using the object type with proper BSON models for type-safe database operations. The structure is:
+
+```json
+{
+  "key": "managed_corporations",
+  "value": {
+    "corporations": [
+      {
+        "corporation_id": 98000001,
+        "name": "Example Corporation",
+        "enabled": true,
+        "added_at": "2025-01-01T00:00:00Z",
+        "added_by": 12345,
+        "updated_at": "2025-01-01T00:00:00Z",
+        "updated_by": 12345
+      }
+    ]
+  },
+  "type": "object",
+  "category": "eve",
+  "description": "Managed corporations with enable/disable status"
+}
+```
+
+**Corporation Fields:**
+- `corporation_id` (int64): EVE Online corporation ID
+- `name` (string): Corporation name
+- `enabled` (boolean): Whether the corporation is enabled
+- `added_at` (timestamp): When the corporation was first added
+- `added_by` (int64): Character ID who added the corporation
+- `updated_at` (timestamp): Last modification timestamp
+- `updated_by` (int64): Character ID who made the last update
+
+**Database Models:**
+- `models.ManagedCorporation`: BSON-tagged struct for database operations
+- `models.ManagedCorporationsValue`: Container structure for the corporations array
+- Proper BSON marshaling/unmarshaling ensures accurate date and field handling
 
 ## Default Settings
 
@@ -182,6 +223,152 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
 ```
 DELETE /site-settings/{key}
 Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+
+### Corporation Management Endpoints (Super Admin Only)
+
+#### Add Managed Corporation
+```
+POST /site-settings/corporations
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Request Body:**
+```json
+{
+  "corporation_id": 98000001,
+  "name": "Example Corporation",
+  "enabled": true
+}
+```
+
+**Response:**
+```json
+{
+  "corporation": {
+    "corporation_id": 98000001,
+    "name": "Example Corporation",
+    "enabled": true,
+    "added_at": "2025-01-01T00:00:00Z",
+    "added_by": 12345,
+    "updated_at": "2025-01-01T00:00:00Z",
+    "updated_by": 12345
+  },
+  "message": "Corporation 'Example Corporation' (ID: 98000001) added successfully"
+}
+```
+
+#### List Managed Corporations
+```
+GET /site-settings/corporations?enabled=true&page=1&limit=20
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Query Parameters:**
+- `enabled` (optional): Filter by enabled status ('true', 'false', or empty for all)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20, max: 100)
+
+**Response:**
+```json
+{
+  "corporations": [
+    {
+      "corporation_id": 98000001,
+      "name": "Example Corporation",
+      "enabled": true,
+      "added_at": "2025-01-01T00:00:00Z",
+      "added_by": 12345,
+      "updated_at": "2025-01-01T00:00:00Z",
+      "updated_by": 12345
+    }
+  ],
+  "total": 15,
+  "page": 1,
+  "limit": 20,
+  "total_pages": 1
+}
+```
+
+#### Get Specific Corporation
+```
+GET /site-settings/corporations/{corp_id}
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+
+#### Update Corporation Status
+```
+PUT /site-settings/corporations/{corp_id}/status
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Request Body:**
+```json
+{
+  "enabled": false
+}
+```
+
+**Response:**
+```json
+{
+  "corporation": {
+    "corporation_id": 98000001,
+    "name": "Example Corporation",
+    "enabled": false,
+    "added_at": "2025-01-01T00:00:00Z",
+    "added_by": 12345,
+    "updated_at": "2025-01-01T12:00:00Z",
+    "updated_by": 12345
+  },
+  "message": "Corporation 'Example Corporation' (ID: 98000001) disabled successfully"
+}
+```
+
+#### Remove Managed Corporation
+```
+DELETE /site-settings/corporations/{corp_id}
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+
+#### Bulk Update Corporations
+```
+PUT /site-settings/corporations
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Request Body:**
+```json
+{
+  "corporations": [
+    {
+      "corporation_id": 98000001,
+      "name": "Example Corporation",
+      "enabled": true
+    },
+    {
+      "corporation_id": 98000002,
+      "name": "Another Corporation",
+      "enabled": false
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "corporations": [
+    {
+      "corporation_id": 98000001,
+      "name": "Example Corporation",
+      "enabled": true,
+      "added_at": "2025-01-01T00:00:00Z",
+      "added_by": 12345,
+      "updated_at": "2025-01-01T12:00:00Z",
+      "updated_by": 12345
+    }
+  ],
+  "updated": 1,
+  "added": 1,
+  "message": "Bulk update completed: 1 corporations updated, 1 corporations added"
+}
 ```
 
 ### Health Check
@@ -402,34 +589,88 @@ siteSettingsModule.RegisterUnifiedRoutes(api)
 ### Managing Site Branding
 ```bash
 # Update site name
-curl -X PUT https://api.example.com/site-settings/site_name \
+curl -X PUT https://localhost:3000/site-settings/site_name \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"value": "My EVE Corp API", "is_public": true}'
 
 # Get public settings for frontend
-curl https://api.example.com/site-settings/public?category=general
+curl https://localhost:3000/site-settings/public?category=general
 ```
 
 ### System Configuration
 ```bash
 # Enable maintenance mode
-curl -X PUT https://api.example.com/site-settings/maintenance_mode \
+curl -X PUT https://localhost:3000/site-settings/maintenance_mode \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"value": true}'
 
 # Update API rate limits  
-curl -X PUT https://api.example.com/site-settings/api_rate_limit \
+curl -X PUT https://localhost:3000/site-settings/api_rate_limit \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"value": 200}'
 ```
 
+### Corporation Management
+```bash
+# Add a new managed corporation
+curl -X POST https://localhost:3000/site-settings/corporations \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "corporation_id": 98000001,
+    "name": "Test Corporation",
+    "enabled": true
+  }'
+
+# List all managed corporations
+curl -X GET https://localhost:3000/site-settings/corporations \
+  -H "Authorization: Bearer <token>"
+
+# List only enabled corporations
+curl -X GET "https://localhost:3000/site-settings/corporations?enabled=true" \
+  -H "Authorization: Bearer <token>"
+
+# Disable a corporation
+curl -X PUT https://localhost:3000/site-settings/corporations/98000001/status \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+# Remove a corporation completely
+curl -X DELETE https://localhost:3000/site-settings/corporations/98000001 \
+  -H "Authorization: Bearer <token>"
+
+# Bulk update corporations
+curl -X PUT https://localhost:3000/site-settings/corporations \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "corporations": [
+      {
+        "corporation_id": 98000001,
+        "name": "Updated Corp Name",
+        "enabled": true
+      },
+      {
+        "corporation_id": 98000002,
+        "name": "New Corporation",
+        "enabled": false
+      }
+    ]
+  }'
+
+# Check if corporation is enabled (programmatic usage)
+curl -X GET https://localhost:3000/site-settings/corporations/98000001 \
+  -H "Authorization: Bearer <token>"
+```
+
 ### Complex Settings
 ```bash
 # Update contact information
-curl -X PUT https://api.example.com/site-settings/contact_info \
+curl -X PUT https://localhost:3000/site-settings/contact_info \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{

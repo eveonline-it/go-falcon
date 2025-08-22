@@ -61,3 +61,62 @@ type GetPublicSiteSettingsInput struct {
 	Limit    int    `query:"limit" minimum:"1" maximum:"100" default:"20" description:"Items per page"`
 }
 
+// Corporation Management DTOs
+
+// AddCorporationInput represents the input for adding a new managed corporation
+type AddCorporationInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	Body          struct {
+		CorporationID int64  `json:"corporation_id" required:"true" description:"EVE Online corporation ID"`
+		Name          string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Corporation name"`
+		Enabled       *bool  `json:"enabled" description:"Whether the corporation should be enabled (defaults to true)"`
+	}
+}
+
+// UpdateCorporationStatusInput represents the input for enabling/disabling a corporation
+type UpdateCorporationStatusInput struct {
+	Authorization   string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie          string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	CorporationID   int64  `path:"corp_id" required:"true" minimum:"1" description:"Corporation ID"`
+	Body            struct {
+		Enabled bool `json:"enabled" required:"true" description:"Whether the corporation should be enabled"`
+	}
+}
+
+// RemoveCorporationInput represents the input for removing a managed corporation
+type RemoveCorporationInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	CorporationID int64  `path:"corp_id" required:"true" minimum:"1" description:"Corporation ID"`
+}
+
+// ListManagedCorporationsInput represents the input for listing managed corporations
+type ListManagedCorporationsInput struct {
+	Authorization  string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie         string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	EnabledFilter  string `query:"enabled" description:"Filter by enabled status: 'true', 'false', or empty for all"`
+	Page           int    `query:"page" minimum:"1" default:"1" description:"Page number"`
+	Limit          int    `query:"limit" minimum:"1" maximum:"100" default:"20" description:"Items per page"`
+}
+
+// GetManagedCorporationInput represents the input for getting a specific managed corporation
+type GetManagedCorporationInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	CorporationID int64  `path:"corp_id" required:"true" minimum:"1" description:"Corporation ID"`
+}
+
+// BulkUpdateCorporationsInput represents the input for bulk updating corporations
+type BulkUpdateCorporationsInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	Body          struct {
+		Corporations []struct {
+			CorporationID int64  `json:"corporation_id" required:"true" description:"EVE Online corporation ID"`
+			Name          string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Corporation name"`
+			Enabled       bool   `json:"enabled" required:"true" description:"Whether the corporation should be enabled"`
+		} `json:"corporations" required:"true" description:"List of corporations to update"`
+	}
+}
+
