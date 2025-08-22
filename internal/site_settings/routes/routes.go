@@ -29,15 +29,15 @@ func NewModule(service *services.Service, authMiddleware *middleware.AuthMiddlew
 
 // RegisterUnifiedRoutes registers all site settings routes with the Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API) {
-	// Health check endpoint
+	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
-		OperationID: "site-settings-health-check",
+		OperationID: "site-settings-get-status",
 		Method:      "GET",
-		Path:        "/site-settings/health",
-		Summary:     "Site Settings module health check",
-		Description: "Check if the site settings module is healthy",
+		Path:        "/site-settings/status",
+		Summary:     "Get site settings module status",
+		Description: "Returns the health status of the site settings module",
 		Tags:        []string{"Site Settings"},
-	}, m.healthHandler)
+	}, m.statusHandler)
 
 	// Public endpoints (no authentication required)
 	huma.Register(api, huma.Operation{
@@ -225,16 +225,10 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 	}, m.reorderAlliancesHandler)
 }
 
-// Health check handler
-func (m *Module) healthHandler(ctx context.Context, input *struct{}) (*dto.HealthOutput, error) {
-	healthResponse, err := m.service.GetHealth(ctx)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("Site settings service is unhealthy", err)
-	}
-
-	return &dto.HealthOutput{
-		Body: *healthResponse,
-	}, nil
+// Status handler
+func (m *Module) statusHandler(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+	status := m.service.GetStatus(ctx)
+	return &dto.StatusOutput{Body: *status}, nil
 }
 
 // Get public settings handler (no authentication required)

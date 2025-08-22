@@ -161,3 +161,15 @@ type RefreshTokenOutput struct {
 type VerifyTokenOutput struct {
 	Body VerifyResponse `json:"body"`
 }
+
+// StatusOutput represents the module status response
+type StatusOutput struct {
+	Body AuthModuleStatusResponse `json:"body"`
+}
+
+// AuthModuleStatusResponse represents the actual status response data
+type AuthModuleStatusResponse struct {
+	Module  string `json:"module" description:"Module name"`
+	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
+	Message string `json:"message,omitempty" description:"Optional status message or error details"`
+}

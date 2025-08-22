@@ -10,16 +10,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-// AllianceHealthCheck represents a health check response data
-type AllianceHealthCheck struct {
-	Healthy bool   `json:"healthy" description:"Whether the module is healthy"`
-	Module  string `json:"module" description:"Module name"`
-}
-
-// AllianceHealthResponse represents a health check response (Huma wrapper)
-type AllianceHealthResponse struct {
-	Body AllianceHealthCheck `json:"body"`
-}
 
 // Module represents the alliance routes module
 type Module struct {
@@ -95,21 +85,17 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		return m.bulkImportAlliances(ctx, input)
 	})
 
-	// Health check endpoint for the alliance module
+	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
-		OperationID: "alliance-health-check",
+		OperationID: "alliance-get-status",
 		Method:      "GET",
-		Path:        basePath + "/health",
-		Summary:     "Alliance Module Health Check",
-		Description: "Check if the alliance module is functioning properly",
-		Tags:        []string{"Health"},
-	}, func(ctx context.Context, input *struct{}) (*AllianceHealthResponse, error) {
-		return &AllianceHealthResponse{
-			Body: AllianceHealthCheck{
-				Healthy: true,
-				Module:  "alliance",
-			},
-		}, nil
+		Path:        basePath + "/status",
+		Summary:     "Get alliance module status",
+		Description: "Returns the health status of the alliance module",
+		Tags:        []string{"Alliance"},
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+		status := m.service.GetStatus(ctx)
+		return &dto.StatusOutput{Body: *status}, nil
 	})
 }
 

@@ -1067,6 +1067,33 @@ func (s *Service) updateManagedAlliancesSetting(ctx context.Context, alliances [
 	}
 }
 
+// GetStatus returns the health status of the site settings module
+func (s *Service) GetStatus(ctx context.Context) *dto.SiteSettingsStatusResponse {
+	// Check database connectivity
+	if err := s.repo.CheckHealth(ctx); err != nil {
+		return &dto.SiteSettingsStatusResponse{
+			Module:  "site_settings",
+			Status:  "unhealthy",
+			Message: "Database connection failed: " + err.Error(),
+		}
+	}
+
+	// Check if default settings are initialized
+	settings, err := s.repo.List(ctx, "", nil, nil, nil, 1, 1)
+	if err != nil || len(settings) == 0 {
+		return &dto.SiteSettingsStatusResponse{
+			Module:  "site_settings",
+			Status:  "unhealthy",
+			Message: "Default settings not initialized",
+		}
+	}
+
+	return &dto.SiteSettingsStatusResponse{
+		Module: "site_settings",
+		Status: "healthy",
+	}
+}
+
 // getNextAlliancePosition calculates the next available position for alliances
 func (s *Service) getNextAlliancePosition(ctx context.Context, alliances []dto.ManagedAlliance) (int, error) {
 	maxPosition := 0

@@ -184,3 +184,9 @@ func (r *Repository) SearchCorporationsByName(ctx context.Context, name string) 
 	
 	return corporations, nil
 }
+
+// CheckHealth verifies database connectivity
+func (r *Repository) CheckHealth(ctx context.Context) error {
+	// Perform a simple ping to check database connectivity
+	return r.mongodb.Client.Ping(ctx, nil)
+}

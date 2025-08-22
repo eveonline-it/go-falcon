@@ -392,3 +392,9 @@ func (r *Repository) BulkDeleteTasks(ctx context.Context, taskIDs []string) (int
 
 	return result.DeletedCount, nil
 }
+
+// CheckHealth verifies database connectivity
+func (r *Repository) CheckHealth(ctx context.Context) error {
+	// Perform a simple ping to check database connectivity
+	return r.mongodb.Client.Ping(ctx, nil)
+}

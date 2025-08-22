@@ -439,6 +439,75 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
    - Clear naming conventions
    - Proper error handling
 
+### Module Status Endpoint Standard
+
+Every internal module **MUST** implement a standardized status endpoint that provides module health information:
+
+#### Endpoint Definition
+```
+GET /{module}/status
+```
+- Public endpoint (no authentication required)
+- Returns module name, status, and optional message
+- Used for health monitoring and debugging
+
+#### Response Structure
+```go
+// dto/outputs.go
+type StatusOutput struct {
+    Body StatusResponse `json:"body"`
+}
+
+type StatusResponse struct {
+    Module  string `json:"module" description:"Module name"`
+    Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
+    Message string `json:"message,omitempty" description:"Optional status message or error details"`
+}
+```
+
+#### Implementation Example
+```go
+// routes/routes.go
+func (r *Routes) RegisterUnifiedRoutes(api huma.API) {
+    // Status endpoint (public, no auth required)
+    huma.Register(api, huma.Operation{
+        OperationID: "get-module-status",
+        Method:      "GET",
+        Path:        basePath + "/status",
+        Summary:     "Get module status",
+        Description: "Returns the health status of the module",
+    }, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+        status := r.service.GetStatus(ctx)
+        return &dto.StatusOutput{Body: *status}, nil
+    })
+    
+    // Other module endpoints...
+}
+
+// services/service.go
+func (s *Service) GetStatus(ctx context.Context) *dto.StatusResponse {
+    // Check module dependencies (database, external services, etc.)
+    if err := s.checkDependencies(); err != nil {
+        return &dto.StatusResponse{
+            Module:  "module-name",
+            Status:  "unhealthy",
+            Message: fmt.Sprintf("Dependency check failed: %v", err),
+        }
+    }
+    
+    return &dto.StatusResponse{
+        Module: "module-name",
+        Status: "healthy",
+    }
+}
+```
+
+#### Status Check Requirements
+- Database connectivity (if applicable)
+- External service availability (ESI, Redis, etc.)
+- Critical configuration presence
+- Resource availability (memory, connections)
+
 4. **Service Layer**
    - Business logic in `services/` package
    - No HTTP concerns in services

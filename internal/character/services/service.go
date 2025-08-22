@@ -176,3 +176,24 @@ func (s *Service) characterToProfile(character *models.Character) *dto.Character
 		UpdatedAt:      character.UpdatedAt,
 	}
 }
+
+// GetStatus returns the health status of the character module
+func (s *Service) GetStatus(ctx context.Context) *dto.CharacterStatusResponse {
+	// Check database connectivity
+	if err := s.repository.CheckHealth(ctx); err != nil {
+		return &dto.CharacterStatusResponse{
+			Module:  "character",
+			Status:  "unhealthy",
+			Message: "Database connection failed: " + err.Error(),
+		}
+	}
+
+	// Check EVE Gateway availability (optional check)
+	// We don't want the module to be unhealthy just because ESI is down
+	// since we have database fallback
+	
+	return &dto.CharacterStatusResponse{
+		Module: "character",
+		Status: "healthy",
+	}
+}

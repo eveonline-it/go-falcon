@@ -69,3 +69,20 @@ func (s *Service) UserToResponse(user *models.User) *dto.UserResponse {
 		Valid:         user.Valid,
 	}
 }
+
+// GetStatus returns the health status of the users module
+func (s *Service) GetStatus(ctx context.Context) *dto.UsersStatusResponse {
+	// Check database connectivity
+	if err := s.repository.CheckHealth(ctx); err != nil {
+		return &dto.UsersStatusResponse{
+			Module:  "users",
+			Status:  "unhealthy",
+			Message: "Database connection failed: " + err.Error(),
+		}
+	}
+
+	return &dto.UsersStatusResponse{
+		Module: "users",
+		Status: "healthy",
+	}
+}

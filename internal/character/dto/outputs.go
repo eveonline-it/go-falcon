@@ -35,3 +35,15 @@ type SearchCharactersResult struct {
 type SearchCharactersByNameOutput struct {
 	Body SearchCharactersResult `json:"body"`
 }
+
+// StatusOutput represents the module status response
+type StatusOutput struct {
+	Body CharacterStatusResponse `json:"body"`
+}
+
+// CharacterStatusResponse represents the actual status response data
+type CharacterStatusResponse struct {
+	Module  string `json:"module" description:"Module name"`
+	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
+	Message string `json:"message,omitempty" description:"Optional status message or error details"`
+}

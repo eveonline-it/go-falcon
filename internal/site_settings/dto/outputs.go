@@ -273,3 +273,15 @@ type ReorderAlliancesResponseBody struct {
 	Message   string            `json:"message" description:"Success message"`
 }
 
+// StatusOutput represents the module status response
+type StatusOutput struct {
+	Body SiteSettingsStatusResponse `json:"body"`
+}
+
+// SiteSettingsStatusResponse represents the actual status response data
+type SiteSettingsStatusResponse struct {
+	Module  string `json:"module" description:"Module name"`
+	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
+	Message string `json:"message,omitempty" description:"Optional status message or error details"`
+}
+

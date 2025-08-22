@@ -250,3 +250,9 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 
 	return characters, nil
 }
+
+// CheckHealth verifies database connectivity
+func (r *Repository) CheckHealth(ctx context.Context) error {
+	// Perform a simple ping to check database connectivity
+	return r.mongodb.Client.Ping(ctx, nil)
+}

@@ -38,6 +38,19 @@ func NewRoutes(service *services.Service, router chi.Router) *Routes {
 
 // RegisterUsersRoutes registers users routes on a shared Huma API
 func RegisterUsersRoutes(api huma.API, basePath string, service *services.Service) {
+	// Status endpoint (public, no auth required)
+	huma.Register(api, huma.Operation{
+		OperationID: "users-get-status",
+		Method:      "GET",
+		Path:        basePath + "/status",
+		Summary:     "Get users module status",
+		Description: "Returns the health status of the users module",
+		Tags:        []string{"Users"},
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+		status := service.GetStatus(ctx)
+		return &dto.StatusOutput{Body: *status}, nil
+	})
+
 	// Public endpoints
 	huma.Register(api, huma.Operation{
 		OperationID: "users-get-stats",
@@ -125,6 +138,9 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 
 // registerRoutes registers all Users module routes with Huma
 func (hr *Routes) registerRoutes() {
+	// Status endpoint (public, no auth required)
+	huma.Get(hr.api, "/status", hr.getStatus)
+	
 	// Public endpoints
 	huma.Get(hr.api, "/stats", hr.getUserStats)
 
@@ -137,6 +153,11 @@ func (hr *Routes) registerRoutes() {
 }
 
 // Public endpoint handlers
+
+func (hr *Routes) getStatus(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+	status := hr.service.GetStatus(ctx)
+	return &dto.StatusOutput{Body: *status}, nil
+}
 
 func (hr *Routes) getUserStats(ctx context.Context, input *dto.UserStatsInput) (*dto.UserStatsOutput, error) {
 	stats, err := hr.service.GetUserStats(ctx)

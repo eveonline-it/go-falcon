@@ -339,3 +339,20 @@ func (s *Service) UpdateAllCorporations(ctx context.Context, concurrentWorkers i
 	
 	return nil
 }
+
+// GetStatus returns the health status of the corporation module
+func (s *Service) GetStatus(ctx context.Context) *dto.CorporationStatusResponse {
+	// Check database connectivity
+	if err := s.repository.CheckHealth(ctx); err != nil {
+		return &dto.CorporationStatusResponse{
+			Module:  "corporation",
+			Status:  "unhealthy",
+			Message: "Database connection failed: " + err.Error(),
+		}
+	}
+
+	return &dto.CorporationStatusResponse{
+		Module: "corporation",
+		Status: "healthy",
+	}
+}

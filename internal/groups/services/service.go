@@ -681,3 +681,20 @@ func (s *Service) EnsureFirstUserSuperAdmin(ctx context.Context, characterID int
 
 	return nil
 }
+
+// GetStatus returns the health status of the groups module
+func (s *Service) GetStatus(ctx context.Context) *dto.GroupsStatusResponse {
+	// Check database connectivity
+	if err := s.repo.CheckHealth(ctx); err != nil {
+		return &dto.GroupsStatusResponse{
+			Module:  "groups",
+			Status:  "unhealthy",
+			Message: "Database connection failed: " + err.Error(),
+		}
+	}
+
+	return &dto.GroupsStatusResponse{
+		Module: "groups",
+		Status: "healthy",
+	}
+}

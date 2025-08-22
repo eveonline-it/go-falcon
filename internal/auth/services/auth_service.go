@@ -530,3 +530,20 @@ func (s *AuthService) profileToDTO(profile *models.UserProfile) *dto.ProfileResp
 		Metadata:          profile.Metadata,
 	}
 }
+
+// GetStatus returns the health status of the auth module
+func (s *AuthService) GetStatus(ctx context.Context) *dto.AuthModuleStatusResponse {
+	// Check database connectivity
+	if err := s.repository.CheckHealth(ctx); err != nil {
+		return &dto.AuthModuleStatusResponse{
+			Module:  "auth",
+			Status:  "unhealthy",
+			Message: "Database connection failed: " + err.Error(),
+		}
+	}
+
+	return &dto.AuthModuleStatusResponse{
+		Module: "auth",
+		Status: "healthy",
+	}
+}

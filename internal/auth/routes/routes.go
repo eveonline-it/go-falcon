@@ -185,11 +185,24 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		return nil, huma.Error501NotImplemented("Token verification not yet implemented")
 	})
 
-	// Authentication status and user info (public with optional auth)
+	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
-		OperationID: "auth-status",
+		OperationID: "auth-get-status",
 		Method:      "GET",
 		Path:        basePath + "/status",
+		Summary:     "Get auth module status",
+		Description: "Returns the health status of the auth module",
+		Tags:        []string{"Auth"},
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+		status := authService.GetStatus(ctx)
+		return &dto.StatusOutput{Body: *status}, nil
+	})
+
+	// Authentication status and user info (public with optional auth)
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-auth-status",
+		Method:      "GET",
+		Path:        basePath + "/auth-status",
 		Summary:     "Check authentication status",
 		Description: "Quick check if user is authenticated",
 		Tags:        []string{"Auth"},
@@ -386,8 +399,11 @@ func (hr *Routes) registerRoutes() {
 	huma.Post(hr.api, "/eve/refresh", hr.eveRefresh)
 	huma.Get(hr.api, "/eve/verify", hr.eveVerify)
 
+	// Status endpoint (public, no auth required)
+	huma.Get(hr.api, "/status", hr.moduleStatus)
+	
 	// Authentication status and user info (public with optional auth)
-	huma.Get(hr.api, "/status", hr.authStatus)
+	huma.Get(hr.api, "/auth-status", hr.authStatus)
 	huma.Get(hr.api, "/user", hr.userInfo)
 
 	// Profile endpoints (require authentication)
@@ -493,6 +509,13 @@ func (hr *Routes) eveRefresh(ctx context.Context, input *dto.RefreshTokenInput) 
 func (hr *Routes) eveVerify(ctx context.Context, input *dto.VerifyTokenInput) (*dto.VerifyTokenOutput, error) {
 	// TODO: Implement token verification
 	return nil, huma.Error501NotImplemented("Token verification not yet implemented")
+}
+
+// Module status handler
+
+func (hr *Routes) moduleStatus(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+	status := hr.authService.GetStatus(ctx)
+	return &dto.StatusOutput{Body: *status}, nil
 }
 
 // Authentication status and user info handlers

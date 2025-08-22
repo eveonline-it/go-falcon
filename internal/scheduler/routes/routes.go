@@ -41,11 +41,24 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 
 // RegisterSchedulerRoutes registers scheduler routes on a shared Huma API
 func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, middleware *middleware.Middleware) {
-	// Public endpoints (no authentication required)
+	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
 		OperationID: "scheduler-get-status",
 		Method:      "GET",
 		Path:        basePath + "/status",
+		Summary:     "Get scheduler module status",
+		Description: "Returns the health status of the scheduler module",
+		Tags:        []string{"Scheduler"},
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+		status := service.GetModuleStatus(ctx)
+		return &dto.StatusOutput{Body: *status}, nil
+	})
+
+	// Legacy scheduler status endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "scheduler-get-scheduler-status",
+		Method:      "GET",
+		Path:        basePath + "/scheduler-status",
 		Summary:     "Get scheduler status",
 		Description: "Get current scheduler status including worker count and running tasks",
 		Tags:        []string{"Scheduler / Status"},
@@ -391,7 +404,8 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 // registerRoutes registers all Scheduler module routes with Huma
 func (hr *Routes) registerRoutes() {
 	// Public endpoints (no authentication required)
-	huma.Get(hr.api, "/status", hr.getStatus)
+	huma.Get(hr.api, "/status", hr.getModuleStatus)
+	huma.Get(hr.api, "/scheduler-status", hr.getStatus)
 	huma.Get(hr.api, "/stats", hr.getStats)
 
 	// Task management endpoints (require authentication and permissions)
@@ -420,6 +434,11 @@ func (hr *Routes) registerRoutes() {
 }
 
 // Public endpoint handlers
+
+func (hr *Routes) getModuleStatus(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+	status := hr.service.GetModuleStatus(ctx)
+	return &dto.StatusOutput{Body: *status}, nil
+}
 
 func (hr *Routes) getStatus(ctx context.Context, input *dto.SchedulerStatusInput) (*dto.SchedulerStatusOutput, error) {
 	status := hr.service.GetStatus()

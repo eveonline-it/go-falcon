@@ -175,17 +175,18 @@ Based on the official ESI OpenAPI specification (https://esi.evetech.net/meta/op
 - `404`: Alliance not found in ESI (Note: ESI returns empty array for non-existent alliances)
 - `500`: Database or ESI communication errors
 
-### GET `/health` - Alliance Module Health Check
+### GET `/status` - Alliance Module Status
 
-**Description**: Verifies the alliance module is functioning properly.
+**Description**: Returns the health status of the alliance module.
 
-**Response**: Health status and module name
+**Response**: Module name, health status, and optional error message
 
 **Example Response**:
 ```json
 {
-  "healthy": true,
-  "module": "alliance"
+  "module": "alliance",
+  "status": "healthy",
+  "message": ""
 }
 ```
 

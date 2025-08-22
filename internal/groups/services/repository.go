@@ -16,6 +16,7 @@ import (
 
 // Repository handles database operations for groups
 type Repository struct {
+	db                    *database.MongoDB
 	groupsCollection      *mongo.Collection
 	membershipsCollection *mongo.Collection
 }
@@ -23,6 +24,7 @@ type Repository struct {
 // NewRepository creates a new repository instance
 func NewRepository(db *database.MongoDB) *Repository {
 	return &Repository{
+		db:                    db,
 		groupsCollection:      db.Database.Collection(models.GroupsCollection),
 		membershipsCollection: db.Database.Collection(models.MembershipsCollection),
 	}
@@ -379,4 +381,10 @@ func (r *Repository) GetGroupMemberCount(ctx context.Context, groupID primitive.
 	}
 
 	return count, nil
+}
+
+// CheckHealth verifies database connectivity
+func (r *Repository) CheckHealth(ctx context.Context) error {
+	// Perform a simple ping to check database connectivity
+	return r.db.Client.Ping(ctx, nil)
 }

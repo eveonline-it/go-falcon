@@ -15,6 +15,7 @@ import (
 // Repository handles database operations for site settings
 type Repository struct {
 	collection *mongo.Collection
+	db         *mongo.Database
 }
 
 // NewRepository creates a new repository instance
@@ -22,6 +23,7 @@ func NewRepository(db *mongo.Database) *Repository {
 	collection := db.Collection(models.SiteSettingsCollection)
 	return &Repository{
 		collection: collection,
+		db:         db,
 	}
 }
 
@@ -208,4 +210,46 @@ func (r *Repository) SettingExists(ctx context.Context, key string) (bool, error
 		return false, fmt.Errorf("failed to check if setting exists: %w", err)
 	}
 	return count > 0, nil
+}
+
+// CheckHealth verifies database connectivity
+func (r *Repository) CheckHealth(ctx context.Context) error {
+	// Perform a simple ping to check database connectivity
+	return r.db.Client().Ping(ctx, nil)
+}
+
+// List retrieves settings with optional filters and pagination
+func (r *Repository) List(ctx context.Context, category string, isPublic, isActive *bool, characterID *int64, page, limit int) ([]*models.SiteSetting, error) {
+	filter := bson.M{}
+	
+	if category != "" {
+		filter["category"] = category
+	}
+	if isPublic != nil {
+		filter["is_public"] = *isPublic
+	}
+	if isActive != nil {
+		filter["is_active"] = *isActive
+	}
+
+	// Calculate skip based on page
+	skip := (page - 1) * limit
+	
+	opts := options.Find().
+		SetSkip(int64(skip)).
+		SetLimit(int64(limit)).
+		SetSort(bson.D{{Key: "key", Value: 1}})
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list settings: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var settings []*models.SiteSetting
+	if err := cursor.All(ctx, &settings); err != nil {
+		return nil, fmt.Errorf("failed to decode settings: %w", err)
+	}
+
+	return settings, nil
 }

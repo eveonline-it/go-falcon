@@ -10,16 +10,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-// HealthCheck represents a health check response data
-type HealthCheck struct {
-	Healthy bool   `json:"healthy" description:"Whether the module is healthy"`
-	Module  string `json:"module" description:"Module name"`
-}
-
-// HealthResponse represents a health check response (Huma wrapper)
-type HealthResponse struct {
-	Body HealthCheck `json:"body"`
-}
 
 // Module represents the corporation routes module
 type Module struct {
@@ -59,21 +49,17 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		return m.getCorporationInfo(ctx, input)
 	})
 	
-	// Health check endpoint for the corporation module
+	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
-		OperationID: "corporation-health-check",
+		OperationID: "corporation-get-status",
 		Method:      "GET",
-		Path:        basePath + "/health",
-		Summary:     "Corporation Module Health Check",
-		Description: "Check if the corporation module is functioning properly",
-		Tags:        []string{"Health"},
-	}, func(ctx context.Context, input *struct{}) (*HealthResponse, error) {
-		return &HealthResponse{
-			Body: HealthCheck{
-				Healthy: true,
-				Module:  "corporation",
-			},
-		}, nil
+		Path:        basePath + "/status",
+		Summary:     "Get corporation module status",
+		Description: "Returns the health status of the corporation module",
+		Tags:        []string{"Corporation"},
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+		status := m.service.GetStatus(ctx)
+		return &dto.StatusOutput{Body: *status}, nil
 	})
 }
 

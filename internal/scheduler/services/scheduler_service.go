@@ -395,13 +395,30 @@ func (s *SchedulerService) GetStats(ctx context.Context) (*dto.SchedulerStatsRes
 	}, nil
 }
 
-// GetStatus returns scheduler status
+// GetStatus returns scheduler status (legacy)
 func (s *SchedulerService) GetStatus() *dto.SchedulerStatusResponse {
 	return &dto.SchedulerStatusResponse{
 		Module:  "scheduler",
 		Status:  "running",
 		Version: "1.0.0",
 		Engine:  s.engineService.IsRunning(),
+	}
+}
+
+// GetModuleStatus returns the health status of the scheduler module
+func (s *SchedulerService) GetModuleStatus(ctx context.Context) *dto.SchedulerModuleStatusResponse {
+	// Check database connectivity
+	if err := s.repository.CheckHealth(ctx); err != nil {
+		return &dto.SchedulerModuleStatusResponse{
+			Module:  "scheduler",
+			Status:  "unhealthy",
+			Message: "Database connection failed: " + err.Error(),
+		}
+	}
+
+	return &dto.SchedulerModuleStatusResponse{
+		Module: "scheduler",
+		Status: "healthy",
 	}
 }
 

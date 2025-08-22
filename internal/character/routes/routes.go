@@ -11,6 +11,19 @@ import (
 
 // RegisterCharacterRoutes registers character routes on a shared Huma API
 func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Service) {
+	// Status endpoint (public, no auth required)
+	huma.Register(api, huma.Operation{
+		OperationID: "character-get-status",
+		Method:      "GET",
+		Path:        basePath + "/status",
+		Summary:     "Get character module status",
+		Description: "Returns the health status of the character module",
+		Tags:        []string{"Character"},
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+		status := service.GetStatus(ctx)
+		return &dto.StatusOutput{Body: *status}, nil
+	})
+
 	// Get character profile endpoint
 	huma.Register(api, huma.Operation{
 		OperationID: "character-get-profile",

@@ -28,7 +28,20 @@ func NewModule(service *services.Service, authMW *middleware.AuthMiddleware) *Mo
 
 // RegisterUnifiedRoutes registers all group routes with the API
 func (m *Module) RegisterUnifiedRoutes(api huma.API) {
-	// Health check endpoint (no auth required)
+	// Status endpoint (public, no auth required)
+	huma.Register(api, huma.Operation{
+		OperationID: "groups-get-status",
+		Method:      "GET",
+		Path:        "/groups/status",
+		Summary:     "Get groups module status",
+		Description: "Returns the health status of the groups module",
+		Tags:        []string{"Groups"},
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+		status := m.service.GetStatus(ctx)
+		return &dto.StatusOutput{Body: *status}, nil
+	})
+
+	// Health check endpoint (no auth required) - legacy
 	huma.Register(api, huma.Operation{
 		OperationID: "groups-health-check",
 		Method:      "GET",

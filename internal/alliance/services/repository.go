@@ -157,3 +157,9 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 	_, err := r.collection.Indexes().CreateOne(ctx, indexModel)
 	return err
 }
+
+// CheckHealth verifies database connectivity
+func (r *Repository) CheckHealth(ctx context.Context) error {
+	// Perform a simple ping to check database connectivity
+	return r.mongodb.Client.Ping(ctx, nil)
+}

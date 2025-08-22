@@ -133,14 +133,13 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
     huma.Register(api, huma.Operation{
         OperationID: "corporation-health-check",
         Method:      "GET",
-        Path:        basePath + "/health",
-        Summary:     "Corporation Module Health Check",
-        Description: "Check if the corporation module is functioning properly",
-        Tags:        []string{"Health"},
-    }, func(ctx context.Context, input *struct{}) (*HealthResponse, error) {
-        return &HealthResponse{
-            Body: HealthCheck{Healthy: true, Module: "corporation"},
-        }, nil
+        Path:        basePath + "/status",
+        Summary:     "Corporation Module Status",
+        Description: "Returns the health status of the corporation module",
+        Tags:        []string{"Corporation"},
+    }, func(ctx context.Context, input *struct{}) (*StatusOutput, error) {
+        status := service.GetStatus(ctx)
+        return &StatusOutput{Body: *status}, nil
     })
 }
 ```
@@ -336,11 +335,20 @@ GET /search?name=Investment Bank  # Multi-word text search
 }
 ```
 
-### GET `/health` - Corporation Module Health Check
+### GET `/status` - Corporation Module Status
 
-**Description**: Verifies the corporation module is functioning properly.
+**Description**: Returns the health status of the corporation module.
 
-**Response**: Health status and module name
+**Response**: Module name, health status, and optional error message
+
+**Example Response**:
+```json
+{
+  "module": "corporation",
+  "status": "healthy",
+  "message": ""
+}
+```
 
 ## Database Schema
 

@@ -314,3 +314,20 @@ func (s *Service) BulkImportAlliances(ctx context.Context) (*dto.BulkImportAllia
 		Body: *stats,
 	}, nil
 }
+
+// GetStatus returns the health status of the alliance module
+func (s *Service) GetStatus(ctx context.Context) *dto.AllianceStatusResponse {
+	// Check database connectivity
+	if err := s.repository.CheckHealth(ctx); err != nil {
+		return &dto.AllianceStatusResponse{
+			Module:  "alliance",
+			Status:  "unhealthy",
+			Message: "Database connection failed: " + err.Error(),
+		}
+	}
+
+	return &dto.AllianceStatusResponse{
+		Module: "alliance",
+		Status: "healthy",
+	}
+}

@@ -78,3 +78,15 @@ type HealthOutput struct {
 type HealthResponse struct {
 	Health string `json:"health" description:"Health status"`
 }
+
+// StatusOutput represents the module status response
+type StatusOutput struct {
+	Body GroupsStatusResponse `json:"body"`
+}
+
+// GroupsStatusResponse represents the actual status response data
+type GroupsStatusResponse struct {
+	Module  string `json:"module" description:"Module name"`
+	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
+	Message string `json:"message,omitempty" description:"Optional status message or error details"`
+}

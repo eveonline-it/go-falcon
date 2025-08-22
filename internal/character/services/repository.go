@@ -267,6 +267,12 @@ func (r *Repository) BatchUpdateAffiliations(ctx context.Context, affiliations [
 	return err
 }
 
+// CheckHealth verifies database connectivity
+func (r *Repository) CheckHealth(ctx context.Context) error {
+	// Perform a simple ping to check database connectivity
+	return r.mongodb.Client.Ping(ctx, nil)
+}
+
 // GetCharactersByIDs retrieves multiple characters by their IDs
 func (r *Repository) GetCharactersByIDs(ctx context.Context, characterIDs []int) ([]*models.Character, error) {
 	filter := bson.M{"character_id": bson.M{"$in": characterIDs}}

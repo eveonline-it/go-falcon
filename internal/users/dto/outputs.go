@@ -79,3 +79,15 @@ type UserUpdateOutput struct {
 type UserCharactersOutput struct {
 	Body CharacterListResponse `json:"body"`
 }
+
+// StatusOutput represents the module status response
+type StatusOutput struct {
+	Body UsersStatusResponse `json:"body"`
+}
+
+// UsersStatusResponse represents the actual status response data
+type UsersStatusResponse struct {
+	Module  string `json:"module" description:"Module name"`
+	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
+	Message string `json:"message,omitempty" description:"Optional status message or error details"`
+}
