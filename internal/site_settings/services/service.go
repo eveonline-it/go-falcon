@@ -277,11 +277,25 @@ func (s *Service) AddManagedCorporation(ctx context.Context, input *dto.AddCorpo
 		enabled = *input.Body.Enabled
 	}
 
+	// Handle position assignment
+	position := 0
+	if input.Body.Position != nil {
+		position = *input.Body.Position
+	} else {
+		// Auto-assign next position
+		var err error
+		position, err = s.getNextPosition(ctx, corporations)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	now := time.Now()
 	newCorp := dto.ManagedCorporation{
 		CorporationID: input.Body.CorporationID,
 		Name:          input.Body.Name,
 		Enabled:       enabled,
+		Position:      position,
 		AddedAt:       now,
 		AddedBy:       &addedBy,
 		UpdatedAt:     now,
@@ -356,6 +370,9 @@ func (s *Service) GetManagedCorporations(ctx context.Context, enabledFilter stri
 	if err != nil {
 		return nil, 0, err
 	}
+
+	// Sort by position
+	s.sortCorporationsByPosition(corporations)
 
 	// Apply enabled filter
 	if enabledFilter != "" {
@@ -432,15 +449,32 @@ func (s *Service) BulkUpdateCorporations(ctx context.Context, input *dto.BulkUpd
 			// Update existing corporation
 			existing.Name = inputCorp.Name
 			existing.Enabled = inputCorp.Enabled
+			if inputCorp.Position != nil {
+				existing.Position = *inputCorp.Position
+			}
 			existing.UpdatedAt = now
 			existing.UpdatedBy = &updatedBy
 			updated++
 		} else {
+			// Handle position for new corporation
+			position := 0
+			if inputCorp.Position != nil {
+				position = *inputCorp.Position
+			} else {
+				// Auto-assign next position
+				var err error
+				position, err = s.getNextPosition(ctx, corporations)
+				if err != nil {
+					return nil, 0, 0, err
+				}
+			}
+
 			// Add new corporation
 			newCorp := dto.ManagedCorporation{
 				CorporationID: inputCorp.CorporationID,
 				Name:          inputCorp.Name,
 				Enabled:       inputCorp.Enabled,
+				Position:      position,
 				AddedAt:       now,
 				AddedBy:       &updatedBy,
 				UpdatedAt:     now,
@@ -505,6 +539,7 @@ func (s *Service) getManagedCorporationsData(ctx context.Context) ([]dto.Managed
 			CorporationID: corp.CorporationID,
 			Name:          corp.Name,
 			Enabled:       corp.Enabled,
+			Position:      corp.Position,
 			AddedAt:       corp.AddedAt,
 			AddedBy:       corp.AddedBy,
 			UpdatedAt:     corp.UpdatedAt,
@@ -524,6 +559,7 @@ func (s *Service) updateManagedCorporationsSetting(ctx context.Context, corporat
 			CorporationID: corp.CorporationID,
 			Name:          corp.Name,
 			Enabled:       corp.Enabled,
+			Position:      corp.Position,
 			AddedAt:       corp.AddedAt,
 			AddedBy:       corp.AddedBy,
 			UpdatedAt:     corp.UpdatedAt,
@@ -561,6 +597,79 @@ func (s *Service) updateManagedCorporationsSetting(ctx context.Context, corporat
 		}
 		_, err := s.repo.Update(ctx, "managed_corporations", updates, updatedBy)
 		return err
+	}
+}
+
+// ReorderCorporations reorders managed corporations based on provided positions
+func (s *Service) ReorderCorporations(ctx context.Context, input *dto.ReorderCorporationsInput, updatedBy int64) ([]dto.ManagedCorporation, error) {
+	corporations, err := s.getManagedCorporationsData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create map of existing corporations
+	corpMap := make(map[int64]*dto.ManagedCorporation)
+	for i := range corporations {
+		corpMap[corporations[i].CorporationID] = &corporations[i]
+	}
+
+	// Validate all corporation IDs exist and positions are valid
+	positionMap := make(map[int]bool)
+	for _, order := range input.Body.CorporationOrders {
+		if _, exists := corpMap[order.CorporationID]; !exists {
+			return nil, fmt.Errorf("corporation with ID %d not found", order.CorporationID)
+		}
+		
+		if order.Position < 1 {
+			return nil, fmt.Errorf("position must be greater than 0")
+		}
+		
+		if positionMap[order.Position] {
+			return nil, fmt.Errorf("duplicate position %d", order.Position)
+		}
+		positionMap[order.Position] = true
+	}
+
+	// Update positions
+	now := time.Now()
+	for _, order := range input.Body.CorporationOrders {
+		corp := corpMap[order.CorporationID]
+		corp.Position = order.Position
+		corp.UpdatedAt = now
+		corp.UpdatedBy = &updatedBy
+	}
+
+	// Update the setting
+	if err := s.updateManagedCorporationsSetting(ctx, corporations, updatedBy); err != nil {
+		return nil, err
+	}
+
+	// Return sorted corporations
+	s.sortCorporationsByPosition(corporations)
+	return corporations, nil
+}
+
+// getNextPosition calculates the next available position
+func (s *Service) getNextPosition(ctx context.Context, corporations []dto.ManagedCorporation) (int, error) {
+	maxPosition := 0
+	for _, corp := range corporations {
+		if corp.Position > maxPosition {
+			maxPosition = corp.Position
+		}
+	}
+	return maxPosition + 1, nil
+}
+
+// sortCorporationsByPosition sorts corporations by position in ascending order
+func (s *Service) sortCorporationsByPosition(corporations []dto.ManagedCorporation) {
+	// Simple bubble sort by position
+	n := len(corporations)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			if corporations[j].Position > corporations[j+1].Position {
+				corporations[j], corporations[j+1] = corporations[j+1], corporations[j]
+			}
+		}
 	}
 }
 

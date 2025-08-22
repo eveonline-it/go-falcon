@@ -92,6 +92,7 @@ type ManagedCorporation struct {
 	CorporationID int64     `json:"corporation_id" description:"EVE Online corporation ID"`
 	Name          string    `json:"name" description:"Corporation name"`
 	Enabled       bool      `json:"enabled" description:"Whether the corporation is enabled"`
+	Position      int       `json:"position" description:"Display order position"`
 	AddedAt       time.Time `json:"added_at" description:"When the corporation was added"`
 	AddedBy       *int64    `json:"added_by,omitempty" description:"Character ID who added the corporation"`
 	UpdatedAt     time.Time `json:"updated_at" description:"When the corporation was last updated"`
@@ -165,5 +166,16 @@ type BulkUpdateCorporationsResponseBody struct {
 	Message      string               `json:"message" description:"Success message"`
 	Updated      int                  `json:"updated" description:"Number of corporations updated"`
 	Added        int                  `json:"added" description:"Number of corporations added"`
+}
+
+// ReorderCorporationsOutput represents the response for reordering corporations
+type ReorderCorporationsOutput struct {
+	Body ReorderCorporationsResponseBody `json:"body"`
+}
+
+// ReorderCorporationsResponseBody represents the body of the reorder response
+type ReorderCorporationsResponseBody struct {
+	Corporations []ManagedCorporation `json:"corporations" description:"Reordered corporations"`
+	Message      string               `json:"message" description:"Success message"`
 }
 

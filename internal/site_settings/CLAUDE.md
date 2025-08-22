@@ -91,6 +91,7 @@ The module stores managed corporations in a special site setting with key `"mana
         "corporation_id": 98000001,
         "name": "Example Corporation",
         "enabled": true,
+        "position": 1,
         "added_at": "2025-01-01T00:00:00Z",
         "added_by": 12345,
         "updated_at": "2025-01-01T00:00:00Z",
@@ -108,6 +109,7 @@ The module stores managed corporations in a special site setting with key `"mana
 - `corporation_id` (int64): EVE Online corporation ID
 - `name` (string): Corporation name
 - `enabled` (boolean): Whether the corporation is enabled
+- `position` (int): Display order position for frontend sorting
 - `added_at` (timestamp): When the corporation was first added
 - `added_by` (int64): Character ID who added the corporation
 - `updated_at` (timestamp): Last modification timestamp
@@ -237,9 +239,12 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
 {
   "corporation_id": 98000001,
   "name": "Example Corporation",
-  "enabled": true
+  "enabled": true,
+  "position": 3
 }
 ```
+**Fields:**
+- `position` (optional): Display position (auto-assigned if not provided)
 
 **Response:**
 ```json
@@ -248,6 +253,7 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
     "corporation_id": 98000001,
     "name": "Example Corporation",
     "enabled": true,
+    "position": 3,
     "added_at": "2025-01-01T00:00:00Z",
     "added_by": 12345,
     "updated_at": "2025-01-01T00:00:00Z",
@@ -275,6 +281,7 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
       "corporation_id": 98000001,
       "name": "Example Corporation",
       "enabled": true,
+      "position": 1,
       "added_at": "2025-01-01T00:00:00Z",
       "added_by": 12345,
       "updated_at": "2025-01-01T00:00:00Z",
@@ -287,6 +294,7 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
   "total_pages": 1
 }
 ```
+**Note:** Corporations are automatically sorted by position in ascending order.
 
 #### Get Specific Corporation
 ```
@@ -340,12 +348,62 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
     {
       "corporation_id": 98000001,
       "name": "Example Corporation",
-      "enabled": true
+      "enabled": true,
+      "position": 1
     },
     {
       "corporation_id": 98000002,
       "name": "Another Corporation",
-      "enabled": false
+      "enabled": false,
+      "position": 2
+    }
+  ]
+}
+```
+**Fields:**
+- `position` (optional): Display position (auto-assigned if not provided)
+
+**Response:**
+```json
+{
+  "corporations": [
+    {
+      "corporation_id": 98000001,
+      "name": "Example Corporation",
+      "enabled": true,
+      "position": 1,
+      "added_at": "2025-01-01T00:00:00Z",
+      "added_by": 12345,
+      "updated_at": "2025-01-01T12:00:00Z",
+      "updated_by": 12345
+    }
+  ],
+  "updated": 1,
+  "added": 1,
+  "message": "Bulk update completed: 1 corporations updated, 1 corporations added"
+}
+```
+
+#### Reorder Corporations
+```
+PUT /site-settings/corporations/reorder
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Request Body:**
+```json
+{
+  "corporation_orders": [
+    {
+      "corporation_id": 98000001,
+      "position": 1
+    },
+    {
+      "corporation_id": 98000002,
+      "position": 2
+    },
+    {
+      "corporation_id": 98000003,
+      "position": 3
     }
   ]
 }
@@ -359,17 +417,23 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
       "corporation_id": 98000001,
       "name": "Example Corporation",
       "enabled": true,
+      "position": 1,
       "added_at": "2025-01-01T00:00:00Z",
       "added_by": 12345,
       "updated_at": "2025-01-01T12:00:00Z",
       "updated_by": 12345
     }
   ],
-  "updated": 1,
-  "added": 1,
-  "message": "Bulk update completed: 1 corporations updated, 1 corporations added"
+  "message": "Corporations reordered successfully"
 }
 ```
+
+**Features:**
+- Updates multiple corporation positions in a single request
+- Validates all corporation IDs exist before reordering
+- Prevents duplicate position assignments
+- Returns corporations sorted by new positions
+- Perfect for drag-and-drop frontend implementations
 
 ### Health Check
 ```

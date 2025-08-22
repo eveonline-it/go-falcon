@@ -150,6 +150,15 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Description: "Bulk update or add multiple managed corporations (super admin only)",
 		Tags:        []string{"Site Settings / Corporations"},
 	}, m.bulkUpdateCorporationsHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-reorder-corporations",
+		Method:      "PUT",
+		Path:        "/site-settings/corporations/reorder",
+		Summary:     "Reorder corporations",
+		Description: "Reorder managed corporations by specifying new positions (super admin only)",
+		Tags:        []string{"Site Settings / Corporations"},
+	}, m.reorderCorporationsHandler)
 }
 
 // Health check handler
@@ -473,6 +482,33 @@ func (m *Module) bulkUpdateCorporationsHandler(ctx context.Context, input *dto.B
 			Updated:      updated,
 			Added:        added,
 			Message:      fmt.Sprintf("Bulk update completed: %d corporations updated, %d corporations added", updated, added),
+		},
+	}, nil
+}
+
+// Reorder corporations handler
+func (m *Module) reorderCorporationsHandler(ctx context.Context, input *dto.ReorderCorporationsInput) (*dto.ReorderCorporationsOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	corporations, err := m.service.ReorderCorporations(ctx, input, int64(user.CharacterID))
+	if err != nil {
+		// Handle specific validation errors
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("corporation with ID %d not found", 0) || 
+		   fmt.Sprintf("%s", err) == "position must be greater than 0" ||
+		   fmt.Sprintf("%s", err)[:19] == "duplicate position " {
+			return nil, huma.Error400BadRequest("Invalid reorder request", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to reorder corporations", err)
+	}
+
+	return &dto.ReorderCorporationsOutput{
+		Body: dto.ReorderCorporationsResponseBody{
+			Corporations: corporations,
+			Message:      "Corporations reordered successfully",
 		},
 	}, nil
 }

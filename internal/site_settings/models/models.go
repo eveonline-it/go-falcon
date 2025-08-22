@@ -111,6 +111,7 @@ type ManagedCorporation struct {
 	CorporationID int64     `bson:"corporation_id" json:"corporation_id"`
 	Name          string    `bson:"name" json:"name"`
 	Enabled       bool      `bson:"enabled" json:"enabled"`
+	Position      int       `bson:"position" json:"position"`
 	AddedAt       time.Time `bson:"added_at" json:"added_at"`
 	AddedBy       *int64    `bson:"added_by,omitempty" json:"added_by,omitempty"`
 	UpdatedAt     time.Time `bson:"updated_at" json:"updated_at"`

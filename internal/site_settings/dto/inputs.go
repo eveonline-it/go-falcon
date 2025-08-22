@@ -71,6 +71,7 @@ type AddCorporationInput struct {
 		CorporationID int64  `json:"corporation_id" required:"true" description:"EVE Online corporation ID"`
 		Name          string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Corporation name"`
 		Enabled       *bool  `json:"enabled" description:"Whether the corporation should be enabled (defaults to true)"`
+		Position      *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
 	}
 }
 
@@ -107,16 +108,35 @@ type GetManagedCorporationInput struct {
 	CorporationID int64  `path:"corp_id" required:"true" minimum:"1" description:"Corporation ID"`
 }
 
+// BulkUpdateCorporationItem represents a corporation item in bulk update requests
+type BulkUpdateCorporationItem struct {
+	CorporationID int64  `json:"corporation_id" required:"true" description:"EVE Online corporation ID"`
+	Name          string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Corporation name"`
+	Enabled       bool   `json:"enabled" required:"true" description:"Whether the corporation should be enabled"`
+	Position      *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
+}
+
+// ReorderCorporationItem represents a corporation item in reorder requests
+type ReorderCorporationItem struct {
+	CorporationID int64 `json:"corporation_id" required:"true" description:"Corporation ID"`
+	Position      int   `json:"position" required:"true" minimum:"1" description:"New position"`
+}
+
 // BulkUpdateCorporationsInput represents the input for bulk updating corporations
 type BulkUpdateCorporationsInput struct {
 	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
 	Body          struct {
-		Corporations []struct {
-			CorporationID int64  `json:"corporation_id" required:"true" description:"EVE Online corporation ID"`
-			Name          string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Corporation name"`
-			Enabled       bool   `json:"enabled" required:"true" description:"Whether the corporation should be enabled"`
-		} `json:"corporations" required:"true" description:"List of corporations to update"`
+		Corporations []BulkUpdateCorporationItem `json:"corporations" required:"true" description:"List of corporations to update"`
+	}
+}
+
+// ReorderCorporationsInput represents the input for reordering managed corporations
+type ReorderCorporationsInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	Body          struct {
+		CorporationOrders []ReorderCorporationItem `json:"corporation_orders" required:"true" description:"New ordering for corporations"`
 	}
 }
 
