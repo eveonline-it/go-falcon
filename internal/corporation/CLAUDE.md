@@ -290,6 +290,52 @@ const CorporationCollection = "corporations"
 - `404`: Corporation not found in ESI
 - `500`: Database or ESI communication errors
 
+### GET `/search` - Search Corporations by Name
+
+**Description**: Searches corporations by name or ticker using optimized database strategies.
+
+**Parameters**:
+- `name` (query, required): Corporation name or ticker (minimum 3 characters)
+
+**Response**: List of matching corporations with relevance scoring
+
+**Search Strategies**:
+- **Multi-word queries**: Full-text search with MongoDB text indexes
+- **Single-word queries**: Case-insensitive regex with name and ticker matching
+- **Short queries**: Prefix-only search for performance
+- **Ticker searches**: Direct ticker field matching
+
+**Performance Features**:
+- Text search indexes for multi-word queries
+- Case-insensitive regex indexes for single-word searches
+- Result limits (20-50) for optimal response times
+- Relevance scoring by member count for single-word searches
+- Text score ranking for multi-word searches
+
+**Example Requests**:
+```bash
+GET /search?name=Dreddit          # Single corporation name
+GET /search?name=PKIB             # Ticker search
+GET /search?name=Investment Bank  # Multi-word text search
+```
+
+**Example Response**:
+```json
+{
+  "corporations": [
+    {
+      "corporation_id": 98444472,
+      "name": "Protestant Knights Investment Bank",
+      "ticker": "PKIB",
+      "member_count": 25,
+      "alliance_id": 0,
+      "updated_at": "2025-08-22T09:41:26.014Z"
+    }
+  ],
+  "count": 1
+}
+```
+
 ### GET `/health` - Corporation Module Health Check
 
 **Description**: Verifies the corporation module is functioning properly.
@@ -325,8 +371,17 @@ const CorporationCollection = "corporations"
 ```
 
 **Indexes**:
-- `corporation_id`: Unique index for fast corporation lookups
-- `deleted_at`: Index for soft delete filtering
+- `corporation_id_1`: **Unique index** for fast corporation lookups and data integrity
+- `name_ticker_text`: Full-text search index for multi-word name and ticker queries
+- `name_regular`: Case-insensitive index for name prefix and regex searches
+- `ticker_regular`: Case-insensitive index for ticker searches
+- `member_count_desc`: Descending index for relevance sorting by member count
+- `name_updated_compound`: Compound index optimizing name search with timestamp sorting
+
+**Data Integrity**:
+- **Unique Constraint**: `corporation_id` field has unique constraint preventing duplicate entries
+- **Import Validation**: Import scripts enforce proper field structure
+- **ESI Compliance**: Data structure matches EVE ESI specification
 
 ## ESI Integration
 
@@ -359,21 +414,95 @@ tax_rate            -> tax_rate           -> tax_rate
 war_eligible        -> war_eligible       -> war_eligible
 ```
 
+## Data Management and Import Process
+
+### Import Script Integration
+
+The corporation module includes a dedicated import script (`/scripts/import_corporations.go`) for bulk population of corporation data from EVE ESI:
+
+**Features**:
+- **Parallel Processing**: 10 concurrent workers for optimal ESI throughput
+- **Rate Limit Compliance**: Built-in delays to respect ESI rate limits
+- **Data Integrity**: Enforces proper `corporation_id` field structure
+- **Upsert Operations**: Updates existing records while creating new ones
+- **Progress Monitoring**: Real-time logging with success/failure tracking
+
+**Usage**:
+```bash
+cd /scripts
+MONGO_URI="mongodb://admin:password123@localhost:27017/falcon?authSource=admin" \
+MONGO_DATABASE="falcon" \
+go run import_corporations.go corps.json
+```
+
+**Data Quality Assurance**:
+- **Unique Constraints**: Prevents duplicate corporation entries
+- **Field Validation**: Ensures proper ESI data mapping
+- **Error Recovery**: Continues processing on individual failures
+- **Batch Processing**: Handles large datasets efficiently
+
+### Search Performance Optimization
+
+The corporation search functionality leverages multiple MongoDB index strategies:
+
+**Index Strategy**:
+```javascript
+// Full-text search for multi-word queries
+db.corporations.createIndex({"name": "text", "ticker": "text"})
+
+// Case-insensitive regex for single-word searches  
+db.corporations.createIndex({"name": 1})
+db.corporations.createIndex({"ticker": 1})
+
+// Relevance sorting by member count
+db.corporations.createIndex({"member_count": -1})
+
+// Unique constraint for data integrity
+db.corporations.createIndex({"corporation_id": 1}, {unique: true})
+```
+
+**Query Optimization**:
+- **Multi-word queries**: Use text search with relevance scoring
+- **Single-word queries**: Use regex with OR logic for name/ticker matching
+- **Result Limiting**: Automatic limits (20-50) prevent performance degradation
+- **Compound Sorting**: Primary by relevance, secondary by member count
+
+### Database Schema Evolution
+
+**Current Schema (v2)**:
+- **Primary Key**: `corporation_id` (unique, indexed)
+- **Search Fields**: `name` and `ticker` (text indexed)
+- **Metadata**: `created_at`, `updated_at`, `deleted_at` (soft delete support)
+- **ESI Compliance**: Direct mapping from EVE ESI specification
+
+**Legacy Compatibility**:
+- **Data Migration**: Legacy `id` field data cleaned up
+- **Import Script Fixed**: Now uses correct `corporation_id` field
+- **Backward Compatibility**: Removed to prevent data pollution
+
 ## Key Differences from Character Module
 
 ### 1. Module Structure
 - **Separate Routes Module**: Corporation uses a dedicated `routes.Module` struct
 - **Enhanced Organization**: Routes are encapsulated in their own module for better separation
 
-### 2. Data Complexity
+### 2. Search Implementation
+- **Dual Field Search**: Searches both corporation name and ticker simultaneously
+- **Multi-Strategy Approach**: Text search for multi-word, regex for single-word queries
+- **Member Count Relevance**: Results sorted by corporation size for relevance
+- **Unique Constraints**: Enforced data integrity with unique corporation IDs
+
+### 3. Data Complexity
 - **More Fields**: Corporations have more optional fields than characters
 - **Complex Types**: Includes financial data (shares, tax_rate) and organizational data
 - **Nullable Fields**: Extensive use of pointer types for optional EVE data
+- **Import Integration**: Dedicated bulk import scripts for large datasets
 
-### 3. ESI Data Handling
+### 4. ESI Data Handling
 - **Complex Parsing**: More sophisticated type assertion logic for numeric fields
 - **Optional Field Management**: Careful handling of nullable corporation data
 - **Financial Precision**: Special handling for floating-point financial data
+- **Data Integrity**: Unique constraints prevent duplicate entries
 
 ## Error Handling Standards
 

@@ -35,6 +35,18 @@ func NewModule(service *services.Service) *Module {
 
 // RegisterUnifiedRoutes registers all alliance routes with the provided Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// Search alliances by name endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "alliance-search-by-name",
+		Method:      "GET",
+		Path:        basePath + "/search",
+		Summary:     "Search Alliances by Name",
+		Description: "Search alliances by name or ticker with a minimum of 3 characters. Performs case-insensitive search in the database and supports partial matches.",
+		Tags:        []string{"Alliances"},
+	}, func(ctx context.Context, input *dto.SearchAlliancesByNameInput) (*dto.SearchAlliancesByNameOutput, error) {
+		return m.searchAlliancesByName(ctx, input)
+	})
+
 	// List all alliances endpoint
 	huma.Register(api, huma.Operation{
 		OperationID: "alliance-list-all",
@@ -71,6 +83,18 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		return m.getAllianceCorporations(ctx, input)
 	})
 	
+	// Bulk import alliances endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "alliance-bulk-import",
+		Method:      "POST",
+		Path:        basePath + "/bulk-import",
+		Summary:     "Bulk Import All Alliances",
+		Description: "Retrieve all alliance IDs from ESI and import detailed information for each alliance into the database. This operation respects ESI rate limits and provides progress statistics.",
+		Tags:        []string{"Alliances", "Import"},
+	}, func(ctx context.Context, input *struct{}) (*dto.BulkImportAlliancesOutput, error) {
+		return m.bulkImportAlliances(ctx, input)
+	})
+
 	// Health check endpoint for the alliance module
 	huma.Register(api, huma.Operation{
 		OperationID: "alliance-health-check",
@@ -140,6 +164,32 @@ func (m *Module) getAllianceInfo(ctx context.Context, input *dto.GetAllianceInpu
 	}
 	
 	return allianceInfo, nil
+}
+
+// searchAlliancesByName handles the alliance search request
+func (m *Module) searchAlliancesByName(ctx context.Context, input *dto.SearchAlliancesByNameInput) (*dto.SearchAlliancesByNameOutput, error) {
+	if len(input.Name) < 3 {
+		return nil, huma.Error400BadRequest("Search term must be at least 3 characters long")
+	}
+	
+	// Call the service to search for alliances
+	results, err := m.service.SearchAlliancesByName(ctx, input.Name)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to search alliances", err)
+	}
+	
+	return results, nil
+}
+
+// bulkImportAlliances handles the bulk alliance import request
+func (m *Module) bulkImportAlliances(ctx context.Context, input *struct{}) (*dto.BulkImportAlliancesOutput, error) {
+	// Call the service to perform bulk import
+	result, err := m.service.BulkImportAlliances(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to bulk import alliances", err)
+	}
+	
+	return result, nil
 }
 
 // isNotFoundError checks if the error indicates an alliance was not found

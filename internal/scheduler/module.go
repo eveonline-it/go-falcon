@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"go-falcon/internal/alliance/dto"
 	"go-falcon/internal/scheduler/middleware"
 	"go-falcon/internal/scheduler/routes"
 	"go-falcon/internal/scheduler/services"
@@ -26,6 +27,7 @@ type Module struct {
 	// Dependencies
 	authModule      AuthModule
 	characterModule CharacterModule
+	allianceModule  AllianceModule
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -38,12 +40,17 @@ type CharacterModule interface {
 	UpdateAllAffiliations(ctx context.Context) (updated, failed, skipped int, err error)
 }
 
+// AllianceModule interface defines the methods needed from the alliance module
+type AllianceModule interface {
+	BulkImportAlliances(ctx context.Context) (*dto.BulkImportAlliancesOutput, error)
+}
+
 // New creates a new scheduler module with standardized structure
-func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule) *Module {
 	baseModule := module.NewBaseModule("scheduler", mongodb, redis)
 	
 	// Create services
-	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule)
+	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule)
 	
 	// Create middleware
 	middlewareLayer := middleware.New()
@@ -55,6 +62,7 @@ func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule
 		routes:           nil, // Will be created when needed
 		authModule:       authModule,
 		characterModule:  characterModule,
+		allianceModule:   allianceModule,
 	}
 }
 

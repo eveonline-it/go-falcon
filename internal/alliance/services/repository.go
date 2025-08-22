@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"go-falcon/internal/alliance/models"
@@ -57,6 +58,93 @@ func (r *Repository) UpdateAlliance(ctx context.Context, alliance *models.Allian
 	
 	_, err := r.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
 	return err
+}
+
+// SearchAlliancesByName searches alliances by name using optimized search strategies
+func (r *Repository) SearchAlliancesByName(ctx context.Context, name string) ([]*models.Alliance, error) {
+	var filter bson.M
+	var findOptions *options.FindOptions
+	
+	// Use different search strategies based on the search pattern
+	if len(name) >= 3 {
+		// For partial matches, try text search first (faster for full-text queries)
+		// If the query looks like a text search (multiple words or special characters)
+		if strings.Contains(name, " ") || len(strings.Fields(name)) > 1 {
+			// Use text search for multi-word queries
+			filter = bson.M{
+				"$text": bson.M{
+					"$search": name,
+				},
+			}
+			// Sort by text score for relevance
+			findOptions = options.Find().
+				SetProjection(bson.M{"score": bson.M{"$meta": "textScore"}}).
+				SetSort(bson.M{"score": bson.M{"$meta": "textScore"}}).
+				SetLimit(50) // Limit results for performance
+		} else {
+			// Use case-insensitive regex for single-word prefix/contains search
+			// Also search in ticker field for alliance ticker searches
+			regexPattern := strings.ToLower(name)
+			
+			filter = bson.M{
+				"$or": []bson.M{
+					{
+						"name": bson.M{
+							"$regex":   regexPattern,
+							"$options": "i", // case-insensitive
+						},
+					},
+					{
+						"ticker": bson.M{
+							"$regex":   regexPattern,
+							"$options": "i", // case-insensitive
+						},
+					},
+				},
+			}
+			// Sort by date founded (descending) for relevance and limit
+			findOptions = options.Find().
+				SetSort(bson.M{"date_founded": -1}).
+				SetLimit(50) // Limit results for performance
+		}
+	} else {
+		// For very short queries, use prefix search only on both name and ticker
+		filter = bson.M{
+			"$or": []bson.M{
+				{
+					"name": bson.M{
+						"$regex":   "^" + strings.ToLower(name),
+						"$options": "i",
+					},
+				},
+				{
+					"ticker": bson.M{
+						"$regex":   "^" + strings.ToLower(name),
+						"$options": "i",
+					},
+				},
+			},
+		}
+		findOptions = options.Find().
+			SetSort(bson.M{"date_founded": -1}).
+			SetLimit(20) // Smaller limit for short queries
+	}
+	
+	// Add soft delete filter
+	filter["deleted_at"] = bson.M{"$exists": false}
+	
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	
+	var alliances []*models.Alliance
+	if err := cursor.All(ctx, &alliances); err != nil {
+		return nil, err
+	}
+	
+	return alliances, nil
 }
 
 // CreateIndexes creates necessary database indexes for the alliances collection

@@ -30,3 +30,39 @@ type AllianceListOutput struct {
 type AllianceCorporationsOutput struct {
 	Body []int64 `json:"body" description:"List of corporation IDs that are members of the alliance"`
 }
+
+// AllianceSearchInfo represents an alliance in search results
+type AllianceSearchInfo struct {
+	AllianceID            int       `json:"alliance_id" description:"Alliance ID" example:"99000001"`
+	Name                  string    `json:"name" description:"Alliance name" example:"Goonswarm Federation"`
+	Ticker                string    `json:"ticker" description:"Alliance ticker" example:"CONDI"`
+	ExecutorCorporationID *int      `json:"executor_corporation_id,omitempty" description:"Executor corporation ID if not closed"`
+	DateFounded           time.Time `json:"date_founded" description:"Date the alliance was founded"`
+	UpdatedAt             time.Time `json:"updated_at" description:"Last update timestamp"`
+}
+
+// SearchAlliancesResult represents search results for alliances
+type SearchAlliancesResult struct {
+	Alliances []AllianceSearchInfo `json:"alliances" description:"List of matching alliances"`
+	Count     int                  `json:"count" description:"Number of alliances found"`
+}
+
+// SearchAlliancesByNameOutput represents the search response (Huma wrapper)
+type SearchAlliancesByNameOutput struct {
+	Body SearchAlliancesResult `json:"body"`
+}
+
+// BulkImportStats represents statistics for bulk alliance import operation
+type BulkImportStats struct {
+	TotalAlliances int `json:"total_alliances" description:"Total number of alliance IDs retrieved from ESI"`
+	Processed      int `json:"processed" description:"Number of alliances processed"`
+	Updated        int `json:"updated" description:"Number of existing alliances updated"`
+	Created        int `json:"created" description:"Number of new alliances created"`
+	Failed         int `json:"failed" description:"Number of alliances that failed to import"`
+	Skipped        int `json:"skipped" description:"Number of alliances skipped"`
+}
+
+// BulkImportAlliancesOutput represents the bulk import response (Huma wrapper)
+type BulkImportAlliancesOutput struct {
+	Body BulkImportStats `json:"body"`
+}

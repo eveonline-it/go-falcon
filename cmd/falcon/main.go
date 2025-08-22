@@ -141,9 +141,9 @@ func main() {
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule)
 	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService())
 	
 	// Initialize groups module
 	groupsModule, err := groups.NewModule(appCtx.MongoDB, authModule)

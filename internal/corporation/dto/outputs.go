@@ -30,3 +30,24 @@ type CorporationErrorOutput struct {
 	Error   string `json:"error" description:"Error message"`
 	Details string `json:"details,omitempty" description:"Additional error details"`
 }
+
+// CorporationSearchInfo represents a corporation in search results
+type CorporationSearchInfo struct {
+	CorporationID int       `json:"corporation_id" description:"Corporation ID" example:"98000001"`
+	Name          string    `json:"name" description:"Corporation name" example:"Dreddit"`
+	Ticker        string    `json:"ticker" description:"Corporation ticker" example:"B0RT"`
+	MemberCount   int       `json:"member_count" description:"Number of members" example:"3500"`
+	AllianceID    *int      `json:"alliance_id,omitempty" description:"Alliance ID if in an alliance"`
+	UpdatedAt     time.Time `json:"updated_at" description:"Last update timestamp"`
+}
+
+// SearchCorporationsResult represents search results for corporations
+type SearchCorporationsResult struct {
+	Corporations []CorporationSearchInfo `json:"corporations" description:"List of matching corporations"`
+	Count        int                     `json:"count" description:"Number of corporations found"`
+}
+
+// SearchCorporationsByNameOutput represents the search response (Huma wrapper)
+type SearchCorporationsByNameOutput struct {
+	Body SearchCorporationsResult `json:"body"`
+}

@@ -12,3 +12,8 @@ type ListAlliancesInput struct {}
 type GetAllianceCorporationsInput struct {
 	AllianceID int `path:"alliance_id" minimum:"99000000" maximum:"2147483647" description:"Alliance ID to retrieve member corporations for" example:"99000001"`
 }
+
+// SearchAlliancesByNameInput represents the input for searching alliances by name
+type SearchAlliancesByNameInput struct {
+	Name string `query:"name" validate:"required" minLength:"3" maxLength:"100" description:"Alliance name to search for (minimum 3 characters)" example:"Goonswarm"`
+}

@@ -35,6 +35,18 @@ func NewModule(service *services.Service) *Module {
 
 // RegisterUnifiedRoutes registers all corporation routes with the provided Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
+	// Search corporations by name endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "corporation-search-by-name",
+		Method:      "GET",
+		Path:        basePath + "/search",
+		Summary:     "Search Corporations by Name",
+		Description: "Search corporations by name or ticker with a minimum of 3 characters. Performs case-insensitive search in the database and supports partial matches.",
+		Tags:        []string{"Corporations"},
+	}, func(ctx context.Context, input *dto.SearchCorporationsByNameInput) (*dto.SearchCorporationsByNameOutput, error) {
+		return m.searchCorporationsByName(ctx, input)
+	})
+	
 	// Corporation information endpoint
 	huma.Register(api, huma.Operation{
 		OperationID: "corporation-get-info",
@@ -84,6 +96,21 @@ func (m *Module) getCorporationInfo(ctx context.Context, input *dto.GetCorporati
 	}
 	
 	return corpInfo, nil
+}
+
+// searchCorporationsByName handles the corporation search request
+func (m *Module) searchCorporationsByName(ctx context.Context, input *dto.SearchCorporationsByNameInput) (*dto.SearchCorporationsByNameOutput, error) {
+	if len(input.Name) < 3 {
+		return nil, huma.Error400BadRequest("Search term must be at least 3 characters long")
+	}
+	
+	// Call the service to search for corporations
+	results, err := m.service.SearchCorporationsByName(ctx, input.Name)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to search corporations", err)
+	}
+	
+	return results, nil
 }
 
 // isNotFoundError checks if the error indicates a corporation was not found

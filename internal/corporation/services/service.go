@@ -179,3 +179,37 @@ func (s *Service) convertModelToOutput(corporation *models.Corporation) *dto.Cor
 		Body: corporationInfo,
 	}
 }
+
+// SearchCorporationsByName searches corporations by name or ticker
+func (s *Service) SearchCorporationsByName(ctx context.Context, name string) (*dto.SearchCorporationsByNameOutput, error) {
+	slog.InfoContext(ctx, "Searching corporations by name", "name", name)
+	
+	corporations, err := s.repository.SearchCorporationsByName(ctx, name)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to search corporations", "error", err)
+		return nil, fmt.Errorf("failed to search corporations: %w", err)
+	}
+	
+	// Convert models to search DTOs
+	searchResults := make([]dto.CorporationSearchInfo, len(corporations))
+	for i, corp := range corporations {
+		searchResults[i] = dto.CorporationSearchInfo{
+			CorporationID: corp.CorporationID,
+			Name:          corp.Name,
+			Ticker:        corp.Ticker,
+			MemberCount:   corp.MemberCount,
+			AllianceID:    corp.AllianceID,
+			UpdatedAt:     corp.UpdatedAt,
+		}
+	}
+	
+	result := &dto.SearchCorporationsByNameOutput{
+		Body: dto.SearchCorporationsResult{
+			Corporations: searchResults,
+			Count:        len(searchResults),
+		},
+	}
+	
+	slog.InfoContext(ctx, "Corporation search completed", "count", len(searchResults))
+	return result, nil
+}

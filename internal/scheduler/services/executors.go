@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"go-falcon/internal/alliance/dto"
 	"go-falcon/internal/scheduler/models"
 )
 
@@ -169,17 +170,24 @@ type CharacterModule interface {
 	UpdateAllAffiliations(ctx context.Context) (updated, failed, skipped int, err error)
 }
 
+// AllianceModule interface for alliance operations
+type AllianceModule interface {
+	BulkImportAlliances(ctx context.Context) (*dto.BulkImportAlliancesOutput, error)
+}
+
 // SystemExecutor executes system tasks
 type SystemExecutor struct {
 	authModule      AuthModule
 	characterModule CharacterModule
+	allianceModule  AllianceModule
 }
 
 // NewSystemExecutor creates a new system executor
-func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule) *SystemExecutor {
+func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule) *SystemExecutor {
 	return &SystemExecutor{
 		authModule:      authModule,
 		characterModule: characterModule,
+		allianceModule:  allianceModule,
 	}
 }
 
@@ -202,6 +210,8 @@ func (e *SystemExecutor) Execute(ctx context.Context, task *models.Task) (*model
 		return e.executeHealthCheck(ctx, config, start)
 	case "character_affiliation_update":
 		return e.executeCharacterAffiliationUpdate(ctx, config, start)
+	case "alliance_bulk_import":
+		return e.executeAllianceBulkImport(ctx, config, start)
 	default:
 		return &models.TaskResult{
 			Success:  false,
@@ -314,6 +324,47 @@ func (e *SystemExecutor) executeCharacterAffiliationUpdate(ctx context.Context, 
 	}, nil
 }
 
+// executeAllianceBulkImport executes the alliance bulk import system task
+func (e *SystemExecutor) executeAllianceBulkImport(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
+	if e.allianceModule == nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    "Alliance module not available",
+			Duration: time.Since(start),
+		}, nil
+	}
+
+	// Execute alliance bulk import
+	result, err := e.allianceModule.BulkImportAlliances(ctx)
+	if err != nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    fmt.Sprintf("Alliance bulk import failed: %v", err),
+			Duration: time.Since(start),
+		}, nil
+	}
+
+	stats := result.Body
+	output := fmt.Sprintf("Processed %d alliances: %d created, %d updated, %d failed", 
+		stats.Processed, stats.Created, stats.Updated, stats.Failed)
+
+	// Consider it a success if at least some alliances were processed successfully
+	success := stats.Created > 0 || stats.Updated > 0 || (stats.Failed == 0 && stats.Processed >= 0)
+
+	return &models.TaskResult{
+		Success:  success,
+		Output:   output,
+		Duration: time.Since(start),
+		Metadata: map[string]interface{}{
+			"total_alliances":     stats.TotalAlliances,
+			"processed_alliances": stats.Processed,
+			"created_alliances":   stats.Created,
+			"updated_alliances":   stats.Updated,
+			"failed_alliances":    stats.Failed,
+			"skipped_alliances":   stats.Skipped,
+		},
+	}, nil
+}
 
 // parseSystemConfig parses system task configuration
 func (e *SystemExecutor) parseSystemConfig(config map[string]interface{}) (*models.SystemTaskConfig, error) {

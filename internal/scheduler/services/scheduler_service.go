@@ -23,18 +23,20 @@ type SchedulerService struct {
 	engineService   *EngineService
 	authModule      AuthModule
 	characterModule CharacterModule
+	allianceModule  AllianceModule
 }
 
 // NewSchedulerService creates a new scheduler service with all dependencies
-func NewSchedulerService(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule) *SchedulerService {
+func NewSchedulerService(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule) *SchedulerService {
 	repository := NewRepository(mongodb)
-	engineService := NewEngineService(repository, redis, authModule, characterModule)
+	engineService := NewEngineService(repository, redis, authModule, characterModule, allianceModule)
 
 	return &SchedulerService{
 		repository:      repository,
 		engineService:   engineService,
 		authModule:      authModule,
 		characterModule: characterModule,
+		allianceModule:  allianceModule,
 	}
 }
 

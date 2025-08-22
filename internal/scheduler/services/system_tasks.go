@@ -212,6 +212,36 @@ func GetSystemTasks() []*models.Task {
 			UpdatedAt: now,
 			CreatedBy: "system",
 		},
+		{
+			ID:          "system-alliance-bulk-import",
+			Name:        "Alliance Bulk Import",
+			Description: "Retrieves all alliance IDs from ESI and imports detailed information for each alliance into the database",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 0 3 */7 * *", // Weekly at 3 AM on Sunday
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "alliance_bulk_import",
+				"parameters": map[string]interface{}{
+					"batch_size":          10,
+					"delay_between_requests": "200ms",
+					"timeout":             "30m",
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: 15 * time.Minute,
+				Timeout:       45 * time.Minute,
+				Tags:          []string{"system", "alliance", "esi", "import"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
 	}
 }
 
@@ -244,5 +274,12 @@ var SystemTaskDefinitions = map[string]models.SystemTaskDefinition{
 		Schedule:    "Daily at 2:00 AM",
 		Purpose:     "Maintains database performance by removing old execution history",
 		Priority:    "Low",
+	},
+	"system-alliance-bulk-import": {
+		Name:        "Alliance Bulk Import",
+		Description: "Retrieves all alliance IDs from ESI and imports detailed information for each alliance",
+		Schedule:    "Weekly on Sunday at 3:00 AM",
+		Purpose:     "Maintains up-to-date alliance database with comprehensive EVE Online alliance information",
+		Priority:    "Normal",
 	},
 }

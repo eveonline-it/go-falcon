@@ -51,6 +51,7 @@ type EngineService struct {
 	// Module dependencies
 	authModule      AuthModule
 	characterModule CharacterModule
+	allianceModule  AllianceModule
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -64,7 +65,7 @@ type TaskExecutor interface {
 }
 
 // NewEngineService creates a new scheduler engine
-func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule, characterModule CharacterModule) *EngineService {
+func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule) *EngineService {
 	engine := &EngineService{
 		repository:        repository,
 		redis:             redis,
@@ -76,6 +77,7 @@ func NewEngineService(repository *Repository, redis *database.Redis, authModule 
 		stopChan:          make(chan struct{}),
 		authModule:        authModule,
 		characterModule:   characterModule,
+		allianceModule:    allianceModule,
 	}
 
 	// Initialize cron scheduler
@@ -500,7 +502,7 @@ func (e *EngineService) finishExecution(ctx context.Context, execution *models.T
 // registerBuiltinExecutors registers the built-in task executors
 func (e *EngineService) registerBuiltinExecutors() {
 	e.executors[models.TaskTypeHTTP] = NewHTTPExecutor()
-	e.executors[models.TaskTypeSystem] = NewSystemExecutor(e.authModule, e.characterModule)
+	e.executors[models.TaskTypeSystem] = NewSystemExecutor(e.authModule, e.characterModule, e.allianceModule)
 	e.executors[models.TaskTypeFunction] = NewFunctionExecutor()
 }
 
