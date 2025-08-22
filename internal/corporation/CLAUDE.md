@@ -572,6 +572,58 @@ if ceoID, ok := esiData["ceo_id"].(int); ok {
 filter := bson.M{"corporation_id": corporationID, "deleted_at": bson.M{"$exists": false}}
 ```
 
+## Scheduler Integration
+
+### Automated Corporation Updates
+
+The corporation module integrates with the scheduler module to provide automated data updates:
+
+**System Task: `system-corporation-update`**
+- **Schedule**: Daily at 4 AM
+- **Function**: `UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error`
+- **Purpose**: Keeps all corporation data fresh from EVE ESI
+
+**Implementation Features**:
+```go
+// Service method for scheduler integration
+func (s *Service) UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error {
+    // Get all corporation IDs from database
+    corporationIDs, err := s.repository.GetAllCorporationIDs(ctx)
+    if err != nil {
+        return fmt.Errorf("failed to get corporation IDs: %w", err)
+    }
+    
+    // Process with parallel workers and rate limiting
+    // - 10 concurrent workers (configurable)
+    // - 50ms delay between requests for ESI compliance
+    // - Progress logging every 100 corporations
+    // - Graceful error handling with detailed statistics
+}
+```
+
+**Key Benefits**:
+- **Automated Maintenance**: No manual intervention required for data freshness
+- **Scalable Processing**: Handles large corporation databases efficiently
+- **ESI Compliance**: Built-in rate limiting and error handling
+- **Monitoring Integration**: Complete execution tracking via scheduler system
+- **Configurable Performance**: Adjustable worker count based on system capacity
+
+**Integration Pattern**:
+The corporation module implements the scheduler's `CorporationModule` interface:
+```go
+// Interface implemented by corporation module
+type CorporationModule interface {
+    UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error
+}
+
+// Module method delegates to service
+func (m *Module) UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error {
+    return m.service.UpdateAllCorporations(ctx, concurrentWorkers)
+}
+```
+
+This integration ensures that corporation data stays synchronized with EVE Online's ESI without requiring manual intervention or separate cron jobs.
+
 ## Future Enhancements
 
 ### 1. Real-time Updates

@@ -109,6 +109,21 @@ Predefined tasks that are automatically created and managed by the scheduler. Th
   - Removes old task execution records
   - Low priority with 30-day retention
 
+- **Alliance Bulk Import** (`system-alliance-bulk-import`)
+  - Schedule: Weekly on Sunday at 3 AM
+  - Retrieves all alliance IDs from ESI and imports detailed information
+  - Normal priority with 2 retry attempts and 15-minute retry intervals
+  - Processes alliances with configurable batch size and request delays
+  - Uses alliance module's BulkImportAlliances for implementation
+
+- **Corporation Data Update** (`system-corporation-update`)
+  - Schedule: Daily at 4 AM
+  - Updates all corporation information from EVE ESI for corporations in the database
+  - Normal priority with 2 retry attempts and 15-minute retry intervals
+  - Processes corporations with 10 concurrent workers by default
+  - Uses corporation module's UpdateAllCorporations for parallel ESI updates
+  - Includes rate limit compliance with 50ms delays between requests
+
 #### Managing System Tasks
 System tasks are defined in `hardcoded.go` and include:
 - **Task Definitions**: Complete task configuration with schedules, priorities, and metadata
@@ -386,7 +401,17 @@ type AuthModule interface {
 
 // CharacterModule interface for affiliation update operations
 type CharacterModule interface {
-    UpdateAllAffiliations(ctx context.Context) (*dto.AffiliationUpdateStats, error)
+    UpdateAllAffiliations(ctx context.Context) (updated, failed, skipped int, err error)
+}
+
+// AllianceModule interface for alliance operations
+type AllianceModule interface {
+    BulkImportAlliances(ctx context.Context) (*dto.BulkImportAlliancesOutput, error)
+}
+
+// CorporationModule interface for corporation operations
+type CorporationModule interface {
+    UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error
 }
 
 // GroupsModule interface for permission checking
@@ -396,8 +421,10 @@ type GroupsModule interface {
 
 // SystemExecutor with module dependencies
 type SystemExecutor struct {
-    authModule      AuthModule
-    characterModule CharacterModule
+    authModule        AuthModule
+    characterModule   CharacterModule
+    allianceModule    AllianceModule
+    corporationModule CorporationModule
 }
 ```
 
@@ -507,6 +534,73 @@ case "character_affiliation_update":
 - **Timeout Management**: 30-minute timeout for large-scale updates
 - **Retry Logic**: 3 retry attempts with 5-minute intervals on failure
 
+#### Corporation Data Update Integration
+
+The corporation data update system task demonstrates parallel processing integration:
+
+```go
+// System task definition in hardcoded.go
+{
+    ID:          "system-corporation-update",
+    Name:        "Corporation Data Update",
+    Description: "Updates all corporation information from EVE ESI for corporations in the database",
+    Type:        TaskTypeSystem,
+    Schedule:    "0 0 4 * * *", // Daily at 4 AM
+    Status:      TaskStatusPending,
+    Priority:    TaskPriorityNormal,
+    Enabled:     true,
+    Config: map[string]interface{}{
+        "task_name": "corporation_update",
+        "parameters": map[string]interface{}{
+            "concurrent_workers": 10,
+            "timeout":           "60m",
+        },
+    },
+    Metadata: TaskMetadata{
+        MaxRetries:    2,
+        RetryInterval: 15 * time.Minute,
+        Timeout:       60 * time.Minute,
+        Tags:          []string{"system", "corporation", "esi", "update"},
+        IsSystem:      true,
+        Source:        "system",
+        Version:       1,
+    },
+}
+
+// Execution in SystemExecutor
+case "corporation_update":
+    if se.corporationModule == nil {
+        return &TaskResult{
+            Success: false,
+            Output:  "Corporation module not available",
+        }, fmt.Errorf("corporation module not initialized")
+    }
+
+    concurrentWorkers := 10 // default
+    if params, ok := config.Parameters["concurrent_workers"].(int); ok {
+        concurrentWorkers = params
+    }
+
+    err := se.corporationModule.UpdateAllCorporations(ctx, concurrentWorkers)
+    if err != nil {
+        return &TaskResult{
+            Success: false,
+            Output:  fmt.Sprintf("Corporation update failed: %v", err),
+        }, err
+    }
+
+    return &TaskResult{
+        Success: true,
+        Output:  fmt.Sprintf("Successfully updated all corporations with %d concurrent workers", concurrentWorkers),
+    }, nil
+```
+
+**Key Features**:
+- **Parallel Processing**: Configurable concurrent workers (default: 10)
+- **Rate Limiting**: Built-in ESI rate limit compliance with 50ms delays
+- **Progress Tracking**: Logs progress every 100 corporations processed
+- **Error Resilience**: Continues processing on individual failures
+- **Memory Efficient**: Only loads corporation IDs, not full documents
 
 ### Monitoring Integration
 ```go

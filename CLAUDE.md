@@ -188,12 +188,12 @@ Modern API gateway with unified OpenAPI 3.1.1 specification:
 The scheduler module provides:
 - **Cron Scheduling**: Standard cron expression support with 6-field format (including seconds)
 - **Task Types**: HTTP webhooks, functions, system tasks, custom executors
-- **System Tasks**: Automated background operations including character affiliation updates
+- **System Tasks**: Automated background operations including character affiliation updates, corporation data updates, and alliance bulk imports
 - **Distributed Locking**: Redis-based coordination preventing duplicate executions
 - **Execution Cancellation**: Real-time cancellation of running task executions via context-based system
 - **Execution History**: Complete audit trail with performance metrics
 - **Worker Pool**: Configurable concurrent execution (default: 10 workers)
-- **Module Integration**: Direct integration with character module for ESI-based updates
+- **Module Integration**: Direct integration with character, corporation, and alliance modules for ESI-based updates
 
 ### 4. EVE Online SDE Management
 
@@ -216,10 +216,10 @@ In-memory SDE (Static Data Export) service:
 | Module | Location | Description |
 |--------|----------|-------------|
 | **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md) | EVE SSO integration, JWT management, user profiles |
-| **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution, character affiliation updates |
+| **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution, character/corporation/alliance automated updates |
 | **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User management and profile operations |
 | **Character** | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md) | Character information, portraits, background affiliation updates |
-| **Corporation** | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management |
+| **Corporation** | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management, automated ESI updates |
 | **Alliance** | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md) | Alliance information, member corporations, relationship data |
 
 ### Shared Package Documentation
@@ -255,11 +255,26 @@ The system provides automated background updates for EVE Online data:
   ➕ Character 90000003 NOT FOUND in database, creating new record
   ```
 
+**Corporation Data Updates**:
+- **Schedule**: Daily at 4 AM via scheduler system task
+- **ESI Endpoint**: `GET /corporations/{corporation_id}/` (individual corporation updates)
+- **Processing**: Parallel workers (10 concurrent by default) with rate limiting
+- **Database Strategy**: Upsert operations for all corporation data fields
+- **Performance**: Rate limit compliant with 50ms delays between requests
+- **Monitoring**: Progress logging every 100 corporations with success/failure tracking
+
+**Alliance Bulk Import**:
+- **Schedule**: Weekly on Sunday at 3 AM via scheduler system task
+- **ESI Endpoints**: `GET /alliances/` + `GET /alliances/{alliance_id}/`
+- **Processing**: Batch import with configurable delays and retry logic
+- **Database Strategy**: Full alliance data import with relationship mapping
+- **Performance**: Optimized for large-scale alliance data synchronization
+
 **Integration Benefits**:
-- **Data Freshness**: Corporation and alliance affiliations updated automatically
-- **Scalability**: Handles large character databases efficiently with batch processing
-- **Reliability**: Retry logic with graceful failure handling
-- **Observability**: Complete execution statistics and error reporting
+- **Data Freshness**: Corporation, character, and alliance data updated automatically
+- **Scalability**: Handles large databases efficiently with parallel processing and batch operations
+- **Reliability**: Retry logic with graceful failure handling across all update types
+- **Observability**: Complete execution statistics and error reporting for all system tasks
 
 ### ESI (EVE Swagger Interface) Best Practices
 
