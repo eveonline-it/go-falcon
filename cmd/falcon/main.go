@@ -143,7 +143,7 @@ func main() {
 	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService())
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	
 	// Initialize groups module
 	groupsModule, err := groups.NewModule(appCtx.MongoDB, authModule)

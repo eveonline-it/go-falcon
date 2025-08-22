@@ -175,19 +175,26 @@ type AllianceModule interface {
 	BulkImportAlliances(ctx context.Context) (*dto.BulkImportAlliancesOutput, error)
 }
 
+// CorporationModule interface for corporation operations
+type CorporationModule interface {
+	UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error
+}
+
 // SystemExecutor executes system tasks
 type SystemExecutor struct {
-	authModule      AuthModule
-	characterModule CharacterModule
-	allianceModule  AllianceModule
+	authModule       AuthModule
+	characterModule  CharacterModule
+	allianceModule   AllianceModule
+	corporationModule CorporationModule
 }
 
 // NewSystemExecutor creates a new system executor
-func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule) *SystemExecutor {
+func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule) *SystemExecutor {
 	return &SystemExecutor{
-		authModule:      authModule,
-		characterModule: characterModule,
-		allianceModule:  allianceModule,
+		authModule:        authModule,
+		characterModule:   characterModule,
+		allianceModule:    allianceModule,
+		corporationModule: corporationModule,
 	}
 }
 
@@ -212,6 +219,8 @@ func (e *SystemExecutor) Execute(ctx context.Context, task *models.Task) (*model
 		return e.executeCharacterAffiliationUpdate(ctx, config, start)
 	case "alliance_bulk_import":
 		return e.executeAllianceBulkImport(ctx, config, start)
+	case "corporation_update":
+		return e.executeCorporationUpdate(ctx, config, start)
 	default:
 		return &models.TaskResult{
 			Success:  false,
@@ -362,6 +371,55 @@ func (e *SystemExecutor) executeAllianceBulkImport(ctx context.Context, config *
 			"updated_alliances":   stats.Updated,
 			"failed_alliances":    stats.Failed,
 			"skipped_alliances":   stats.Skipped,
+		},
+	}, nil
+}
+
+// executeCorporationUpdate executes the corporation update system task
+func (e *SystemExecutor) executeCorporationUpdate(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
+	if e.corporationModule == nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    "Corporation module not available",
+			Duration: time.Since(start),
+		}, nil
+	}
+
+	// Get concurrent workers from parameters
+	concurrentWorkers := 10 // default
+	if params, ok := config.Parameters["concurrent_workers"]; ok {
+		switch v := params.(type) {
+		case int:
+			concurrentWorkers = v
+		case float64:
+			concurrentWorkers = int(v)
+		}
+	}
+
+	// Execute corporation update
+	err := e.corporationModule.UpdateAllCorporations(ctx, concurrentWorkers)
+	if err != nil {
+		// Extract failure count from error message if possible
+		errorMsg := err.Error()
+		return &models.TaskResult{
+			Success:  false,
+			Error:    fmt.Sprintf("Corporation update failed: %v", err),
+			Duration: time.Since(start),
+			Metadata: map[string]interface{}{
+				"concurrent_workers": concurrentWorkers,
+				"error_details": errorMsg,
+			},
+		}, nil
+	}
+
+	output := fmt.Sprintf("Successfully updated all corporations with %d concurrent workers", concurrentWorkers)
+
+	return &models.TaskResult{
+		Success:  true,
+		Output:   output,
+		Duration: time.Since(start),
+		Metadata: map[string]interface{}{
+			"concurrent_workers": concurrentWorkers,
 		},
 	}, nil
 }

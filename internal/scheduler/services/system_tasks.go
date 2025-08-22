@@ -242,6 +242,35 @@ func GetSystemTasks() []*models.Task {
 			UpdatedAt: now,
 			CreatedBy: "system",
 		},
+		{
+			ID:          "system-corporation-update",
+			Name:        "Corporation Data Update",
+			Description: "Updates all corporation information from EVE ESI for corporations in the database",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 0 4 * * *", // Daily at 4 AM
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "corporation_update",
+				"parameters": map[string]interface{}{
+					"concurrent_workers": 10,
+					"timeout":           "60m",
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: 15 * time.Minute,
+				Timeout:       60 * time.Minute,
+				Tags:          []string{"system", "corporation", "esi", "update"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
 	}
 }
 
@@ -280,6 +309,13 @@ var SystemTaskDefinitions = map[string]models.SystemTaskDefinition{
 		Description: "Retrieves all alliance IDs from ESI and imports detailed information for each alliance",
 		Schedule:    "Weekly on Sunday at 3:00 AM",
 		Purpose:     "Maintains up-to-date alliance database with comprehensive EVE Online alliance information",
+		Priority:    "Normal",
+	},
+	"system-corporation-update": {
+		Name:        "Corporation Data Update",
+		Description: "Updates all corporation information from EVE ESI for corporations in the database",
+		Schedule:    "Daily at 4:00 AM",
+		Purpose:     "Maintains up-to-date corporation database with fresh EVE Online corporation information",
 		Priority:    "Normal",
 	},
 }

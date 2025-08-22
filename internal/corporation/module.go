@@ -1,6 +1,7 @@
 package corporation
 
 import (
+	"context"
 	"log/slog"
 
 	"go-falcon/internal/corporation/routes"
@@ -74,4 +75,9 @@ func (m *Module) Routes(r chi.Router) {
 // GetService returns the corporation service for testing or external access
 func (m *Module) GetService() *services.Service {
 	return m.service
+}
+
+// UpdateAllCorporations implements the scheduler's CorporationModule interface
+func (m *Module) UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error {
+	return m.service.UpdateAllCorporations(ctx, concurrentWorkers)
 }

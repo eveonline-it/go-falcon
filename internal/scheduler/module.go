@@ -25,9 +25,10 @@ type Module struct {
 	routes           *routes.Routes
 	
 	// Dependencies
-	authModule      AuthModule
-	characterModule CharacterModule
-	allianceModule  AllianceModule
+	authModule        AuthModule
+	characterModule   CharacterModule
+	allianceModule    AllianceModule
+	corporationModule CorporationModule
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -45,24 +46,30 @@ type AllianceModule interface {
 	BulkImportAlliances(ctx context.Context) (*dto.BulkImportAlliancesOutput, error)
 }
 
+// CorporationModule interface defines the methods needed from the corporation module
+type CorporationModule interface {
+	UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error
+}
+
 // New creates a new scheduler module with standardized structure
-func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule) *Module {
 	baseModule := module.NewBaseModule("scheduler", mongodb, redis)
 	
 	// Create services
-	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule)
+	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule, corporationModule)
 	
 	// Create middleware
 	middlewareLayer := middleware.New()
 	
 	return &Module{
-		BaseModule:       baseModule,
-		schedulerService: schedulerService,
-		middleware:       middlewareLayer,
-		routes:           nil, // Will be created when needed
-		authModule:       authModule,
-		characterModule:  characterModule,
-		allianceModule:   allianceModule,
+		BaseModule:        baseModule,
+		schedulerService:  schedulerService,
+		middleware:        middlewareLayer,
+		routes:            nil, // Will be created when needed
+		authModule:        authModule,
+		characterModule:   characterModule,
+		allianceModule:    allianceModule,
+		corporationModule: corporationModule,
 	}
 }
 

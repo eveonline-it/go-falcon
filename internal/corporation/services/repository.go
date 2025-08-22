@@ -60,6 +60,38 @@ func (r *Repository) UpdateCorporation(ctx context.Context, corporation *models.
 	return err
 }
 
+// GetAllCorporationIDs retrieves all corporation IDs from the database
+func (r *Repository) GetAllCorporationIDs(ctx context.Context) ([]int, error) {
+	filter := bson.M{"deleted_at": bson.M{"$exists": false}}
+	
+	// Only project the corporation_id field for efficiency
+	projection := bson.M{"corporation_id": 1}
+	findOptions := options.Find().SetProjection(projection)
+	
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	
+	var corporationIDs []int
+	for cursor.Next(ctx) {
+		var doc struct {
+			CorporationID int `bson:"corporation_id"`
+		}
+		if err := cursor.Decode(&doc); err != nil {
+			continue // Skip invalid documents
+		}
+		corporationIDs = append(corporationIDs, doc.CorporationID)
+	}
+	
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+	
+	return corporationIDs, nil
+}
+
 // SearchCorporationsByName searches corporations by name using optimized search strategies
 func (r *Repository) SearchCorporationsByName(ctx context.Context, name string) ([]*models.Corporation, error) {
 	var filter bson.M

@@ -213,3 +213,129 @@ func (s *Service) SearchCorporationsByName(ctx context.Context, name string) (*d
 	slog.InfoContext(ctx, "Corporation search completed", "count", len(searchResults))
 	return result, nil
 }
+
+// UpdateAllCorporations updates all corporations in the database by fetching fresh data from ESI
+func (s *Service) UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error {
+	slog.InfoContext(ctx, "Starting update of all corporations", "concurrent_workers", concurrentWorkers)
+	
+	// Get all corporation IDs from database
+	corporationIDs, err := s.repository.GetAllCorporationIDs(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get corporation IDs from database", "error", err)
+		return fmt.Errorf("failed to get corporation IDs: %w", err)
+	}
+	
+	totalCount := len(corporationIDs)
+	if totalCount == 0 {
+		slog.InfoContext(ctx, "No corporations found in database to update")
+		return nil
+	}
+	
+	slog.InfoContext(ctx, "Found corporations to update", "total_count", totalCount)
+	
+	// Create channels for work distribution
+	type updateResult struct {
+		corporationID int
+		success       bool
+		err           error
+	}
+	
+	jobs := make(chan int, totalCount)
+	results := make(chan updateResult, totalCount)
+	
+	// Start workers
+	for w := 1; w <= concurrentWorkers; w++ {
+		go func(workerID int) {
+			for corporationID := range jobs {
+				// Create a new context for each update to avoid context cancellation issues
+				updateCtx := context.Background()
+				
+				// Get corporation info from EVE ESI
+				esiData, err := s.eveClient.GetCorporationInfo(updateCtx, corporationID)
+				if err != nil {
+					slog.WarnContext(updateCtx, "Failed to get corporation from ESI", 
+						"worker_id", workerID,
+						"corporation_id", corporationID,
+						"error", err)
+					results <- updateResult{
+						corporationID: corporationID,
+						success:       false,
+						err:           err,
+					}
+					continue
+				}
+				
+				// Convert ESI data to our model
+				corporation := s.convertESIDataToModel(esiData, corporationID)
+				
+				// Update in database
+				if err := s.repository.UpdateCorporation(updateCtx, corporation); err != nil {
+					slog.WarnContext(updateCtx, "Failed to update corporation in database",
+						"worker_id", workerID,
+						"corporation_id", corporationID,
+						"error", err)
+					results <- updateResult{
+						corporationID: corporationID,
+						success:       false,
+						err:           err,
+					}
+					continue
+				}
+				
+				slog.DebugContext(updateCtx, "Successfully updated corporation",
+					"worker_id", workerID,
+					"corporation_id", corporationID,
+					"corporation_name", corporation.Name)
+				
+				results <- updateResult{
+					corporationID: corporationID,
+					success:       true,
+					err:           nil,
+				}
+				
+				// Small delay to respect ESI rate limits
+				time.Sleep(50 * time.Millisecond)
+			}
+		}(w)
+	}
+	
+	// Send all jobs
+	for _, corporationID := range corporationIDs {
+		jobs <- corporationID
+	}
+	close(jobs)
+	
+	// Collect results
+	successCount := 0
+	failureCount := 0
+	
+	for i := 0; i < totalCount; i++ {
+		result := <-results
+		if result.success {
+			successCount++
+		} else {
+			failureCount++
+		}
+		
+		// Log progress every 100 corporations
+		if (i+1)%100 == 0 || (i+1) == totalCount {
+			slog.InfoContext(ctx, "Corporation update progress",
+				"processed", i+1,
+				"total", totalCount,
+				"success", successCount,
+				"failures", failureCount,
+				"progress_percent", fmt.Sprintf("%.1f%%", float64(i+1)/float64(totalCount)*100))
+		}
+	}
+	
+	slog.InfoContext(ctx, "Completed updating all corporations",
+		"total_processed", totalCount,
+		"successful", successCount,
+		"failed", failureCount)
+	
+	if failureCount > 0 {
+		return fmt.Errorf("failed to update %d out of %d corporations", failureCount, totalCount)
+	}
+	
+	return nil
+}
