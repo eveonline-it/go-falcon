@@ -189,7 +189,8 @@ User-defined task executors with flexible configuration:
 
 | Endpoint | Method | Description | Permission Required |
 |----------|--------|-------------|-------------------|
-| `/scheduler/status` | GET | Get scheduler status | None (public) |
+| `/scheduler/status` | GET | Get scheduler module status | None (public) |
+| `/scheduler/scheduler-status` | GET | Get scheduler operational status | None (public) |
 | `/scheduler/stats` | GET | Get scheduler statistics | None (public) |
 | `/scheduler/tasks` | GET | List tasks with filtering and pagination | Authentication required |
 | `/scheduler/tasks` | POST | Create new task | Authentication required |
@@ -701,10 +702,40 @@ System tasks are always protected from modification or deletion regardless of pe
 - Next scheduled run times
 
 ### Health Checks
-```bash
-# Check scheduler status
-curl /scheduler/status
 
+The scheduler module provides two types of status endpoints:
+
+#### Module Status (Standardized)
+```bash
+# Check module health status
+curl /scheduler/status
+```
+**Response:**
+```json
+{
+  "module": "scheduler",
+  "status": "healthy",
+  "message": ""
+}
+```
+
+#### Scheduler Operational Status (Legacy)
+```bash
+# Check scheduler operational status
+curl /scheduler/scheduler-status
+```
+**Response:**
+```json
+{
+  "status": "running",
+  "worker_count": 10,
+  "running_tasks": 3,
+  "next_run": "2024-01-15T14:30:00Z"
+}
+```
+
+#### Additional Monitoring
+```bash
 # Get comprehensive statistics
 curl /scheduler/stats
 
