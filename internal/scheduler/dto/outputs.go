@@ -19,6 +19,7 @@ type TaskResponse struct {
 	Config       map[string]interface{}    `json:"config"`
 	Metadata     models.TaskMetadata       `json:"metadata"`
 	LastRun      *time.Time                `json:"last_run,omitempty"`
+	LastRunDuration *time.Duration         `json:"last_run_duration,omitempty"`
 	NextRun      *time.Time                `json:"next_run,omitempty"`
 	CreatedAt    time.Time                 `json:"created_at"`
 	UpdatedAt    time.Time                 `json:"updated_at"`

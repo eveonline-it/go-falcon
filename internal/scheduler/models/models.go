@@ -49,6 +49,7 @@ type Task struct {
 	Config       map[string]interface{} `json:"config" bson:"config"`
 	Metadata     TaskMetadata           `json:"metadata" bson:"metadata"`
 	LastRun      *time.Time             `json:"last_run,omitempty" bson:"last_run,omitempty"`
+	LastRunDuration *time.Duration      `json:"last_run_duration,omitempty" bson:"last_run_duration,omitempty"`
 	NextRun      *time.Time             `json:"next_run,omitempty" bson:"next_run,omitempty"`
 	CreatedAt    time.Time              `json:"created_at" bson:"created_at"`
 	UpdatedAt    time.Time              `json:"updated_at" bson:"updated_at"`

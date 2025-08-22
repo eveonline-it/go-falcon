@@ -443,14 +443,17 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 	// Update task status
 	e.repository.UpdateTaskStatus(parentCtx, task.ID, models.TaskStatusPending)
 
-	// Update task run time
+	// Update task run time with duration and statistics
 	now := time.Now()
 	var nextRun *time.Time
 	if schedule, err := cron.ParseStandard(task.Schedule); err == nil {
 		next := schedule.Next(now)
 		nextRun = &next
 	}
-	e.repository.UpdateTaskRun(parentCtx, task.ID, &now, nextRun)
+	
+	// Use the new method that includes duration tracking and average calculation
+	success := execution.Status == models.TaskStatusCompleted
+	e.repository.UpdateTaskRunWithDuration(parentCtx, task.ID, &now, nextRun, &execution.Duration, success)
 }
 
 // executeTask executes a task and returns the result

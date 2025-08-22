@@ -70,8 +70,10 @@ The scheduler provides **real-time execution cancellation** capability:
 - **Execution Cancellation**: Real-time cancellation of running task executions
 
 ### Monitoring & History
-- **Execution History**: Complete audit trail of task runs
-- **Statistics**: Success/failure rates, average runtime, execution counts
+- **Execution History**: Complete audit trail of task runs with detailed timing information
+- **Execution Duration Tracking**: Last execution duration stored for each task and exposed via API
+- **Running Average Calculation**: Automatic calculation and updating of average runtime based on successful executions
+- **Statistics**: Success/failure rates, average runtime, execution counts with real-time updates
 - **Health Monitoring**: Stale task detection and cleanup
 - **Performance Metrics**: Worker utilization and queue statistics
 
@@ -338,6 +340,7 @@ Uses standard 6-field cron expressions with seconds:
     "average_runtime": "1.5s"
   },
   "last_run": "2024-01-15T10:30:00Z",
+  "last_run_duration": "45s",
   "next_run": "2024-01-15T12:30:00Z",
   "created_at": "2024-01-15T09:15:00Z",
   "updated_at": "2024-01-15T10:30:00Z",

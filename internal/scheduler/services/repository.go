@@ -136,6 +136,59 @@ func (r *Repository) UpdateTaskRun(ctx context.Context, taskID string, lastRun, 
 	return err
 }
 
+// UpdateTaskRunWithDuration updates task run information including execution duration and calculates average runtime
+func (r *Repository) UpdateTaskRunWithDuration(ctx context.Context, taskID string, lastRun, nextRun *time.Time, duration *time.Duration, success bool) error {
+	updateFields := bson.M{
+		"last_run":   lastRun,
+		"next_run":   nextRun,
+		"updated_at": time.Now(),
+	}
+	
+	if duration != nil {
+		updateFields["last_run_duration"] = *duration
+	}
+	
+	update := bson.M{"$set": updateFields}
+	
+	// Update statistics
+	incFields := bson.M{
+		"metadata.total_runs": 1,
+	}
+	
+	if success {
+		incFields["metadata.success_count"] = 1
+	} else {
+		incFields["metadata.failure_count"] = 1
+	}
+	
+	update["$inc"] = incFields
+	
+	// Update average runtime if we have a duration
+	if duration != nil && success {
+		// Get current task to calculate new average
+		task, err := r.GetTask(ctx, taskID)
+		if err == nil {
+			newAverage := r.calculateNewAverage(task.Metadata.AverageRuntime, task.Metadata.SuccessCount, *duration)
+			updateFields["metadata.average_runtime"] = newAverage
+		}
+	}
+	
+	_, err := r.tasks.UpdateOne(ctx, bson.M{"_id": taskID}, update)
+	return err
+}
+
+// calculateNewAverage calculates a new running average runtime
+func (r *Repository) calculateNewAverage(currentAverage time.Duration, currentCount int64, newDuration time.Duration) time.Duration {
+	if currentCount == 0 {
+		return newDuration
+	}
+	
+	// Calculate new average: ((current_avg * current_count) + new_duration) / (current_count + 1)
+	totalTime := time.Duration(int64(currentAverage) * currentCount) + newDuration
+	newCount := currentCount + 1
+	return time.Duration(int64(totalTime) / newCount)
+}
+
 // UpdateTaskStatistics updates task statistics
 func (r *Repository) UpdateTaskStatistics(ctx context.Context) error {
 	// This could be implemented to update aggregated statistics
