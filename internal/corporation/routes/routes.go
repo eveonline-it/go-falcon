@@ -56,7 +56,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		Path:        basePath + "/status",
 		Summary:     "Get corporation module status",
 		Description: "Returns the health status of the corporation module",
-		Tags:        []string{"Corporation"},
+		Tags:        []string{"Module Status"},
 	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
 		status := m.service.GetStatus(ctx)
 		return &dto.StatusOutput{Body: *status}, nil

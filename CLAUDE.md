@@ -476,6 +476,7 @@ func (r *Routes) RegisterUnifiedRoutes(api huma.API) {
         Path:        basePath + "/status",
         Summary:     "Get module status",
         Description: "Returns the health status of the module",
+        Tags:        []string{"Module Status"},
     }, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
         status := r.service.GetStatus(ctx)
         return &dto.StatusOutput{Body: *status}, nil
@@ -507,6 +508,11 @@ func (s *Service) GetStatus(ctx context.Context) *dto.StatusResponse {
 - External service availability (ESI, Redis, etc.)
 - Critical configuration presence
 - Resource availability (memory, connections)
+
+#### OpenAPI Documentation Tags
+- **REQUIRED**: All status endpoints must use `Tags: []string{"Module Status"}` for consistent organization in Scalar API documentation
+- This ensures all module status endpoints are grouped together in a single folder
+- Do not use module-specific tags (e.g., "Auth", "Users") for status endpoints
 
 4. **Service Layer**
    - Business logic in `services/` package

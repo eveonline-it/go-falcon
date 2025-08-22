@@ -18,7 +18,7 @@ func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Se
 		Path:        basePath + "/status",
 		Summary:     "Get character module status",
 		Description: "Returns the health status of the character module",
-		Tags:        []string{"Character"},
+		Tags:        []string{"Module Status"},
 	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
 		status := service.GetStatus(ctx)
 		return &dto.StatusOutput{Body: *status}, nil

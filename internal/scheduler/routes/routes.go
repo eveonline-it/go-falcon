@@ -48,7 +48,7 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Path:        basePath + "/status",
 		Summary:     "Get scheduler module status",
 		Description: "Returns the health status of the scheduler module",
-		Tags:        []string{"Scheduler"},
+		Tags:        []string{"Module Status"},
 	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
 		status := service.GetModuleStatus(ctx)
 		return &dto.StatusOutput{Body: *status}, nil

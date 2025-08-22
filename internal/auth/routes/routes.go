@@ -192,7 +192,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		Path:        basePath + "/status",
 		Summary:     "Get auth module status",
 		Description: "Returns the health status of the auth module",
-		Tags:        []string{"Auth"},
+		Tags:        []string{"Module Status"},
 	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
 		status := authService.GetStatus(ctx)
 		return &dto.StatusOutput{Body: *status}, nil

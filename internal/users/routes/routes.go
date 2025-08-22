@@ -45,7 +45,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Path:        basePath + "/status",
 		Summary:     "Get users module status",
 		Description: "Returns the health status of the users module",
-		Tags:        []string{"Users"},
+		Tags:        []string{"Module Status"},
 	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
 		status := service.GetStatus(ctx)
 		return &dto.StatusOutput{Body: *status}, nil

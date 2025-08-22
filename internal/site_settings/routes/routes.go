@@ -36,7 +36,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Path:        "/site-settings/status",
 		Summary:     "Get site settings module status",
 		Description: "Returns the health status of the site settings module",
-		Tags:        []string{"Site Settings"},
+		Tags:        []string{"Module Status"},
 	}, m.statusHandler)
 
 	// Public endpoints (no authentication required)
