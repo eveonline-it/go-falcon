@@ -80,7 +80,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		Path:        basePath + "/bulk-import",
 		Summary:     "Bulk Import All Alliances",
 		Description: "Retrieve all alliance IDs from ESI and import detailed information for each alliance into the database. This operation respects ESI rate limits and provides progress statistics.",
-		Tags:        []string{"Alliances", "Import"},
+		Tags:        []string{"Alliances"},
 	}, func(ctx context.Context, input *struct{}) (*dto.BulkImportAlliancesOutput, error) {
 		return m.bulkImportAlliances(ctx, input)
 	})

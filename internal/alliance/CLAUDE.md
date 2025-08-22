@@ -175,6 +175,44 @@ Based on the official ESI OpenAPI specification (https://esi.evetech.net/meta/op
 - `404`: Alliance not found in ESI (Note: ESI returns empty array for non-existent alliances)
 - `500`: Database or ESI communication errors
 
+### POST `/bulk-import` - Bulk Import All Alliances
+
+**Description**: Retrieves all alliance IDs from ESI and imports detailed information for each alliance into the database.
+
+**Parameters**: None
+
+**Response**: Import statistics with counts and execution details
+
+**Example Response**:
+```json
+{
+  "alliances_processed": 3476,
+  "alliances_imported": 3450,
+  "alliances_updated": 26,
+  "alliances_failed": 0,
+  "execution_time": "45.2s",
+  "rate_limit_delays": 12,
+  "batch_size": 50
+}
+```
+
+**Implementation Flow**:
+1. Fetch all active alliance IDs from EVE ESI (`/v1/alliances/`)
+2. Process alliances in configurable batches with rate limiting
+3. For each alliance, fetch detailed information (`/v3/alliances/{alliance_id}/`)
+4. Save or update alliance data in MongoDB with upsert operations
+5. Return comprehensive statistics about the import process
+
+**Performance**: 
+- Processes ~3,476 alliances with configurable batch sizes
+- Includes ESI rate limit compliance with delays
+- Progress tracking and error recovery for failed imports
+
+**Error Handling**:
+- `401`: Authentication required (super admin access)
+- `403`: Insufficient permissions
+- `500`: ESI communication or database errors
+
 ### GET `/status` - Alliance Module Status
 
 **Description**: Returns the health status of the alliance module.

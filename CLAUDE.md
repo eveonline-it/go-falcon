@@ -513,6 +513,8 @@ func (s *Service) GetStatus(ctx context.Context) *dto.StatusResponse {
 - **REQUIRED**: All status endpoints must use `Tags: []string{"Module Status"}` for consistent organization in Scalar API documentation
 - This ensures all module status endpoints are grouped together in a single folder
 - Do not use module-specific tags (e.g., "Auth", "Users") for status endpoints
+- **AVOID**: Multiple tags for single endpoints (e.g., `["Alliances", "Import"]`) as this creates duplicate entries in different folders
+- **PREFERRED**: Use single, module-specific tags (e.g., `["Alliances"]`) to keep related endpoints together
 
 4. **Service Layer**
    - Business logic in `services/` package
