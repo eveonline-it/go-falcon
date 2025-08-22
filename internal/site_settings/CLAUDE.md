@@ -120,6 +120,48 @@ The module stores managed corporations in a special site setting with key `"mana
 - `models.ManagedCorporationsValue`: Container structure for the corporations array
 - Proper BSON marshaling/unmarshaling ensures accurate date and field handling
 
+### Managed Alliances Data Model
+
+The module stores managed alliances in a special site setting with key `"managed_alliances"` using the object type with proper BSON models for type-safe database operations. The structure is:
+
+```json
+{
+  "key": "managed_alliances",
+  "value": {
+    "alliances": [
+      {
+        "alliance_id": 99000001,
+        "name": "Example Alliance",
+        "enabled": true,
+        "position": 1,
+        "added_at": "2025-01-01T00:00:00Z",
+        "added_by": 12345,
+        "updated_at": "2025-01-01T00:00:00Z",
+        "updated_by": 12345
+      }
+    ]
+  },
+  "type": "object",
+  "category": "eve",
+  "description": "Managed alliances with enable/disable status"
+}
+```
+
+**Alliance Fields:**
+- `alliance_id` (int64): EVE Online alliance ID
+- `name` (string): Alliance name
+- `enabled` (boolean): Whether the alliance is enabled
+- `position` (int): Display order position for frontend sorting
+- `added_at` (timestamp): When the alliance was first added
+- `added_by` (int64): Character ID who added the alliance
+- `updated_at` (timestamp): Last modification timestamp
+- `updated_by` (int64): Character ID who made the last update
+
+**Database Models:**
+- `models.ManagedAlliance`: BSON-tagged struct for database operations
+- `models.ManagedAlliancesValue`: Container structure for the alliances array
+- Proper BSON marshaling/unmarshaling ensures accurate date and field handling
+
 ## Default Settings
 
 The module automatically creates essential default settings on initialization:
@@ -433,6 +475,215 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
 - Validates all corporation IDs exist before reordering
 - Prevents duplicate position assignments
 - Returns corporations sorted by new positions
+- Perfect for drag-and-drop frontend implementations
+
+### Alliance Management Endpoints (Super Admin Only)
+
+#### Add Managed Alliance
+```
+POST /site-settings/alliances
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Request Body:**
+```json
+{
+  "alliance_id": 99000001,
+  "name": "Example Alliance",
+  "enabled": true,
+  "position": 3
+}
+```
+**Fields:**
+- `position` (optional): Display position (auto-assigned if not provided)
+
+**Response:**
+```json
+{
+  "alliance": {
+    "alliance_id": 99000001,
+    "name": "Example Alliance",
+    "enabled": true,
+    "position": 3,
+    "added_at": "2025-01-01T00:00:00Z",
+    "added_by": 12345,
+    "updated_at": "2025-01-01T00:00:00Z",
+    "updated_by": 12345
+  },
+  "message": "Alliance 'Example Alliance' (ID: 99000001) added successfully"
+}
+```
+
+#### List Managed Alliances
+```
+GET /site-settings/alliances?enabled=true&page=1&limit=20
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Query Parameters:**
+- `enabled` (optional): Filter by enabled status ('true', 'false', or empty for all)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20, max: 100)
+
+**Response:**
+```json
+{
+  "alliances": [
+    {
+      "alliance_id": 99000001,
+      "name": "Example Alliance",
+      "enabled": true,
+      "position": 1,
+      "added_at": "2025-01-01T00:00:00Z",
+      "added_by": 12345,
+      "updated_at": "2025-01-01T00:00:00Z",
+      "updated_by": 12345
+    }
+  ],
+  "total": 15,
+  "page": 1,
+  "limit": 20,
+  "total_pages": 1
+}
+```
+**Note:** Alliances are automatically sorted by position in ascending order.
+
+#### Get Specific Alliance
+```
+GET /site-settings/alliances/{alliance_id}
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+
+#### Update Alliance Status
+```
+PUT /site-settings/alliances/{alliance_id}/status
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Request Body:**
+```json
+{
+  "enabled": false
+}
+```
+
+**Response:**
+```json
+{
+  "alliance": {
+    "alliance_id": 99000001,
+    "name": "Example Alliance",
+    "enabled": false,
+    "position": 1,
+    "added_at": "2025-01-01T00:00:00Z",
+    "added_by": 12345,
+    "updated_at": "2025-01-01T12:00:00Z",
+    "updated_by": 12345
+  },
+  "message": "Alliance 'Example Alliance' (ID: 99000001) disabled successfully"
+}
+```
+
+#### Remove Managed Alliance
+```
+DELETE /site-settings/alliances/{alliance_id}
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+
+#### Bulk Update Alliances
+```
+PUT /site-settings/alliances
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Request Body:**
+```json
+{
+  "alliances": [
+    {
+      "alliance_id": 99000001,
+      "name": "Example Alliance",
+      "enabled": true,
+      "position": 1
+    },
+    {
+      "alliance_id": 99000002,
+      "name": "Another Alliance",
+      "enabled": false,
+      "position": 2
+    }
+  ]
+}
+```
+**Fields:**
+- `position` (optional): Display position (auto-assigned if not provided)
+
+**Response:**
+```json
+{
+  "alliances": [
+    {
+      "alliance_id": 99000001,
+      "name": "Example Alliance",
+      "enabled": true,
+      "position": 1,
+      "added_at": "2025-01-01T00:00:00Z",
+      "added_by": 12345,
+      "updated_at": "2025-01-01T12:00:00Z",
+      "updated_by": 12345
+    }
+  ],
+  "updated": 1,
+  "added": 1,
+  "message": "Bulk update completed: 1 alliances updated, 1 alliances added"
+}
+```
+
+#### Reorder Alliances
+```
+PUT /site-settings/alliances/reorder
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Request Body:**
+```json
+{
+  "alliance_orders": [
+    {
+      "alliance_id": 99000001,
+      "position": 1
+    },
+    {
+      "alliance_id": 99000002,
+      "position": 2
+    },
+    {
+      "alliance_id": 99000003,
+      "position": 3
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "alliances": [
+    {
+      "alliance_id": 99000001,
+      "name": "Example Alliance",
+      "enabled": true,
+      "position": 1,
+      "added_at": "2025-01-01T00:00:00Z",
+      "added_by": 12345,
+      "updated_at": "2025-01-01T12:00:00Z",
+      "updated_by": 12345
+    }
+  ],
+  "message": "Alliances reordered successfully"
+}
+```
+
+**Features:**
+- Updates multiple alliance positions in a single request
+- Validates all alliance IDs exist before reordering
+- Prevents duplicate position assignments
+- Returns alliances sorted by new positions
 - Perfect for drag-and-drop frontend implementations
 
 ### Health Check

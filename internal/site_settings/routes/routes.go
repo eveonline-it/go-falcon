@@ -159,6 +159,70 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Description: "Reorder managed corporations by specifying new positions (super admin only)",
 		Tags:        []string{"Site Settings / Corporations"},
 	}, m.reorderCorporationsHandler)
+
+	// Alliance Management endpoints (super admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-add-alliance",
+		Method:      "POST",
+		Path:        "/site-settings/alliances",
+		Summary:     "Add managed alliance",
+		Description: "Add a new managed alliance with enable/disable status (super admin only)",
+		Tags:        []string{"Site Settings / Alliances"},
+	}, m.addAllianceHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-list-alliances",
+		Method:      "GET",
+		Path:        "/site-settings/alliances",
+		Summary:     "List managed alliances",
+		Description: "List all managed alliances with optional filtering by enabled status (super admin only)",
+		Tags:        []string{"Site Settings / Alliances"},
+	}, m.listAlliancesHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-get-alliance",
+		Method:      "GET",
+		Path:        "/site-settings/alliances/{alliance_id}",
+		Summary:     "Get managed alliance",
+		Description: "Get a specific managed alliance by ID (super admin only)",
+		Tags:        []string{"Site Settings / Alliances"},
+	}, m.getAllianceHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-update-alliance-status",
+		Method:      "PUT",
+		Path:        "/site-settings/alliances/{alliance_id}/status",
+		Summary:     "Update alliance status",
+		Description: "Enable or disable a managed alliance (super admin only)",
+		Tags:        []string{"Site Settings / Alliances"},
+	}, m.updateAllianceStatusHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-remove-alliance",
+		Method:      "DELETE",
+		Path:        "/site-settings/alliances/{alliance_id}",
+		Summary:     "Remove managed alliance",
+		Description: "Remove a managed alliance completely (super admin only)",
+		Tags:        []string{"Site Settings / Alliances"},
+	}, m.removeAllianceHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-bulk-update-alliances",
+		Method:      "PUT",
+		Path:        "/site-settings/alliances",
+		Summary:     "Bulk update alliances",
+		Description: "Bulk update or add multiple managed alliances (super admin only)",
+		Tags:        []string{"Site Settings / Alliances"},
+	}, m.bulkUpdateAlliancesHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "site-settings-reorder-alliances",
+		Method:      "PUT",
+		Path:        "/site-settings/alliances/reorder",
+		Summary:     "Reorder alliances",
+		Description: "Reorder managed alliances by specifying new positions (super admin only)",
+		Tags:        []string{"Site Settings / Alliances"},
+	}, m.reorderAlliancesHandler)
 }
 
 // Health check handler
@@ -509,6 +573,189 @@ func (m *Module) reorderCorporationsHandler(ctx context.Context, input *dto.Reor
 		Body: dto.ReorderCorporationsResponseBody{
 			Corporations: corporations,
 			Message:      "Corporations reordered successfully",
+		},
+	}, nil
+}
+
+// Alliance Management Handlers
+
+// Add alliance handler
+func (m *Module) addAllianceHandler(ctx context.Context, input *dto.AddAllianceInput) (*dto.AddAllianceOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	alliance, err := m.service.AddManagedAlliance(ctx, input, int64(user.CharacterID))
+	if err != nil {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("alliance with ID %d is already managed", input.Body.AllianceID) {
+			return nil, huma.Error409Conflict("Alliance already exists", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to add alliance", err)
+	}
+
+	return &dto.AddAllianceOutput{
+		Body: dto.AddAllianceResponseBody{
+			Alliance: *alliance,
+			Message:  fmt.Sprintf("Alliance '%s' (ID: %d) added successfully", alliance.Name, alliance.AllianceID),
+		},
+	}, nil
+}
+
+// List alliances handler
+func (m *Module) listAlliancesHandler(ctx context.Context, input *dto.ListManagedAlliancesInput) (*dto.ListManagedAlliancesOutput, error) {
+	// Require super admin authentication
+	_, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	alliances, total, err := m.service.GetManagedAlliances(ctx, input.EnabledFilter, input.Page, input.Limit)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve alliances", err)
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(input.Limit)))
+
+	return &dto.ListManagedAlliancesOutput{
+		Body: dto.ListManagedAlliancesResponseBody{
+			Alliances:  alliances,
+			Total:      total,
+			Page:       input.Page,
+			Limit:      input.Limit,
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+// Get alliance handler
+func (m *Module) getAllianceHandler(ctx context.Context, input *dto.GetManagedAllianceInput) (*dto.GetManagedAllianceOutput, error) {
+	// Require super admin authentication
+	_, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	alliance, err := m.service.GetManagedAlliance(ctx, input.AllianceID)
+	if err != nil {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("alliance with ID %d not found", input.AllianceID) {
+			return nil, huma.Error404NotFound("Alliance not found", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to retrieve alliance", err)
+	}
+
+	return &dto.GetManagedAllianceOutput{
+		Body: dto.GetManagedAllianceResponseBody{
+			Alliance: *alliance,
+		},
+	}, nil
+}
+
+// Update alliance status handler
+func (m *Module) updateAllianceStatusHandler(ctx context.Context, input *dto.UpdateAllianceStatusInput) (*dto.UpdateAllianceStatusOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	alliance, err := m.service.UpdateAllianceStatus(ctx, input.AllianceID, input.Body.Enabled, int64(user.CharacterID))
+	if err != nil {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("alliance with ID %d not found", input.AllianceID) {
+			return nil, huma.Error404NotFound("Alliance not found", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to update alliance status", err)
+	}
+
+	status := "disabled"
+	if alliance.Enabled {
+		status = "enabled"
+	}
+
+	return &dto.UpdateAllianceStatusOutput{
+		Body: dto.UpdateAllianceStatusResponseBody{
+			Alliance: *alliance,
+			Message:  fmt.Sprintf("Alliance '%s' (ID: %d) %s successfully", alliance.Name, alliance.AllianceID, status),
+		},
+	}, nil
+}
+
+// Remove alliance handler
+func (m *Module) removeAllianceHandler(ctx context.Context, input *dto.RemoveAllianceInput) (*dto.RemoveAllianceOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	// Get alliance details before removing for the response message
+	alliance, err := m.service.GetManagedAlliance(ctx, input.AllianceID)
+	if err != nil {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("alliance with ID %d not found", input.AllianceID) {
+			return nil, huma.Error404NotFound("Alliance not found", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to retrieve alliance", err)
+	}
+
+	err = m.service.RemoveManagedAlliance(ctx, input.AllianceID, int64(user.CharacterID))
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to remove alliance", err)
+	}
+
+	return &dto.RemoveAllianceOutput{
+		Body: dto.RemoveAllianceResponseBody{
+			Message: fmt.Sprintf("Alliance '%s' (ID: %d) removed successfully", alliance.Name, alliance.AllianceID),
+		},
+	}, nil
+}
+
+// Bulk update alliances handler
+func (m *Module) bulkUpdateAlliancesHandler(ctx context.Context, input *dto.BulkUpdateAlliancesInput) (*dto.BulkUpdateAlliancesOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	alliances, updated, added, err := m.service.BulkUpdateAlliances(ctx, input, int64(user.CharacterID))
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to bulk update alliances", err)
+	}
+
+	return &dto.BulkUpdateAlliancesOutput{
+		Body: dto.BulkUpdateAlliancesResponseBody{
+			Alliances: alliances,
+			Updated:   updated,
+			Added:     added,
+			Message:   fmt.Sprintf("Bulk update completed: %d alliances updated, %d alliances added", updated, added),
+		},
+	}, nil
+}
+
+// Reorder alliances handler
+func (m *Module) reorderAlliancesHandler(ctx context.Context, input *dto.ReorderAlliancesInput) (*dto.ReorderAlliancesOutput, error) {
+	// Require super admin authentication
+	user, err := m.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, huma.Error401Unauthorized(err.Error())
+	}
+
+	alliances, err := m.service.ReorderAlliances(ctx, input, int64(user.CharacterID))
+	if err != nil {
+		// Handle specific validation errors
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("alliance with ID %d not found", 0) || 
+		   fmt.Sprintf("%s", err) == "position must be greater than 0" ||
+		   fmt.Sprintf("%s", err)[:19] == "duplicate position " {
+			return nil, huma.Error400BadRequest("Invalid reorder request", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to reorder alliances", err)
+	}
+
+	return &dto.ReorderAlliancesOutput{
+		Body: dto.ReorderAlliancesResponseBody{
+			Alliances: alliances,
+			Message:   "Alliances reordered successfully",
 		},
 	}, nil
 }

@@ -673,4 +673,422 @@ func (s *Service) sortCorporationsByPosition(corporations []dto.ManagedCorporati
 	}
 }
 
+// Alliance Management Methods
+
+// AddManagedAlliance adds a new managed alliance
+func (s *Service) AddManagedAlliance(ctx context.Context, input *dto.AddAllianceInput, addedBy int64) (*dto.ManagedAlliance, error) {
+	alliances, err := s.getManagedAlliancesData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if alliance already exists
+	for _, alliance := range alliances {
+		if alliance.AllianceID == input.Body.AllianceID {
+			return nil, fmt.Errorf("alliance with ID %d is already managed", input.Body.AllianceID)
+		}
+	}
+
+	// Default enabled to true if not specified
+	enabled := true
+	if input.Body.Enabled != nil {
+		enabled = *input.Body.Enabled
+	}
+
+	// Handle position assignment
+	position := 0
+	if input.Body.Position != nil {
+		position = *input.Body.Position
+	} else {
+		// Auto-assign next position
+		var err error
+		position, err = s.getNextAlliancePosition(ctx, alliances)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	now := time.Now()
+	newAlliance := dto.ManagedAlliance{
+		AllianceID: input.Body.AllianceID,
+		Name:       input.Body.Name,
+		Enabled:    enabled,
+		Position:   position,
+		AddedAt:    now,
+		AddedBy:    &addedBy,
+		UpdatedAt:  now,
+		UpdatedBy:  &addedBy,
+	}
+
+	alliances = append(alliances, newAlliance)
+
+	// Update the setting
+	if err := s.updateManagedAlliancesSetting(ctx, alliances, addedBy); err != nil {
+		return nil, err
+	}
+
+	return &newAlliance, nil
+}
+
+// UpdateAllianceStatus enables or disables a managed alliance
+func (s *Service) UpdateAllianceStatus(ctx context.Context, allianceID int64, enabled bool, updatedBy int64) (*dto.ManagedAlliance, error) {
+	alliances, err := s.getManagedAlliancesData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find and update the alliance
+	for i, alliance := range alliances {
+		if alliance.AllianceID == allianceID {
+			alliances[i].Enabled = enabled
+			alliances[i].UpdatedAt = time.Now()
+			alliances[i].UpdatedBy = &updatedBy
+
+			// Update the setting
+			if err := s.updateManagedAlliancesSetting(ctx, alliances, updatedBy); err != nil {
+				return nil, err
+			}
+
+			return &alliances[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("alliance with ID %d not found", allianceID)
+}
+
+// RemoveManagedAlliance removes a managed alliance
+func (s *Service) RemoveManagedAlliance(ctx context.Context, allianceID int64, removedBy int64) error {
+	alliances, err := s.getManagedAlliancesData(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Find and remove the alliance
+	found := false
+	newAlliances := make([]dto.ManagedAlliance, 0, len(alliances))
+	for _, alliance := range alliances {
+		if alliance.AllianceID != allianceID {
+			newAlliances = append(newAlliances, alliance)
+		} else {
+			found = true
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("alliance with ID %d not found", allianceID)
+	}
+
+	// Update the setting
+	return s.updateManagedAlliancesSetting(ctx, newAlliances, removedBy)
+}
+
+// GetManagedAlliances returns managed alliances with optional filtering
+func (s *Service) GetManagedAlliances(ctx context.Context, enabledFilter string, page, limit int) ([]dto.ManagedAlliance, int, error) {
+	alliances, err := s.getManagedAlliancesData(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Sort by position
+	s.sortAlliancesByPosition(alliances)
+
+	// Apply enabled filter
+	if enabledFilter != "" {
+		filtered := make([]dto.ManagedAlliance, 0, len(alliances))
+		var filterEnabled bool
+		if enabledFilter == "true" {
+			filterEnabled = true
+		} else if enabledFilter == "false" {
+			filterEnabled = false
+		} else {
+			return nil, 0, fmt.Errorf("invalid enabled filter value: %s", enabledFilter)
+		}
+
+		for _, alliance := range alliances {
+			if alliance.Enabled == filterEnabled {
+				filtered = append(filtered, alliance)
+			}
+		}
+		alliances = filtered
+	}
+
+	// Apply pagination
+	total := len(alliances)
+	start := (page - 1) * limit
+	end := start + limit
+
+	if start >= len(alliances) {
+		return []dto.ManagedAlliance{}, total, nil
+	}
+
+	if end > len(alliances) {
+		end = len(alliances)
+	}
+
+	return alliances[start:end], total, nil
+}
+
+// GetManagedAlliance returns a specific managed alliance
+func (s *Service) GetManagedAlliance(ctx context.Context, allianceID int64) (*dto.ManagedAlliance, error) {
+	alliances, err := s.getManagedAlliancesData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, alliance := range alliances {
+		if alliance.AllianceID == allianceID {
+			return &alliance, nil
+		}
+	}
+
+	return nil, fmt.Errorf("alliance with ID %d not found", allianceID)
+}
+
+// BulkUpdateAlliances performs bulk update of managed alliances
+func (s *Service) BulkUpdateAlliances(ctx context.Context, input *dto.BulkUpdateAlliancesInput, updatedBy int64) ([]dto.ManagedAlliance, int, int, error) {
+	alliances, err := s.getManagedAlliancesData(ctx)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	// Create a map of existing alliances for quick lookup
+	existingAlliances := make(map[int64]*dto.ManagedAlliance)
+	for i := range alliances {
+		existingAlliances[alliances[i].AllianceID] = &alliances[i]
+	}
+
+	updated := 0
+	added := 0
+	now := time.Now()
+
+	// Process input alliances
+	for _, inputAlliance := range input.Body.Alliances {
+		if existing, exists := existingAlliances[inputAlliance.AllianceID]; exists {
+			// Update existing alliance
+			existing.Name = inputAlliance.Name
+			existing.Enabled = inputAlliance.Enabled
+			if inputAlliance.Position != nil {
+				existing.Position = *inputAlliance.Position
+			}
+			existing.UpdatedAt = now
+			existing.UpdatedBy = &updatedBy
+			updated++
+		} else {
+			// Handle position for new alliance
+			position := 0
+			if inputAlliance.Position != nil {
+				position = *inputAlliance.Position
+			} else {
+				// Auto-assign next position
+				var err error
+				position, err = s.getNextAlliancePosition(ctx, alliances)
+				if err != nil {
+					return nil, 0, 0, err
+				}
+			}
+
+			// Add new alliance
+			newAlliance := dto.ManagedAlliance{
+				AllianceID: inputAlliance.AllianceID,
+				Name:       inputAlliance.Name,
+				Enabled:    inputAlliance.Enabled,
+				Position:   position,
+				AddedAt:    now,
+				AddedBy:    &updatedBy,
+				UpdatedAt:  now,
+				UpdatedBy:  &updatedBy,
+			}
+			alliances = append(alliances, newAlliance)
+			added++
+		}
+	}
+
+	// Update the setting
+	if err := s.updateManagedAlliancesSetting(ctx, alliances, updatedBy); err != nil {
+		return nil, 0, 0, err
+	}
+
+	return alliances, updated, added, nil
+}
+
+// ReorderAlliances reorders managed alliances based on provided positions
+func (s *Service) ReorderAlliances(ctx context.Context, input *dto.ReorderAlliancesInput, updatedBy int64) ([]dto.ManagedAlliance, error) {
+	alliances, err := s.getManagedAlliancesData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create map of existing alliances
+	allianceMap := make(map[int64]*dto.ManagedAlliance)
+	for i := range alliances {
+		allianceMap[alliances[i].AllianceID] = &alliances[i]
+	}
+
+	// Validate all alliance IDs exist and positions are valid
+	positionMap := make(map[int]bool)
+	for _, order := range input.Body.AllianceOrders {
+		if _, exists := allianceMap[order.AllianceID]; !exists {
+			return nil, fmt.Errorf("alliance with ID %d not found", order.AllianceID)
+		}
+		
+		if order.Position < 1 {
+			return nil, fmt.Errorf("position must be greater than 0")
+		}
+		
+		if positionMap[order.Position] {
+			return nil, fmt.Errorf("duplicate position %d", order.Position)
+		}
+		positionMap[order.Position] = true
+	}
+
+	// Update positions
+	now := time.Now()
+	for _, order := range input.Body.AllianceOrders {
+		alliance := allianceMap[order.AllianceID]
+		alliance.Position = order.Position
+		alliance.UpdatedAt = now
+		alliance.UpdatedBy = &updatedBy
+	}
+
+	// Update the setting
+	if err := s.updateManagedAlliancesSetting(ctx, alliances, updatedBy); err != nil {
+		return nil, err
+	}
+
+	// Return sorted alliances
+	s.sortAlliancesByPosition(alliances)
+	return alliances, nil
+}
+
+// IsAllianceEnabled checks if an alliance is enabled
+func (s *Service) IsAllianceEnabled(ctx context.Context, allianceID int64) (bool, error) {
+	alliance, err := s.GetManagedAlliance(ctx, allianceID)
+	if err != nil {
+		return false, err
+	}
+	return alliance.Enabled, nil
+}
+
+// Helper methods for alliance management
+
+// getManagedAlliancesData retrieves the managed alliances from the setting
+func (s *Service) getManagedAlliancesData(ctx context.Context) ([]dto.ManagedAlliance, error) {
+	setting, err := s.repo.GetByKey(ctx, "managed_alliances")
+	if err != nil {
+		// If setting doesn't exist, return empty array
+		if err == mongo.ErrNoDocuments {
+			return []dto.ManagedAlliance{}, nil
+		}
+		// Handle the custom "not found" error from repository
+		if err.Error() == "setting with key 'managed_alliances' not found" {
+			return []dto.ManagedAlliance{}, nil
+		}
+		return nil, err
+	}
+
+	// Parse the setting value using proper BSON unmarshaling
+	var managedAlliancesValue models.ManagedAlliancesValue
+	
+	// Marshal the setting.Value to BSON and then unmarshal to our struct
+	valueBytes, err := bson.Marshal(setting.Value)
+	if err != nil {
+		return []dto.ManagedAlliance{}, nil
+	}
+	
+	if err := bson.Unmarshal(valueBytes, &managedAlliancesValue); err != nil {
+		return []dto.ManagedAlliance{}, nil
+	}
+
+	// Convert models to DTOs
+	alliances := make([]dto.ManagedAlliance, len(managedAlliancesValue.Alliances))
+	for i, alliance := range managedAlliancesValue.Alliances {
+		alliances[i] = dto.ManagedAlliance{
+			AllianceID: alliance.AllianceID,
+			Name:       alliance.Name,
+			Enabled:    alliance.Enabled,
+			Position:   alliance.Position,
+			AddedAt:    alliance.AddedAt,
+			AddedBy:    alliance.AddedBy,
+			UpdatedAt:  alliance.UpdatedAt,
+			UpdatedBy:  alliance.UpdatedBy,
+		}
+	}
+
+	return alliances, nil
+}
+
+// updateManagedAlliancesSetting updates the managed_alliances setting
+func (s *Service) updateManagedAlliancesSetting(ctx context.Context, alliances []dto.ManagedAlliance, updatedBy int64) error {
+	// Convert DTOs to models
+	modelAlliances := make([]models.ManagedAlliance, len(alliances))
+	for i, alliance := range alliances {
+		modelAlliances[i] = models.ManagedAlliance{
+			AllianceID: alliance.AllianceID,
+			Name:       alliance.Name,
+			Enabled:    alliance.Enabled,
+			Position:   alliance.Position,
+			AddedAt:    alliance.AddedAt,
+			AddedBy:    alliance.AddedBy,
+			UpdatedAt:  alliance.UpdatedAt,
+			UpdatedBy:  alliance.UpdatedBy,
+		}
+	}
+	
+	settingValue := models.ManagedAlliancesValue{
+		Alliances: modelAlliances,
+	}
+
+	// Check if setting exists
+	exists, err := s.repo.SettingExists(ctx, "managed_alliances")
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		// Create new setting
+		setting := &models.SiteSetting{
+			Key:         "managed_alliances",
+			Value:       settingValue,
+			Type:        models.SettingTypeObject,
+			Category:    "eve",
+			Description: "Managed alliances with enable/disable status",
+			IsPublic:    false,
+			IsActive:    true,
+			CreatedBy:   &updatedBy,
+		}
+		return s.repo.Create(ctx, setting)
+	} else {
+		// Update existing setting
+		updates := bson.M{
+			"value": settingValue,
+		}
+		_, err := s.repo.Update(ctx, "managed_alliances", updates, updatedBy)
+		return err
+	}
+}
+
+// getNextAlliancePosition calculates the next available position for alliances
+func (s *Service) getNextAlliancePosition(ctx context.Context, alliances []dto.ManagedAlliance) (int, error) {
+	maxPosition := 0
+	for _, alliance := range alliances {
+		if alliance.Position > maxPosition {
+			maxPosition = alliance.Position
+		}
+	}
+	return maxPosition + 1, nil
+}
+
+// sortAlliancesByPosition sorts alliances by position in ascending order
+func (s *Service) sortAlliancesByPosition(alliances []dto.ManagedAlliance) {
+	// Simple bubble sort by position
+	n := len(alliances)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			if alliances[j].Position > alliances[j+1].Position {
+				alliances[j], alliances[j+1] = alliances[j+1], alliances[j]
+			}
+		}
+	}
+}
+
 

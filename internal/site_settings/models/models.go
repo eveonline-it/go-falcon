@@ -123,6 +123,23 @@ type ManagedCorporationsValue struct {
 	Corporations []ManagedCorporation `bson:"corporations" json:"corporations"`
 }
 
+// ManagedAlliance represents a managed alliance in the database
+type ManagedAlliance struct {
+	AllianceID int64     `bson:"alliance_id" json:"alliance_id"`
+	Name       string    `bson:"name" json:"name"`
+	Enabled    bool      `bson:"enabled" json:"enabled"`
+	Position   int       `bson:"position" json:"position"`
+	AddedAt    time.Time `bson:"added_at" json:"added_at"`
+	AddedBy    *int64    `bson:"added_by,omitempty" json:"added_by,omitempty"`
+	UpdatedAt  time.Time `bson:"updated_at" json:"updated_at"`
+	UpdatedBy  *int64    `bson:"updated_by,omitempty" json:"updated_by,omitempty"`
+}
+
+// ManagedAlliancesValue represents the value structure for managed_alliances setting
+type ManagedAlliancesValue struct {
+	Alliances []ManagedAlliance `bson:"alliances" json:"alliances"`
+}
+
 // Collection name
 const (
 	SiteSettingsCollection = "site_settings"

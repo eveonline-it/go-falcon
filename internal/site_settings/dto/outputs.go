@@ -179,3 +179,97 @@ type ReorderCorporationsResponseBody struct {
 	Message      string               `json:"message" description:"Success message"`
 }
 
+// Alliance Management DTOs
+
+// ManagedAlliance represents a managed alliance in API responses
+type ManagedAlliance struct {
+	AllianceID int64     `json:"alliance_id" description:"EVE Online alliance ID"`
+	Name       string    `json:"name" description:"Alliance name"`
+	Enabled    bool      `json:"enabled" description:"Whether the alliance is enabled"`
+	Position   int       `json:"position" description:"Display order position"`
+	AddedAt    time.Time `json:"added_at" description:"When the alliance was added"`
+	AddedBy    *int64    `json:"added_by,omitempty" description:"Character ID who added the alliance"`
+	UpdatedAt  time.Time `json:"updated_at" description:"When the alliance was last updated"`
+	UpdatedBy  *int64    `json:"updated_by,omitempty" description:"Character ID who last updated the alliance"`
+}
+
+// AddAllianceOutput represents the response for adding a managed alliance
+type AddAllianceOutput struct {
+	Body AddAllianceResponseBody `json:"body"`
+}
+
+// AddAllianceResponseBody represents the body of the add alliance response
+type AddAllianceResponseBody struct {
+	Alliance ManagedAlliance `json:"alliance" description:"Added alliance details"`
+	Message  string          `json:"message" description:"Success message"`
+}
+
+// UpdateAllianceStatusOutput represents the response for updating alliance status
+type UpdateAllianceStatusOutput struct {
+	Body UpdateAllianceStatusResponseBody `json:"body"`
+}
+
+// UpdateAllianceStatusResponseBody represents the body of the update status response
+type UpdateAllianceStatusResponseBody struct {
+	Alliance ManagedAlliance `json:"alliance" description:"Updated alliance details"`
+	Message  string          `json:"message" description:"Success message"`
+}
+
+// RemoveAllianceOutput represents the response for removing a managed alliance
+type RemoveAllianceOutput struct {
+	Body RemoveAllianceResponseBody `json:"body"`
+}
+
+// RemoveAllianceResponseBody represents the body of the remove alliance response
+type RemoveAllianceResponseBody struct {
+	Message string `json:"message" description:"Success message"`
+}
+
+// ListManagedAlliancesOutput represents the response for listing managed alliances
+type ListManagedAlliancesOutput struct {
+	Body ListManagedAlliancesResponseBody `json:"body"`
+}
+
+// ListManagedAlliancesResponseBody represents the body of the list alliances response
+type ListManagedAlliancesResponseBody struct {
+	Alliances  []ManagedAlliance `json:"alliances" description:"List of managed alliances"`
+	Total      int               `json:"total" description:"Total number of alliances"`
+	Page       int               `json:"page" description:"Current page number"`
+	Limit      int               `json:"limit" description:"Items per page"`
+	TotalPages int               `json:"total_pages" description:"Total number of pages"`
+}
+
+// GetManagedAllianceOutput represents the response for getting a specific managed alliance
+type GetManagedAllianceOutput struct {
+	Body GetManagedAllianceResponseBody `json:"body"`
+}
+
+// GetManagedAllianceResponseBody represents the body of the get alliance response
+type GetManagedAllianceResponseBody struct {
+	Alliance ManagedAlliance `json:"alliance" description:"Alliance details"`
+}
+
+// BulkUpdateAlliancesOutput represents the response for bulk updating alliances
+type BulkUpdateAlliancesOutput struct {
+	Body BulkUpdateAlliancesResponseBody `json:"body"`
+}
+
+// BulkUpdateAlliancesResponseBody represents the body of the bulk update response
+type BulkUpdateAlliancesResponseBody struct {
+	Alliances []ManagedAlliance `json:"alliances" description:"Updated alliances"`
+	Message   string            `json:"message" description:"Success message"`
+	Updated   int               `json:"updated" description:"Number of alliances updated"`
+	Added     int               `json:"added" description:"Number of alliances added"`
+}
+
+// ReorderAlliancesOutput represents the response for reordering alliances
+type ReorderAlliancesOutput struct {
+	Body ReorderAlliancesResponseBody `json:"body"`
+}
+
+// ReorderAlliancesResponseBody represents the body of the reorder response
+type ReorderAlliancesResponseBody struct {
+	Alliances []ManagedAlliance `json:"alliances" description:"Reordered alliances"`
+	Message   string            `json:"message" description:"Success message"`
+}
+

@@ -140,3 +140,82 @@ type ReorderCorporationsInput struct {
 	}
 }
 
+// Alliance Management DTOs
+
+// BulkUpdateAllianceItem represents an alliance item in bulk update requests
+type BulkUpdateAllianceItem struct {
+	AllianceID int64  `json:"alliance_id" required:"true" description:"EVE Online alliance ID"`
+	Name       string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Alliance name"`
+	Enabled    bool   `json:"enabled" required:"true" description:"Whether the alliance should be enabled"`
+	Position   *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
+}
+
+// ReorderAllianceItem represents an alliance item in reorder requests
+type ReorderAllianceItem struct {
+	AllianceID int64 `json:"alliance_id" required:"true" description:"Alliance ID"`
+	Position   int   `json:"position" required:"true" minimum:"1" description:"New position"`
+}
+
+// AddAllianceInput represents the input for adding a new managed alliance
+type AddAllianceInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	Body          struct {
+		AllianceID int64  `json:"alliance_id" required:"true" description:"EVE Online alliance ID"`
+		Name       string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Alliance name"`
+		Enabled    *bool  `json:"enabled" description:"Whether the alliance should be enabled (defaults to true)"`
+		Position   *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
+	}
+}
+
+// UpdateAllianceStatusInput represents the input for enabling/disabling an alliance
+type UpdateAllianceStatusInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	AllianceID    int64  `path:"alliance_id" required:"true" minimum:"1" description:"Alliance ID"`
+	Body          struct {
+		Enabled bool `json:"enabled" required:"true" description:"Whether the alliance should be enabled"`
+	}
+}
+
+// RemoveAllianceInput represents the input for removing a managed alliance
+type RemoveAllianceInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	AllianceID    int64  `path:"alliance_id" required:"true" minimum:"1" description:"Alliance ID"`
+}
+
+// ListManagedAlliancesInput represents the input for listing managed alliances
+type ListManagedAlliancesInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	EnabledFilter string `query:"enabled" description:"Filter by enabled status: 'true', 'false', or empty for all"`
+	Page          int    `query:"page" minimum:"1" default:"1" description:"Page number"`
+	Limit         int    `query:"limit" minimum:"1" maximum:"100" default:"20" description:"Items per page"`
+}
+
+// GetManagedAllianceInput represents the input for getting a specific managed alliance
+type GetManagedAllianceInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	AllianceID    int64  `path:"alliance_id" required:"true" minimum:"1" description:"Alliance ID"`
+}
+
+// BulkUpdateAlliancesInput represents the input for bulk updating alliances
+type BulkUpdateAlliancesInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	Body          struct {
+		Alliances []BulkUpdateAllianceItem `json:"alliances" required:"true" description:"List of alliances to update"`
+	}
+}
+
+// ReorderAlliancesInput represents the input for reordering managed alliances
+type ReorderAlliancesInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	Body          struct {
+		AllianceOrders []ReorderAllianceItem `json:"alliance_orders" required:"true" description:"New ordering for alliances"`
+	}
+}
+
