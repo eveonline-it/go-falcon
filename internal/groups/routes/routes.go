@@ -86,8 +86,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Groups / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.ListGroupsInput) (*dto.ListGroupsOutput, error) {
-		// Validate authentication
-		_, err := m.requireAuth(ctx, input.Authorization, input.Cookie)
+		// Validate authentication and check permissions
+		_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -289,8 +289,8 @@ func (m *Module) createGroup(ctx context.Context, input *dto.CreateGroupInput) (
 }
 
 func (m *Module) getGroup(ctx context.Context, input *dto.GetGroupInput) (*dto.GroupOutput, error) {
-	// Validate authentication
-	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and check permissions
+	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}
@@ -299,8 +299,8 @@ func (m *Module) getGroup(ctx context.Context, input *dto.GetGroupInput) (*dto.G
 }
 
 func (m *Module) listGroups(ctx context.Context, input *dto.ListGroupsInput) (*dto.ListGroupsOutput, error) {
-	// Validate authentication
-	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and check permissions
+	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}

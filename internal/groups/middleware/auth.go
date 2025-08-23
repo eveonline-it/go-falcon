@@ -9,6 +9,8 @@ import (
 	authServices "go-falcon/internal/auth/services"
 	"go-falcon/internal/groups/services"
 	"go-falcon/pkg/permissions"
+	
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // AuthMiddleware provides authentication and authorization for groups
@@ -50,7 +52,7 @@ func (m *AuthMiddleware) RequireAuth(ctx context.Context, authHeader, cookieHead
 	// Resolve character context using the character context middleware
 	charContext, err := m.characterContext.ResolveCharacterContext(ctx, authHeader, cookieHeader)
 	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %w", err)
+		return nil, huma.Error401Unauthorized("Authentication required", err)
 	}
 	
 	// Convert character context to AuthenticatedUser for backward compatibility
@@ -67,7 +69,7 @@ func (m *AuthMiddleware) RequireGroupAccess(ctx context.Context, authHeader, coo
 	// Resolve character context
 	charContext, err := m.characterContext.ResolveCharacterContext(ctx, authHeader, cookieHeader)
 	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %w", err)
+		return nil, huma.Error401Unauthorized("Authentication required", err)
 	}
 	
 	// Check permission via permission manager if available
@@ -105,7 +107,7 @@ func (m *AuthMiddleware) RequireGroupAccess(ctx context.Context, authHeader, coo
 			"character_id", charContext.CharacterID,
 			"character_name", charContext.CharacterName,
 			"groups", charContext.GroupMemberships)
-		return nil, fmt.Errorf("group management permission required")
+		return nil, huma.Error403Forbidden("Insufficient permissions: group management access required")
 	}
 	
 	// Convert to AuthenticatedUser for backward compatibility
@@ -122,7 +124,7 @@ func (m *AuthMiddleware) RequireGroupMembershipAccess(ctx context.Context, authH
 	// Resolve character context
 	charContext, err := m.characterContext.ResolveCharacterContext(ctx, authHeader, cookieHeader)
 	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %w", err)
+		return nil, huma.Error401Unauthorized("Authentication required", err)
 	}
 	
 	// Check permission via permission manager if available

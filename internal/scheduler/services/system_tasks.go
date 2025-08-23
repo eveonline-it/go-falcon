@@ -162,7 +162,7 @@ func GetSystemTasks() []*models.Task {
 			Schedule:    "0 */30 * * * *", // Every 30 minutes
 			Status:      models.TaskStatusPending,
 			Priority:    models.TaskPriorityNormal,
-			Enabled:     true,
+			Enabled:     false, // DISABLED: Task was processing 1M+ characters and saturating MongoDB
 			Config: map[string]interface{}{
 				"task_name": "character_affiliation_update",
 				"parameters": map[string]interface{}{

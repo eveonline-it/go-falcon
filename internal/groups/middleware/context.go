@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"go-falcon/internal/auth/models"
 	authServices "go-falcon/internal/auth/services"
 	"go-falcon/internal/groups/dto"
 	"go-falcon/internal/groups/services"
@@ -54,6 +53,10 @@ func NewCharacterContextMiddleware(authService *authServices.AuthService, groupS
 
 // ResolveCharacterContext extracts and enriches character context from JWT token
 func (m *CharacterContextMiddleware) ResolveCharacterContext(ctx context.Context, authHeader, cookieHeader string) (*CharacterContext, error) {
+	// Add master timeout for entire character context resolution (fail-secure)
+	masterCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	
 	// Extract JWT token from headers
 	token := m.extractToken(authHeader, cookieHeader)
 	if token == "" {
@@ -81,9 +84,39 @@ func (m *CharacterContextMiddleware) ResolveCharacterContext(ctx context.Context
 		GroupMemberships:    []string{},
 	}
 	
-	// Note: Full profile enrichment, group membership resolution, and multi-character
-	// support are disabled for now to prevent potential MongoDB operation hangs.
-	// This provides basic authentication without complex database operations.
+	// SECURITY FIX: Re-enable group membership resolution with fail-secure behavior
+	// If any step fails, user will have empty group memberships (no access by default)
+	
+	// Load user profile to get additional character information
+	if err := m.enrichWithProfile(masterCtx, charContext); err != nil {
+		slog.Warn("[CharacterContext] Failed to enrich character context with profile", 
+			"character_id", charContext.CharacterID, "error", err)
+		// Continue without profile enrichment - fail-safe behavior
+	}
+	
+	// Fetch all characters for this user (multi-character support)
+	if err := m.enrichWithAllUserCharacters(masterCtx, charContext); err != nil {
+		slog.Warn("[CharacterContext] Failed to enrich with all user characters", 
+			"user_id", charContext.UserID, "error", err)
+		// Continue without multi-character enrichment - fail-safe behavior
+	}
+	
+	// Resolve group memberships with timeout protection
+	if err := m.enrichWithGroupMemberships(masterCtx, charContext); err != nil {
+		slog.Error("[CharacterContext] SECURITY: Failed to resolve group memberships - user will have no access", 
+			"character_id", charContext.CharacterID, "user_id", charContext.UserID, "error", err)
+		// FAIL-SECURE: Leave GroupMemberships empty (no access granted)
+	}
+	
+	// Check if ANY character is super admin based on group membership
+	m.checkSuperAdminStatus(charContext)
+	
+	slog.Debug("[CharacterContext] Character context resolved", 
+		"user_id", charContext.UserID, 
+		"character_id", charContext.CharacterID,
+		"is_super_admin", charContext.IsSuperAdmin,
+		"groups_count", len(charContext.GroupMemberships),
+		"groups", charContext.GroupMemberships)
 	
 	return charContext, nil
 }
@@ -112,8 +145,12 @@ func (m *CharacterContextMiddleware) extractToken(authHeader, cookieHeader strin
 
 // enrichWithProfile loads user profile and adds corp/alliance info
 func (m *CharacterContextMiddleware) enrichWithProfile(ctx context.Context, charContext *CharacterContext) error {
+	// Add timeout protection for profile lookup
+	profileCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+	
 	// Get user profile from auth service
-	profile, err := m.authService.GetUserProfile(ctx, int(charContext.CharacterID))
+	profile, err := m.authService.GetUserProfile(profileCtx, int(charContext.CharacterID))
 	if err != nil {
 		return fmt.Errorf("failed to get user profile: %w", err)
 	}
@@ -152,8 +189,12 @@ func (m *CharacterContextMiddleware) enrichWithProfile(ctx context.Context, char
 
 // enrichWithAllUserCharacters fetches all characters for this user
 func (m *CharacterContextMiddleware) enrichWithAllUserCharacters(ctx context.Context, charContext *CharacterContext) error {
+	// Add timeout protection for multi-character lookup
+	multiCharCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+	
 	// Get all characters for this user
-	allProfiles, err := m.authService.GetAllCharactersByUserID(ctx, charContext.UserID)
+	allProfiles, err := m.authService.GetAllCharactersByUserID(multiCharCtx, charContext.UserID)
 	if err != nil {
 		return fmt.Errorf("failed to get all user characters: %w", err)
 	}

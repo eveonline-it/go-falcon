@@ -6,6 +6,7 @@ The groups module provides group and role-based access control management for th
 
 **Current Status**: Production Ready - Full Permission System Integration
 **Authentication**: Complete integration with Character Context Middleware, group-based permissions, and comprehensive permission management API
+**Security**: Proper HTTP status codes (401/403) for authentication and authorization failures
 
 ## Architecture
 
@@ -318,9 +319,18 @@ Searches the `characters` collection for character names containing the query st
 
 #### Permission Requirements
 
-- **Group Management**: Requires `super_admin` group membership
-- **Membership Management**: Requires `super_admin` group membership  
-- **Group Viewing**: Requires authentication (`authenticated` group)
+- **Group Management**: Requires `"groups:management:full"` permission or `super_admin` group membership
+- **Membership Management**: Requires `"groups:memberships:manage"` permission or `super_admin` group membership  
+- **Group Viewing**: Requires `"groups:management:full"` permission or `super_admin` group membership
+
+#### HTTP Status Codes
+
+- **200 OK**: Successful operation
+- **401 Unauthorized**: Authentication required (no token or invalid token)
+- **403 Forbidden**: Insufficient permissions (valid token but no required permissions)
+- **404 Not Found**: Group, membership, or character not found
+- **409 Conflict**: Group name already exists or membership already active
+- **500 Internal Server Error**: Database or server error
 
 #### Planned Permission Model
 
