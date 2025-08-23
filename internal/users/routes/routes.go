@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"go-falcon/internal/users/dto"
+	"go-falcon/internal/users/middleware"
 	"go-falcon/internal/users/services"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -38,7 +39,7 @@ func NewRoutes(service *services.Service, router chi.Router) *Routes {
 }
 
 // RegisterUsersRoutes registers users routes on a shared Huma API
-func RegisterUsersRoutes(api huma.API, basePath string, service *services.Service) {
+func RegisterUsersRoutes(api huma.API, basePath string, service *services.Service, authMiddleware *middleware.AuthMiddleware) {
 	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
 		OperationID: "users-get-status",
@@ -52,23 +53,28 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		return &dto.StatusOutput{Body: *status}, nil
 	})
 
-	// Public endpoints
+	// Administrative endpoints require authentication and permissions
 	huma.Register(api, huma.Operation{
 		OperationID: "users-get-stats",
 		Method:      "GET",
 		Path:        basePath + "/stats",
 		Summary:     "Get user statistics",
 		Description: "Get aggregate statistics about users in the system",
-		Tags:        []string{"Users"},
+		Tags:        []string{"Users / Management"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserStatsInput) (*dto.UserStatsOutput, error) {
+		// Validate authentication and user management access
+		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		stats, err := service.GetUserStats(ctx)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get user statistics", err)
 		}
 		return &dto.UserStatsOutput{Body: *stats}, nil
 	})
-
-	// Administrative endpoints (require authentication and permissions)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "users-list-users",
@@ -79,6 +85,12 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Tags:        []string{"Users / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserListInput) (*dto.UserListOutput, error) {
+		// Validate authentication and user management access
+		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		response, err := service.ListUsers(ctx, *input)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to list users", err)
@@ -95,6 +107,12 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Tags:        []string{"Users / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserGetInput) (*dto.UserGetOutput, error) {
+		// Validate authentication and user management access
+		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		user, err := service.GetUser(ctx, input.CharacterID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get user", err)
@@ -116,6 +134,12 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Tags:        []string{"Users / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserUpdateInput) (*dto.UserUpdateOutput, error) {
+		// Validate authentication and user management access
+		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		user, err := service.UpdateUser(ctx, input.CharacterID, input.Body)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to update user", err)
@@ -138,6 +162,12 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Tags:        []string{"Users / Characters"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserCharactersInput) (*dto.UserCharactersOutput, error) {
+		// Validate authentication and user access (self or admin)
+		_, err := authMiddleware.RequireUserAccess(ctx, input.Authorization, input.Cookie, input.UserID)
+		if err != nil {
+			return nil, err
+		}
+
 		characters, err := service.ListCharacters(ctx, input.UserID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get user characters", err)
@@ -162,7 +192,13 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Tags:        []string{"Users / Management"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserDeleteInput) (*dto.UserDeleteOutput, error) {
-		err := service.DeleteUser(ctx, input.CharacterID)
+		// Validate authentication and user management access
+		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		err = service.DeleteUser(ctx, input.CharacterID)
 		if err != nil {
 			// Check for specific error types
 			if err.Error() == "cannot delete super admin character" {

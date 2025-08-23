@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"go-falcon/internal/alliance/dto"
+	"go-falcon/internal/alliance/middleware"
 	"go-falcon/internal/alliance/services"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -13,13 +14,15 @@ import (
 
 // Module represents the alliance routes module
 type Module struct {
-	service *services.Service
+	service    *services.Service
+	middleware *middleware.AuthMiddleware
 }
 
 // NewModule creates a new alliance routes module
-func NewModule(service *services.Service) *Module {
+func NewModule(service *services.Service, authMiddleware *middleware.AuthMiddleware) *Module {
 	return &Module{
-		service: service,
+		service:    service,
+		middleware: authMiddleware,
 	}
 }
 
@@ -81,7 +84,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		Summary:     "Bulk Import All Alliances",
 		Description: "Retrieve all alliance IDs from ESI and import detailed information for each alliance into the database. This operation respects ESI rate limits and provides progress statistics.",
 		Tags:        []string{"Alliances"},
-	}, func(ctx context.Context, input *struct{}) (*dto.BulkImportAlliancesOutput, error) {
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.BulkImportAlliancesInput) (*dto.BulkImportAlliancesOutput, error) {
 		return m.bulkImportAlliances(ctx, input)
 	})
 
@@ -168,7 +172,16 @@ func (m *Module) searchAlliancesByName(ctx context.Context, input *dto.SearchAll
 }
 
 // bulkImportAlliances handles the bulk alliance import request
-func (m *Module) bulkImportAlliances(ctx context.Context, input *struct{}) (*dto.BulkImportAlliancesOutput, error) {
+func (m *Module) bulkImportAlliances(ctx context.Context, input *dto.BulkImportAlliancesInput) (*dto.BulkImportAlliancesOutput, error) {
+	// Require admin authentication
+	if m.middleware == nil {
+		return nil, huma.Error500InternalServerError("Authentication system not available")
+	}
+	_, err := m.middleware.RequireAdminAccess(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
 	// Call the service to perform bulk import
 	result, err := m.service.BulkImportAlliances(ctx)
 	if err != nil {

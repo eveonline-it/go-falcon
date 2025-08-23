@@ -46,6 +46,11 @@ func (s *Service) SetPermissionManager(permissionManager *permissions.Permission
 	s.permissionManager = permissionManager
 }
 
+// GetPermissionManager returns the permission manager
+func (s *Service) GetPermissionManager() *permissions.PermissionManager {
+	return s.permissionManager
+}
+
 // InitializeService sets up the service (creates indexes and system groups)
 func (s *Service) InitializeService(ctx context.Context) error {
 	// Create database indexes

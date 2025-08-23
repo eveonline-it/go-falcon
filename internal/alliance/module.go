@@ -3,11 +3,14 @@ package alliance
 import (
 	"log/slog"
 
+	"go-falcon/internal/alliance/middleware"
 	"go-falcon/internal/alliance/routes"
 	"go-falcon/internal/alliance/services"
+	authServices "go-falcon/internal/auth/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -16,24 +19,29 @@ import (
 // Module represents the alliance module
 type Module struct {
 	*module.BaseModule
-	service *services.Service
-	routes  *routes.Module
+	service    *services.Service
+	routes     *routes.Module
+	middleware *middleware.AuthMiddleware
 }
 
 // NewModule creates a new alliance module instance
-func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client) *Module {
+func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client, authService *authServices.AuthService, permissionManager *permissions.PermissionManager) *Module {
 	// Initialize repository and service
 	repository := services.NewRepository(mongodb)
 	service := services.NewService(repository, eveClient)
 	
+	// Initialize middleware
+	authMiddleware := middleware.NewAuthMiddleware(authService, permissionManager)
+	
 	// Initialize routes
-	routesModule := routes.NewModule(service)
+	routesModule := routes.NewModule(service, authMiddleware)
 	
 	// Create the module
 	m := &Module{
 		BaseModule: module.NewBaseModule("alliance", mongodb, redis),
 		service:    service,
 		routes:     routesModule,
+		middleware: authMiddleware,
 	}
 	
 	slog.Info("Alliance module initialized", "name", m.Name())

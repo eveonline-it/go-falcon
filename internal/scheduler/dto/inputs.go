@@ -68,46 +68,60 @@ type TaskImportRequest struct {
 
 // TaskCreateInput represents the input for creating a new task
 type TaskCreateInput struct {
-	Body TaskCreateRequest `json:"body"`
+	Body          TaskCreateRequest `json:"body"`
+	Authorization string            `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string            `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskUpdateInput represents the input for updating a task
 type TaskUpdateInput struct {
-	TaskID string            `path:"task_id" validate:"required" doc:"Task ID to update"`
-	Body   TaskUpdateRequest `json:"body"`
+	TaskID        string            `path:"task_id" validate:"required" doc:"Task ID to update"`
+	Body          TaskUpdateRequest `json:"body"`
+	Authorization string            `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string            `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskGetInput represents the input for getting a single task
 type TaskGetInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to retrieve"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to retrieve"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskDeleteInput represents the input for deleting a task
 type TaskDeleteInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to delete"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to delete"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskListInput represents the input for listing tasks
 type TaskListInput struct {
-	Page     int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
-	PageSize int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
-	Status   string `query:"status" validate:"omitempty,oneof=pending running completed failed paused disabled" doc:"Filter by task status"`
-	Type     string `query:"type" validate:"omitempty,oneof=http function system custom" doc:"Filter by task type"`
-	Enabled  string `query:"enabled" validate:"omitempty,oneof=true false" doc:"Filter by enabled status"`
-	Tags     string `query:"tags" doc:"Comma-separated list of tags to filter by"`
+	Page          int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
+	PageSize      int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
+	Status        string `query:"status" validate:"omitempty,oneof=pending running completed failed paused disabled" doc:"Filter by task status"`
+	Type          string `query:"type" validate:"omitempty,oneof=http function system custom" doc:"Filter by task type"`
+	Enabled       string `query:"enabled" validate:"omitempty,oneof=true false" doc:"Filter by enabled status"`
+	Tags          string `query:"tags" doc:"Comma-separated list of tags to filter by"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskExecuteInput represents the input for manually executing a task
 type TaskExecuteInput struct {
-	TaskID string                 `path:"task_id" validate:"required" doc:"Task ID to execute"`
-	Body   ManualExecutionRequest `json:"body"`
+	TaskID        string                 `path:"task_id" validate:"required" doc:"Task ID to execute"`
+	Body          ManualExecutionRequest `json:"body"`
+	Authorization string                 `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string                 `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskExecutionHistoryInput represents the input for getting task execution history
 type TaskExecutionHistoryInput struct {
-	TaskID   string `path:"task_id" validate:"required" doc:"Task ID to get execution history for"`
-	Page     int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
-	PageSize int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to get execution history for"`
+	Page          int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
+	PageSize      int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // BulkTaskOperationInput represents the input for bulk task operations
@@ -123,6 +137,8 @@ type TaskImportInput struct {
 // SchedulerStatsInput represents the input for getting scheduler statistics (no body needed)
 type SchedulerStatsInput struct {
 	// No parameters needed
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // SchedulerStatusInput represents the input for getting scheduler status (no body needed)
@@ -132,15 +148,19 @@ type SchedulerStatusInput struct {
 
 // ExecutionGetInput represents the input for getting a single execution
 type ExecutionGetInput struct {
-	ExecutionID string `path:"execution_id" validate:"required" doc:"Execution ID to retrieve"`
+	ExecutionID   string `path:"execution_id" validate:"required" doc:"Execution ID to retrieve"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // ExecutionListInput represents the input for listing executions across all tasks
 type ExecutionListInput struct {
-	Page     int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
-	PageSize int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
-	Status   string `query:"status" validate:"omitempty,oneof=pending running completed failed" doc:"Filter by execution status"`
-	TaskID   string `query:"task_id" doc:"Filter by specific task ID"`
+	Page          int    `query:"page" validate:"omitempty" minimum:"1" doc:"Page number"`
+	PageSize      int    `query:"page_size" validate:"omitempty" minimum:"1" maximum:"100" doc:"Number of items per page"`
+	Status        string `query:"status" validate:"omitempty,oneof=pending running completed failed" doc:"Filter by execution status"`
+	TaskID        string `query:"task_id" doc:"Filter by specific task ID"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskEnableInput represents the input for enabling a task
@@ -155,15 +175,21 @@ type TaskDisableInput struct {
 
 // TaskPauseInput represents the input for pausing a task
 type TaskPauseInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to pause"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to pause"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskResumeInput represents the input for resuming a task
 type TaskResumeInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to resume"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to resume"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
 
 // TaskStopInput represents the input for stopping a task
 type TaskStopInput struct {
-	TaskID string `path:"task_id" validate:"required" doc:"Task ID to stop"`
+	TaskID        string `path:"task_id" validate:"required" doc:"Task ID to stop"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }

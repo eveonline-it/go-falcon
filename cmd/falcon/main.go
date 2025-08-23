@@ -143,7 +143,6 @@ func main() {
 	// 1. Initialize base modules without dependencies
 	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
-	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	
 	// 2. Initialize site settings module (no dependencies)
 	siteSettingsModule, err := site_settings.NewModule(appCtx.MongoDB, nil, nil)
@@ -189,6 +188,7 @@ func main() {
 	groupsModule.GetService().SetPermissionManager(permissionManager)
 	
 	// 7. Initialize remaining modules that depend on auth
+	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule.GetAuthService(), permissionManager)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)

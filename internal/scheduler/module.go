@@ -59,8 +59,12 @@ func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule
 	// Create services
 	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule, corporationModule)
 	
+	// Create auth middleware - will be nil if authModule doesn't have the right interface
+	var authMiddleware *middleware.AuthMiddleware
+	// TODO: Create auth middleware when auth service is available
+	
 	// Create middleware
-	middlewareLayer := middleware.New()
+	middlewareLayer := middleware.New(authMiddleware)
 	
 	return &Module{
 		BaseModule:        baseModule,

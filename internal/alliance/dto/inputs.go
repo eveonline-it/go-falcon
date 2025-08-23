@@ -17,3 +17,9 @@ type GetAllianceCorporationsInput struct {
 type SearchAlliancesByNameInput struct {
 	Name string `query:"name" validate:"required" minLength:"3" maxLength:"100" description:"Alliance name to search for (minimum 3 characters)" example:"Goonswarm"`
 }
+
+// BulkImportAlliancesInput represents the input for bulk importing alliances
+type BulkImportAlliancesInput struct {
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
+}

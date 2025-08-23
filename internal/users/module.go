@@ -9,8 +9,10 @@ import (
 	"go-falcon/internal/groups/services"
 	"go-falcon/internal/users/routes"
 	usersServices "go-falcon/internal/users/services"
+	usersMiddleware "go-falcon/internal/users/middleware"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -59,7 +61,22 @@ func (m *Module) RegisterHumaRoutes(r chi.Router) {
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterUsersRoutes(api, basePath, m.service)
+	// Create auth middleware if auth module is available
+	var authMiddleware *usersMiddleware.AuthMiddleware
+	if m.authModule != nil {
+		authService := m.authModule.GetAuthService()
+		if authService != nil {
+			// Get permission manager from groups service if available
+			var permissionManager *permissions.PermissionManager
+			if m.groupService != nil {
+				permissionManager = m.groupService.GetPermissionManager()
+			}
+			
+			authMiddleware = usersMiddleware.NewAuthMiddleware(authService, permissionManager)
+		}
+	}
+	
+	routes.RegisterUsersRoutes(api, basePath, m.service, authMiddleware)
 	log.Printf("Users module unified routes registered at %s", basePath)
 }
 

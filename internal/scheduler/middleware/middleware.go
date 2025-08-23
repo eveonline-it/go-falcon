@@ -12,13 +12,20 @@ import (
 // Middleware combines all scheduler-specific middleware
 type Middleware struct {
 	validation *ValidationMiddleware
+	auth       *AuthMiddleware
 }
 
 // New creates a new middleware instance
-func New() *Middleware {
+func New(authMiddleware *AuthMiddleware) *Middleware {
 	return &Middleware{
 		validation: NewValidationMiddleware(),
+		auth:       authMiddleware,
 	}
+}
+
+// GetAuthMiddleware returns the auth middleware
+func (m *Middleware) GetAuthMiddleware() *AuthMiddleware {
+	return m.auth
 }
 
 // RequestLogging adds request logging for scheduler endpoints
