@@ -176,6 +176,28 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Groups / Characters"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.getCharacterGroups)
+
+	// Current user endpoints
+	huma.Register(api, huma.Operation{
+		OperationID: "groups-get-my-groups",
+		Method:      "GET",
+		Path:        "/groups/me",
+		Summary:     "Get my groups",
+		Description: "Get all groups the current authenticated user belongs to",
+		Tags:        []string{"Groups / Current User"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.getMyGroups)
+
+	// User-specific endpoints
+	huma.Register(api, huma.Operation{
+		OperationID: "groups-get-user-groups",
+		Method:      "GET",
+		Path:        "/users/{user_id}/groups",
+		Summary:     "Get user groups",
+		Description: "Get all groups that any character belonging to a user_id belongs to (requires authentication)",
+		Tags:        []string{"Groups / Users"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.getUserGroups)
 }
 
 // Route handlers
@@ -292,4 +314,24 @@ func (m *Module) getCharacterGroups(ctx context.Context, input *dto.GetCharacter
 	}
 
 	return m.service.GetCharacterGroups(ctx, input)
+}
+
+func (m *Module) getMyGroups(ctx context.Context, input *dto.GetMyGroupsInput) (*dto.CharacterGroupsOutput, error) {
+	// Validate authentication and get character ID
+	user, err := m.requireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.GetMyGroups(ctx, int64(user.CharacterID), input)
+}
+
+func (m *Module) getUserGroups(ctx context.Context, input *dto.GetUserGroupsInput) (*dto.UserGroupsOutput, error) {
+	// Validate authentication
+	_, err := m.requireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.GetUserGroups(ctx, input)
 }

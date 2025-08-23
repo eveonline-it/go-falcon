@@ -88,3 +88,18 @@ type DeleteGroupInput struct {
 	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
 	ID            string `path:"id" required:"true" description:"Group ID"`
 }
+
+// GetMyGroupsInput represents the input for getting current user's groups
+type GetMyGroupsInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	Type          string `query:"type" enum:"system,corporation,alliance,custom" description:"Filter by group type"`
+}
+
+// GetUserGroupsInput represents the input for getting groups by user_id
+type GetUserGroupsInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	UserID        string `path:"user_id" required:"true" description:"User ID"`
+	Type          string `query:"type" enum:"system,corporation,alliance,custom" description:"Filter by group type"`
+}

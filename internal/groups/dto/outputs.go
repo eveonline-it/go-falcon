@@ -121,3 +121,16 @@ type GroupsStatusResponse struct {
 	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
 	Message string `json:"message,omitempty" description:"Optional status message or error details"`
 }
+
+// UserGroupsOutput represents the response for getting user groups
+type UserGroupsOutput struct {
+	Body UserGroupsResponse `json:"body"`
+}
+
+// UserGroupsResponse represents the actual user groups data
+type UserGroupsResponse struct {
+	UserID      string          `json:"user_id" description:"User ID"`
+	Characters  []int64         `json:"characters" description:"List of character IDs belonging to this user"`
+	Groups      []GroupResponse `json:"groups" description:"List of unique groups across all user's characters"`
+	Total       int64           `json:"total" description:"Total number of unique groups"`
+}

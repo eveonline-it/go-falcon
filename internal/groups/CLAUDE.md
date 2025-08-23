@@ -254,6 +254,43 @@ GET /characters/{character_id}/groups?type=custom&is_active=true
 Authorization: Bearer <token> | Cookie: falcon_auth_token
 ```
 
+### Current User Endpoints
+
+#### Get My Groups
+```
+GET /groups/me?type=custom
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+Get all groups the current authenticated user belongs to. Automatically uses the authenticated user's character ID.
+
+### User-Centric Endpoints
+
+#### Get User Groups by User ID
+```
+GET /users/{user_id}/groups?type=corporation
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+Get all unique groups that any character belonging to a specific user_id belongs to. Provides multi-character group aggregation with deduplication.
+
+**Response:**
+```json
+{
+  "body": {
+    "user_id": "uuid-string",
+    "characters": [123456789, 987654321],
+    "groups": [
+      {
+        "id": "group_id",
+        "name": "Super Administrator",
+        "type": "system",
+        "is_active": true
+      }
+    ],
+    "total": 8
+  }
+}
+```
+
 ### Character Name Resolution
 
 #### Search Characters by Name

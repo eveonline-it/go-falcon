@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -488,6 +489,101 @@ func (s *Service) GetCharacterGroups(ctx context.Context, input *dto.GetCharacte
 	}, nil
 }
 
+// GetMyGroups gets all groups the current authenticated user belongs to
+func (s *Service) GetMyGroups(ctx context.Context, characterID int64, input *dto.GetMyGroupsInput) (*dto.CharacterGroupsOutput, error) {
+	// Build filter
+	filter := bson.M{}
+	if input.Type != "" {
+		filter["type"] = input.Type
+	}
+	// Only show active groups by default for Phase 1
+	filter["is_active"] = true
+
+	groups, err := s.repo.GetCharacterGroups(ctx, characterID, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current user's groups: %w", err)
+	}
+
+	// Convert to output
+	outputs := make([]dto.GroupResponse, len(groups))
+	for i, group := range groups {
+		outputs[i] = *s.modelToGroupResponse(&group, nil)
+	}
+
+	return &dto.CharacterGroupsOutput{
+		Body: dto.CharacterGroupsResponse{
+			Groups: outputs,
+			Total:  int64(len(groups)),
+		},
+	}, nil
+}
+
+// GetUserGroups gets all unique groups that any character belonging to a user_id belongs to
+func (s *Service) GetUserGroups(ctx context.Context, input *dto.GetUserGroupsInput) (*dto.UserGroupsOutput, error) {
+	// Get all character IDs for this user_id
+	characterIDs, err := s.repo.GetCharacterIDsByUserID(ctx, input.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get character IDs for user: %w", err)
+	}
+
+	if len(characterIDs) == 0 {
+		// User has no characters
+		return &dto.UserGroupsOutput{
+			Body: dto.UserGroupsResponse{
+				UserID:     input.UserID,
+				Characters: []int64{},
+				Groups:     []dto.GroupResponse{},
+				Total:      0,
+			},
+		}, nil
+	}
+
+	// Build filter
+	filter := bson.M{}
+	if input.Type != "" {
+		filter["type"] = input.Type
+	}
+	// Only show active groups by default
+	filter["is_active"] = true
+
+	// Get groups for all characters and deduplicate
+	groupMap := make(map[string]*models.Group)
+	
+	for _, characterID := range characterIDs {
+		groups, err := s.repo.GetCharacterGroups(ctx, characterID, filter)
+		if err != nil {
+			// Log error but continue with other characters
+			slog.ErrorContext(ctx, "Failed to get groups for character", "character_id", characterID, "error", err)
+			continue
+		}
+
+		// Add groups to map to deduplicate
+		for _, group := range groups {
+			groupMap[group.ID.Hex()] = &group
+		}
+	}
+
+	// Convert map to slice
+	uniqueGroups := make([]dto.GroupResponse, 0, len(groupMap))
+	for _, group := range groupMap {
+		uniqueGroups = append(uniqueGroups, *s.modelToGroupResponse(group, nil))
+	}
+
+	// Sort by group name for consistent output
+	sort.Slice(uniqueGroups, func(i, j int) bool {
+		return uniqueGroups[i].Name < uniqueGroups[j].Name
+	})
+
+	return &dto.UserGroupsOutput{
+		Body: dto.UserGroupsResponse{
+			UserID:     input.UserID,
+			Characters: characterIDs,
+			Groups:     uniqueGroups,
+			Total:      int64(len(uniqueGroups)),
+		},
+	}, nil
+}
+
 // IsCharacterInGroup checks if a character is in a specific group (by group name)
 func (s *Service) IsCharacterInGroup(ctx context.Context, characterID int64, groupName string) (bool, error) {
 	// Get group by name
@@ -805,7 +901,7 @@ func (s *Service) createOrUpdateEntityGroup(ctx context.Context, groupName, enti
 	// Create new group
 	group := &models.Group{
 		Name:            groupName,
-		Description:     fmt.Sprintf("Auto-generated group for %s %s (%s)", entityType, name, ticker),
+		Description:     name,
 		Type:            groupType,
 		EVEEntityID:     &entityID,
 		EVEEntityTicker: &ticker,

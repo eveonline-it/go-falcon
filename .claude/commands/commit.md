@@ -1,4 +1,4 @@
 Steps to follow strictly:
-1. update the relative docs about the latest notable changes
-2. create a very concise git commit for the latest changes omitting Co-Authored-By and Generated lines
-3. clear context
+1. Update affected documentation files
+2. Stage all changes
+3. Generate and display a concise commit message (no Co-Authored-By or Generated lines)

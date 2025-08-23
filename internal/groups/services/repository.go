@@ -425,3 +425,35 @@ func (r *Repository) GetCharacterNames(ctx context.Context, characterIDs []int64
 
 	return names, nil
 }
+
+// GetCharacterIDsByUserID fetches all character IDs for a given user_id
+func (r *Repository) GetCharacterIDsByUserID(ctx context.Context, userID string) ([]int64, error) {
+	// Query the user_profiles collection (same as used by auth/users modules)
+	userProfilesCollection := r.db.Database.Collection("user_profiles")
+	
+	// Build filter for user_id
+	filter := bson.M{"user_id": userID}
+	
+	// Query only the character_id field we need
+	projection := bson.M{"character_id": 1}
+	
+	cursor, err := userProfilesCollection.Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user profiles: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	// Build the list of character IDs
+	var characterIDs []int64
+	for cursor.Next(ctx) {
+		var userProfile struct {
+			CharacterID int64 `bson:"character_id"`
+		}
+		if err := cursor.Decode(&userProfile); err != nil {
+			continue // Skip profiles we can't decode
+		}
+		characterIDs = append(characterIDs, int64(userProfile.CharacterID))
+	}
+
+	return characterIDs, nil
+}
