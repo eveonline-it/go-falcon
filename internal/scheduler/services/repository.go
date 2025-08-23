@@ -168,7 +168,7 @@ func (r *Repository) UpdateTaskRunWithDuration(ctx context.Context, taskID strin
 		// Get current task to calculate new average
 		task, err := r.GetTask(ctx, taskID)
 		if err == nil {
-			newAverage := r.calculateNewAverage(task.Metadata.AverageRuntime, task.Metadata.SuccessCount, *duration)
+			newAverage := r.calculateNewAverage(time.Duration(task.Metadata.AverageRuntime), task.Metadata.SuccessCount, *duration)
 			updateFields["metadata.average_runtime"] = newAverage
 		}
 	}
@@ -178,15 +178,15 @@ func (r *Repository) UpdateTaskRunWithDuration(ctx context.Context, taskID strin
 }
 
 // calculateNewAverage calculates a new running average runtime
-func (r *Repository) calculateNewAverage(currentAverage time.Duration, currentCount int64, newDuration time.Duration) time.Duration {
+func (r *Repository) calculateNewAverage(currentAverage time.Duration, currentCount int64, newDuration time.Duration) models.Duration {
 	if currentCount == 0 {
-		return newDuration
+		return models.Duration(newDuration)
 	}
 	
 	// Calculate new average: ((current_avg * current_count) + new_duration) / (current_count + 1)
 	totalTime := time.Duration(int64(currentAverage) * currentCount) + newDuration
 	newCount := currentCount + 1
-	return time.Duration(int64(totalTime) / newCount)
+	return models.Duration(int64(totalTime) / newCount)
 }
 
 // UpdateTaskStatistics updates task statistics
@@ -385,8 +385,15 @@ func (r *Repository) GetSchedulerStats(ctx context.Context) (*models.SchedulerSt
 		defer cursor.Close(ctx)
 		var result []bson.M
 		if err := cursor.All(ctx, &result); err == nil && len(result) > 0 {
-			if avgDuration, ok := result[0]["avg_duration"].(int64); ok {
-				stats.AverageRuntime = time.Duration(avgDuration).String()
+			// MongoDB stores time.Duration as int64 nanoseconds
+			// The aggregation can return float64 when averaging
+			switch v := result[0]["avg_duration"].(type) {
+			case float64:
+				stats.AverageRuntime = time.Duration(int64(v)).String()
+			case int64:
+				stats.AverageRuntime = time.Duration(v).String()
+			case int32:
+				stats.AverageRuntime = time.Duration(int64(v)).String()
 			}
 		}
 	}

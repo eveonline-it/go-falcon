@@ -65,7 +65,7 @@ func (e *HTTPExecutor) Execute(ctx context.Context, task *models.Task) (*models.
 		return &models.TaskResult{
 			Success:  false,
 			Error:    fmt.Sprintf("HTTP request failed: %v", err),
-			Duration: duration,
+			Duration: models.Duration(duration),
 		}, nil
 	}
 	defer resp.Body.Close()
@@ -76,7 +76,7 @@ func (e *HTTPExecutor) Execute(ctx context.Context, task *models.Task) (*models.
 		return &models.TaskResult{
 			Success:  false,
 			Error:    fmt.Sprintf("Failed to read response: %v", err),
-			Duration: duration,
+			Duration: models.Duration(duration),
 		}, nil
 	}
 
@@ -92,7 +92,7 @@ func (e *HTTPExecutor) Execute(ctx context.Context, task *models.Task) (*models.
 	result := &models.TaskResult{
 		Success:  success,
 		Output:   output,
-		Duration: duration,
+		Duration: models.Duration(duration),
 		Metadata: map[string]interface{}{
 			"status_code":    resp.StatusCode,
 			"response_size":  len(body),
@@ -148,7 +148,7 @@ func (e *HTTPExecutor) parseHTTPConfig(config map[string]interface{}) (*models.H
 	// Timeout (optional)
 	if timeout, ok := config["timeout"].(string); ok {
 		if duration, err := time.ParseDuration(timeout); err == nil {
-			httpConfig.Timeout = duration
+			httpConfig.Timeout = models.Duration(duration)
 		}
 	}
 
@@ -225,7 +225,7 @@ func (e *SystemExecutor) Execute(ctx context.Context, task *models.Task) (*model
 		return &models.TaskResult{
 			Success:  false,
 			Error:    fmt.Sprintf("Unknown system task: %s", config.TaskName),
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 		}, nil
 	}
 }
@@ -236,7 +236,7 @@ func (e *SystemExecutor) executeTokenRefresh(ctx context.Context, config *models
 		return &models.TaskResult{
 			Success:  false,
 			Error:    "Auth module not available",
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 		}, nil
 	}
 
@@ -252,7 +252,7 @@ func (e *SystemExecutor) executeTokenRefresh(ctx context.Context, config *models
 		return &models.TaskResult{
 			Success:  false,
 			Error:    fmt.Sprintf("Token refresh failed: %v", err),
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 		}, nil
 	}
 
@@ -262,7 +262,7 @@ func (e *SystemExecutor) executeTokenRefresh(ctx context.Context, config *models
 	return &models.TaskResult{
 		Success:  true,
 		Output:   output,
-		Duration: time.Since(start),
+		Duration: models.Duration(time.Since(start)),
 		Metadata: map[string]interface{}{
 			"success_count": successCount,
 			"failure_count": failureCount,
@@ -278,7 +278,7 @@ func (e *SystemExecutor) executeStateCleanup(ctx context.Context, config *models
 	return &models.TaskResult{
 		Success:  true,
 		Output:   "State cleanup completed",
-		Duration: time.Since(start),
+		Duration: models.Duration(time.Since(start)),
 	}, nil
 }
 
@@ -289,7 +289,7 @@ func (e *SystemExecutor) executeHealthCheck(ctx context.Context, config *models.
 	return &models.TaskResult{
 		Success:  true,
 		Output:   "Health check passed",
-		Duration: time.Since(start),
+		Duration: models.Duration(time.Since(start)),
 	}, nil
 }
 
@@ -299,7 +299,7 @@ func (e *SystemExecutor) executeCharacterAffiliationUpdate(ctx context.Context, 
 		return &models.TaskResult{
 			Success:  false,
 			Error:    "Character module not available",
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 		}, nil
 	}
 
@@ -309,7 +309,7 @@ func (e *SystemExecutor) executeCharacterAffiliationUpdate(ctx context.Context, 
 		return &models.TaskResult{
 			Success:  false,
 			Error:    fmt.Sprintf("Character affiliation update failed: %v", err),
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 		}, nil
 	}
 
@@ -323,7 +323,7 @@ func (e *SystemExecutor) executeCharacterAffiliationUpdate(ctx context.Context, 
 	return &models.TaskResult{
 		Success:  success,
 		Output:   output,
-		Duration: time.Since(start),
+		Duration: models.Duration(time.Since(start)),
 		Metadata: map[string]interface{}{
 			"total_characters":   total,
 			"updated_characters": updated,
@@ -339,7 +339,7 @@ func (e *SystemExecutor) executeAllianceBulkImport(ctx context.Context, config *
 		return &models.TaskResult{
 			Success:  false,
 			Error:    "Alliance module not available",
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 		}, nil
 	}
 
@@ -349,7 +349,7 @@ func (e *SystemExecutor) executeAllianceBulkImport(ctx context.Context, config *
 		return &models.TaskResult{
 			Success:  false,
 			Error:    fmt.Sprintf("Alliance bulk import failed: %v", err),
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 		}, nil
 	}
 
@@ -363,7 +363,7 @@ func (e *SystemExecutor) executeAllianceBulkImport(ctx context.Context, config *
 	return &models.TaskResult{
 		Success:  success,
 		Output:   output,
-		Duration: time.Since(start),
+		Duration: models.Duration(time.Since(start)),
 		Metadata: map[string]interface{}{
 			"total_alliances":     stats.TotalAlliances,
 			"processed_alliances": stats.Processed,
@@ -381,7 +381,7 @@ func (e *SystemExecutor) executeCorporationUpdate(ctx context.Context, config *m
 		return &models.TaskResult{
 			Success:  false,
 			Error:    "Corporation module not available",
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 		}, nil
 	}
 
@@ -404,7 +404,7 @@ func (e *SystemExecutor) executeCorporationUpdate(ctx context.Context, config *m
 		return &models.TaskResult{
 			Success:  false,
 			Error:    fmt.Sprintf("Corporation update failed: %v", err),
-			Duration: time.Since(start),
+			Duration: models.Duration(time.Since(start)),
 			Metadata: map[string]interface{}{
 				"concurrent_workers": concurrentWorkers,
 				"error_details": errorMsg,
@@ -417,7 +417,7 @@ func (e *SystemExecutor) executeCorporationUpdate(ctx context.Context, config *m
 	return &models.TaskResult{
 		Success:  true,
 		Output:   output,
-		Duration: time.Since(start),
+		Duration: models.Duration(time.Since(start)),
 		Metadata: map[string]interface{}{
 			"concurrent_workers": concurrentWorkers,
 		},
@@ -475,7 +475,7 @@ func (e *FunctionExecutor) Execute(ctx context.Context, task *models.Task) (*mod
 	return &models.TaskResult{
 		Success:  true,
 		Output:   output,
-		Duration: time.Since(start),
+		Duration: models.Duration(time.Since(start)),
 		Metadata: map[string]interface{}{
 			"function_name": config.FunctionName,
 			"module":        config.Module,

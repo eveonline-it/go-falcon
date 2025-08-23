@@ -74,8 +74,8 @@ func (s *SchedulerService) CreateTask(ctx context.Context, req *dto.TaskCreateRe
 	} else {
 		task.Metadata = models.TaskMetadata{
 			MaxRetries:    3,
-			RetryInterval: 1 * time.Minute,
-			Timeout:       5 * time.Minute,
+			RetryInterval: models.Duration(1 * time.Minute),
+			Timeout:       models.Duration(5 * time.Minute),
 			Tags:          req.Tags,
 			IsSystem:      false,
 			Source:        "api",

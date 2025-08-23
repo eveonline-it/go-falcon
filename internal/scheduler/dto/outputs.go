@@ -19,7 +19,7 @@ type TaskResponse struct {
 	Config       map[string]interface{}    `json:"config"`
 	Metadata     models.TaskMetadata       `json:"metadata"`
 	LastRun      *time.Time                `json:"last_run,omitempty"`
-	LastRunDuration *time.Duration         `json:"last_run_duration,omitempty"`
+	LastRunDuration *models.Duration       `json:"last_run_duration,omitempty"`
 	NextRun      *time.Time                `json:"next_run,omitempty"`
 	CreatedAt    time.Time                 `json:"created_at"`
 	UpdatedAt    time.Time                 `json:"updated_at"`
@@ -51,7 +51,7 @@ type ExecutionResponse struct {
 	Status       models.TaskStatus      `json:"status"`
 	StartedAt    time.Time              `json:"started_at"`
 	CompletedAt  *time.Time             `json:"completed_at,omitempty"`
-	Duration     time.Duration          `json:"duration"`
+	Duration     models.Duration        `json:"duration"`
 	Output       string                 `json:"output,omitempty"`
 	Error        string                 `json:"error,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata"`

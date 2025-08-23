@@ -418,7 +418,7 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 		execution.Output = "Execution stopped by user request"
 		now := time.Now()
 		execution.CompletedAt = &now
-		execution.Duration = now.Sub(execution.StartedAt)
+		execution.Duration = models.Duration(now.Sub(execution.StartedAt))
 		
 		slog.Info("Task execution cancelled",
 			slog.String("task_id", task.ID),
@@ -426,7 +426,7 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 	} else {
 		// Update execution with result
 		execution.CompletedAt = &result.CompletedAt
-		execution.Duration = result.Duration
+		execution.Duration = models.Duration(result.Duration)
 		execution.Output = result.Output
 		execution.Error = result.Error
 
@@ -453,7 +453,8 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 	
 	// Use the new method that includes duration tracking and average calculation
 	success := execution.Status == models.TaskStatusCompleted
-	e.repository.UpdateTaskRunWithDuration(parentCtx, task.ID, &now, nextRun, &execution.Duration, success)
+	dur := time.Duration(execution.Duration)
+	e.repository.UpdateTaskRunWithDuration(parentCtx, task.ID, &now, nextRun, &dur, success)
 }
 
 // executeTask executes a task and returns the result
@@ -466,13 +467,13 @@ func (e *EngineService) executeTask(ctx context.Context, task *models.Task) *Exe
 		return &ExecutionResult{
 			Success:     false,
 			Error:       fmt.Sprintf("No executor found for task type: %s", task.Type),
-			Duration:    time.Since(start),
+			Duration:    models.Duration(time.Since(start)),
 			CompletedAt: time.Now(),
 		}
 	}
 
 	// Execute with timeout
-	taskCtx, cancel := context.WithTimeout(ctx, task.Metadata.Timeout)
+	taskCtx, cancel := context.WithTimeout(ctx, time.Duration(task.Metadata.Timeout))
 	defer cancel()
 
 	result, err := executor.Execute(taskCtx, task)
@@ -481,7 +482,7 @@ func (e *EngineService) executeTask(ctx context.Context, task *models.Task) *Exe
 			Success:     false,
 			Error:       err.Error(),
 			Output:      "",
-			Duration:    time.Since(start),
+			Duration:    models.Duration(time.Since(start)),
 			CompletedAt: time.Now(),
 		}
 	}
@@ -490,7 +491,7 @@ func (e *EngineService) executeTask(ctx context.Context, task *models.Task) *Exe
 		Success:     result.Success,
 		Error:       result.Error,
 		Output:      result.Output,
-		Duration:    time.Since(start),
+		Duration:    models.Duration(time.Since(start)),
 		CompletedAt: time.Now(),
 	}
 }
@@ -516,6 +517,6 @@ type ExecutionResult struct {
 	Success     bool
 	Error       string
 	Output      string
-	Duration    time.Duration
+	Duration    models.Duration
 	CompletedAt time.Time
 }
