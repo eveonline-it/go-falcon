@@ -25,6 +25,9 @@ type CharacterContext struct {
 	AllianceID      *int64  `json:"alliance_id,omitempty"`
 	AllianceName    *string `json:"alliance_name,omitempty"`
 	
+	// EVE Online scopes
+	Scopes string `json:"scopes,omitempty"`
+	
 	// Groups this character belongs to (resolved)
 	GroupMemberships []string `json:"group_memberships,omitempty"`
 }
@@ -138,6 +141,9 @@ func (m *CharacterContextMiddleware) enrichWithProfile(ctx context.Context, char
 		}
 	}
 	
+	// Add scopes information for group assignment
+	charContext.Scopes = profile.Scopes
+	
 	slog.Debug("[CharacterContext] Profile enrichment completed", 
 		"character_id", charContext.CharacterID,
 		"corporation_id", charContext.CorporationID,
@@ -151,7 +157,7 @@ func (m *CharacterContextMiddleware) enrichWithProfile(ctx context.Context, char
 // enrichWithGroupMemberships resolves which groups this character belongs to
 func (m *CharacterContextMiddleware) enrichWithGroupMemberships(ctx context.Context, charContext *CharacterContext) error {
 	// Auto-join character to enabled corporation/alliance groups only
-	if err := m.groupService.AutoJoinCharacterToEnabledGroups(ctx, charContext.CharacterID, charContext.CorporationID, charContext.AllianceID); err != nil {
+	if err := m.groupService.AutoJoinCharacterToEnabledGroups(ctx, charContext.CharacterID, charContext.CorporationID, charContext.AllianceID, charContext.Scopes); err != nil {
 		slog.Warn("[CharacterContext] Failed to auto-join character to enabled groups", 
 			"character_id", charContext.CharacterID, 
 			"error", err)

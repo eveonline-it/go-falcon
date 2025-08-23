@@ -296,15 +296,20 @@ The module automatically creates three system groups on initialization:
    - Full administrative access to all group operations
    - Can create, modify, and delete groups
    - Can manage group memberships
+   - First user is automatically assigned
 
 2. **Authenticated Users** (`authenticated`)
-   - Basic authenticated users
+   - Users who registered with EVE scopes via `/auth/eve/register`
+   - Have full API access permissions
    - Can view group information
-   - Default group for logged-in users
+   - **Auto-assigned**: Users with EVE scopes (full registration)
 
 3. **Guest Users** (`guest`)
-   - Unauthenticated users
-   - Limited access (future implementation)
+   - Users who logged in without scopes via `/auth/eve/login`
+   - Basic login access without additional permissions
+   - **Auto-assigned**: Users without EVE scopes (basic login)
+
+**Important**: Authenticated Users and Guest Users groups are mutually exclusive. Users are automatically moved between these groups based on their EVE Online scopes during authentication.
 
 ## Database Indexes
 

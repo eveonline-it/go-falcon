@@ -32,7 +32,7 @@ type AuthService struct {
 type GroupsService interface {
 	EnsureFirstUserSuperAdmin(ctx context.Context, characterID int64) error
 	IsCharacterInGroup(ctx context.Context, characterID int64, groupName string) (bool, error)
-	AutoJoinCharacterToEnabledGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64) error
+	AutoJoinCharacterToEnabledGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64, scopes string) error
 }
 
 // NewAuthService creates a new auth service with all dependencies
@@ -368,12 +368,12 @@ func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, sta
 			allianceID = &allianceIDInt64
 		}
 		
-		if err := s.groupsService.AutoJoinCharacterToEnabledGroups(ctx, int64(profile.CharacterID), corpID, allianceID); err != nil {
+		if err := s.groupsService.AutoJoinCharacterToEnabledGroups(ctx, int64(profile.CharacterID), corpID, allianceID, profile.Scopes); err != nil {
 			// Log error but don't fail authentication
 			slog.Error("Failed to auto-join character to enabled groups", 
-				"error", err, "character_id", profile.CharacterID, "corp_id", corpID, "alliance_id", allianceID)
+				"error", err, "character_id", profile.CharacterID, "corp_id", corpID, "alliance_id", allianceID, "has_scopes", profile.Scopes != "")
 		} else {
-			slog.Info("Auto-joined character to enabled groups", "character_id", profile.CharacterID)
+			slog.Info("Auto-joined character to enabled groups", "character_id", profile.CharacterID, "has_scopes", profile.Scopes != "")
 		}
 	}
 
@@ -466,12 +466,12 @@ func (s *AuthService) RefreshUserProfile(ctx context.Context, characterID int) (
 			allianceID = &allianceIDInt64
 		}
 		
-		if err := s.groupsService.AutoJoinCharacterToEnabledGroups(ctx, int64(profile.CharacterID), corpID, allianceID); err != nil {
+		if err := s.groupsService.AutoJoinCharacterToEnabledGroups(ctx, int64(profile.CharacterID), corpID, allianceID, profile.Scopes); err != nil {
 			// Log error but don't fail profile refresh
 			slog.Error("Failed to re-sync character groups after profile refresh", 
-				"error", err, "character_id", profile.CharacterID, "corp_id", corpID, "alliance_id", allianceID)
+				"error", err, "character_id", profile.CharacterID, "corp_id", corpID, "alliance_id", allianceID, "has_scopes", profile.Scopes != "")
 		} else {
-			slog.Debug("Re-synced character groups after profile refresh", "character_id", profile.CharacterID)
+			slog.Debug("Re-synced character groups after profile refresh", "character_id", profile.CharacterID, "has_scopes", profile.Scopes != "")
 		}
 	}
 

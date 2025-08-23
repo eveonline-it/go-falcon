@@ -658,11 +658,27 @@ func (s *Service) GetStatus(ctx context.Context) *dto.GroupsStatusResponse {
 }
 
 // AutoJoinCharacterToEnabledGroups automatically joins character to corporation/alliance groups if enabled
-func (s *Service) AutoJoinCharacterToEnabledGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64) error {
+func (s *Service) AutoJoinCharacterToEnabledGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64, scopes string) error {
 	slog.Debug("Auto-joining character to enabled groups", 
 		"character_id", characterID, 
 		"corporation_id", corporationID, 
-		"alliance_id", allianceID)
+		"alliance_id", allianceID,
+		"has_scopes", scopes != "")
+
+	// Determine which system group to join based on scopes
+	if scopes != "" {
+		// User has scopes - add to "Authenticated Users" group
+		if err := s.ensureCharacterInSystemGroup(ctx, characterID, "authenticated", "Authenticated Users"); err != nil {
+			slog.Error("Failed to add character to Authenticated Users group", "character_id", characterID, "error", err)
+			// Continue anyway - don't fail the whole operation
+		}
+	} else {
+		// User has no scopes - add to "Guest Users" group
+		if err := s.ensureCharacterInSystemGroup(ctx, characterID, "guest", "Guest Users"); err != nil {
+			slog.Error("Failed to add character to Guest Users group", "character_id", characterID, "error", err)
+			// Continue anyway - don't fail the whole operation
+		}
+	}
 
 	// Remove character from all existing corp/alliance groups first (clean slate approach)
 	if err := s.removeCharacterFromEntityGroups(ctx, characterID); err != nil {
@@ -825,6 +841,65 @@ func (s *Service) removeCharacterFromEntityGroups(ctx context.Context, character
 				"character_id", characterID, "group_id", group.ID.Hex(), "error", err)
 			// Continue with other groups
 		}
+	}
+
+	return nil
+}
+
+// ensureCharacterInSystemGroup ensures character is in the specified system group
+func (s *Service) ensureCharacterInSystemGroup(ctx context.Context, characterID int64, systemName string, groupDisplayName string) error {
+	// Get the system group by system name
+	group, err := s.repo.GetGroupBySystemName(ctx, systemName)
+	if err != nil {
+		return fmt.Errorf("failed to get %s group: %w", groupDisplayName, err)
+	}
+	if group == nil {
+		return fmt.Errorf("%s system group not found", groupDisplayName)
+	}
+
+	// First, remove character from other system groups (Guest/Authenticated are mutually exclusive)
+	if systemName == "authenticated" {
+		// Remove from Guest Users if adding to Authenticated
+		if err := s.removeCharacterFromSystemGroup(ctx, characterID, "guest"); err != nil {
+			slog.Debug("Failed to remove character from Guest Users group", "character_id", characterID, "error", err)
+		}
+	} else if systemName == "guest" {
+		// Remove from Authenticated Users if adding to Guest
+		if err := s.removeCharacterFromSystemGroup(ctx, characterID, "authenticated"); err != nil {
+			slog.Debug("Failed to remove character from Authenticated Users group", "character_id", characterID, "error", err)
+		}
+	}
+
+	// Add or reactivate membership (upsert logic in AddMembership handles duplicates)
+	membership := &models.GroupMembership{
+		GroupID:     group.ID,
+		CharacterID: characterID,
+		IsActive:    true,
+		AddedAt:     time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	
+	if err := s.repo.AddMembership(ctx, membership); err != nil {
+		return fmt.Errorf("failed to add/update membership to %s group: %w", groupDisplayName, err)
+	}
+	
+	slog.Info("Ensured character is in system group", "character_id", characterID, "group_name", groupDisplayName, "group_id", group.ID.Hex())
+	return nil
+}
+
+// removeCharacterFromSystemGroup removes character from a specific system group
+func (s *Service) removeCharacterFromSystemGroup(ctx context.Context, characterID int64, systemName string) error {
+	group, err := s.repo.GetGroupBySystemName(ctx, systemName)
+	if err != nil {
+		return fmt.Errorf("failed to get system group %s: %w", systemName, err)
+	}
+	if group == nil {
+		// Group doesn't exist, nothing to remove
+		return nil
+	}
+
+	if err := s.repo.RemoveMembership(ctx, group.ID, characterID); err != nil {
+		return fmt.Errorf("failed to remove membership from system group %s: %w", systemName, err)
 	}
 
 	return nil

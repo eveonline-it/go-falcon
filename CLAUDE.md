@@ -326,18 +326,29 @@ req.Header.Set("Accept", "application/json")
 - **Refresh Data**: `POST /auth/profile/refresh`
 - **Token Access**: `GET /auth/token` (get bearer token)
 
-### Super Admin System
+### Group-Based Access Control System
 
-The super admin system now uses **group-based membership** instead of user profile flags:
+The system uses **automatic group-based membership** for access control:
 
-- **First User Auto-Assignment**: The very first user to authenticate is automatically added to the "Super Administrator" group
-- **Group-Based Permissions**: Super admin status is determined by membership in the "Super Administrator" system group
-- **No Entity Groups for First User**: First user only gets system group assignment, no corporation/alliance groups until entities are configured
-- **No Configuration Required**: The `SUPER_ADMIN_CHARACTER_ID` environment variable is deprecated and no longer needed
-- **Database-Driven**: All super admin permissions are managed through the groups module
-- **Site Settings Control**: Corporation/alliance groups are only created when entities are enabled in site settings
+#### System Groups Auto-Assignment
+- **Super Administrator**: First user to authenticate is automatically assigned
+- **Authenticated Users**: Users who register with EVE scopes (`/auth/eve/register`) 
+- **Guest Users**: Users who login without scopes (`/auth/eve/login`)
 
-**Migration**: Existing super admins will need to be manually added to the "Super Administrator" group via the groups API or by clearing the database to trigger first-user assignment.
+#### Key Features
+- **Scope-Based Assignment**: Group membership determined by EVE Online scopes during authentication
+- **Mutually Exclusive**: Users automatically moved between Guest/Authenticated groups based on scopes  
+- **Group-Based Permissions**: Super admin status determined by "Super Administrator" group membership
+- **No Configuration Required**: The `SUPER_ADMIN_CHARACTER_ID` environment variable is deprecated
+- **Database-Driven**: All permissions managed through the groups module
+- **Site Settings Control**: Corporation/alliance groups only created when entities are enabled
+
+#### Authentication Flow
+- `/auth/eve/register` → Full EVE scopes → **Authenticated Users** group
+- `/auth/eve/login` → Basic login only → **Guest Users** group
+- First user → Automatically assigned to **Super Administrator** group
+
+**Migration**: Existing super admins need manual assignment to "Super Administrator" group via groups API.
 
 ## 🛠️ Development Guidelines
 
