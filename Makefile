@@ -77,41 +77,41 @@ install-tools: ## Install development tools
 
 docker-infra: ## Start infrastructure services only
 	@echo "🐳 Starting infrastructure services (MongoDB + Redis)..."
-	@docker-compose -f docker-compose.infra.yml up -d
+	@docker compose -f docker-compose.infra.yml up -d
 
 docker-logs: ## View infrastructure logs
 	@echo "📋 Viewing infrastructure logs..."
-	@docker-compose -f docker-compose.infra.yml logs -f
+	@docker compose -f docker-compose.infra.yml logs -f
 
 docker-logs-app: ## View production application logs
 	@echo "📋 Viewing production application logs..."
-	@docker-compose -f docker-compose.prod.yml logs -f falcon
+	@docker compose -f docker-compose.prod.yml logs -f falcon
 
 docker-stop: ## Stop infrastructure services
 	@echo "🛑 Stopping infrastructure services..."
-	@docker-compose -f docker-compose.infra.yml down
+	@docker compose -f docker-compose.infra.yml down
 
 docker-stop-all: ## Stop all services (infrastructure + production)
 	@echo "🛑 Stopping all services..."
-	@docker-compose -f docker-compose.infra.yml -f docker-compose.prod.yml down
+	@docker compose -f docker-compose.infra.yml -f docker-compose.prod.yml down
 
 # Database commands
 db-up: ## Start only database services
 	@echo "🗄️ Starting database services..."
-	@docker-compose -f docker-compose.infra.yml up -d
+	@docker compose -f docker-compose.infra.yml up -d
 
 db-down: ## Stop database services
 	@echo "🗄️ Stopping database services..."
-	@docker-compose -f docker-compose.infra.yml down
+	@docker compose -f docker-compose.infra.yml down
 
 # Production deployment
 deploy-prod: ## Deploy production environment (infrastructure + application)
 	@echo "🚀 Deploying production environment..."
-	@docker-compose -f docker-compose.infra.yml -f docker-compose.prod.yml up -d
+	@docker compose -f docker-compose.infra.yml -f docker-compose.prod.yml up -d
 
 stop-prod: ## Stop production environment
 	@echo "🛑 Stopping production environment..."
-	@docker-compose -f docker-compose.infra.yml -f docker-compose.prod.yml down
+	@docker compose -f docker-compose.infra.yml -f docker-compose.prod.yml down
 
 # Health check
 health: ## Check application health

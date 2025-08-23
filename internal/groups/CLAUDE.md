@@ -15,6 +15,7 @@ The groups module provides group and role-based access control management for th
 - **Membership Management**: Character assignment to groups with audit trail  
 - **EVE Integration**: Auto-assignment for corporation and alliance groups
 - **Character Context**: Corporation/alliance data extraction from user profiles
+- **Character Name Resolution**: Search and lookup character names from database
 - **Auto-Synchronization**: Automated group membership sync via scheduler
 - **System Groups**: Built-in groups (super_admin, authenticated, guest)
 - **MongoDB Storage**: Groups and memberships collections with proper indexing
@@ -240,6 +241,28 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
 GET /characters/{character_id}/groups?type=custom&is_active=true
 Authorization: Bearer <token> | Cookie: falcon_auth_token
 ```
+
+### Character Name Resolution
+
+#### Search Characters by Name
+```
+GET /groups/characters/search?q=partial_name
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+```
+**Response:**
+```json
+{
+  "body": {
+    "characters": [
+      {
+        "character_id": 123456789,
+        "character_name": "Character Name"
+      }
+    ]
+  }
+}
+```
+Searches the `characters` collection for character names containing the query string (case-insensitive).
 
 ## Authentication and Authorization
 
