@@ -453,10 +453,36 @@ groupsModule.RegisterUnifiedRoutes(api)
 - ESI validation for real-time membership checking
 - Fleet management group integration
 
+## Module Integration
+
+### Users Module Integration
+
+The groups module provides essential services to the users module for comprehensive user management:
+
+#### Group Membership Cleanup
+- **Service Method**: `RemoveCharacterFromAllGroups(ctx, characterID)` 
+- **Purpose**: Automatically removes character from all group memberships during user deletion
+- **Implementation**: Called by users module before user record deletion
+- **Features**:
+  - Removes from all group types (system, corporation, alliance, custom)
+  - Graceful error handling (logs failures but continues cleanup)
+  - Comprehensive audit logging for compliance
+  - Prevents orphaned group memberships in database
+
+#### Integration Flow
+```go
+// User deletion process with group cleanup
+1. Users module validates user exists and checks super admin status
+2. Users module calls groups.RemoveCharacterFromAllGroups(ctx, characterID)
+3. Groups module removes character from all memberships
+4. Users module deletes user record
+```
+
 ## Dependencies
 
 ### Internal Dependencies
-- `go-falcon/internal/auth` (for models and future integration)
+- `go-falcon/internal/auth` (for models and authentication integration)
+- `go-falcon/internal/users` (provides group cleanup services)
 - `go-falcon/pkg/database` (MongoDB connection)
 - `go-falcon/pkg/module` (module interface)
 

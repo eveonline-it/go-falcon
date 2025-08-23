@@ -917,3 +917,27 @@ func (s *Service) addMemberToGroup(ctx context.Context, groupID primitive.Object
 
 	return s.repo.AddMembership(ctx, membership)
 }
+
+// RemoveCharacterFromAllGroups removes a character from all groups (for user deletion cleanup)
+func (s *Service) RemoveCharacterFromAllGroups(ctx context.Context, characterID int64) error {
+	// Get all groups the character belongs to
+	groups, err := s.repo.GetCharacterGroups(ctx, characterID, bson.M{})
+	if err != nil {
+		return fmt.Errorf("failed to get character groups: %w", err)
+	}
+
+	// Remove character from each group
+	for _, group := range groups {
+		if err := s.repo.RemoveMembership(ctx, group.ID, characterID); err != nil {
+			slog.Error("Failed to remove character from group during user deletion", 
+				"character_id", characterID, "group_id", group.ID.Hex(), "group_name", group.Name, "error", err)
+			// Continue with other groups - don't fail the entire operation
+		} else {
+			slog.Info("Removed character from group during user deletion", 
+				"character_id", characterID, "group_id", group.ID.Hex(), "group_name", group.Name)
+		}
+	}
+
+	slog.Info("Completed group membership cleanup for deleted user", "character_id", characterID, "groups_count", len(groups))
+	return nil
+}

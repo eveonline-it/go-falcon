@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"fmt"
 
+	"go-falcon/internal/groups/services"
 	"go-falcon/internal/users/dto"
 	"go-falcon/internal/users/models"
 	"go-falcon/pkg/database"
@@ -10,14 +12,21 @@ import (
 
 // Service provides business logic for user operations
 type Service struct {
-	repository *Repository
+	repository   *Repository
+	groupService *services.Service
 }
 
 // NewService creates a new service instance
 func NewService(mongodb *database.MongoDB) *Service {
 	return &Service{
-		repository: NewRepository(mongodb),
+		repository:   NewRepository(mongodb),
+		groupService: nil, // Will be set after initialization
 	}
+}
+
+// SetGroupService sets the groups service dependency
+func (s *Service) SetGroupService(groupService *services.Service) {
+	s.groupService = groupService
 }
 
 // GetUser retrieves a user by character ID
@@ -73,6 +82,45 @@ func (s *Service) UserToResponse(user *models.User) *dto.UserResponse {
 		CharacterName: user.CharacterName,
 		Valid:         user.Valid,
 	}
+}
+
+// DeleteUser deletes a user character with super admin protection
+func (s *Service) DeleteUser(ctx context.Context, characterID int) error {
+	// Check if user exists before deletion
+	user, err := s.repository.GetUser(ctx, characterID)
+	if err != nil {
+		if err.Error() == fmt.Sprintf("user not found for character ID %d", characterID) {
+			return fmt.Errorf("user not found")
+		}
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return fmt.Errorf("user not found")
+	}
+
+	// Check if groups service is available for super admin validation
+	if s.groupService != nil {
+		// Check if the character is a super admin
+		isSuperAdmin, err := s.groupService.IsCharacterInGroup(ctx, int64(characterID), "Super Administrator")
+		if err != nil {
+			return fmt.Errorf("failed to check super admin status: %w", err)
+		}
+
+		if isSuperAdmin {
+			return fmt.Errorf("cannot delete super admin character")
+		}
+	}
+
+	// Remove character from all groups before deleting the user
+	if s.groupService != nil {
+		if err := s.groupService.RemoveCharacterFromAllGroups(ctx, int64(characterID)); err != nil {
+			// Log the error but don't fail the deletion - this is cleanup
+			fmt.Printf("Warning: Failed to cleanup group memberships for character %d: %v\n", characterID, err)
+		}
+	}
+
+	// Delete the user
+	return s.repository.DeleteUser(ctx, characterID)
 }
 
 // GetStatus returns the health status of the users module

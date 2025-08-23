@@ -153,6 +153,38 @@ PUT /api/users/mgt/{character_id}
 }
 ```
 
+#### Delete User Character
+```
+DELETE /api/users/mgt/{character_id}
+```
+**Authentication:** Required  
+**Permission:** Authentication required
+
+**Description:** Delete a user character with automatic group membership cleanup. Super administrators cannot be deleted.
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "User character deleted successfully"
+}
+```
+
+**Response (Super Admin Protection):**
+```json
+{
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Cannot delete super administrator character"
+}
+```
+
+**Features:**
+- **Super Admin Protection**: Characters in "Super Administrator" group cannot be deleted
+- **Group Cleanup**: Automatically removes character from all group memberships
+- **Data Integrity**: Prevents orphaned group memberships in database
+- **Error Handling**: Graceful error handling with appropriate HTTP status codes
+
 
 ### User Management Endpoints
 
@@ -206,6 +238,7 @@ The following permissions should be configured in the Groups module:
 | `/api/users` | GET | Yes | Authentication required | List and search users |
 | `/api/users/mgt/{character_id}` | GET | Yes | Authentication required | Get specific user details |
 | `/api/users/mgt/{character_id}` | PUT | Yes | Authentication required | Update user status and settings |
+| `/api/users/mgt/{character_id}` | DELETE | Yes | Authentication required | Delete user character with group cleanup |
 | `/api/users/{user_id}/characters` | GET | Yes | Self or Authentication required | List characters for a user |
 
 ### Authorization Logic

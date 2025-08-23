@@ -99,6 +99,17 @@ type StatusOutput struct {
 	Body UsersStatusResponse `json:"body"`
 }
 
+// UserDeleteOutput represents the output for deleting a user character
+type UserDeleteOutput struct {
+	Body UserDeleteResponse `json:"body"`
+}
+
+// UserDeleteResponse represents the response after deleting a user character
+type UserDeleteResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 // UsersStatusResponse represents the actual status response data
 type UsersStatusResponse struct {
 	Module  string `json:"module" description:"Module name"`

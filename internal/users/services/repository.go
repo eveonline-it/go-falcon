@@ -384,6 +384,23 @@ func parseInt(s string) int {
 	return result
 }
 
+// DeleteUser deletes a user by character ID
+func (r *Repository) DeleteUser(ctx context.Context, characterID int) error {
+	collection := r.mongodb.Collection(models.User{}.CollectionName())
+	
+	filter := bson.M{"character_id": characterID}
+	result, err := collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+	
+	if result.DeletedCount == 0 {
+		return fmt.Errorf("user not found for character ID %d", characterID)
+	}
+	
+	return nil
+}
+
 // CheckHealth verifies database connectivity
 func (r *Repository) CheckHealth(ctx context.Context) error {
 	// Perform a simple ping to check database connectivity

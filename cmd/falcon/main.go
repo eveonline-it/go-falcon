@@ -177,6 +177,7 @@ func main() {
 	
 	// 6. Initialize remaining modules that depend on auth
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
+	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	
 	// Update site settings with auth and groups services

@@ -6,8 +6,9 @@ import (
 	"log/slog"
 
 	"go-falcon/internal/auth"
+	"go-falcon/internal/groups/services"
 	"go-falcon/internal/users/routes"
-	"go-falcon/internal/users/services"
+	usersServices "go-falcon/internal/users/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
 
@@ -18,21 +19,29 @@ import (
 // Module represents the users module
 type Module struct {
 	*module.BaseModule
-	service    *services.Service
-	routes     *routes.Routes
-	authModule *auth.Module
+	service      *usersServices.Service
+	routes       *routes.Routes
+	authModule   *auth.Module
+	groupService *services.Service
 }
 
 // New creates a new users module instance
 func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module) *Module {
-	service := services.NewService(mongodb)
+	service := usersServices.NewService(mongodb)
 
 	return &Module{
-		BaseModule: module.NewBaseModule("users", mongodb, redis),
-		service:    service,
-		routes:     nil, // Will be created when needed
-		authModule: authModule,
+		BaseModule:   module.NewBaseModule("users", mongodb, redis),
+		service:      service,
+		routes:       nil, // Will be created when needed
+		authModule:   authModule,
+		groupService: nil, // Will be set after groups module initialization
 	}
+}
+
+// SetGroupService sets the groups service dependency
+func (m *Module) SetGroupService(groupService *services.Service) {
+	m.groupService = groupService
+	m.service.SetGroupService(groupService)
 }
 
 // Routes is kept for compatibility - users now uses Huma v2 routes only

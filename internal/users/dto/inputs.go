@@ -46,6 +46,11 @@ type UserCharactersInput struct {
 	UserID string `path:"user_id" validate:"required" doc:"User UUID"`
 }
 
+// UserDeleteInput represents the input for deleting a user character
+type UserDeleteInput struct {
+	CharacterID int `path:"character_id" validate:"required" minimum:"90000000" maximum:"2147483647" doc:"EVE Online character ID"`
+}
+
 // UserListInput represents the input for listing users with pagination and filtering
 type UserListInput struct {
 	Page      int    `query:"page" minimum:"1" default:"1" doc:"Page number"`

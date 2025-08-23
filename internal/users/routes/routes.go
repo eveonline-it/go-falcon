@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"fmt"
 
 	"go-falcon/internal/users/dto"
 	"go-falcon/internal/users/services"
@@ -150,6 +151,36 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		
 		return &dto.UserCharactersOutput{Body: response}, nil
 	})
+
+	// Character deletion
+	huma.Register(api, huma.Operation{
+		OperationID: "users-delete-user-character",
+		Method:      "DELETE",
+		Path:        basePath + "/mgt/{character_id}",
+		Summary:     "Delete user character",
+		Description: "Delete a user character. Super administrators cannot be deleted.",
+		Tags:        []string{"Users / Management"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.UserDeleteInput) (*dto.UserDeleteOutput, error) {
+		err := service.DeleteUser(ctx, input.CharacterID)
+		if err != nil {
+			// Check for specific error types
+			if err.Error() == "cannot delete super admin character" {
+				return nil, huma.Error403Forbidden("Cannot delete super administrator character")
+			}
+			if err.Error() == "user not found" || err.Error() == fmt.Sprintf("user not found for character ID %d", input.CharacterID) {
+				return nil, huma.Error404NotFound("User not found")
+			}
+			return nil, huma.Error500InternalServerError("Failed to delete user", err)
+		}
+		
+		return &dto.UserDeleteOutput{
+			Body: dto.UserDeleteResponse{
+				Success: true,
+				Message: "User character deleted successfully",
+			},
+		}, nil
+	})
 }
 
 // registerRoutes registers all Users module routes with Huma
@@ -164,6 +195,7 @@ func (hr *Routes) registerRoutes() {
 	huma.Get(hr.api, "", hr.listUsers)
 	huma.Get(hr.api, "/mgt/{character_id}", hr.getUser)
 	huma.Put(hr.api, "/mgt/{character_id}", hr.updateUser)
+	huma.Delete(hr.api, "/mgt/{character_id}", hr.deleteUser)
 
 	// User character management
 	huma.Get(hr.api, "/{user_id}/characters", hr.getUserCharacters)
@@ -235,4 +267,25 @@ func (hr *Routes) getUserCharacters(ctx context.Context, input *dto.UserCharacte
 	}
 	
 	return &dto.UserCharactersOutput{Body: response}, nil
+}
+
+func (hr *Routes) deleteUser(ctx context.Context, input *dto.UserDeleteInput) (*dto.UserDeleteOutput, error) {
+	err := hr.service.DeleteUser(ctx, input.CharacterID)
+	if err != nil {
+		// Check for specific error types
+		if err.Error() == "cannot delete super admin character" {
+			return nil, huma.Error403Forbidden("Cannot delete super administrator character")
+		}
+		if err.Error() == "user not found" || err.Error() == fmt.Sprintf("user not found for character ID %d", input.CharacterID) {
+			return nil, huma.Error404NotFound("User not found")
+		}
+		return nil, huma.Error500InternalServerError("Failed to delete user", err)
+	}
+	
+	return &dto.UserDeleteOutput{
+		Body: dto.UserDeleteResponse{
+			Success: true,
+			Message: "User character deleted successfully",
+		},
+	}, nil
 }
