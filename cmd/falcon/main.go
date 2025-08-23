@@ -136,44 +136,59 @@ func main() {
 	// Initialize EVE Online ESI client as shared package
 	evegateClient := evegateway.NewClient()
 	
-	// Initialize modules
+	// Initialize modules in dependency order
 	var modules []module.Module
-	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
+	
+	// 1. Initialize base modules without dependencies
 	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	
-	// Initialize groups module
-	groupsModule, err := groups.NewModule(appCtx.MongoDB, authModule)
-	if err != nil {
-		log.Fatalf("Failed to initialize groups module: %v", err)
-	}
-	
-	// Initialize site settings module
-	siteSettingsModule, err := site_settings.NewModule(appCtx.MongoDB, authModule.GetAuthService(), groupsModule.GetService())
+	// 2. Initialize site settings module (no dependencies)
+	siteSettingsModule, err := site_settings.NewModule(appCtx.MongoDB, nil, nil)
 	if err != nil {
 		log.Fatalf("Failed to initialize site settings module: %v", err)
 	}
 	
-	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, siteSettingsModule)
+	// Initialize site settings first
+	if err := siteSettingsModule.Initialize(ctx); err != nil {
+		log.Fatalf("Failed to initialize site settings: %v", err)
+	}
 	
-	// Initialize modules with specific initialization requirements
+	// 3. Initialize groups module with site settings dependency
+	groupsModule, err := groups.NewModule(appCtx.MongoDB, nil, siteSettingsModule.GetService())
+	if err != nil {
+		log.Fatalf("Failed to initialize groups module: %v", err)
+	}
+	
+	// Initialize groups module
 	if err := groupsModule.Initialize(ctx); err != nil {
 		log.Fatalf("Failed to initialize groups module: %v", err)
 	}
 	
-	if err := siteSettingsModule.Initialize(ctx); err != nil {
-		log.Fatalf("Failed to initialize site settings module: %v", err)
+	// 4. Initialize auth module and set groups service dependency
+	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
+	authModule.GetAuthService().SetGroupsService(groupsModule.GetService())
+	
+	// 5. Update groups module with auth dependencies
+	if err := groupsModule.SetAuthModule(authModule); err != nil {
+		log.Fatalf("Failed to set auth dependencies on groups module: %v", err)
 	}
 	
+	// 6. Initialize remaining modules that depend on auth
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
+	
+	// Update site settings with auth and groups services
+	siteSettingsModule.SetAuthService(authModule.GetAuthService())
+	siteSettingsModule.SetGroupsService(groupsModule.GetService())
+	
+	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, siteSettingsModule)
+	
+	// Initialize remaining modules
 	if err := characterModule.Initialize(ctx); err != nil {
 		log.Fatalf("Failed to initialize character module: %v", err)
 	}
-	
-	// Set up cross-module dependencies after initialization
-	authModule.GetAuthService().SetGroupsService(groupsModule.GetService())
 	
 	log.Printf("🚀 EVE Online ESI client initialized")
 

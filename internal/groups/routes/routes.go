@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	authModels "go-falcon/internal/auth/models"
 	"go-falcon/internal/groups/dto"
 	"go-falcon/internal/groups/middleware"
 	"go-falcon/internal/groups/services"
@@ -24,6 +25,14 @@ func NewModule(service *services.Service, authMW *middleware.AuthMiddleware) *Mo
 		service:    service,
 		middleware: authMW,
 	}
+}
+
+// requireAuth safely checks authentication, handling nil middleware
+func (m *Module) requireAuth(ctx context.Context, authHeader, cookieHeader string) (*authModels.AuthenticatedUser, error) {
+	if m.middleware == nil {
+		return nil, fmt.Errorf("authentication not available: module not fully initialized")
+	}
+	return m.middleware.RequireAuth(ctx, authHeader, cookieHeader)
 }
 
 // RegisterUnifiedRoutes registers all group routes with the API
@@ -78,7 +87,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.ListGroupsInput) (*dto.ListGroupsOutput, error) {
 		// Validate authentication
-		_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+		_, err := m.requireAuth(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}

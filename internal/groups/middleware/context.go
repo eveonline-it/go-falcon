@@ -150,12 +150,12 @@ func (m *CharacterContextMiddleware) enrichWithProfile(ctx context.Context, char
 
 // enrichWithGroupMemberships resolves which groups this character belongs to
 func (m *CharacterContextMiddleware) enrichWithGroupMemberships(ctx context.Context, charContext *CharacterContext) error {
-	// First, sync corporation and alliance groups (auto-assignment)
-	if err := m.groupService.SyncCharacterGroups(ctx, charContext.CharacterID, charContext.CorporationID, charContext.AllianceID); err != nil {
-		slog.Warn("[CharacterContext] Failed to sync character groups", 
+	// Auto-join character to enabled corporation/alliance groups only
+	if err := m.groupService.AutoJoinCharacterToEnabledGroups(ctx, charContext.CharacterID, charContext.CorporationID, charContext.AllianceID); err != nil {
+		slog.Warn("[CharacterContext] Failed to auto-join character to enabled groups", 
 			"character_id", charContext.CharacterID, 
 			"error", err)
-		// Continue without sync - don't fail the entire request
+		// Continue without auto-join - don't fail the entire request
 	}
 	
 	// Get groups for this character

@@ -70,6 +70,7 @@ type AddCorporationInput struct {
 	Body          struct {
 		CorporationID int64  `json:"corporation_id" required:"true" description:"EVE Online corporation ID"`
 		Name          string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Corporation name"`
+		Ticker        string `json:"ticker" minLength:"1" maxLength:"10" required:"true" description:"Corporation ticker"`
 		Enabled       *bool  `json:"enabled" description:"Whether the corporation should be enabled (defaults to true)"`
 		Position      *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
 	}
@@ -112,6 +113,7 @@ type GetManagedCorporationInput struct {
 type BulkUpdateCorporationItem struct {
 	CorporationID int64  `json:"corporation_id" required:"true" description:"EVE Online corporation ID"`
 	Name          string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Corporation name"`
+	Ticker        string `json:"ticker" minLength:"1" maxLength:"10" required:"true" description:"Corporation ticker"`
 	Enabled       bool   `json:"enabled" required:"true" description:"Whether the corporation should be enabled"`
 	Position      *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
 }
@@ -146,6 +148,7 @@ type ReorderCorporationsInput struct {
 type BulkUpdateAllianceItem struct {
 	AllianceID int64  `json:"alliance_id" required:"true" description:"EVE Online alliance ID"`
 	Name       string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Alliance name"`
+	Ticker     string `json:"ticker" minLength:"1" maxLength:"10" required:"true" description:"Alliance ticker"`
 	Enabled    bool   `json:"enabled" required:"true" description:"Whether the alliance should be enabled"`
 	Position   *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
 }
@@ -163,6 +166,7 @@ type AddAllianceInput struct {
 	Body          struct {
 		AllianceID int64  `json:"alliance_id" required:"true" description:"EVE Online alliance ID"`
 		Name       string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Alliance name"`
+		Ticker     string `json:"ticker" minLength:"1" maxLength:"10" required:"true" description:"Alliance ticker"`
 		Enabled    *bool  `json:"enabled" description:"Whether the alliance should be enabled (defaults to true)"`
 		Position   *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
 	}

@@ -294,6 +294,7 @@ func (s *Service) AddManagedCorporation(ctx context.Context, input *dto.AddCorpo
 	newCorp := dto.ManagedCorporation{
 		CorporationID: input.Body.CorporationID,
 		Name:          input.Body.Name,
+		Ticker:        input.Body.Ticker,
 		Enabled:       enabled,
 		Position:      position,
 		AddedAt:       now,
@@ -538,6 +539,7 @@ func (s *Service) getManagedCorporationsData(ctx context.Context) ([]dto.Managed
 		corporations[i] = dto.ManagedCorporation{
 			CorporationID: corp.CorporationID,
 			Name:          corp.Name,
+			Ticker:        corp.Ticker,
 			Enabled:       corp.Enabled,
 			Position:      corp.Position,
 			AddedAt:       corp.AddedAt,
@@ -558,6 +560,7 @@ func (s *Service) updateManagedCorporationsSetting(ctx context.Context, corporat
 		modelCorps[i] = models.ManagedCorporation{
 			CorporationID: corp.CorporationID,
 			Name:          corp.Name,
+			Ticker:        corp.Ticker,
 			Enabled:       corp.Enabled,
 			Position:      corp.Position,
 			AddedAt:       corp.AddedAt,
@@ -712,6 +715,7 @@ func (s *Service) AddManagedAlliance(ctx context.Context, input *dto.AddAlliance
 	newAlliance := dto.ManagedAlliance{
 		AllianceID: input.Body.AllianceID,
 		Name:       input.Body.Name,
+		Ticker:     input.Body.Ticker,
 		Enabled:    enabled,
 		Position:   position,
 		AddedAt:    now,
@@ -1005,6 +1009,7 @@ func (s *Service) getManagedAlliancesData(ctx context.Context) ([]dto.ManagedAll
 		alliances[i] = dto.ManagedAlliance{
 			AllianceID: alliance.AllianceID,
 			Name:       alliance.Name,
+			Ticker:     alliance.Ticker,
 			Enabled:    alliance.Enabled,
 			Position:   alliance.Position,
 			AddedAt:    alliance.AddedAt,
@@ -1025,6 +1030,7 @@ func (s *Service) updateManagedAlliancesSetting(ctx context.Context, alliances [
 		modelAlliances[i] = models.ManagedAlliance{
 			AllianceID: alliance.AllianceID,
 			Name:       alliance.Name,
+			Ticker:     alliance.Ticker,
 			Enabled:    alliance.Enabled,
 			Position:   alliance.Position,
 			AddedAt:    alliance.AddedAt,
@@ -1116,6 +1122,74 @@ func (s *Service) sortAlliancesByPosition(alliances []dto.ManagedAlliance) {
 			}
 		}
 	}
+}
+
+// GetEnabledCorporations returns only the enabled corporations for groups module integration
+func (s *Service) GetEnabledCorporations(ctx context.Context) ([]models.ManagedCorporation, error) {
+	setting, err := s.repo.GetByKey(ctx, "managed_corporations")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get managed corporations: %w", err)
+	}
+	
+	if setting == nil {
+		return []models.ManagedCorporation{}, nil
+	}
+	
+	var managedCorpsValue models.ManagedCorporationsValue
+	
+	// Marshal the setting.Value to BSON and then unmarshal to our struct
+	valueBytes, err := bson.Marshal(setting.Value)
+	if err != nil {
+		return []models.ManagedCorporation{}, nil
+	}
+	
+	if err := bson.Unmarshal(valueBytes, &managedCorpsValue); err != nil {
+		return []models.ManagedCorporation{}, nil
+	}
+	
+	// Return only enabled corporations
+	var enabled []models.ManagedCorporation
+	for _, corp := range managedCorpsValue.Corporations {
+		if corp.Enabled {
+			enabled = append(enabled, corp)
+		}
+	}
+	
+	return enabled, nil
+}
+
+// GetEnabledAlliances returns only the enabled alliances for groups module integration
+func (s *Service) GetEnabledAlliances(ctx context.Context) ([]models.ManagedAlliance, error) {
+	setting, err := s.repo.GetByKey(ctx, "managed_alliances")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get managed alliances: %w", err)
+	}
+	
+	if setting == nil {
+		return []models.ManagedAlliance{}, nil
+	}
+	
+	var managedAlliancesValue models.ManagedAlliancesValue
+	
+	// Marshal the setting.Value to BSON and then unmarshal to our struct
+	valueBytes, err := bson.Marshal(setting.Value)
+	if err != nil {
+		return []models.ManagedAlliance{}, nil
+	}
+	
+	if err := bson.Unmarshal(valueBytes, &managedAlliancesValue); err != nil {
+		return []models.ManagedAlliance{}, nil
+	}
+	
+	// Return only enabled alliances
+	var enabled []models.ManagedAlliance
+	for _, alliance := range managedAlliancesValue.Alliances {
+		if alliance.Enabled {
+			enabled = append(enabled, alliance)
+		}
+	}
+	
+	return enabled, nil
 }
 
 

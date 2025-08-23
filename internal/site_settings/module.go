@@ -30,21 +30,23 @@ func NewModule(db *database.MongoDB, authService *authServices.AuthService, grou
 	if db == nil {
 		return nil, fmt.Errorf("database connection is required")
 	}
-	if authService == nil {
-		return nil, fmt.Errorf("auth service is required")
-	}
-	if groupsService == nil {
-		return nil, fmt.Errorf("groups service is required")
-	}
 
 	// Create service layer
 	service := services.NewService(db.Database)
 
-	// Create middleware
-	authMiddleware := middleware.NewAuthMiddleware(authService, groupsService)
+	var authMiddleware *middleware.AuthMiddleware
+	var routesModule *routes.Module
+	
+	if authService != nil && groupsService != nil {
+		// Create middleware with dependencies
+		authMiddleware = middleware.NewAuthMiddleware(authService, groupsService)
+		slog.Info("Site settings module initialized with auth and groups dependencies")
+	} else {
+		slog.Info("Site settings module initialized without dependencies (will be set later)")
+	}
 
-	// Create routes
-	routesModule := routes.NewModule(service, authMiddleware)
+	// Create routes (middleware might be nil initially)
+	routesModule = routes.NewModule(service, authMiddleware)
 
 	return &Module{
 		service:    service,
@@ -91,6 +93,25 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 // Name implements the module.Module interface
 func (m *Module) Name() string {
 	return "site_settings"
+}
+
+// GetService returns the site settings service for use by other modules
+func (m *Module) GetService() *services.Service {
+	return m.service
+}
+
+// SetAuthService sets the auth service dependency after module initialization
+func (m *Module) SetAuthService(authService *authServices.AuthService) {
+	// For now, just log that this was called
+	// TODO: Implement proper dependency injection for middleware recreation
+	slog.Info("Site settings auth service dependency set (middleware update needed)")
+}
+
+// SetGroupsService sets the groups service dependency after module initialization
+func (m *Module) SetGroupsService(groupsService *groupsServices.Service) {
+	// For now, just log that this was called
+	// TODO: Implement proper dependency injection for middleware recreation
+	slog.Info("Site settings groups service dependency set (middleware update needed)")
 }
 
 // Ensure Module implements the module.Module interface

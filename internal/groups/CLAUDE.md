@@ -103,15 +103,21 @@ type CharacterContext struct {
 ```
 
 #### Auto-Assignment System
-Characters are automatically assigned to corporation and alliance groups when:
-1. **Authentication occurs**: During Character Context resolution
-2. **Profile updates**: When ESI data is refreshed
-3. **Scheduled sync**: Via system task `system-groups-sync` (every 6 hours)
+Characters are automatically assigned to corporation and alliance groups **only if their entities are enabled in Site Settings**:
+1. **Authentication occurs**: During Character Context resolution via middleware
+2. **Profile updates**: When ESI data is refreshed in auth service
+3. **Clean slate approach**: Previous entity group memberships are removed before adding new ones
 
 #### Group Auto-Creation
-Corporation and alliance groups are automatically created with naming convention:
-- Corporation groups: `Corp_{corporation_id}` (e.g., `Corp_98000001`)
-- Alliance groups: `Alliance_{alliance_id}` (e.g., `Alliance_99000001`)
+Corporation and alliance groups are automatically created with ticker-based naming convention:
+- Corporation groups: `corp_TICKER` (e.g., `corp_BRAVE`)
+- Alliance groups: `alliance_TICKER` (e.g., `alliance_BRAVE`)
+
+**Requirements for Auto-Creation:**
+- Entities must be added to Site Settings via `managed_corporations` or `managed_alliances`
+- Entities must be marked as `enabled: true`
+- Entities must have valid ticker information
+- Groups are only created when characters from enabled entities authenticate
 
 #### Scheduler Integration
 Added system task for automated group synchronization:

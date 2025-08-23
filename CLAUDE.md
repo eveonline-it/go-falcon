@@ -332,9 +332,10 @@ The super admin system now uses **group-based membership** instead of user profi
 
 - **First User Auto-Assignment**: The very first user to authenticate is automatically added to the "Super Administrator" group
 - **Group-Based Permissions**: Super admin status is determined by membership in the "Super Administrator" system group
+- **No Entity Groups for First User**: First user only gets system group assignment, no corporation/alliance groups until entities are configured
 - **No Configuration Required**: The `SUPER_ADMIN_CHARACTER_ID` environment variable is deprecated and no longer needed
 - **Database-Driven**: All super admin permissions are managed through the groups module
-- **Persistent**: Super admin status persists across sessions and is stored in the MongoDB groups collections
+- **Site Settings Control**: Corporation/alliance groups are only created when entities are enabled in site settings
 
 **Migration**: Existing super admins will need to be manually added to the "Super Administrator" group via the groups API or by clearing the database to trigger first-user assignment.
 

@@ -91,6 +91,7 @@ type SiteSettingsHealthResponse struct {
 type ManagedCorporation struct {
 	CorporationID int64     `json:"corporation_id" description:"EVE Online corporation ID"`
 	Name          string    `json:"name" description:"Corporation name"`
+	Ticker        string    `json:"ticker" description:"Corporation ticker"`
 	Enabled       bool      `json:"enabled" description:"Whether the corporation is enabled"`
 	Position      int       `json:"position" description:"Display order position"`
 	AddedAt       time.Time `json:"added_at" description:"When the corporation was added"`
@@ -185,6 +186,7 @@ type ReorderCorporationsResponseBody struct {
 type ManagedAlliance struct {
 	AllianceID int64     `json:"alliance_id" description:"EVE Online alliance ID"`
 	Name       string    `json:"name" description:"Alliance name"`
+	Ticker     string    `json:"ticker" description:"Alliance ticker"`
 	Enabled    bool      `json:"enabled" description:"Whether the alliance is enabled"`
 	Position   int       `json:"position" description:"Display order position"`
 	AddedAt    time.Time `json:"added_at" description:"When the alliance was added"`

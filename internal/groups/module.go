@@ -30,23 +30,36 @@ type AuthModule interface {
 	GetAuthService() *authServices.AuthService // Auth service for character context resolution
 }
 
+// SiteSettingsService interface for site settings dependency
+type SiteSettingsService interface {
+	GetEnabledCorporations(ctx context.Context) ([]interface{}, error)
+	GetEnabledAlliances(ctx context.Context) ([]interface{}, error)
+}
+
 // NewModule creates a new groups module
-func NewModule(db *database.MongoDB, authModule AuthModule) (*Module, error) {
-	// Create service
-	service := services.NewService(db)
+func NewModule(db *database.MongoDB, authModule AuthModule, siteSettingsService services.SiteSettingsServiceInterface) (*Module, error) {
+	// Create service with site settings dependency
+	service := services.NewService(db, siteSettingsService)
 
-	// Get auth service for character context resolution
-	authService := authModule.GetAuthService()
-	if authService == nil {
-		return nil, fmt.Errorf("auth service is required for groups module")
-	}
+	var groupMiddleware *groupsMiddleware.AuthMiddleware
+	var routesModule *routes.Module
 	
-	// Create auth middleware with character context resolution
-	groupMiddleware := groupsMiddleware.NewAuthMiddleware(authService, service)
-	slog.Info("Groups module initialized with character context middleware")
+	if authModule != nil {
+		// Get auth service for character context resolution
+		authService := authModule.GetAuthService()
+		if authService == nil {
+			return nil, fmt.Errorf("auth service is required for groups module when auth module is provided")
+		}
+		
+		// Create auth middleware with character context resolution
+		groupMiddleware = groupsMiddleware.NewAuthMiddleware(authService, service)
+		slog.Info("Groups module initialized with character context middleware")
+	} else {
+		slog.Info("Groups module initialized without auth module (will be set later)")
+	}
 
-	// Create routes
-	routesModule := routes.NewModule(service, groupMiddleware)
+	// Create routes with the middleware (even if nil for now)
+	routesModule = routes.NewModule(service, groupMiddleware)
 
 	return &Module{
 		service:    service,
@@ -110,6 +123,27 @@ func (m *Module) GetService() *services.Service {
 // GetMiddleware returns the groups middleware for use by other modules
 func (m *Module) GetMiddleware() *groupsMiddleware.AuthMiddleware {
 	return m.middleware
+}
+
+// SetAuthModule updates the groups module with auth dependencies after initialization
+func (m *Module) SetAuthModule(authModule AuthModule) error {
+	if authModule == nil {
+		return fmt.Errorf("auth module cannot be nil")
+	}
+
+	authService := authModule.GetAuthService()
+	if authService == nil {
+		return fmt.Errorf("auth service is required")
+	}
+
+	// Create the auth middleware with character context resolution
+	m.middleware = groupsMiddleware.NewAuthMiddleware(authService, m.service)
+	
+	// Recreate routes with the new middleware
+	m.routes = routes.NewModule(m.service, m.middleware)
+	
+	slog.Info("Groups module updated with auth dependencies")
+	return nil
 }
 
 // Ensure Module implements the module.Module interface

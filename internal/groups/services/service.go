@@ -5,24 +5,35 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"go-falcon/internal/groups/dto"
 	"go-falcon/internal/groups/models"
+	siteSettingsModels "go-falcon/internal/site_settings/models"
 	"go-falcon/pkg/database"
 )
 
 // Service handles business logic for groups
 type Service struct {
-	repo *Repository
+	repo                *Repository
+	siteSettingsService SiteSettingsServiceInterface
+}
+
+// Interface to access site settings without circular dependency
+type SiteSettingsServiceInterface interface {
+	GetEnabledCorporations(ctx context.Context) ([]siteSettingsModels.ManagedCorporation, error)
+	GetEnabledAlliances(ctx context.Context) ([]siteSettingsModels.ManagedAlliance, error)
 }
 
 // NewService creates a new service instance
-func NewService(db *database.MongoDB) *Service {
+func NewService(db *database.MongoDB, siteSettingsService SiteSettingsServiceInterface) *Service {
 	return &Service{
-		repo: NewRepository(db),
+		repo:                NewRepository(db),
+		siteSettingsService: siteSettingsService,
 	}
 }
 
@@ -90,7 +101,6 @@ func (s *Service) CreateGroup(ctx context.Context, input *dto.CreateGroupInput, 
 		Description: input.Body.Description,
 		Type:        models.GroupType(input.Body.Type),
 		IsActive:    true,
-		CreatedBy:   &createdBy,
 	}
 
 	if err := s.repo.CreateGroup(ctx, group); err != nil {
@@ -511,7 +521,6 @@ func (s *Service) modelToOutput(group *models.Group, memberCount *int64) *dto.Gr
 			EVEEntityID: group.EVEEntityID,
 			IsActive:    group.IsActive,
 			MemberCount: memberCount,
-			CreatedBy:   group.CreatedBy,
 			CreatedAt:   group.CreatedAt,
 			UpdatedAt:   group.UpdatedAt,
 		},
@@ -528,7 +537,6 @@ func (s *Service) modelToGroupResponse(group *models.Group, memberCount *int64) 
 		EVEEntityID: group.EVEEntityID,
 		IsActive:    group.IsActive,
 		MemberCount: memberCount,
-		CreatedBy:   group.CreatedBy,
 		CreatedAt:   group.CreatedAt,
 		UpdatedAt:   group.UpdatedAt,
 	}
@@ -562,128 +570,7 @@ func (s *Service) membershipModelToGroupMembershipResponse(membership *models.Gr
 	}
 }
 
-// SyncCharacterGroups synchronizes a character's corporation and alliance group memberships
-func (s *Service) SyncCharacterGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64) error {
-	// Sync corporation groups
-	if corporationID != nil {
-		if err := s.syncCorporationGroups(ctx, characterID, *corporationID); err != nil {
-			return fmt.Errorf("failed to sync corporation groups: %w", err)
-		}
-	}
-	
-	// Sync alliance groups  
-	if allianceID != nil {
-		if err := s.syncAllianceGroups(ctx, characterID, *allianceID); err != nil {
-			return fmt.Errorf("failed to sync alliance groups: %w", err)
-		}
-	}
-	
-	return nil
-}
 
-// syncCorporationGroups ensures character is in corporation group and creates group if needed
-func (s *Service) syncCorporationGroups(ctx context.Context, characterID int64, corporationID int64) error {
-	// Find or create corporation group
-	group, err := s.findOrCreateEVEEntityGroup(ctx, corporationID, models.GroupTypeCorporation)
-	if err != nil {
-		return fmt.Errorf("failed to find/create corporation group: %w", err)
-	}
-	
-	// Check if character is already a member
-	membership, err := s.repo.GetMembership(ctx, group.ID, characterID)
-	if err != nil {
-		return fmt.Errorf("failed to check corporation membership: %w", err)
-	}
-	
-	// Add character to corporation group if not already a member
-	if membership == nil || !membership.IsActive {
-		err = s.repo.AddMembership(ctx, &models.GroupMembership{
-			GroupID:     group.ID,
-			CharacterID: characterID,
-			IsActive:    true,
-			AddedBy:     nil, // System-assigned
-		})
-		if err != nil {
-			return fmt.Errorf("failed to add character to corporation group: %w", err)
-		}
-	}
-	
-	return nil
-}
-
-// syncAllianceGroups ensures character is in alliance group and creates group if needed
-func (s *Service) syncAllianceGroups(ctx context.Context, characterID int64, allianceID int64) error {
-	// Find or create alliance group
-	group, err := s.findOrCreateEVEEntityGroup(ctx, allianceID, models.GroupTypeAlliance)
-	if err != nil {
-		return fmt.Errorf("failed to find/create alliance group: %w", err)
-	}
-	
-	// Check if character is already a member
-	membership, err := s.repo.GetMembership(ctx, group.ID, characterID)
-	if err != nil {
-		return fmt.Errorf("failed to check alliance membership: %w", err)
-	}
-	
-	// Add character to alliance group if not already a member
-	if membership == nil || !membership.IsActive {
-		err = s.repo.AddMembership(ctx, &models.GroupMembership{
-			GroupID:     group.ID,
-			CharacterID: characterID,
-			IsActive:    true,
-			AddedBy:     nil, // System-assigned
-		})
-		if err != nil {
-			return fmt.Errorf("failed to add character to alliance group: %w", err)
-		}
-	}
-	
-	return nil
-}
-
-// findOrCreateEVEEntityGroup finds existing or creates new corporation/alliance group
-func (s *Service) findOrCreateEVEEntityGroup(ctx context.Context, entityID int64, groupType models.GroupType) (*models.Group, error) {
-	// Try to find existing group
-	group, err := s.repo.GetGroupByEVEEntityID(ctx, entityID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to search for EVE entity group: %w", err)
-	}
-	
-	if group != nil {
-		return group, nil
-	}
-	
-	// Create new group for this EVE entity
-	var groupName string
-	var description string
-	
-	switch groupType {
-	case models.GroupTypeCorporation:
-		groupName = fmt.Sprintf("Corp_%d", entityID)
-		description = fmt.Sprintf("Corporation group for Corp ID: %d", entityID)
-	case models.GroupTypeAlliance:
-		groupName = fmt.Sprintf("Alliance_%d", entityID)
-		description = fmt.Sprintf("Alliance group for Alliance ID: %d", entityID)
-	default:
-		return nil, fmt.Errorf("unsupported group type: %s", groupType)
-	}
-	
-	newGroup := &models.Group{
-		Name:        groupName,
-		Description: description,
-		Type:        groupType,
-		EVEEntityID: &entityID,
-		IsActive:    true,
-		CreatedBy:   nil, // System-created
-	}
-	
-	err = s.repo.CreateGroup(ctx, newGroup)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create EVE entity group: %w", err)
-	}
-	
-	return newGroup, nil
-}
 
 // ValidateCharacterMemberships validates that a character is still in their corporation and alliance via ESI
 func (s *Service) ValidateCharacterMemberships(ctx context.Context, characterID int64) error {
@@ -768,4 +655,190 @@ func (s *Service) GetStatus(ctx context.Context) *dto.GroupsStatusResponse {
 		Module: "groups",
 		Status: "healthy",
 	}
+}
+
+// AutoJoinCharacterToEnabledGroups automatically joins character to corporation/alliance groups if enabled
+func (s *Service) AutoJoinCharacterToEnabledGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64) error {
+	slog.Debug("Auto-joining character to enabled groups", 
+		"character_id", characterID, 
+		"corporation_id", corporationID, 
+		"alliance_id", allianceID)
+
+	// Remove character from all existing corp/alliance groups first (clean slate approach)
+	if err := s.removeCharacterFromEntityGroups(ctx, characterID); err != nil {
+		slog.Error("Failed to remove character from existing entity groups", "character_id", characterID, "error", err)
+		// Continue anyway - don't fail the whole operation
+	}
+
+	// Get enabled entities from site settings
+	enabledCorps, err := s.siteSettingsService.GetEnabledCorporations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get enabled corporations: %w", err)
+	}
+
+	enabledAlliances, err := s.siteSettingsService.GetEnabledAlliances(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get enabled alliances: %w", err)
+	}
+	
+	slog.Debug("Auto-join: Retrieved enabled entities", 
+		"character_id", characterID, 
+		"enabled_corps_count", len(enabledCorps),
+		"enabled_alliances_count", len(enabledAlliances))
+
+	// Join corporation group if character's corp is enabled
+	if corporationID != nil {
+		for _, corp := range enabledCorps {
+			if corp.CorporationID == *corporationID {
+				if err := s.ensureCharacterInEntityGroup(ctx, characterID, "corp", corp.CorporationID, corp.Ticker, corp.Name); err != nil {
+					slog.Error("Failed to join character to corp group", 
+						"character_id", characterID, "corp_id", *corporationID, "error", err)
+				} else {
+					slog.Info("Auto-joined character to corporation group", 
+						"character_id", characterID, "corp_id", *corporationID, "ticker", corp.Ticker)
+				}
+				break
+			}
+		}
+	}
+
+	// Join alliance group if character's alliance is enabled
+	if allianceID != nil {
+		for _, alliance := range enabledAlliances {
+			if alliance.AllianceID == *allianceID {
+				if err := s.ensureCharacterInEntityGroup(ctx, characterID, "alliance", alliance.AllianceID, alliance.Ticker, alliance.Name); err != nil {
+					slog.Error("Failed to join character to alliance group", 
+						"character_id", characterID, "alliance_id", *allianceID, "error", err)
+				} else {
+					slog.Info("Auto-joined character to alliance group", 
+						"character_id", characterID, "alliance_id", *allianceID, "ticker", alliance.Ticker)
+				}
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// ensureCharacterInEntityGroup creates group if needed and adds character
+func (s *Service) ensureCharacterInEntityGroup(ctx context.Context, characterID int64, entityType string, entityID int64, ticker, name string) error {
+	// Validate that ticker is not empty - this prevents creating malformed groups
+	if ticker == "" {
+		slog.Error("Cannot create entity group with empty ticker", 
+			"character_id", characterID, "entity_type", entityType, "entity_id", entityID, "name", name)
+		return fmt.Errorf("ticker is required for entity group creation")
+	}
+	
+	// Create or get group with new naming convention: corp_TICKER or alliance_TICKER
+	groupName := fmt.Sprintf("%s_%s", entityType, strings.ToUpper(ticker))
+	
+	group, err := s.createOrUpdateEntityGroup(ctx, groupName, entityType, entityID, ticker, name)
+	if err != nil {
+		return fmt.Errorf("failed to create/update entity group: %w", err)
+	}
+
+	// Add character to group (upsert - won't duplicate if already exists)
+	return s.addMemberToGroup(ctx, group.ID, characterID)
+}
+
+// createOrUpdateEntityGroup creates or updates entity group with new naming convention
+func (s *Service) createOrUpdateEntityGroup(ctx context.Context, groupName, entityType string, entityID int64, ticker, name string) (*models.Group, error) {
+	// Check if group exists by EVE entity ID
+	existing, err := s.repo.GetGroupByEVEEntityID(ctx, entityID)
+	if err != nil {
+		return nil, err
+	}
+
+	groupType := models.GroupTypeCorporation
+	if entityType == "alliance" {
+		groupType = models.GroupTypeAlliance
+	}
+
+	if existing != nil {
+		// Update existing group if name/ticker changed
+		needsUpdate := false
+		if existing.Name != groupName {
+			existing.Name = groupName
+			needsUpdate = true
+		}
+		if existing.EVEEntityTicker == nil || *existing.EVEEntityTicker != ticker {
+			existing.EVEEntityTicker = &ticker
+			needsUpdate = true
+		}
+		if existing.EVEEntityName == nil || *existing.EVEEntityName != name {
+			existing.EVEEntityName = &name
+			needsUpdate = true
+		}
+
+		if needsUpdate {
+			update := bson.M{
+				"name":               existing.Name,
+				"eve_entity_ticker":  existing.EVEEntityTicker,
+				"eve_entity_name":    existing.EVEEntityName,
+			}
+			if err := s.repo.UpdateGroup(ctx, existing.ID, update); err != nil {
+				return nil, fmt.Errorf("failed to update group: %w", err)
+			}
+			slog.Info("Updated entity group", "group_name", groupName, "entity_id", entityID)
+		}
+
+		return existing, nil
+	}
+
+	// Create new group
+	group := &models.Group{
+		Name:            groupName,
+		Description:     fmt.Sprintf("Auto-generated group for %s %s (%s)", entityType, name, ticker),
+		Type:            groupType,
+		EVEEntityID:     &entityID,
+		EVEEntityTicker: &ticker,
+		EVEEntityName:   &name,
+		IsActive:        true,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	if err := s.repo.CreateGroup(ctx, group); err != nil {
+		return nil, fmt.Errorf("failed to create group: %w", err)
+	}
+
+	slog.Info("Created new entity group", "group_name", groupName, "entity_id", entityID)
+	return group, nil
+}
+
+// removeCharacterFromEntityGroups removes character from all corp/alliance groups
+func (s *Service) removeCharacterFromEntityGroups(ctx context.Context, characterID int64) error {
+	// Get all corp/alliance groups the character belongs to
+	filter := bson.M{
+		"type": bson.M{"$in": []string{string(models.GroupTypeCorporation), string(models.GroupTypeAlliance)}},
+	}
+	groups, err := s.repo.GetCharacterGroups(ctx, characterID, filter)
+	if err != nil {
+		return fmt.Errorf("failed to get character entity groups: %w", err)
+	}
+
+	// Remove from each corp/alliance group
+	for _, group := range groups {
+		if err := s.repo.RemoveMembership(ctx, group.ID, characterID); err != nil {
+			slog.Error("Failed to remove character from entity group", 
+				"character_id", characterID, "group_id", group.ID.Hex(), "error", err)
+			// Continue with other groups
+		}
+	}
+
+	return nil
+}
+
+// addMemberToGroup adds character to group (helper method)
+func (s *Service) addMemberToGroup(ctx context.Context, groupID primitive.ObjectID, characterID int64) error {
+	membership := &models.GroupMembership{
+		GroupID:     groupID,
+		CharacterID: characterID,
+		IsActive:    true,
+		AddedAt:     time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	return s.repo.AddMembership(ctx, membership)
 }

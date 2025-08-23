@@ -19,15 +19,19 @@ const (
 // Group represents a group in the system
 type Group struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name         string             `bson:"name" json:"name"`
+	Name         string             `bson:"name" json:"name"`                    // Now: corp_TICKER or alliance_TICKER format
 	Description  string             `bson:"description,omitempty" json:"description"`
 	Type         GroupType          `bson:"type" json:"type"`
 	SystemName   *string            `bson:"system_name,omitempty" json:"system_name"` // For system groups: "super_admin", "authenticated", "guest"
-	EVEEntityID  *int64             `bson:"eve_entity_id,omitempty" json:"eve_entity_id"` // Corporation/Alliance ID
-	IsActive     bool               `bson:"is_active" json:"is_active"`
-	CreatedBy    *int64             `bson:"created_by,omitempty" json:"created_by"` // Character ID
-	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt    time.Time          `bson:"updated_at" json:"updated_at"`
+	
+	// EVE Entity fields (for corp/alliance groups)
+	EVEEntityID     *int64  `bson:"eve_entity_id,omitempty" json:"eve_entity_id"`         // Corporation/Alliance ID
+	EVEEntityTicker *string `bson:"eve_entity_ticker,omitempty" json:"eve_entity_ticker"` // Corporation/Alliance ticker
+	EVEEntityName   *string `bson:"eve_entity_name,omitempty" json:"eve_entity_name"`     // Corporation/Alliance full name
+	
+	IsActive     bool      `bson:"is_active" json:"is_active"`
+	CreatedAt    time.Time `bson:"created_at" json:"created_at"`
+	UpdatedAt    time.Time `bson:"updated_at" json:"updated_at"`
 }
 
 // GroupMembership represents a character's membership in a group

@@ -110,6 +110,7 @@ var SettingCategories = []string{
 type ManagedCorporation struct {
 	CorporationID int64     `bson:"corporation_id" json:"corporation_id"`
 	Name          string    `bson:"name" json:"name"`
+	Ticker        string    `bson:"ticker" json:"ticker"`           // NEW: Corporation ticker
 	Enabled       bool      `bson:"enabled" json:"enabled"`
 	Position      int       `bson:"position" json:"position"`
 	AddedAt       time.Time `bson:"added_at" json:"added_at"`
@@ -127,6 +128,7 @@ type ManagedCorporationsValue struct {
 type ManagedAlliance struct {
 	AllianceID int64     `bson:"alliance_id" json:"alliance_id"`
 	Name       string    `bson:"name" json:"name"`
+	Ticker     string    `bson:"ticker" json:"ticker"`             // NEW: Alliance ticker
 	Enabled    bool      `bson:"enabled" json:"enabled"`
 	Position   int       `bson:"position" json:"position"`
 	AddedAt    time.Time `bson:"added_at" json:"added_at"`

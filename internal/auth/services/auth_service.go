@@ -32,6 +32,7 @@ type AuthService struct {
 type GroupsService interface {
 	EnsureFirstUserSuperAdmin(ctx context.Context, characterID int64) error
 	IsCharacterInGroup(ctx context.Context, characterID int64, groupName string) (bool, error)
+	AutoJoinCharacterToEnabledGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64) error
 }
 
 // NewAuthService creates a new auth service with all dependencies
@@ -48,7 +49,7 @@ func NewAuthService(mongodb *database.MongoDB, esiClient *evegateway.Client) *Au
 	}
 }
 
-// SetGroupsService sets the groups service after initialization to avoid circular dependency
+// SetGroupsService sets the groups service dependency (called after groups module initialization)
 func (s *AuthService) SetGroupsService(groupsService GroupsService) {
 	s.groupsService = groupsService
 }
@@ -353,6 +354,27 @@ func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, sta
 			// Log error but don't fail the authentication process
 			slog.Error("Failed to ensure first user super admin", "error", err, "character_id", profile.CharacterID)
 		}
+		
+		// Auto-join character to enabled corporation/alliance groups
+		corpID := (*int64)(nil)
+		allianceID := (*int64)(nil)
+		
+		if profile.CorporationID != 0 {
+			corpIDInt64 := int64(profile.CorporationID)
+			corpID = &corpIDInt64
+		}
+		if profile.AllianceID != 0 {
+			allianceIDInt64 := int64(profile.AllianceID)
+			allianceID = &allianceIDInt64
+		}
+		
+		if err := s.groupsService.AutoJoinCharacterToEnabledGroups(ctx, int64(profile.CharacterID), corpID, allianceID); err != nil {
+			// Log error but don't fail authentication
+			slog.Error("Failed to auto-join character to enabled groups", 
+				"error", err, "character_id", profile.CharacterID, "corp_id", corpID, "alliance_id", allianceID)
+		} else {
+			slog.Info("Auto-joined character to enabled groups", "character_id", profile.CharacterID)
+		}
 	}
 
 	// Generate JWT token
@@ -428,6 +450,29 @@ func (s *AuthService) RefreshUserProfile(ctx context.Context, characterID int) (
 	profile, err := s.profileService.RefreshProfile(ctx, characterID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh profile: %w", err)
+	}
+
+	// Re-sync group memberships after profile refresh (in case corp/alliance changed)
+	if s.groupsService != nil {
+		corpID := (*int64)(nil)
+		allianceID := (*int64)(nil)
+		
+		if profile.CorporationID != 0 {
+			corpIDInt64 := int64(profile.CorporationID)
+			corpID = &corpIDInt64
+		}
+		if profile.AllianceID != 0 {
+			allianceIDInt64 := int64(profile.AllianceID)
+			allianceID = &allianceIDInt64
+		}
+		
+		if err := s.groupsService.AutoJoinCharacterToEnabledGroups(ctx, int64(profile.CharacterID), corpID, allianceID); err != nil {
+			// Log error but don't fail profile refresh
+			slog.Error("Failed to re-sync character groups after profile refresh", 
+				"error", err, "character_id", profile.CharacterID, "corp_id", corpID, "alliance_id", allianceID)
+		} else {
+			slog.Debug("Re-synced character groups after profile refresh", "character_id", profile.CharacterID)
+		}
 	}
 
 	return s.profileToDTO(profile), nil
