@@ -196,6 +196,29 @@ GET /groups/{group_id}/members?is_active=true&page=1&limit=20
 Authorization: Bearer <token> | Cookie: falcon_auth_token
 ```
 
+**Response includes character names:**
+```json
+{
+  "body": {
+    "members": [
+      {
+        "id": "membership_id",
+        "group_id": "group_id",
+        "character_id": 123456789,
+        "character_name": "Character Name",
+        "is_active": true,
+        "added_by": 987654321,
+        "added_at": "2025-01-10T12:00:00Z",
+        "updated_at": "2025-01-10T12:00:00Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  }
+}
+```
+
 #### Check Membership
 ```
 GET /groups/{group_id}/members/{character_id}

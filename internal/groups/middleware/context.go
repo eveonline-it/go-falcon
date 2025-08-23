@@ -167,8 +167,8 @@ func (m *CharacterContextMiddleware) enrichWithGroupMemberships(ctx context.Cont
 	}
 	
 	// Extract group names
-	groupNames := make([]string, 0, len(groups.Groups))
-	for _, group := range groups.Groups {
+	groupNames := make([]string, 0, len(groups.Body.Groups))
+	for _, group := range groups.Body.Groups {
 		groupNames = append(groupNames, group.Name)
 	}
 	

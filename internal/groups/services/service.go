@@ -150,9 +150,9 @@ func (s *Service) ListGroups(ctx context.Context, input *dto.ListGroupsInput) (*
 	}
 
 	// Convert to output
-	outputs := make([]dto.GroupOutput, len(groups))
+	outputs := make([]dto.GroupResponse, len(groups))
 	for i, group := range groups {
-		outputs[i] = *s.modelToOutput(&group, nil)
+		outputs[i] = *s.modelToGroupResponse(&group, nil)
 	}
 
 	return &dto.ListGroupsOutput{
@@ -255,7 +255,9 @@ func (s *Service) DeleteGroup(ctx context.Context, input *dto.DeleteGroupInput) 
 	}
 
 	return &dto.SuccessOutput{
-		Message: "Group deleted successfully",
+		Body: dto.SuccessResponse{
+			Message: "Group deleted successfully",
+		},
 	}, nil
 }
 
@@ -325,7 +327,9 @@ func (s *Service) RemoveMember(ctx context.Context, input *dto.RemoveMemberInput
 	}
 
 	return &dto.SuccessOutput{
-		Message: "Member removed successfully",
+		Body: dto.SuccessResponse{
+			Message: "Member removed successfully",
+		},
 	}, nil
 }
 
@@ -364,17 +368,44 @@ func (s *Service) ListMembers(ctx context.Context, input *dto.ListMembersInput) 
 		return nil, fmt.Errorf("failed to list memberships: %w", err)
 	}
 
-	// Convert to output
-	outputs := make([]dto.GroupMembershipOutput, len(memberships))
+	// Collect character IDs to fetch names
+	characterIDs := make([]int64, len(memberships))
 	for i, membership := range memberships {
-		outputs[i] = *s.membershipModelToOutput(&membership)
+		characterIDs[i] = membership.CharacterID
+	}
+
+	// Fetch character names
+	characterNames, err := s.repo.GetCharacterNames(ctx, characterIDs)
+	if err != nil {
+		// Log error but continue without names
+		slog.ErrorContext(ctx, "Failed to fetch character names", "error", err, "character_ids", characterIDs)
+		characterNames = make(map[int64]string)
+	} else {
+		slog.InfoContext(ctx, "Fetched character names", "count", len(characterNames), "names", characterNames)
+	}
+
+	// Convert to output with character names
+	outputs := make([]dto.GroupMembershipResponse, len(memberships))
+	for i, membership := range memberships {
+		response := s.membershipModelToGroupMembershipResponse(&membership)
+		// Add character name if found
+		if name, ok := characterNames[membership.CharacterID]; ok {
+			response.CharacterName = name
+			slog.InfoContext(ctx, "Added character name", "character_id", membership.CharacterID, "name", name)
+		} else {
+			response.CharacterName = fmt.Sprintf("Unknown (%d)", membership.CharacterID)
+			slog.WarnContext(ctx, "Character name not found", "character_id", membership.CharacterID)
+		}
+		outputs[i] = *response
 	}
 
 	return &dto.ListMembersOutput{
-		Members: outputs,
-		Total:   total,
-		Page:    page,
-		Limit:   limit,
+		Body: dto.ListMembersResponse{
+			Members: outputs,
+			Total:   total,
+			Page:    page,
+			Limit:   limit,
+		},
 	}, nil
 }
 
@@ -397,15 +428,19 @@ func (s *Service) CheckMembership(ctx context.Context, input *dto.CheckMembershi
 
 	if membership == nil {
 		return &dto.MembershipCheckOutput{
-			IsMember: false,
-			IsActive: false,
+			Body: dto.MembershipCheckResponse{
+				IsMember: false,
+				IsActive: false,
+			},
 		}, nil
 	}
 
 	return &dto.MembershipCheckOutput{
-		IsMember: true,
-		IsActive: membership.IsActive,
-		AddedAt:  &membership.AddedAt,
+		Body: dto.MembershipCheckResponse{
+			IsMember: true,
+			IsActive: membership.IsActive,
+			AddedAt:  &membership.AddedAt,
+		},
 	}, nil
 }
 
@@ -430,14 +465,16 @@ func (s *Service) GetCharacterGroups(ctx context.Context, input *dto.GetCharacte
 	}
 
 	// Convert to output
-	outputs := make([]dto.GroupOutput, len(groups))
+	outputs := make([]dto.GroupResponse, len(groups))
 	for i, group := range groups {
-		outputs[i] = *s.modelToOutput(&group, nil)
+		outputs[i] = *s.modelToGroupResponse(&group, nil)
 	}
 
 	return &dto.CharacterGroupsOutput{
-		Groups: outputs,
-		Total:  int64(len(groups)),
+		Body: dto.CharacterGroupsResponse{
+			Groups: outputs,
+			Total:  int64(len(groups)),
+		},
 	}, nil
 }
 
@@ -465,6 +502,24 @@ func (s *Service) IsCharacterInGroup(ctx context.Context, characterID int64, gro
 
 func (s *Service) modelToOutput(group *models.Group, memberCount *int64) *dto.GroupOutput {
 	return &dto.GroupOutput{
+		Body: dto.GroupResponse{
+			ID:          group.ID.Hex(),
+			Name:        group.Name,
+			Description: group.Description,
+			Type:        string(group.Type),
+			SystemName:  group.SystemName,
+			EVEEntityID: group.EVEEntityID,
+			IsActive:    group.IsActive,
+			MemberCount: memberCount,
+			CreatedBy:   group.CreatedBy,
+			CreatedAt:   group.CreatedAt,
+			UpdatedAt:   group.UpdatedAt,
+		},
+	}
+}
+
+func (s *Service) modelToGroupResponse(group *models.Group, memberCount *int64) *dto.GroupResponse {
+	return &dto.GroupResponse{
 		ID:          group.ID.Hex(),
 		Name:        group.Name,
 		Description: group.Description,
@@ -481,13 +536,29 @@ func (s *Service) modelToOutput(group *models.Group, memberCount *int64) *dto.Gr
 
 func (s *Service) membershipModelToOutput(membership *models.GroupMembership) *dto.GroupMembershipOutput {
 	return &dto.GroupMembershipOutput{
-		ID:          membership.ID.Hex(),
-		GroupID:     membership.GroupID.Hex(),
-		CharacterID: membership.CharacterID,
-		IsActive:    membership.IsActive,
-		AddedBy:     membership.AddedBy,
-		AddedAt:     membership.AddedAt,
-		UpdatedAt:   membership.UpdatedAt,
+		Body: dto.GroupMembershipResponse{
+			ID:            membership.ID.Hex(),
+			GroupID:       membership.GroupID.Hex(),
+			CharacterID:   membership.CharacterID,
+			CharacterName: "", // Will be populated by the caller if needed
+			IsActive:      membership.IsActive,
+			AddedBy:       membership.AddedBy,
+			AddedAt:       membership.AddedAt,
+			UpdatedAt:     membership.UpdatedAt,
+		},
+	}
+}
+
+func (s *Service) membershipModelToGroupMembershipResponse(membership *models.GroupMembership) *dto.GroupMembershipResponse {
+	return &dto.GroupMembershipResponse{
+		ID:            membership.ID.Hex(),
+		GroupID:       membership.GroupID.Hex(),
+		CharacterID:   membership.CharacterID,
+		CharacterName: "", // Will be populated by the caller
+		IsActive:      membership.IsActive,
+		AddedBy:       membership.AddedBy,
+		AddedAt:       membership.AddedAt,
+		UpdatedAt:     membership.UpdatedAt,
 	}
 }
 

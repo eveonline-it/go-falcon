@@ -218,6 +218,7 @@ In-memory SDE (Static Data Export) service:
 | **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md) | EVE SSO integration, JWT management, user profiles |
 | **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution, character/corporation/alliance automated updates |
 | **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User management and profile operations |
+| **Groups** | [`internal/groups/CLAUDE.md`](internal/groups/CLAUDE.md) | Group and role-based access control, character name resolution |
 | **Character** | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md) | Character information, portraits, background affiliation updates |
 | **Corporation** | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management, automated ESI updates |
 | **Alliance** | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md) | Alliance information, member corporations, relationship data |

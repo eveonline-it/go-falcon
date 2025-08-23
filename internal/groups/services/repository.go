@@ -19,6 +19,7 @@ type Repository struct {
 	db                    *database.MongoDB
 	groupsCollection      *mongo.Collection
 	membershipsCollection *mongo.Collection
+	charactersCollection  *mongo.Collection
 }
 
 // NewRepository creates a new repository instance
@@ -27,6 +28,7 @@ func NewRepository(db *database.MongoDB) *Repository {
 		db:                    db,
 		groupsCollection:      db.Database.Collection(models.GroupsCollection),
 		membershipsCollection: db.Database.Collection(models.MembershipsCollection),
+		charactersCollection:  db.Database.Collection("characters"),
 	}
 }
 
@@ -387,4 +389,39 @@ func (r *Repository) GetGroupMemberCount(ctx context.Context, groupID primitive.
 func (r *Repository) CheckHealth(ctx context.Context) error {
 	// Perform a simple ping to check database connectivity
 	return r.db.Client.Ping(ctx, nil)
+}
+
+// GetCharacterNames fetches character names for a list of character IDs
+func (r *Repository) GetCharacterNames(ctx context.Context, characterIDs []int64) (map[int64]string, error) {
+	// Build filter for character IDs
+	filter := bson.M{
+		"character_id": bson.M{"$in": characterIDs},
+	}
+
+	// Query only the fields we need
+	projection := bson.M{
+		"character_id": 1,
+		"name":         1,
+	}
+
+	cursor, err := r.charactersCollection.Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, fmt.Errorf("failed to query characters: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	// Build the map of character_id -> name
+	names := make(map[int64]string)
+	for cursor.Next(ctx) {
+		var char struct {
+			CharacterID int64  `bson:"character_id"`
+			Name        string `bson:"name"`
+		}
+		if err := cursor.Decode(&char); err != nil {
+			continue // Skip characters we can't decode
+		}
+		names[char.CharacterID] = char.Name
+	}
+
+	return names, nil
 }
