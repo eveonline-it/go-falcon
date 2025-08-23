@@ -164,11 +164,11 @@ type AddAllianceInput struct {
 	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
 	Body          struct {
-		AllianceID int64  `json:"alliance_id" required:"true" description:"EVE Online alliance ID"`
-		Name       string `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Alliance name"`
-		Ticker     string `json:"ticker" minLength:"1" maxLength:"10" required:"true" description:"Alliance ticker"`
-		Enabled    *bool  `json:"enabled" description:"Whether the alliance should be enabled (defaults to true)"`
-		Position   *int   `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
+		AllianceID int64   `json:"alliance_id" required:"true" description:"EVE Online alliance ID"`
+		Name       string  `json:"name" minLength:"1" maxLength:"100" required:"true" description:"Alliance name"`
+		Ticker     *string `json:"ticker" minLength:"1" maxLength:"10" description:"Alliance ticker (fetched from database if not provided)"`
+		Enabled    *bool   `json:"enabled" description:"Whether the alliance should be enabled (defaults to true)"`
+		Position   *int    `json:"position" minimum:"1" description:"Display position (auto-assigned if not provided)"`
 	}
 }
 

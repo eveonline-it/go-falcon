@@ -711,11 +711,27 @@ func (s *Service) AddManagedAlliance(ctx context.Context, input *dto.AddAlliance
 		}
 	}
 
+	// Handle ticker - fetch from database if not provided
+	var ticker string
+	if input.Body.Ticker != nil && *input.Body.Ticker != "" {
+		ticker = *input.Body.Ticker
+	} else {
+		// Try to fetch ticker from alliances collection
+		fetchedTicker, err := s.repo.GetAllianceTicker(ctx, input.Body.AllianceID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch alliance ticker: %w", err)
+		}
+		if fetchedTicker == "" {
+			return nil, fmt.Errorf("alliance ticker not found in database and not provided in request")
+		}
+		ticker = fetchedTicker
+	}
+
 	now := time.Now()
 	newAlliance := dto.ManagedAlliance{
 		AllianceID: input.Body.AllianceID,
 		Name:       input.Body.Name,
-		Ticker:     input.Body.Ticker,
+		Ticker:     ticker,
 		Enabled:    enabled,
 		Position:   position,
 		AddedAt:    now,

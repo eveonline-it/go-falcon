@@ -153,7 +153,7 @@ The module stores managed alliances in a special site setting with key `"managed
 **Alliance Fields:**
 - `alliance_id` (int64): EVE Online alliance ID
 - `name` (string): Alliance name
-- `ticker` (string): **REQUIRED** - Alliance ticker used for group naming (e.g., `alliance_EXAMP`)
+- `ticker` (string): **REQUIRED** - Alliance ticker used for group naming (e.g., `alliance_EXAMP`). Auto-fetched from database if not provided in API request
 - `enabled` (boolean): Whether the alliance is enabled
 - `position` (int): Display order position for frontend sorting
 - `added_at` (timestamp): When the alliance was first added
@@ -493,11 +493,13 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
 {
   "alliance_id": 99000001,
   "name": "Example Alliance",
+  "ticker": "EXAM",
   "enabled": true,
   "position": 3
 }
 ```
 **Fields:**
+- `ticker` (optional): Alliance ticker. If not provided, automatically fetched from alliances database
 - `position` (optional): Display position (auto-assigned if not provided)
 
 **Response:**

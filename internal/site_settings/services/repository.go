@@ -253,3 +253,22 @@ func (r *Repository) List(ctx context.Context, category string, isPublic, isActi
 
 	return settings, nil
 }
+
+// GetAllianceTicker fetches alliance ticker from the alliances collection
+func (r *Repository) GetAllianceTicker(ctx context.Context, allianceID int64) (string, error) {
+	alliancesCollection := r.db.Collection("alliances")
+	
+	var result struct {
+		Ticker string `bson:"ticker"`
+	}
+	
+	err := alliancesCollection.FindOne(ctx, bson.M{"alliance_id": allianceID}).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return "", nil // Alliance not found
+		}
+		return "", err
+	}
+	
+	return result.Ticker, nil
+}
