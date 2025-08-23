@@ -30,6 +30,11 @@ type CharacterContext struct {
 	
 	// Groups this character belongs to (resolved)
 	GroupMemberships []string `json:"group_memberships,omitempty"`
+	
+	// Multi-character support - all characters under the same user_id
+	AllUserCharacterIDs []int64  `json:"all_user_character_ids,omitempty"`
+	AllCorporationIDs   []int64  `json:"all_corporation_ids,omitempty"`
+	AllAllianceIDs      []int64  `json:"all_alliance_ids,omitempty"`
 }
 
 // CharacterContextMiddleware provides character context resolution
@@ -80,13 +85,19 @@ func (m *CharacterContextMiddleware) ResolveCharacterContext(ctx context.Context
 		// Continue without profile enrichment
 	}
 	
-	// Resolve group memberships
+	// NEW: Fetch all characters for this user
+	if err := m.enrichWithAllUserCharacters(ctx, charContext); err != nil {
+		slog.Warn("Failed to enrich with all user characters", "user_id", charContext.UserID, "error", err)
+		// Continue without multi-character enrichment
+	}
+	
+	// Resolve group memberships (now checks all characters)
 	if err := m.enrichWithGroupMemberships(ctx, charContext); err != nil {
 		slog.Warn("Failed to enrich character context with group memberships", "character_id", charContext.CharacterID, "error", err)
 		// Continue without group membership enrichment
 	}
 	
-	// Check if character is super admin based on group membership
+	// Check if ANY character is super admin based on group membership
 	m.checkSuperAdminStatus(charContext)
 	
 	return charContext, nil
@@ -154,6 +165,57 @@ func (m *CharacterContextMiddleware) enrichWithProfile(ctx context.Context, char
 	return nil
 }
 
+// enrichWithAllUserCharacters fetches all characters for this user
+func (m *CharacterContextMiddleware) enrichWithAllUserCharacters(ctx context.Context, charContext *CharacterContext) error {
+	// Get all characters for this user
+	allProfiles, err := m.authService.GetAllCharactersByUserID(ctx, charContext.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to get all user characters: %w", err)
+	}
+	
+	// Collect unique character, corporation, and alliance IDs
+	characterIDSet := make(map[int64]bool)
+	corpIDSet := make(map[int64]bool)
+	allianceIDSet := make(map[int64]bool)
+	
+	for _, profile := range allProfiles {
+		characterIDSet[int64(profile.CharacterID)] = true
+		
+		if profile.CorporationID > 0 {
+			corpIDSet[int64(profile.CorporationID)] = true
+		}
+		
+		if profile.AllianceID > 0 {
+			allianceIDSet[int64(profile.AllianceID)] = true
+		}
+	}
+	
+	// Convert sets to slices
+	charContext.AllUserCharacterIDs = make([]int64, 0, len(characterIDSet))
+	for id := range characterIDSet {
+		charContext.AllUserCharacterIDs = append(charContext.AllUserCharacterIDs, id)
+	}
+	
+	charContext.AllCorporationIDs = make([]int64, 0, len(corpIDSet))
+	for id := range corpIDSet {
+		charContext.AllCorporationIDs = append(charContext.AllCorporationIDs, id)
+	}
+	
+	charContext.AllAllianceIDs = make([]int64, 0, len(allianceIDSet))
+	for id := range allianceIDSet {
+		charContext.AllAllianceIDs = append(charContext.AllAllianceIDs, id)
+	}
+	
+	slog.Debug("[CharacterContext] Enriched with all user characters",
+		"user_id", charContext.UserID,
+		"total_characters", len(charContext.AllUserCharacterIDs),
+		"character_ids", charContext.AllUserCharacterIDs,
+		"corporation_ids", charContext.AllCorporationIDs,
+		"alliance_ids", charContext.AllAllianceIDs)
+	
+	return nil
+}
+
 // enrichWithGroupMemberships resolves which groups this character belongs to
 func (m *CharacterContextMiddleware) enrichWithGroupMemberships(ctx context.Context, charContext *CharacterContext) error {
 	// Auto-join character to enabled corporation/alliance groups only
@@ -164,19 +226,40 @@ func (m *CharacterContextMiddleware) enrichWithGroupMemberships(ctx context.Cont
 		// Continue without auto-join - don't fail the entire request
 	}
 	
-	// Get groups for this character
-	groups, err := m.groupService.GetCharacterGroups(ctx, &dto.GetCharacterGroupsInput{
-		CharacterID: fmt.Sprintf("%d", charContext.CharacterID),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to get character groups: %w", err)
+	// Collect groups from ALL characters under this user
+	groupNameSet := make(map[string]bool)
+	
+	// Get groups for all user's characters
+	for _, characterID := range charContext.AllUserCharacterIDs {
+		groups, err := m.groupService.GetCharacterGroups(ctx, &dto.GetCharacterGroupsInput{
+			CharacterID: fmt.Sprintf("%d", characterID),
+		})
+		if err != nil {
+			slog.Warn("[CharacterContext] Failed to get groups for character",
+				"character_id", characterID,
+				"error", err)
+			// Continue with other characters
+			continue
+		}
+		
+		// Add all groups to the set
+		for _, group := range groups.Body.Groups {
+			groupNameSet[group.Name] = true
+		}
 	}
 	
-	// Extract group names
-	groupNames := make([]string, 0, len(groups.Body.Groups))
-	for _, group := range groups.Body.Groups {
-		groupNames = append(groupNames, group.Name)
+	// Convert set to slice
+	groupNames := make([]string, 0, len(groupNameSet))
+	for name := range groupNameSet {
+		groupNames = append(groupNames, name)
 	}
+	
+	slog.Debug("[CharacterContext] Retrieved aggregate group memberships",
+		"user_id", charContext.UserID,
+		"current_character_id", charContext.CharacterID,
+		"all_character_ids", charContext.AllUserCharacterIDs,
+		"groups", groupNames,
+		"group_count", len(groupNames))
 	
 	charContext.GroupMemberships = groupNames
 	return nil
@@ -187,6 +270,10 @@ func (m *CharacterContextMiddleware) checkSuperAdminStatus(charContext *Characte
 	for _, groupName := range charContext.GroupMemberships {
 		if groupName == "Super Administrator" {
 			charContext.IsSuperAdmin = true
+			slog.Info("[CharacterContext] User has super admin access via multi-character permissions",
+				"user_id", charContext.UserID,
+				"current_character_id", charContext.CharacterID,
+				"all_character_ids", charContext.AllUserCharacterIDs)
 			break
 		}
 	}

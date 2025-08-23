@@ -100,8 +100,20 @@ type CharacterContext struct {
     AllianceName    *string `json:"alliance_name,omitempty"`
     
     GroupMemberships []string `json:"group_memberships,omitempty"`
+    
+    // Multi-character support - all characters under the same user_id
+    AllUserCharacterIDs []int64  `json:"all_user_character_ids,omitempty"`
+    AllCorporationIDs   []int64  `json:"all_corporation_ids,omitempty"`
+    AllAllianceIDs      []int64  `json:"all_alliance_ids,omitempty"`
 }
 ```
+
+#### Multi-Character Permission System
+The groups module now supports multi-character permissions where users gain access based on ALL their characters:
+- **User-Based Resolution**: Permissions are evaluated across all characters belonging to the same user_id
+- **Aggregate Group Membership**: User has union of all groups from all their characters
+- **Super Admin Access**: User is super admin if ANY of their characters is in the Super Administrator group
+- **Corporation/Alliance Access**: User can access resources from any corporation/alliance their characters belong to
 
 #### Auto-Assignment System
 Characters are automatically assigned to corporation and alliance groups **only if their entities are enabled in Site Settings**:

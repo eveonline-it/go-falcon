@@ -100,18 +100,32 @@ func (m *Module) GetService() *services.Service {
 	return m.service
 }
 
+// SetDependencies sets both auth and groups service dependencies and recreates middleware
+func (m *Module) SetDependencies(authService *authServices.AuthService, groupsService *groupsServices.Service) {
+	if authService == nil || groupsService == nil {
+		slog.Error("Cannot set site settings dependencies - auth or groups service is nil")
+		return
+	}
+	
+	// Create the middleware with both dependencies
+	m.middleware = middleware.NewAuthMiddleware(authService, groupsService)
+	// Recreate routes with the new middleware
+	m.routes = routes.NewModule(m.service, m.middleware)
+	slog.Info("Site settings middleware and routes updated with auth and groups dependencies")
+}
+
 // SetAuthService sets the auth service dependency after module initialization
 func (m *Module) SetAuthService(authService *authServices.AuthService) {
-	// For now, just log that this was called
-	// TODO: Implement proper dependency injection for middleware recreation
-	slog.Info("Site settings auth service dependency set (middleware update needed)")
+	// This method is kept for backward compatibility but doesn't do anything
+	// The actual work is done in SetDependencies when both services are available
+	slog.Info("Site settings auth service dependency noted (waiting for groups service)")
 }
 
 // SetGroupsService sets the groups service dependency after module initialization
 func (m *Module) SetGroupsService(groupsService *groupsServices.Service) {
-	// For now, just log that this was called
-	// TODO: Implement proper dependency injection for middleware recreation
-	slog.Info("Site settings groups service dependency set (middleware update needed)")
+	// This method is kept for backward compatibility but doesn't do anything
+	// The actual work is done in SetDependencies when both services are available
+	slog.Info("Site settings groups service dependency noted (waiting for auth service)")
 }
 
 // Ensure Module implements the module.Module interface

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"go-falcon/internal/auth/models"
 	authServices "go-falcon/internal/auth/services"
@@ -60,8 +61,19 @@ func (m *AuthMiddleware) RequireGroupAccess(ctx context.Context, authHeader, coo
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 	
+	// Debug logging to help identify the issue
+	slog.Debug("[Groups Auth] Checking group access", 
+		"character_id", charContext.CharacterID,
+		"character_name", charContext.CharacterName,
+		"is_super_admin", charContext.IsSuperAdmin,
+		"group_memberships", charContext.GroupMemberships)
+	
 	// Check if user has super admin privileges
 	if !charContext.IsSuperAdmin {
+		slog.Warn("[Groups Auth] Access denied - not super admin",
+			"character_id", charContext.CharacterID,
+			"character_name", charContext.CharacterName,
+			"groups", charContext.GroupMemberships)
 		return nil, fmt.Errorf("admin access required for group management")
 	}
 	

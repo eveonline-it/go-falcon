@@ -152,6 +152,46 @@ func (r *Repository) GetUserProfileByUserID(ctx context.Context, userID string) 
 	return &profile, nil
 }
 
+// GetAllCharactersByUserID retrieves all user profiles for a given user ID
+func (r *Repository) GetAllCharactersByUserID(ctx context.Context, userID string) ([]*models.UserProfile, error) {
+	tracer := otel.Tracer("go-falcon/auth")
+	ctx, span := tracer.Start(ctx, "auth.repository.get_all_characters_by_user_id")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("service", "auth"),
+		attribute.String("operation", "get_all_characters_by_user_id"),
+		attribute.String("user_id", userID),
+	)
+
+	collection := r.mongodb.Collection("user_profiles")
+	
+	// Find all profiles with this user_id
+	cursor, err := collection.Find(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var profiles []*models.UserProfile
+	for cursor.Next(ctx) {
+		var profile models.UserProfile
+		if err := cursor.Decode(&profile); err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
+		profiles = append(profiles, &profile)
+	}
+
+	if err := cursor.Err(); err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	return profiles, nil
+}
+
 // GetExpiringTokens retrieves profiles with tokens expiring soon
 func (r *Repository) GetExpiringTokens(ctx context.Context, beforeTime time.Time, limit int) ([]models.UserProfile, error) {
 	tracer := otel.Tracer("go-falcon/auth")

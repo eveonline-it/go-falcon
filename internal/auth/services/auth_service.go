@@ -517,6 +517,12 @@ func (s *AuthService) RefreshExpiringTokens(ctx context.Context, batchSize int) 
 	return s.profileService.RefreshExpiringTokens(ctx, batchSize)
 }
 
+// GetAllCharactersByUserID retrieves all character profiles for a given user ID
+// Used by groups module for multi-character permission resolution
+func (s *AuthService) GetAllCharactersByUserID(ctx context.Context, userID string) ([]*models.UserProfile, error) {
+	return s.repository.GetAllCharactersByUserID(ctx, userID)
+}
+
 // CleanupExpiredStates removes expired OAuth states
 func (s *AuthService) CleanupExpiredStates(ctx context.Context) error {
 	return s.eveService.CleanupExpiredStates(ctx)

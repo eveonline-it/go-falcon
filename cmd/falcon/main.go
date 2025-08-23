@@ -181,8 +181,7 @@ func main() {
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	
 	// Update site settings with auth and groups services
-	siteSettingsModule.SetAuthService(authModule.GetAuthService())
-	siteSettingsModule.SetGroupsService(groupsModule.GetService())
+	siteSettingsModule.SetDependencies(authModule.GetAuthService(), groupsModule.GetService())
 	
 	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, siteSettingsModule)
 	
