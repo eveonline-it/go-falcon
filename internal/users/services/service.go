@@ -51,6 +51,11 @@ func (s *Service) ListCharacters(ctx context.Context, userID string) ([]dto.Char
 	return s.repository.ListCharacters(ctx, userID)
 }
 
+// ListUsers retrieves paginated and filtered users
+func (s *Service) ListUsers(ctx context.Context, input dto.UserListInput) (*dto.UserListResponse, error) {
+	return s.repository.ListUsers(ctx, input)
+}
+
 // UserToResponse converts a User model to UserResponse DTO
 func (s *Service) UserToResponse(user *models.User) *dto.UserResponse {
 	return &dto.UserResponse{

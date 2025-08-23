@@ -70,6 +70,22 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 	// Administrative endpoints (require authentication and permissions)
 
 	huma.Register(api, huma.Operation{
+		OperationID: "users-list-users",
+		Method:      "GET",
+		Path:        basePath,
+		Summary:     "List users",
+		Description: "List and search users with pagination and filtering",
+		Tags:        []string{"Users / Management"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.UserListInput) (*dto.UserListOutput, error) {
+		response, err := service.ListUsers(ctx, *input)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to list users", err)
+		}
+		return &dto.UserListOutput{Body: *response}, nil
+	})
+
+	huma.Register(api, huma.Operation{
 		OperationID: "users-get-user",
 		Method:      "GET",
 		Path:        basePath + "/mgt/{character_id}",
@@ -145,6 +161,7 @@ func (hr *Routes) registerRoutes() {
 	huma.Get(hr.api, "/stats", hr.getUserStats)
 
 	// Administrative endpoints (require authentication and permissions)
+	huma.Get(hr.api, "", hr.listUsers)
 	huma.Get(hr.api, "/mgt/{character_id}", hr.getUser)
 	huma.Put(hr.api, "/mgt/{character_id}", hr.updateUser)
 
@@ -168,6 +185,14 @@ func (hr *Routes) getUserStats(ctx context.Context, input *dto.UserStatsInput) (
 }
 
 // Administrative endpoint handlers
+
+func (hr *Routes) listUsers(ctx context.Context, input *dto.UserListInput) (*dto.UserListOutput, error) {
+	response, err := hr.service.ListUsers(ctx, *input)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to list users", err)
+	}
+	return &dto.UserListOutput{Body: *response}, nil
+}
 
 func (hr *Routes) getUser(ctx context.Context, input *dto.UserGetInput) (*dto.UserGetOutput, error) {
 	user, err := hr.service.GetUser(ctx, input.CharacterID)

@@ -107,11 +107,13 @@ GET /api/users?page=1&page_size=20&query=search&enabled=true&banned=false
 **Response:**
 ```json
 {
-  "users": [...],
-  "total": 1250,
-  "page": 1,
-  "page_size": 20,
-  "total_pages": 63
+  "body": {
+    "users": [...],
+    "total": 1250,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 63
+  }
 }
 ```
 

@@ -251,6 +251,139 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 	return characters, nil
 }
 
+// ListUsers retrieves paginated and filtered users
+func (r *Repository) ListUsers(ctx context.Context, input dto.UserListInput) (*dto.UserListResponse, error) {
+	collection := r.mongodb.Collection(models.User{}.CollectionName())
+	
+	// Build filter
+	filter := bson.M{}
+	
+	if input.Query != "" {
+		// Search by character name or character ID
+		query := input.Query
+		filter["$or"] = []bson.M{
+			{"character_name": bson.M{"$regex": query, "$options": "i"}},
+		}
+		
+		// If query is numeric, also search by character_id
+		if characterID := parseInt(query); characterID > 0 {
+			filter["$or"] = append(filter["$or"].([]bson.M), bson.M{"character_id": characterID})
+		}
+	}
+	
+	if input.Enabled == "true" {
+		filter["enabled"] = true
+	} else if input.Enabled == "false" {
+		filter["enabled"] = false
+	}
+	
+	if input.Banned == "true" {
+		filter["banned"] = true
+	} else if input.Banned == "false" {
+		filter["banned"] = false
+	}
+	
+	if input.Invalid == "true" {
+		filter["invalid"] = true
+	} else if input.Invalid == "false" {
+		filter["invalid"] = false
+	}
+	
+	if input.Position > 0 {
+		filter["position"] = input.Position
+	}
+	
+	// Build sort options
+	sortField := "created_at"
+	if input.SortBy != "" {
+		switch input.SortBy {
+		case "character_name", "created_at", "last_login", "position":
+			sortField = input.SortBy
+		}
+	}
+	
+	sortOrder := -1 // desc by default
+	if input.SortOrder == "asc" {
+		sortOrder = 1
+	}
+	
+	// Calculate pagination
+	skip := (input.Page - 1) * input.PageSize
+	
+	// Get total count
+	totalCount, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count users: %w", err)
+	}
+	
+	// Get users
+	findOptions := options.Find().
+		SetSkip(int64(skip)).
+		SetLimit(int64(input.PageSize)).
+		SetSort(bson.D{{sortField, sortOrder}})
+	
+	cursor, err := collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find users: %w", err)
+	}
+	defer cursor.Close(ctx)
+	
+	var users []dto.UserResponse
+	for cursor.Next(ctx) {
+		var user models.User
+		if err := cursor.Decode(&user); err != nil {
+			return nil, fmt.Errorf("failed to decode user: %w", err)
+		}
+		
+		users = append(users, dto.UserResponse{
+			CharacterID:   user.CharacterID,
+			UserID:        user.UserID,
+			Enabled:       user.Enabled,
+			Banned:        user.Banned,
+			Invalid:       user.Invalid,
+			Scopes:        user.Scopes,
+			Position:      user.Position,
+			Notes:         user.Notes,
+			CreatedAt:     user.CreatedAt,
+			UpdatedAt:     user.UpdatedAt,
+			LastLogin:     user.LastLogin,
+			CharacterName: user.CharacterName,
+			Valid:         user.Valid,
+		})
+	}
+	
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
+	}
+	
+	// Calculate total pages
+	totalPages := int((totalCount + int64(input.PageSize) - 1) / int64(input.PageSize))
+	
+	return &dto.UserListResponse{
+		Users:      users,
+		Total:      int(totalCount),
+		Page:       input.Page,
+		PageSize:   input.PageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+// parseInt safely converts string to int, returns 0 if invalid
+func parseInt(s string) int {
+	// Simple numeric check for character ID search
+	var result int
+	for _, char := range s {
+		if char < '0' || char > '9' {
+			return 0
+		}
+		result = result*10 + int(char-'0')
+		if result > 2147483647 { // int32 max
+			return 0
+		}
+	}
+	return result
+}
+
 // CheckHealth verifies database connectivity
 func (r *Repository) CheckHealth(ctx context.Context) error {
 	// Perform a simple ping to check database connectivity

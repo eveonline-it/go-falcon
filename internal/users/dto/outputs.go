@@ -56,6 +56,15 @@ type CharacterListResponse struct {
 	Count      int                        `json:"count"`
 }
 
+// UserListResponse represents paginated user listing response
+type UserListResponse struct {
+	Users      []UserResponse `json:"users"`
+	Total      int            `json:"total"`
+	Page       int            `json:"page"`
+	PageSize   int            `json:"page_size"`
+	TotalPages int            `json:"total_pages"`
+}
+
 // =============================================================================
 // HUMA OUTPUT DTOs (consolidated from huma_requests.go)
 // =============================================================================
@@ -78,6 +87,11 @@ type UserUpdateOutput struct {
 // UserCharactersOutput represents the output for getting user characters
 type UserCharactersOutput struct {
 	Body CharacterListResponse `json:"body"`
+}
+
+// UserListOutput represents the output for listing users with pagination
+type UserListOutput struct {
+	Body UserListResponse `json:"body"`
 }
 
 // StatusOutput represents the module status response
