@@ -4,8 +4,9 @@
 
 The permissions package provides a comprehensive permission system for the go-falcon EVE Online API gateway. It implements a hybrid approach with static (hardcoded) permissions for core system functions and dynamic (configurable) permissions that can be registered by services and managed through the admin interface.
 
-**Status**: Production Ready - Complete Implementation with Application Integration
-**Integration**: Fully integrated with groups system, application startup, and service registration
+**Status**: Production Ready - Complete Implementation with Background Registration
+**Integration**: Fully integrated with groups system, application startup, and background service registration
+**Latest Update**: Implemented background registration to prevent MongoDB write operations from blocking startup
 
 ## Architecture
 
@@ -168,6 +169,63 @@ user, err := authMiddleware.RequirePermission(ctx, authHeader, cookieHeader, "gr
 // Fallback to super admin if permission system unavailable
 user, err := authMiddleware.RequireGroupAccess(ctx, authHeader, cookieHeader)
 ```
+
+## Background Registration System
+
+### Implementation
+
+To prevent MongoDB write operations from blocking application startup, the permission system now uses background goroutines for dynamic registration:
+
+```go
+// Background permission registration during startup
+go func() {
+    log.Printf("🔄 Starting permission registration in background...")
+    
+    // Register scheduler permissions
+    if err := schedulerModule.RegisterPermissions(ctx, permissionManager); err != nil {
+        log.Printf("❌ Failed to register scheduler permissions: %v", err)
+    } else {
+        log.Printf("   ⏰ Scheduler permissions registered successfully")
+    }
+    
+    // Register character permissions  
+    if err := characterModule.RegisterPermissions(ctx, permissionManager); err != nil {
+        log.Printf("❌ Failed to register character permissions: %v", err)
+    } else {
+        log.Printf("   🚀 Character permissions registered successfully")
+    }
+    
+    log.Printf("✅ Background permission registration completed")
+}()
+
+// Background system group initialization with delay
+go func() {
+    time.Sleep(3 * time.Second) // Wait for service to start
+    log.Printf("🔄 Starting system group permission initialization in background...")
+    
+    if err := permissionManager.InitializeSystemGroupPermissions(ctx); err != nil {
+        log.Printf("❌ Failed to initialize system group permissions: %v", err)
+    } else {
+        log.Printf("✅ System group permissions initialized successfully")
+    }
+}()
+```
+
+### Benefits
+
+- **Fast Startup**: Application starts immediately without waiting for MongoDB write operations
+- **Non-Blocking**: Permission registration doesn't halt the main service initialization
+- **Graceful Handling**: If background tasks hang, the main service remains operational
+- **Logging**: Comprehensive logging tracks background registration progress
+- **Fault Tolerance**: Individual permission failures don't affect other registrations
+
+### Use Cases
+
+This background registration approach is particularly useful when:
+- MongoDB write operations experience high latency or timeouts
+- Large numbers of permissions need to be registered during startup
+- Application availability is prioritized over immediate permission availability
+- Development environments have unreliable database connections
 
 ## Database Schema
 

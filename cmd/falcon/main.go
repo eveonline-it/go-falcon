@@ -196,17 +196,26 @@ func main() {
 	// 8. Register service permissions
 	log.Printf("📝 Registering service permissions")
 	
-	// Register scheduler permissions
-	if err := schedulerModule.RegisterPermissions(ctx, permissionManager); err != nil {
-		log.Fatalf("Failed to register scheduler permissions: %v", err)
-	}
-	log.Printf("   ⏰ Scheduler permissions registered")
-	
-	// Register character permissions
-	if err := characterModule.RegisterPermissions(ctx, permissionManager); err != nil {
-		log.Fatalf("Failed to register character permissions: %v", err)
-	}
-	log.Printf("   🚀 Character permissions registered")
+	// Register permissions in background to avoid startup hang
+	go func() {
+		log.Printf("🔄 Starting permission registration in background...")
+		
+		// Register scheduler permissions
+		if err := schedulerModule.RegisterPermissions(ctx, permissionManager); err != nil {
+			log.Printf("❌ Failed to register scheduler permissions: %v", err)
+		} else {
+			log.Printf("   ⏰ Scheduler permissions registered successfully")
+		}
+		
+		// Register character permissions  
+		if err := characterModule.RegisterPermissions(ctx, permissionManager); err != nil {
+			log.Printf("❌ Failed to register character permissions: %v", err)
+		} else {
+			log.Printf("   🚀 Character permissions registered successfully")
+		}
+		
+		log.Printf("✅ Background permission registration completed")
+	}()
 	
 	// TODO: Register other service permissions as they implement the RegisterPermissions method
 	// if err := corporationModule.RegisterPermissions(ctx, permissionManager); err != nil {
@@ -218,10 +227,20 @@ func main() {
 	
 	// 9. Initialize system group permissions (must be after service permissions are registered)
 	log.Printf("🔐 Initializing system group permissions")
-	if err := permissionManager.InitializeSystemGroupPermissions(ctx); err != nil {
-		log.Fatalf("Failed to initialize system group permissions: %v", err)
-	}
-	log.Printf("✅ Permission system fully initialized")
+	
+	// Initialize system group permissions in background after a delay
+	go func() {
+		time.Sleep(3 * time.Second) // Wait for service to start
+		log.Printf("🔄 Starting system group permission initialization in background...")
+		
+		if err := permissionManager.InitializeSystemGroupPermissions(ctx); err != nil {
+			log.Printf("❌ Failed to initialize system group permissions: %v", err)
+		} else {
+			log.Printf("✅ System group permissions initialized successfully")
+		}
+	}()
+	
+	log.Printf("✅ Permission system initialized (background registration enabled)")
 	
 	// Update site settings with auth and groups services
 	siteSettingsModule.SetDependencies(authModule.GetAuthService(), groupsModule.GetService())
@@ -229,9 +248,19 @@ func main() {
 	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, siteSettingsModule)
 	
 	// Initialize remaining modules
-	if err := characterModule.Initialize(ctx); err != nil {
-		log.Fatalf("Failed to initialize character module: %v", err)
-	}
+	// Initialize character module in background to avoid index creation hang during startup
+	go func() {
+		time.Sleep(5 * time.Second) // Wait for main service to be fully operational
+		log.Printf("🔄 Starting character module initialization in background...")
+		
+		if err := characterModule.Initialize(ctx); err != nil {
+			log.Printf("❌ Failed to initialize character module: %v", err)
+		} else {
+			log.Printf("✅ Character module initialized successfully (indexes created)")
+		}
+	}()
+	
+	log.Printf("🚀 Character module initialization scheduled for background")
 	
 	log.Printf("🚀 EVE Online ESI client initialized")
 

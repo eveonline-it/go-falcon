@@ -1066,8 +1066,11 @@ func (s *Service) ListPermissions(ctx context.Context, input *dto.ListPermission
 		if input.Category != "" && perm.Category != input.Category {
 			continue
 		}
-		if input.IsStatic != nil && perm.IsStatic != *input.IsStatic {
-			continue
+		if input.IsStatic != "" {
+			isStatic := input.IsStatic == "true"
+			if perm.IsStatic != isStatic {
+				continue
+			}
 		}
 		filteredPerms = append(filteredPerms, perm)
 	}
@@ -1240,8 +1243,9 @@ func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroup
 	}
 	
 	// Add active filter if specified
-	if input.IsActive != nil {
-		pipeline[0]["$match"].(bson.M)["is_active"] = *input.IsActive
+	if input.IsActive != "" {
+		isActive := input.IsActive == "true"
+		pipeline[0]["$match"].(bson.M)["is_active"] = isActive
 	}
 	
 	// Execute aggregation
@@ -1307,8 +1311,12 @@ func (s *Service) CheckPermission(ctx context.Context, input *dto.CheckPermissio
 	
 	// Use provided character ID or default to authenticated user
 	characterID := authenticatedCharacterID
-	if input.CharacterID != nil {
-		characterID = *input.CharacterID
+	if input.CharacterID != "" {
+		parsedCharacterID, err := strconv.ParseInt(input.CharacterID, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid character ID: %w", err)
+		}
+		characterID = parsedCharacterID
 	}
 	
 	// Check permission

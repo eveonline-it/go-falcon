@@ -110,7 +110,7 @@ type ListPermissionsInput struct {
 	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
 	Service       string `query:"service" description:"Filter by service name"`
 	Category      string `query:"category" description:"Filter by permission category"`
-	IsStatic      *bool  `query:"is_static" description:"Filter by static/dynamic permissions"`
+	IsStatic      string `query:"is_static" enum:"true,false" description:"Filter by static/dynamic permissions"`
 }
 
 // GetPermissionInput represents the input for getting a specific permission
@@ -141,7 +141,7 @@ type ListGroupPermissionsInput struct {
 	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
 	GroupID       string `path:"group_id" required:"true" description:"Group ID"`
-	IsActive      *bool  `query:"is_active" description:"Filter by active/inactive permissions"`
+	IsActive      string `query:"is_active" enum:"true,false" description:"Filter by active/inactive permissions"`
 }
 
 // CheckPermissionInput represents the input for checking a specific permission
@@ -149,5 +149,5 @@ type CheckPermissionInput struct {
 	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
 	PermissionID  string `path:"permission_id" required:"true" description:"Permission ID to check"`
-	CharacterID   *int64 `query:"character_id" description:"Character ID to check (optional, defaults to authenticated user)"`
+	CharacterID   string `query:"character_id" description:"Character ID to check (optional, defaults to authenticated user)"`
 }

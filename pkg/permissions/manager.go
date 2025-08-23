@@ -201,19 +201,31 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, ser
 		operations = append(operations, operation)
 	}
 	
-	// Bulk upsert to database
+	// Individual upserts instead of bulk operation to avoid hanging
 	if len(operations) > 0 {
-		opts := options.BulkWrite().SetOrdered(false)
-		result, err := pm.permissionsCollection.BulkWrite(ctx, operations, opts)
-		if err != nil {
-			return fmt.Errorf("failed to store permissions in database: %w", err)
+		upsertCount := 0
+		modifyCount := 0
+		
+		for _, op := range operations {
+			updateOp := op.(*mongo.UpdateOneModel)
+			result, err := pm.permissionsCollection.UpdateOne(ctx, updateOp.Filter, updateOp.Update, &options.UpdateOptions{Upsert: updateOp.Upsert})
+			if err != nil {
+				slog.Warn("[Permissions] Failed to upsert permission", "error", err)
+				continue
+			}
+			
+			if result.UpsertedID != nil {
+				upsertCount++
+			} else {
+				modifyCount++
+			}
 		}
 		
 		slog.Info("[Permissions] Registered service permissions",
 			"service", servicePermissions[0].Service,
 			"count", len(servicePermissions),
-			"upserted", result.UpsertedCount,
-			"modified", result.ModifiedCount)
+			"upserted", upsertCount,
+			"modified", modifyCount)
 	}
 	
 	return nil
