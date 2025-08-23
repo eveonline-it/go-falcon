@@ -116,8 +116,10 @@ Corporation and alliance groups are automatically created with ticker-based nami
 **Requirements for Auto-Creation:**
 - Entities must be added to Site Settings via `managed_corporations` or `managed_alliances`
 - Entities must be marked as `enabled: true`
-- Entities must have valid ticker information
+- **Entities MUST have ticker field populated** (auto-assignment will fail silently without tickers)
 - Groups are only created when characters from enabled entities authenticate
+
+**Important:** If auto-assignment is not working, verify that corporations/alliances in site settings have the `ticker` field populated. The system validates ticker presence and will not create groups without valid tickers.
 
 #### Scheduler Integration
 Added system task for automated group synchronization:

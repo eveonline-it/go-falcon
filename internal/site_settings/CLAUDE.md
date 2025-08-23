@@ -90,6 +90,7 @@ The module stores managed corporations in a special site setting with key `"mana
       {
         "corporation_id": 98000001,
         "name": "Example Corporation",
+        "ticker": "EXAM",
         "enabled": true,
         "position": 1,
         "added_at": "2025-01-01T00:00:00Z",
@@ -108,6 +109,7 @@ The module stores managed corporations in a special site setting with key `"mana
 **Corporation Fields:**
 - `corporation_id` (int64): EVE Online corporation ID
 - `name` (string): Corporation name
+- `ticker` (string): **REQUIRED** - Corporation ticker used for group naming (e.g., `corp_EXAM`)
 - `enabled` (boolean): Whether the corporation is enabled
 - `position` (int): Display order position for frontend sorting
 - `added_at` (timestamp): When the corporation was first added
@@ -132,6 +134,7 @@ The module stores managed alliances in a special site setting with key `"managed
       {
         "alliance_id": 99000001,
         "name": "Example Alliance",
+        "ticker": "EXAMP",
         "enabled": true,
         "position": 1,
         "added_at": "2025-01-01T00:00:00Z",
@@ -150,6 +153,7 @@ The module stores managed alliances in a special site setting with key `"managed
 **Alliance Fields:**
 - `alliance_id` (int64): EVE Online alliance ID
 - `name` (string): Alliance name
+- `ticker` (string): **REQUIRED** - Alliance ticker used for group naming (e.g., `alliance_EXAMP`)
 - `enabled` (boolean): Whether the alliance is enabled
 - `position` (int): Display order position for frontend sorting
 - `added_at` (timestamp): When the alliance was first added
