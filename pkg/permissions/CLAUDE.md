@@ -174,7 +174,7 @@ user, err := authMiddleware.RequireGroupAccess(ctx, authHeader, cookieHeader)
 
 ### Implementation
 
-To prevent MongoDB write operations from blocking application startup, the permission system now uses background goroutines for dynamic registration:
+To prevent MongoDB write operations from blocking application startup and resolve mutex deadlock issues, the permission system now uses background goroutines for dynamic registration:
 
 ```go
 // Background permission registration during startup
@@ -218,6 +218,7 @@ go func() {
 - **Graceful Handling**: If background tasks hang, the main service remains operational
 - **Logging**: Comprehensive logging tracks background registration progress
 - **Fault Tolerance**: Individual permission failures don't affect other registrations
+- **Mutex Deadlock Prevention**: MongoDB operations are performed outside mutex locks to prevent blocking GetAllPermissions() calls
 
 ### Use Cases
 
@@ -226,6 +227,7 @@ This background registration approach is particularly useful when:
 - Large numbers of permissions need to be registered during startup
 - Application availability is prioritized over immediate permission availability
 - Development environments have unreliable database connections
+- Preventing mutex deadlocks between registration and permission retrieval operations
 
 ## Database Schema
 

@@ -170,10 +170,9 @@ func (pm *PermissionManager) loadStaticPermissions() {
 
 // RegisterServicePermissions registers permissions for a specific service
 func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, servicePermissions []Permission) error {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-	
+	// Phase 1: Validate and prepare operations WITHOUT holding the mutex
 	var operations []mongo.WriteModel
+	var validPermissions []Permission
 	
 	for _, perm := range servicePermissions {
 		// Validate permission structure
@@ -181,7 +180,7 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, ser
 			return fmt.Errorf("invalid permission %s: %w", perm.ID, err)
 		}
 		
-		// Prevent overriding static permissions
+		// Prevent overriding static permissions (read-only check, safe without mutex)
 		if pm.isStaticPermission(perm.ID) {
 			return fmt.Errorf("cannot register dynamic permission with static ID: %s", perm.ID)
 		}
@@ -191,8 +190,7 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, ser
 			perm.CreatedAt = time.Now()
 		}
 		
-		// Add to in-memory registry
-		pm.dynamicPermissions[perm.ID] = perm
+		validPermissions = append(validPermissions, perm)
 		
 		// Prepare database upsert
 		filter := bson.M{"_id": perm.ID}
@@ -201,11 +199,11 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, ser
 		operations = append(operations, operation)
 	}
 	
-	// Individual upserts instead of bulk operation to avoid hanging
+	// Phase 2: Do MongoDB operations WITHOUT holding the mutex (can hang safely)
+	upsertCount := 0
+	modifyCount := 0
+	
 	if len(operations) > 0 {
-		upsertCount := 0
-		modifyCount := 0
-		
 		for _, op := range operations {
 			updateOp := op.(*mongo.UpdateOneModel)
 			result, err := pm.permissionsCollection.UpdateOne(ctx, updateOp.Filter, updateOp.Update, &options.UpdateOptions{Upsert: updateOp.Upsert})
@@ -227,6 +225,13 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, ser
 			"upserted", upsertCount,
 			"modified", modifyCount)
 	}
+	
+	// Phase 3: Update in-memory registry ONLY after successful DB operations (brief lock)
+	pm.mu.Lock()
+	for _, perm := range validPermissions {
+		pm.dynamicPermissions[perm.ID] = perm
+	}
+	pm.mu.Unlock()
 	
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"go-falcon/internal/auth/models"
 	authServices "go-falcon/internal/auth/services"
@@ -65,40 +66,24 @@ func (m *CharacterContextMiddleware) ResolveCharacterContext(ctx context.Context
 	}
 	
 	// Validate JWT token and get basic user info
-	var user *models.AuthenticatedUser
 	user, err := m.authService.ValidateJWT(token)
 	if err != nil {
 		return nil, fmt.Errorf("invalid JWT token: %w", err)
 	}
 	
-	// Create character context
+	// Create character context with basic information
 	charContext := &CharacterContext{
-		UserID:        user.UserID,
-		CharacterID:   int64(user.CharacterID),
-		CharacterName: user.CharacterName,
-		IsSuperAdmin:  false, // Will be determined from profile or group membership
+		UserID:              user.UserID,
+		CharacterID:         int64(user.CharacterID),
+		CharacterName:       user.CharacterName,
+		IsSuperAdmin:        false,
+		AllUserCharacterIDs: []int64{int64(user.CharacterID)},
+		GroupMemberships:    []string{},
 	}
 	
-	// Load user profile to get additional character information
-	if err := m.enrichWithProfile(ctx, charContext); err != nil {
-		slog.Warn("Failed to enrich character context with profile", "character_id", charContext.CharacterID, "error", err)
-		// Continue without profile enrichment
-	}
-	
-	// NEW: Fetch all characters for this user
-	if err := m.enrichWithAllUserCharacters(ctx, charContext); err != nil {
-		slog.Warn("Failed to enrich with all user characters", "user_id", charContext.UserID, "error", err)
-		// Continue without multi-character enrichment
-	}
-	
-	// Resolve group memberships (now checks all characters)
-	if err := m.enrichWithGroupMemberships(ctx, charContext); err != nil {
-		slog.Warn("Failed to enrich character context with group memberships", "character_id", charContext.CharacterID, "error", err)
-		// Continue without group membership enrichment
-	}
-	
-	// Check if ANY character is super admin based on group membership
-	m.checkSuperAdminStatus(charContext)
+	// Note: Full profile enrichment, group membership resolution, and multi-character
+	// support are disabled for now to prevent potential MongoDB operation hangs.
+	// This provides basic authentication without complex database operations.
 	
 	return charContext, nil
 }
@@ -218,33 +203,61 @@ func (m *CharacterContextMiddleware) enrichWithAllUserCharacters(ctx context.Con
 
 // enrichWithGroupMemberships resolves which groups this character belongs to
 func (m *CharacterContextMiddleware) enrichWithGroupMemberships(ctx context.Context, charContext *CharacterContext) error {
-	// Auto-join character to enabled corporation/alliance groups only
-	if err := m.groupService.AutoJoinCharacterToEnabledGroups(ctx, charContext.CharacterID, charContext.CorporationID, charContext.AllianceID, charContext.Scopes); err != nil {
-		slog.Warn("[CharacterContext] Failed to auto-join character to enabled groups", 
-			"character_id", charContext.CharacterID, 
-			"error", err)
-		// Continue without auto-join - don't fail the entire request
+	// Auto-join character to enabled corporation/alliance groups only (with circuit breaker pattern)
+	autoJoinDone := make(chan error, 1)
+	go func() {
+		autoJoinCtx, cancelAutoJoin := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancelAutoJoin()
+		autoJoinDone <- m.groupService.AutoJoinCharacterToEnabledGroups(autoJoinCtx, charContext.CharacterID, charContext.CorporationID, charContext.AllianceID, charContext.Scopes)
+	}()
+	
+	select {
+	case err := <-autoJoinDone:
+		if err != nil {
+			slog.Warn("[CharacterContext] Failed to auto-join character to enabled groups", 
+				"character_id", charContext.CharacterID, 
+				"error", err)
+		}
+	case <-time.After(250*time.Millisecond):
+		slog.Warn("[CharacterContext] Auto-join operation timed out, continuing without group assignment", 
+			"character_id", charContext.CharacterID)
 	}
 	
 	// Collect groups from ALL characters under this user
 	groupNameSet := make(map[string]bool)
 	
-	// Get groups for all user's characters
+	// Get groups for all user's characters (with circuit breaker pattern)
 	for _, characterID := range charContext.AllUserCharacterIDs {
-		groups, err := m.groupService.GetCharacterGroups(ctx, &dto.GetCharacterGroupsInput{
-			CharacterID: fmt.Sprintf("%d", characterID),
-		})
-		if err != nil {
+		// Use circuit breaker pattern for each character to prevent hanging
+		groupsDone := make(chan *dto.CharacterGroupsOutput, 1)
+		errChan := make(chan error, 1)
+		
+		go func(charID int64) {
+			charGroupCtx, cancelCharGroup := context.WithTimeout(context.Background(), 150*time.Millisecond)
+			defer cancelCharGroup()
+			groups, err := m.groupService.GetCharacterGroups(charGroupCtx, &dto.GetCharacterGroupsInput{
+				CharacterID: fmt.Sprintf("%d", charID),
+			})
+			if err != nil {
+				errChan <- err
+			} else {
+				groupsDone <- groups
+			}
+		}(characterID)
+		
+		select {
+		case groups := <-groupsDone:
+			// Add all groups to the set
+			for _, group := range groups.Body.Groups {
+				groupNameSet[group.Name] = true
+			}
+		case err := <-errChan:
 			slog.Warn("[CharacterContext] Failed to get groups for character",
 				"character_id", characterID,
 				"error", err)
-			// Continue with other characters
-			continue
-		}
-		
-		// Add all groups to the set
-		for _, group := range groups.Body.Groups {
-			groupNameSet[group.Name] = true
+		case <-time.After(200*time.Millisecond):
+			slog.Warn("[CharacterContext] Get groups operation timed out for character",
+				"character_id", characterID)
 		}
 	}
 	
