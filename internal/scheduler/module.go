@@ -12,6 +12,7 @@ import (
 	"go-falcon/internal/scheduler/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/danielgtaylor/huma/v2"
@@ -121,6 +122,91 @@ func (m *Module) GetSchedulerService() *services.SchedulerService {
 // GetMiddleware returns the middleware for other modules
 func (m *Module) GetMiddleware() *middleware.Middleware {
 	return m.middleware
+}
+
+// RegisterPermissions registers scheduler-specific permissions
+func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *permissions.PermissionManager) error {
+	schedulerPermissions := []permissions.Permission{
+		{
+			ID:          "scheduler:tasks:create",
+			Service:     "scheduler",
+			Resource:    "tasks",
+			Action:      "create",
+			IsStatic:    false,
+			Name:        "Create Scheduled Tasks",
+			Description: "Create new scheduled tasks and system automation",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "scheduler:tasks:read",
+			Service:     "scheduler",
+			Resource:    "tasks",
+			Action:      "read",
+			IsStatic:    false,
+			Name:        "View Scheduled Tasks",
+			Description: "View scheduled tasks and their execution history",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "scheduler:tasks:update",
+			Service:     "scheduler",
+			Resource:    "tasks",
+			Action:      "update",
+			IsStatic:    false,
+			Name:        "Update Scheduled Tasks",
+			Description: "Modify existing scheduled tasks and their configuration",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "scheduler:tasks:delete",
+			Service:     "scheduler",
+			Resource:    "tasks",
+			Action:      "delete",
+			IsStatic:    false,
+			Name:        "Delete Scheduled Tasks",
+			Description: "Delete scheduled tasks (system tasks are protected)",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "scheduler:tasks:execute",
+			Service:     "scheduler",
+			Resource:    "tasks",
+			Action:      "execute",
+			IsStatic:    false,
+			Name:        "Execute Tasks Manually",
+			Description: "Manually trigger task execution outside of scheduled times",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "scheduler:tasks:control",
+			Service:     "scheduler",
+			Resource:    "tasks",
+			Action:      "control",
+			IsStatic:    false,
+			Name:        "Control Task Execution",
+			Description: "Start, stop, pause, resume, enable, and disable scheduled tasks",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "scheduler:system:manage",
+			Service:     "scheduler",
+			Resource:    "system",
+			Action:      "manage",
+			IsStatic:    false,
+			Name:        "Manage Scheduler System",
+			Description: "Reload scheduler, view system statistics, and manage scheduler configuration",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+	}
+	
+	return permissionManager.RegisterServicePermissions(ctx, schedulerPermissions)
 }
 
 // initializeSystemTasks creates hardcoded system tasks if they don't exist

@@ -15,6 +15,7 @@ import (
 	"go-falcon/internal/groups/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 )
 
 // Module represents the groups module
@@ -143,6 +144,25 @@ func (m *Module) SetAuthModule(authModule AuthModule) error {
 	m.routes = routes.NewModule(m.service, m.middleware)
 	
 	slog.Info("Groups module updated with auth dependencies")
+	return nil
+}
+
+// SetPermissionManager updates the groups module with permission manager
+func (m *Module) SetPermissionManager(permissionManager *permissions.PermissionManager) error {
+	if m.middleware == nil {
+		return fmt.Errorf("auth middleware must be set before permission manager")
+	}
+	
+	// Get the current auth service
+	authService := m.middleware.GetAuthService()
+	
+	// Recreate middleware with permission manager
+	m.middleware = groupsMiddleware.NewAuthMiddleware(authService, m.service, permissionManager)
+	
+	// Recreate routes with the updated middleware
+	m.routes = routes.NewModule(m.service, m.middleware)
+	
+	slog.Info("Groups module updated with permission manager")
 	return nil
 }
 

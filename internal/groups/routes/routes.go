@@ -198,6 +198,74 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Groups / Users"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.getUserGroups)
+	
+	// Permission Management Endpoints
+	
+	// List all permissions
+	huma.Register(api, huma.Operation{
+		OperationID: "permissions-list",
+		Method:      "GET",
+		Path:        "/permissions",
+		Summary:     "List all permissions",
+		Description: "Get all available permissions with optional filtering (requires authentication)",
+		Tags:        []string{"Permissions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.listPermissions)
+	
+	// Get specific permission
+	huma.Register(api, huma.Operation{
+		OperationID: "permissions-get",
+		Method:      "GET",
+		Path:        "/permissions/{permission_id}",
+		Summary:     "Get permission",
+		Description: "Get details of a specific permission (requires authentication)",
+		Tags:        []string{"Permissions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.getPermission)
+	
+	// Grant permission to group
+	huma.Register(api, huma.Operation{
+		OperationID: "groups-grant-permission",
+		Method:      "POST",
+		Path:        "/groups/{group_id}/permissions",
+		Summary:     "Grant permission to group",
+		Description: "Grant a specific permission to a group (requires groups:permissions:manage)",
+		Tags:        []string{"Group Permissions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.grantPermissionToGroup)
+	
+	// Revoke permission from group
+	huma.Register(api, huma.Operation{
+		OperationID: "groups-revoke-permission",
+		Method:      "DELETE",
+		Path:        "/groups/{group_id}/permissions/{permission_id}",
+		Summary:     "Revoke permission from group",
+		Description: "Revoke a specific permission from a group (requires groups:permissions:manage)",
+		Tags:        []string{"Group Permissions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.revokePermissionFromGroup)
+	
+	// List group permissions
+	huma.Register(api, huma.Operation{
+		OperationID: "groups-list-permissions",
+		Method:      "GET",
+		Path:        "/groups/{group_id}/permissions",
+		Summary:     "List group permissions",
+		Description: "Get all permissions assigned to a specific group (requires authentication)",
+		Tags:        []string{"Group Permissions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.listGroupPermissions)
+	
+	// Check permission
+	huma.Register(api, huma.Operation{
+		OperationID: "permissions-check",
+		Method:      "GET",
+		Path:        "/permissions/{permission_id}/check",
+		Summary:     "Check permission",
+		Description: "Check if the authenticated user (or specified character) has a specific permission",
+		Tags:        []string{"Permissions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.checkPermission)
 }
 
 // Route handlers
@@ -334,4 +402,66 @@ func (m *Module) getUserGroups(ctx context.Context, input *dto.GetUserGroupsInpu
 	}
 
 	return m.service.GetUserGroups(ctx, input)
+}
+
+// Permission Management Route Handlers
+
+func (m *Module) listPermissions(ctx context.Context, input *dto.ListPermissionsInput) (*dto.ListPermissionsOutput, error) {
+	// Validate authentication
+	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.ListPermissions(ctx, input)
+}
+
+func (m *Module) getPermission(ctx context.Context, input *dto.GetPermissionInput) (*dto.PermissionOutput, error) {
+	// Validate authentication
+	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.GetPermission(ctx, input)
+}
+
+func (m *Module) grantPermissionToGroup(ctx context.Context, input *dto.GrantPermissionToGroupInput) (*dto.GroupPermissionOutput, error) {
+	// Validate authentication and permission management access
+	user, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:permissions:manage")
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.GrantPermissionToGroup(ctx, input, int64(user.CharacterID))
+}
+
+func (m *Module) revokePermissionFromGroup(ctx context.Context, input *dto.RevokePermissionFromGroupInput) (*dto.MessageOutput, error) {
+	// Validate authentication and permission management access
+	_, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:permissions:manage")
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.RevokePermissionFromGroup(ctx, input)
+}
+
+func (m *Module) listGroupPermissions(ctx context.Context, input *dto.ListGroupPermissionsInput) (*dto.ListGroupPermissionsOutput, error) {
+	// Validate authentication
+	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.ListGroupPermissions(ctx, input)
+}
+
+func (m *Module) checkPermission(ctx context.Context, input *dto.CheckPermissionInput) (*dto.PermissionCheckOutput, error) {
+	// Validate authentication
+	user, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.CheckPermission(ctx, input, int64(user.CharacterID))
 }

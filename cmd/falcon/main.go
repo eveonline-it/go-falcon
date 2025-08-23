@@ -27,6 +27,7 @@ import (
 	"go-falcon/pkg/config"
 	evegateway "go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 	"go-falcon/pkg/version"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -175,10 +176,52 @@ func main() {
 		log.Fatalf("Failed to set auth dependencies on groups module: %v", err)
 	}
 	
-	// 6. Initialize remaining modules that depend on auth
+	// 6. Initialize permission manager
+	log.Printf("🔐 Initializing permission management system")
+	permissionManager := permissions.NewPermissionManager(appCtx.MongoDB.Database)
+	
+	// Set permission manager in groups module
+	if err := groupsModule.SetPermissionManager(permissionManager); err != nil {
+		log.Fatalf("Failed to set permission manager on groups module: %v", err)
+	}
+	
+	// Update groups service with permission manager
+	groupsModule.GetService().SetPermissionManager(permissionManager)
+	
+	// 7. Initialize remaining modules that depend on auth
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
+	
+	// 8. Register service permissions
+	log.Printf("📝 Registering service permissions")
+	
+	// Register scheduler permissions
+	if err := schedulerModule.RegisterPermissions(ctx, permissionManager); err != nil {
+		log.Fatalf("Failed to register scheduler permissions: %v", err)
+	}
+	log.Printf("   ⏰ Scheduler permissions registered")
+	
+	// Register character permissions
+	if err := characterModule.RegisterPermissions(ctx, permissionManager); err != nil {
+		log.Fatalf("Failed to register character permissions: %v", err)
+	}
+	log.Printf("   🚀 Character permissions registered")
+	
+	// TODO: Register other service permissions as they implement the RegisterPermissions method
+	// if err := corporationModule.RegisterPermissions(ctx, permissionManager); err != nil {
+	//     log.Fatalf("Failed to register corporation permissions: %v", err)
+	// }
+	// if err := allianceModule.RegisterPermissions(ctx, permissionManager); err != nil {
+	//     log.Fatalf("Failed to register alliance permissions: %v", err)
+	// }
+	
+	// 9. Initialize system group permissions (must be after service permissions are registered)
+	log.Printf("🔐 Initializing system group permissions")
+	if err := permissionManager.InitializeSystemGroupPermissions(ctx); err != nil {
+		log.Fatalf("Failed to initialize system group permissions: %v", err)
+	}
+	log.Printf("✅ Permission system fully initialized")
 	
 	// Update site settings with auth and groups services
 	siteSettingsModule.SetDependencies(authModule.GetAuthService(), groupsModule.GetService())
@@ -245,6 +288,8 @@ func main() {
 		{Name: "Groups / Management", Description: "Group creation, modification, and deletion"},
 		{Name: "Groups / Memberships", Description: "Character group membership operations"},
 		{Name: "Groups / Characters", Description: "Character-centric group operations"},
+		{Name: "Permissions", Description: "Permission management and checking"},
+		{Name: "Group Permissions", Description: "Group permission assignment and management"},
 		{Name: "Scheduler", Description: "Task scheduling, execution, and monitoring"},
 		{Name: "Scheduler / Status", Description: "Task scheduler status and statistics"},
 		{Name: "Scheduler / Tasks", Description: "Scheduled task management and configuration"},

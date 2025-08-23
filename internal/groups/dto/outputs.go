@@ -134,3 +134,94 @@ type UserGroupsResponse struct {
 	Groups      []GroupResponse `json:"groups" description:"List of unique groups across all user's characters"`
 	Total       int64           `json:"total" description:"Total number of unique groups"`
 }
+
+// PermissionOutput represents a single permission response
+type PermissionOutput struct {
+	Body PermissionResponse `json:"body"`
+}
+
+// PermissionResponse represents the actual permission data
+type PermissionResponse struct {
+	ID          string    `json:"id" description:"Permission ID (e.g., 'intel:reports:write')"`
+	Service     string    `json:"service" description:"Service name (e.g., 'intel', 'scheduler')"`
+	Resource    string    `json:"resource" description:"Resource name (e.g., 'reports', 'tasks')"`
+	Action      string    `json:"action" description:"Action name (e.g., 'write', 'read', 'create')"`
+	IsStatic    bool      `json:"is_static" description:"Whether permission is hardcoded (true) or configurable (false)"`
+	Name        string    `json:"name" description:"Human-readable permission name"`
+	Description string    `json:"description" description:"What this permission allows"`
+	Category    string    `json:"category" description:"Permission category for UI grouping"`
+	CreatedAt   time.Time `json:"created_at" description:"Creation timestamp"`
+}
+
+// ListPermissionsOutput represents the response for listing permissions
+type ListPermissionsOutput struct {
+	Body ListPermissionsResponse `json:"body"`
+}
+
+// ListPermissionsResponse represents the actual permissions list data
+type ListPermissionsResponse struct {
+	Permissions []PermissionResponse `json:"permissions" description:"List of permissions"`
+	Categories  []PermissionCategory `json:"categories" description:"Permission categories for UI organization"`
+	Total       int64                `json:"total" description:"Total number of permissions"`
+}
+
+// PermissionCategory represents a permission category for UI organization
+type PermissionCategory struct {
+	Name        string `json:"name" description:"Category name"`
+	Description string `json:"description" description:"Category description"`
+	Order       int    `json:"order" description:"Display order in UI"`
+}
+
+// GroupPermissionOutput represents a group permission assignment response
+type GroupPermissionOutput struct {
+	Body GroupPermissionResponse `json:"body"`
+}
+
+// GroupPermissionResponse represents the actual group permission data
+type GroupPermissionResponse struct {
+	ID           string    `json:"id" description:"Assignment ID"`
+	GroupID      string    `json:"group_id" description:"Group ID"`
+	GroupName    string    `json:"group_name" description:"Group name"`
+	PermissionID string    `json:"permission_id" description:"Permission ID"`
+	Permission   PermissionResponse `json:"permission" description:"Permission details"`
+	GrantedBy    *int64    `json:"granted_by,omitempty" description:"Character ID who granted the permission"`
+	GrantedAt    time.Time `json:"granted_at" description:"When permission was granted"`
+	IsActive     bool      `json:"is_active" description:"Whether the assignment is active"`
+	UpdatedAt    time.Time `json:"updated_at" description:"Last update timestamp"`
+}
+
+// ListGroupPermissionsOutput represents the response for listing group permissions
+type ListGroupPermissionsOutput struct {
+	Body ListGroupPermissionsResponse `json:"body"`
+}
+
+// ListGroupPermissionsResponse represents the actual group permissions list data
+type ListGroupPermissionsResponse struct {
+	GroupID     string                    `json:"group_id" description:"Group ID"`
+	GroupName   string                    `json:"group_name" description:"Group name"`
+	Permissions []GroupPermissionResponse `json:"permissions" description:"List of permissions assigned to this group"`
+	Total       int64                     `json:"total" description:"Total number of permissions"`
+}
+
+// PermissionCheckOutput represents the response for permission checking
+type PermissionCheckOutput struct {
+	Body PermissionCheckResponse `json:"body"`
+}
+
+// PermissionCheckResponse represents the actual permission check data
+type PermissionCheckResponse struct {
+	CharacterID  int64  `json:"character_id" description:"Character ID that was checked"`
+	PermissionID string `json:"permission_id" description:"Permission ID that was checked"`
+	Granted      bool   `json:"granted" description:"Whether permission is granted"`
+	GrantedVia   string `json:"granted_via,omitempty" description:"Which group granted the permission"`
+}
+
+// MessageOutput represents a simple message response
+type MessageOutput struct {
+	Body MessageResponse `json:"body"`
+}
+
+// MessageResponse represents a simple message
+type MessageResponse struct {
+	Message string `json:"message" description:"Response message"`
+}

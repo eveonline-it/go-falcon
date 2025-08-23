@@ -4,8 +4,8 @@
 
 The groups module provides group and role-based access control management for the go-falcon EVE Online API gateway. This module implements a hierarchical permission system that supports EVE-specific groups (characters, corporations, alliances) as well as custom groups for fine-grained access control.
 
-**Current Status**: Production Ready - Full Authentication Integration
-**Authentication**: Complete integration with Character Context Middleware and group-based permissions
+**Current Status**: Production Ready - Full Permission System Integration
+**Authentication**: Complete integration with Character Context Middleware, group-based permissions, and comprehensive permission management API
 
 ## Architecture
 
@@ -13,12 +13,13 @@ The groups module provides group and role-based access control management for th
 
 - **Group Management**: CRUD operations for custom groups and system groups
 - **Membership Management**: Character assignment to groups with audit trail  
+- **Permission Management**: Complete permission assignment, revocation, and checking API
 - **EVE Integration**: Auto-assignment for corporation and alliance groups
 - **Character Context**: Corporation/alliance data extraction from user profiles
 - **Character Name Resolution**: Search and lookup character names from database
 - **Auto-Synchronization**: Automated group membership sync via scheduler
-- **System Groups**: Built-in groups (super_admin, authenticated, guest)
-- **MongoDB Storage**: Groups and memberships collections with proper indexing
+- **System Groups**: Built-in groups (super_admin, authenticated, guest) with automatic permission assignment
+- **MongoDB Storage**: Groups, memberships, and permissions collections with proper indexing
 
 ### Files Structure
 

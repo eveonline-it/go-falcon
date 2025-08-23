@@ -3,12 +3,14 @@ package character
 import (
 	"context"
 	"log"
+	"time"
 
 	"go-falcon/internal/character/routes"
 	"go-falcon/internal/character/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -82,4 +84,45 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 // StartBackgroundTasks starts any background processes for the module
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
 	// No background tasks needed for now
+}
+
+// RegisterPermissions registers character-specific permissions
+func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *permissions.PermissionManager) error {
+	characterPermissions := []permissions.Permission{
+		{
+			ID:          "character:profiles:view",
+			Service:     "character",
+			Resource:    "profiles",
+			Action:      "view",
+			IsStatic:    false,
+			Name:        "View Character Profiles",
+			Description: "View detailed EVE character profiles and information",
+			Category:    "Content Management",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "character:search:access",
+			Service:     "character",
+			Resource:    "search",
+			Action:      "access",
+			IsStatic:    false,
+			Name:        "Search Characters",
+			Description: "Search for characters by name and access character listings",
+			Category:    "Content Management",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "character:affiliations:manage",
+			Service:     "character",
+			Resource:    "affiliations",
+			Action:      "manage",
+			IsStatic:    false,
+			Name:        "Manage Character Affiliations",
+			Description: "Trigger character affiliation updates and manage character data",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+	}
+	
+	return permissionManager.RegisterServicePermissions(ctx, characterPermissions)
 }

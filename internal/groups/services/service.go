@@ -16,12 +16,14 @@ import (
 	"go-falcon/internal/groups/models"
 	siteSettingsModels "go-falcon/internal/site_settings/models"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/permissions"
 )
 
 // Service handles business logic for groups
 type Service struct {
 	repo                *Repository
 	siteSettingsService SiteSettingsServiceInterface
+	permissionManager   *permissions.PermissionManager
 }
 
 // Interface to access site settings without circular dependency
@@ -35,7 +37,13 @@ func NewService(db *database.MongoDB, siteSettingsService SiteSettingsServiceInt
 	return &Service{
 		repo:                NewRepository(db),
 		siteSettingsService: siteSettingsService,
+		permissionManager:   nil, // Will be set later
 	}
+}
+
+// SetPermissionManager sets the permission manager for the service
+func (s *Service) SetPermissionManager(permissionManager *permissions.PermissionManager) {
+	s.permissionManager = permissionManager
 }
 
 // InitializeService sets up the service (creates indexes and system groups)
@@ -1036,4 +1044,285 @@ func (s *Service) RemoveCharacterFromAllGroups(ctx context.Context, characterID 
 
 	slog.Info("Completed group membership cleanup for deleted user", "character_id", characterID, "groups_count", len(groups))
 	return nil
+}
+
+// Permission Management Methods
+
+// ListPermissions returns all available permissions
+func (s *Service) ListPermissions(ctx context.Context, input *dto.ListPermissionsInput) (*dto.ListPermissionsOutput, error) {
+	if s.permissionManager == nil {
+		return nil, fmt.Errorf("permission manager not available")
+	}
+	
+	// Get all permissions
+	allPermissions := s.permissionManager.GetAllPermissions()
+	
+	// Filter permissions if requested
+	var filteredPerms []permissions.Permission
+	for _, perm := range allPermissions {
+		if input.Service != "" && perm.Service != input.Service {
+			continue
+		}
+		if input.Category != "" && perm.Category != input.Category {
+			continue
+		}
+		if input.IsStatic != nil && perm.IsStatic != *input.IsStatic {
+			continue
+		}
+		filteredPerms = append(filteredPerms, perm)
+	}
+	
+	// Convert to response DTOs
+	var permResponses []dto.PermissionResponse
+	for _, perm := range filteredPerms {
+		permResponses = append(permResponses, dto.PermissionResponse{
+			ID:          perm.ID,
+			Service:     perm.Service,
+			Resource:    perm.Resource,
+			Action:      perm.Action,
+			IsStatic:    perm.IsStatic,
+			Name:        perm.Name,
+			Description: perm.Description,
+			Category:    perm.Category,
+			CreatedAt:   perm.CreatedAt,
+		})
+	}
+	
+	// Get permission categories
+	var categories []dto.PermissionCategory
+	for _, cat := range permissions.PermissionCategories {
+		categories = append(categories, dto.PermissionCategory{
+			Name:        cat.Name,
+			Description: cat.Description,
+			Order:       cat.Order,
+		})
+	}
+	
+	return &dto.ListPermissionsOutput{
+		Body: dto.ListPermissionsResponse{
+			Permissions: permResponses,
+			Categories:  categories,
+			Total:       int64(len(permResponses)),
+		},
+	}, nil
+}
+
+// GetPermission returns a specific permission by ID
+func (s *Service) GetPermission(ctx context.Context, input *dto.GetPermissionInput) (*dto.PermissionOutput, error) {
+	if s.permissionManager == nil {
+		return nil, fmt.Errorf("permission manager not available")
+	}
+	
+	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
+	if !exists {
+		return nil, fmt.Errorf("permission not found: %s", input.PermissionID)
+	}
+	
+	return &dto.PermissionOutput{
+		Body: dto.PermissionResponse{
+			ID:          perm.ID,
+			Service:     perm.Service,
+			Resource:    perm.Resource,
+			Action:      perm.Action,
+			IsStatic:    perm.IsStatic,
+			Name:        perm.Name,
+			Description: perm.Description,
+			Category:    perm.Category,
+			CreatedAt:   perm.CreatedAt,
+		},
+	}, nil
+}
+
+// GrantPermissionToGroup assigns a permission to a group
+func (s *Service) GrantPermissionToGroup(ctx context.Context, input *dto.GrantPermissionToGroupInput, grantedBy int64) (*dto.GroupPermissionOutput, error) {
+	if s.permissionManager == nil {
+		return nil, fmt.Errorf("permission manager not available")
+	}
+	
+	// Parse group ID
+	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid group ID: %w", err)
+	}
+	
+	// Verify group exists
+	group, err := s.repo.GetGroupByID(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("group not found: %w", err)
+	}
+	
+	// Grant permission
+	err = s.permissionManager.GrantPermissionToGroup(ctx, groupID, input.PermissionID, grantedBy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to grant permission: %w", err)
+	}
+	
+	// Get permission details for response
+	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
+	if !exists {
+		return nil, fmt.Errorf("permission not found: %s", input.PermissionID)
+	}
+	
+	return &dto.GroupPermissionOutput{
+		Body: dto.GroupPermissionResponse{
+			GroupID:      groupID.Hex(),
+			GroupName:    group.Name,
+			PermissionID: input.PermissionID,
+			Permission: dto.PermissionResponse{
+				ID:          perm.ID,
+				Service:     perm.Service,
+				Resource:    perm.Resource,
+				Action:      perm.Action,
+				IsStatic:    perm.IsStatic,
+				Name:        perm.Name,
+				Description: perm.Description,
+				Category:    perm.Category,
+				CreatedAt:   perm.CreatedAt,
+			},
+			GrantedBy: &grantedBy,
+			GrantedAt: time.Now(),
+			IsActive:  true,
+			UpdatedAt: time.Now(),
+		},
+	}, nil
+}
+
+// RevokePermissionFromGroup removes a permission from a group
+func (s *Service) RevokePermissionFromGroup(ctx context.Context, input *dto.RevokePermissionFromGroupInput) (*dto.MessageOutput, error) {
+	if s.permissionManager == nil {
+		return nil, fmt.Errorf("permission manager not available")
+	}
+	
+	// Parse group ID
+	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid group ID: %w", err)
+	}
+	
+	// Revoke permission
+	err = s.permissionManager.RevokePermissionFromGroup(ctx, groupID, input.PermissionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to revoke permission: %w", err)
+	}
+	
+	return &dto.MessageOutput{
+		Body: dto.MessageResponse{
+			Message: fmt.Sprintf("Permission %s revoked from group %s", input.PermissionID, input.GroupID),
+		},
+	}, nil
+}
+
+// ListGroupPermissions returns all permissions assigned to a group
+func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroupPermissionsInput) (*dto.ListGroupPermissionsOutput, error) {
+	if s.permissionManager == nil {
+		return nil, fmt.Errorf("permission manager not available")
+	}
+	
+	// Parse group ID
+	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid group ID: %w", err)
+	}
+	
+	// Get group details
+	group, err := s.repo.GetGroupByID(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("group not found: %w", err)
+	}
+	
+	// Build aggregation pipeline to get group permissions with permission details
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"group_id": groupID,
+			},
+		},
+	}
+	
+	// Add active filter if specified
+	if input.IsActive != nil {
+		pipeline[0]["$match"].(bson.M)["is_active"] = *input.IsActive
+	}
+	
+	// Execute aggregation
+	cursor, err := s.repo.db.Collection("group_permissions").Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query group permissions: %w", err)
+	}
+	defer cursor.Close(ctx)
+	
+	var groupPermissions []dto.GroupPermissionResponse
+	for cursor.Next(ctx) {
+		var gp permissions.GroupPermission
+		if err := cursor.Decode(&gp); err != nil {
+			slog.Warn("Failed to decode group permission", "error", err)
+			continue
+		}
+		
+		// Get permission details
+		perm, exists := s.permissionManager.GetPermission(gp.PermissionID)
+		if !exists {
+			slog.Warn("Permission not found for group permission", "permission_id", gp.PermissionID)
+			continue
+		}
+		
+		groupPermissions = append(groupPermissions, dto.GroupPermissionResponse{
+			ID:           gp.ID.Hex(),
+			GroupID:      gp.GroupID.Hex(),
+			GroupName:    group.Name,
+			PermissionID: gp.PermissionID,
+			Permission: dto.PermissionResponse{
+				ID:          perm.ID,
+				Service:     perm.Service,
+				Resource:    perm.Resource,
+				Action:      perm.Action,
+				IsStatic:    perm.IsStatic,
+				Name:        perm.Name,
+				Description: perm.Description,
+				Category:    perm.Category,
+				CreatedAt:   perm.CreatedAt,
+			},
+			GrantedBy: gp.GrantedBy,
+			GrantedAt: gp.GrantedAt,
+			IsActive:  gp.IsActive,
+			UpdatedAt: gp.UpdatedAt,
+		})
+	}
+	
+	return &dto.ListGroupPermissionsOutput{
+		Body: dto.ListGroupPermissionsResponse{
+			GroupID:     groupID.Hex(),
+			GroupName:   group.Name,
+			Permissions: groupPermissions,
+			Total:       int64(len(groupPermissions)),
+		},
+	}, nil
+}
+
+// CheckPermission checks if a character has a specific permission
+func (s *Service) CheckPermission(ctx context.Context, input *dto.CheckPermissionInput, authenticatedCharacterID int64) (*dto.PermissionCheckOutput, error) {
+	if s.permissionManager == nil {
+		return nil, fmt.Errorf("permission manager not available")
+	}
+	
+	// Use provided character ID or default to authenticated user
+	characterID := authenticatedCharacterID
+	if input.CharacterID != nil {
+		characterID = *input.CharacterID
+	}
+	
+	// Check permission
+	permCheck, err := s.permissionManager.CheckPermission(ctx, characterID, input.PermissionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check permission: %w", err)
+	}
+	
+	return &dto.PermissionCheckOutput{
+		Body: dto.PermissionCheckResponse{
+			CharacterID:  permCheck.CharacterID,
+			PermissionID: permCheck.PermissionID,
+			Granted:      permCheck.Granted,
+			GrantedVia:   permCheck.GrantedVia,
+		},
+	}, nil
 }
