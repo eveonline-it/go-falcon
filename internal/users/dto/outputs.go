@@ -32,6 +32,41 @@ type CharacterSummaryResponse struct {
 	LastLogin     *time.Time `json:"last_login,omitempty"`
 }
 
+// EnrichedCharacterSummaryResponse represents character information enriched with profile data
+type EnrichedCharacterSummaryResponse struct {
+	// User management fields
+	CharacterID   int        `json:"character_id"`
+	CharacterName string     `json:"character_name"`
+	UserID        string     `json:"user_id"`
+	Enabled       bool       `json:"enabled"`
+	Banned        bool       `json:"banned"`
+	Position      int        `json:"position"`
+	LastLogin     *time.Time `json:"last_login,omitempty"`
+
+	// Rich character profile data (optional, may not be available for all characters)
+	CorporationID  *int       `json:"corporation_id,omitempty"`
+	AllianceID     *int       `json:"alliance_id,omitempty"`
+	SecurityStatus *float64   `json:"security_status,omitempty"`
+	Birthday       *time.Time `json:"birthday,omitempty"`
+	Gender         *string    `json:"gender,omitempty"`
+	RaceID         *int       `json:"race_id,omitempty"`
+	BloodlineID    *int       `json:"bloodline_id,omitempty"`
+	AncestryID     *int       `json:"ancestry_id,omitempty"`
+	FactionID      *int       `json:"faction_id,omitempty"`
+	Description    *string    `json:"description,omitempty"`
+
+	// Portrait URLs (optional)
+	Portraits *CharacterPortraits `json:"portraits,omitempty"`
+}
+
+// CharacterPortraits represents character portrait URLs in different sizes
+type CharacterPortraits struct {
+	Px64x64   string `json:"px64x64"`
+	Px128x128 string `json:"px128x128"`
+	Px256x256 string `json:"px256x256"`
+	Px512x512 string `json:"px512x512"`
+}
+
 // UserStatsResponse represents user statistics
 type UserStatsResponse struct {
 	TotalUsers    int `json:"total_users"`
@@ -53,6 +88,13 @@ type CharacterListResponse struct {
 	UserID     string                     `json:"user_id"`
 	Characters []CharacterSummaryResponse `json:"characters"`
 	Count      int                        `json:"count"`
+}
+
+// EnrichedCharacterListResponse represents the response for enriched character listing
+type EnrichedCharacterListResponse struct {
+	UserID     string                             `json:"user_id"`
+	Characters []EnrichedCharacterSummaryResponse `json:"characters"`
+	Count      int                                `json:"count"`
 }
 
 // UserListResponse represents paginated user listing response
@@ -86,6 +128,11 @@ type UserUpdateOutput struct {
 // UserCharactersOutput represents the output for getting user characters
 type UserCharactersOutput struct {
 	Body CharacterListResponse `json:"body"`
+}
+
+// EnrichedUserCharactersOutput represents the output for getting enriched user characters
+type EnrichedUserCharactersOutput struct {
+	Body EnrichedCharacterListResponse `json:"body"`
 }
 
 // UserListOutput represents the output for listing users with pagination

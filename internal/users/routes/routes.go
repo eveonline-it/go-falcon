@@ -153,34 +153,35 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		return &dto.UserUpdateOutput{Body: *userResponse}, nil
 	})
 
-	// User character management
+	// User character management with enriched profile data
 	huma.Register(api, huma.Operation{
 		OperationID: "users-get-user-characters",
 		Method:      "GET",
 		Path:        basePath + "/{user_id}/characters",
 		Summary:     "List user characters",
-		Description: "List all characters associated with a user ID",
+		Description: "List all characters associated with a user ID with enriched profile data including corporation, alliance, security status, and character details",
 		Tags:        []string{"Users / Characters"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
-	}, func(ctx context.Context, input *dto.UserCharactersInput) (*dto.UserCharactersOutput, error) {
+	}, func(ctx context.Context, input *dto.UserCharactersInput) (*dto.EnrichedUserCharactersOutput, error) {
 		// Validate authentication and user access (self or admin)
 		_, err := authMiddleware.RequireUserAccess(ctx, input.Authorization, input.Cookie, input.UserID)
 		if err != nil {
 			return nil, err
 		}
 
-		characters, err := service.ListCharacters(ctx, input.UserID)
+		// Use enriched character data with profile information
+		enrichedCharacters, err := service.ListEnrichedCharacters(ctx, input.UserID)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get user characters", err)
 		}
 
-		response := dto.CharacterListResponse{
+		response := dto.EnrichedCharacterListResponse{
 			UserID:     input.UserID,
-			Characters: characters,
-			Count:      len(characters),
+			Characters: enrichedCharacters,
+			Count:      len(enrichedCharacters),
 		}
 
-		return &dto.UserCharactersOutput{Body: response}, nil
+		return &dto.EnrichedUserCharactersOutput{Body: response}, nil
 	})
 
 	// Character deletion

@@ -4,23 +4,27 @@ import (
 	"context"
 	"fmt"
 
+	characterServices "go-falcon/internal/character/services"
 	"go-falcon/internal/groups/services"
 	"go-falcon/internal/users/dto"
 	"go-falcon/internal/users/models"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/evegateway"
 )
 
 // Service provides business logic for user operations
 type Service struct {
-	repository   *Repository
-	groupService *services.Service
+	repository       *Repository
+	groupService     *services.Service
+	characterService *characterServices.Service
 }
 
 // NewService creates a new service instance
-func NewService(mongodb *database.MongoDB) *Service {
+func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client) *Service {
 	return &Service{
-		repository:   NewRepository(mongodb),
-		groupService: nil, // Will be set after initialization
+		repository:       NewRepository(mongodb),
+		groupService:     nil, // Will be set after initialization
+		characterService: characterServices.NewService(mongodb, eveGateway),
 	}
 }
 
@@ -57,6 +61,72 @@ func (s *Service) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, err
 // ListCharacters retrieves character summaries for a specific user ID
 func (s *Service) ListCharacters(ctx context.Context, userID string) ([]dto.CharacterSummaryResponse, error) {
 	return s.repository.ListCharacters(ctx, userID)
+}
+
+// ListEnrichedCharacters retrieves enriched character summaries with profile data for a specific user ID
+func (s *Service) ListEnrichedCharacters(ctx context.Context, userID string) ([]dto.EnrichedCharacterSummaryResponse, error) {
+	// Get basic character summaries from repository
+	basicCharacters, err := s.repository.ListCharacters(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert basic summaries to enriched summaries with additional profile data
+	enrichedCharacters := make([]dto.EnrichedCharacterSummaryResponse, len(basicCharacters))
+
+	for i, basicChar := range basicCharacters {
+		enriched := dto.EnrichedCharacterSummaryResponse{
+			// Copy basic user management data
+			CharacterID:   basicChar.CharacterID,
+			CharacterName: basicChar.CharacterName,
+			UserID:        basicChar.UserID,
+			Enabled:       basicChar.Enabled,
+			Banned:        basicChar.Banned,
+			Position:      basicChar.Position,
+			LastLogin:     basicChar.LastLogin,
+		}
+
+		// Try to fetch additional character profile data (optional enhancement)
+		if s.characterService != nil {
+			profileOutput, profileErr := s.characterService.GetCharacterProfile(ctx, basicChar.CharacterID)
+			if profileErr == nil && profileOutput != nil {
+				profile := profileOutput.Body
+				enriched.CorporationID = &profile.CorporationID
+				enriched.SecurityStatus = &profile.SecurityStatus
+				enriched.Birthday = &profile.Birthday
+				enriched.Gender = &profile.Gender
+				enriched.RaceID = &profile.RaceID
+				enriched.BloodlineID = &profile.BloodlineID
+
+				if profile.AllianceID != 0 {
+					enriched.AllianceID = &profile.AllianceID
+				}
+				if profile.AncestryID != 0 {
+					enriched.AncestryID = &profile.AncestryID
+				}
+				if profile.FactionID != 0 {
+					enriched.FactionID = &profile.FactionID
+				}
+				if profile.Description != "" {
+					enriched.Description = &profile.Description
+				}
+			}
+			// Note: Portrait fetching is commented out to avoid potential rate limiting issues
+			// In production, consider implementing portrait caching or batch fetching
+			// if portraitData, portraitErr := eveGateway.GetCharacterPortrait(ctx, basicChar.CharacterID); portraitErr == nil {
+			//     enriched.Portraits = &dto.CharacterPortraits{
+			//         Px64x64:   portraitData.Px64x64,
+			//         Px128x128: portraitData.Px128x128,
+			//         Px256x256: portraitData.Px256x256,
+			//         Px512x512: portraitData.Px512x512,
+			//     }
+			// }
+		}
+
+		enrichedCharacters[i] = enriched
+	}
+
+	return enrichedCharacters, nil
 }
 
 // ListUsers retrieves paginated and filtered users

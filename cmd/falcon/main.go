@@ -195,7 +195,7 @@ func main() {
 
 	// 7. Initialize remaining modules that depend on auth
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule.GetAuthService(), permissionManager)
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule, evegateClient)
 	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	schedulerModule.SetGroupService(groupsModule.GetService())

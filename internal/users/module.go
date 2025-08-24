@@ -11,6 +11,7 @@ import (
 	"go-falcon/internal/users/routes"
 	usersServices "go-falcon/internal/users/services"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 
@@ -28,8 +29,8 @@ type Module struct {
 }
 
 // New creates a new users module instance
-func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module) *Module {
-	service := usersServices.NewService(mongodb)
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, eveGateway *evegateway.Client) *Module {
+	service := usersServices.NewService(mongodb, eveGateway)
 
 	return &Module{
 		BaseModule:   module.NewBaseModule("users", mongodb, redis),
