@@ -245,6 +245,17 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.revokePermissionFromGroup)
 
+	// Update group permission status
+	huma.Register(api, huma.Operation{
+		OperationID: "groups-update-permission-status",
+		Method:      "PUT",
+		Path:        "/groups/{group_id}/permissions/{permission_id}",
+		Summary:     "Update group permission status",
+		Description: "Update the active/inactive status of a permission assigned to a group (requires groups:permissions:manage)",
+		Tags:        []string{"Group Permissions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, m.updateGroupPermissionStatus)
+
 	// List group permissions
 	huma.Register(api, huma.Operation{
 		OperationID: "groups-list-permissions",
@@ -444,6 +455,16 @@ func (m *Module) revokePermissionFromGroup(ctx context.Context, input *dto.Revok
 	}
 
 	return m.service.RevokePermissionFromGroup(ctx, input)
+}
+
+func (m *Module) updateGroupPermissionStatus(ctx context.Context, input *dto.UpdateGroupPermissionStatusInput) (*dto.GroupPermissionOutput, error) {
+	// Validate authentication and permission management access
+	user, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:permissions:manage")
+	if err != nil {
+		return nil, err
+	}
+
+	return m.service.UpdateGroupPermissionStatus(ctx, input, int64(user.CharacterID))
 }
 
 func (m *Module) listGroupPermissions(ctx context.Context, input *dto.ListGroupPermissionsInput) (*dto.ListGroupPermissionsOutput, error) {

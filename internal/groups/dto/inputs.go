@@ -151,3 +151,14 @@ type CheckPermissionInput struct {
 	PermissionID  string `path:"permission_id" required:"true" description:"Permission ID to check"`
 	CharacterID   string `query:"character_id" description:"Character ID to check (optional, defaults to authenticated user)"`
 }
+
+// UpdateGroupPermissionStatusInput represents the input for updating group permission status
+type UpdateGroupPermissionStatusInput struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	GroupID       string `path:"group_id" required:"true" description:"Group ID"`
+	PermissionID  string `path:"permission_id" required:"true" description:"Permission ID to update"`
+	Body          struct {
+		IsActive bool `json:"is_active" required:"true" description:"Set permission active/inactive status"`
+	} `json:"body"`
+}

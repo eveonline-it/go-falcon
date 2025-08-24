@@ -1259,6 +1259,60 @@ func (s *Service) RevokePermissionFromGroup(ctx context.Context, input *dto.Revo
 	}, nil
 }
 
+// UpdateGroupPermissionStatus updates the active status of a group permission
+func (s *Service) UpdateGroupPermissionStatus(ctx context.Context, input *dto.UpdateGroupPermissionStatusInput, updatedBy int64) (*dto.GroupPermissionOutput, error) {
+	if s.permissionManager == nil {
+		return nil, fmt.Errorf("permission manager not available")
+	}
+
+	// Parse group ID
+	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid group ID: %w", err)
+	}
+
+	// Verify group exists
+	group, err := s.repo.GetGroupByID(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("group not found: %w", err)
+	}
+
+	// Update permission status
+	err = s.permissionManager.UpdateGroupPermissionStatus(ctx, groupID, input.PermissionID, input.Body.IsActive, updatedBy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update permission status: %w", err)
+	}
+
+	// Get permission details for response
+	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
+	if !exists {
+		return nil, fmt.Errorf("permission not found: %s", input.PermissionID)
+	}
+
+	return &dto.GroupPermissionOutput{
+		Body: dto.GroupPermissionResponse{
+			GroupID:      groupID.Hex(),
+			GroupName:    group.Name,
+			PermissionID: input.PermissionID,
+			Permission: dto.PermissionResponse{
+				ID:          perm.ID,
+				Service:     perm.Service,
+				Resource:    perm.Resource,
+				Action:      perm.Action,
+				IsStatic:    perm.IsStatic,
+				Name:        perm.Name,
+				Description: perm.Description,
+				Category:    perm.Category,
+				CreatedAt:   perm.CreatedAt,
+			},
+			GrantedBy: &updatedBy,
+			GrantedAt: time.Now(), // This will be the update time in this context
+			IsActive:  input.Body.IsActive,
+			UpdatedAt: time.Now(),
+		},
+	}, nil
+}
+
 // ListGroupPermissions returns all permissions assigned to a group
 func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroupPermissionsInput) (*dto.ListGroupPermissionsOutput, error) {
 	if s.permissionManager == nil {

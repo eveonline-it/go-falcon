@@ -502,6 +502,48 @@ func (pm *PermissionManager) RevokePermissionFromGroup(ctx context.Context, grou
 	return nil
 }
 
+// UpdateGroupPermissionStatus updates the active status of a group permission
+func (pm *PermissionManager) UpdateGroupPermissionStatus(ctx context.Context, groupID primitive.ObjectID, permissionID string, isActive bool, updatedBy int64) error {
+	// Check if permission is static and restricted
+	if pm.isStaticPermission(permissionID) && pm.isRestrictedStaticPermission(permissionID) {
+		return fmt.Errorf("permission %s is restricted and cannot be manually modified", permissionID)
+	}
+
+	filter := bson.M{
+		"group_id":      groupID,
+		"permission_id": permissionID,
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"is_active":  isActive,
+			"updated_at": time.Now(),
+		},
+	}
+
+	result, err := pm.groupPermissionsCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update permission status: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("permission assignment not found")
+	}
+
+	status := "deactivated"
+	if isActive {
+		status = "activated"
+	}
+
+	slog.Info("[Permissions] Updated group permission status",
+		"group_id", groupID.Hex(),
+		"permission_id", permissionID,
+		"status", status,
+		"updated_by", updatedBy)
+
+	return nil
+}
+
 // Helper methods
 
 func (pm *PermissionManager) validatePermission(perm Permission) error {
