@@ -551,11 +551,52 @@ func (pm *PermissionManager) isRestrictedStaticPermission(permissionID string) b
 }
 
 func (pm *PermissionManager) isSuperAdmin(ctx context.Context, characterID int64) bool {
-	// Check if character is in Super Administrator group
+	// Get user_id for this character
+	userID, err := pm.getUserIDFromCharacterID(ctx, characterID)
+	if err != nil {
+		slog.Error("[Permissions] Failed to get user_id for character", "error", err, "character_id", characterID)
+		return false
+	}
+
+	// Check if ANY character belonging to this user is in Super Administrator group
+	return pm.isUserSuperAdmin(ctx, userID)
+}
+
+// getUserIDFromCharacterID gets the user_id for a given character_id
+func (pm *PermissionManager) getUserIDFromCharacterID(ctx context.Context, characterID int64) (string, error) {
+	var userProfile struct {
+		UserID string `bson:"user_id"`
+	}
+
+	filter := bson.M{"character_id": characterID}
+	projection := bson.M{"user_id": 1}
+
+	err := pm.db.Collection("user_profiles").FindOne(ctx, filter, options.FindOne().SetProjection(projection)).Decode(&userProfile)
+	if err != nil {
+		return "", fmt.Errorf("failed to find user profile for character %d: %w", characterID, err)
+	}
+
+	return userProfile.UserID, nil
+}
+
+// isUserSuperAdmin checks if ANY character belonging to a user_id is in Super Administrator group
+func (pm *PermissionManager) isUserSuperAdmin(ctx context.Context, userID string) bool {
+	// Get all character IDs for this user
+	characterIDs, err := pm.getCharacterIDsByUserID(ctx, userID)
+	if err != nil {
+		slog.Error("[Permissions] Failed to get character IDs for user", "error", err, "user_id", userID)
+		return false
+	}
+
+	if len(characterIDs) == 0 {
+		return false
+	}
+
+	// Check if ANY character is in Super Administrator group
 	pipeline := []bson.M{
 		{
 			"$match": bson.M{
-				"character_id": characterID,
+				"character_id": bson.M{"$in": characterIDs},
 				"is_active":    true,
 			},
 		},
@@ -583,12 +624,43 @@ func (pm *PermissionManager) isSuperAdmin(ctx context.Context, characterID int64
 
 	cursor, err := pm.db.Collection("group_memberships").Aggregate(ctx, pipeline)
 	if err != nil {
-		slog.Error("[Permissions] Failed to check super admin status", "error", err, "character_id", characterID)
+		slog.Error("[Permissions] Failed to check user super admin status", "error", err, "user_id", userID, "character_ids", characterIDs)
 		return false
 	}
 	defer cursor.Close(ctx)
 
-	return cursor.Next(ctx)
+	hasResult := cursor.Next(ctx)
+	if hasResult {
+		slog.Debug("[Permissions] User has super admin access via multi-character permissions",
+			"user_id", userID,
+			"character_ids", characterIDs)
+	}
+	return hasResult
+}
+
+// getCharacterIDsByUserID gets all character IDs for a given user_id
+func (pm *PermissionManager) getCharacterIDsByUserID(ctx context.Context, userID string) ([]int64, error) {
+	filter := bson.M{"user_id": userID}
+	projection := bson.M{"character_id": 1}
+
+	cursor, err := pm.db.Collection("user_profiles").Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user profiles: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var characterIDs []int64
+	for cursor.Next(ctx) {
+		var userProfile struct {
+			CharacterID int64 `bson:"character_id"`
+		}
+		if err := cursor.Decode(&userProfile); err != nil {
+			continue // Skip profiles we can't decode
+		}
+		characterIDs = append(characterIDs, userProfile.CharacterID)
+	}
+
+	return characterIDs, nil
 }
 
 func (pm *PermissionManager) ensureIndexes(ctx context.Context) error {

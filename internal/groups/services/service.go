@@ -617,6 +617,47 @@ func (s *Service) IsCharacterInGroup(ctx context.Context, characterID int64, gro
 	return membership != nil && membership.IsActive, nil
 }
 
+// IsUserInGroup checks if ANY character belonging to a user_id is in a specific group (by group name)
+func (s *Service) IsUserInGroup(ctx context.Context, userID string, groupName string) (bool, error) {
+	// Get all character IDs for this user
+	characterIDs, err := s.repo.GetCharacterIDsByUserID(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get character IDs for user: %w", err)
+	}
+
+	if len(characterIDs) == 0 {
+		return false, nil
+	}
+
+	// Get group by name
+	group, err := s.repo.GetGroupByName(ctx, groupName)
+	if err != nil {
+		return false, fmt.Errorf("failed to get group: %w", err)
+	}
+	if group == nil {
+		return false, nil
+	}
+
+	// Check if ANY character is a member of this group
+	for _, characterID := range characterIDs {
+		membership, err := s.repo.GetMembership(ctx, group.ID, characterID)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to check membership for character", "character_id", characterID, "error", err)
+			continue // Continue checking other characters
+		}
+
+		if membership != nil && membership.IsActive {
+			slog.DebugContext(ctx, "User has group membership via multi-character permissions",
+				"user_id", userID,
+				"character_id", characterID,
+				"group_name", groupName)
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // Helper methods
 
 func (s *Service) modelToOutput(group *models.Group, memberCount *int64) *dto.GroupOutput {

@@ -32,6 +32,7 @@ type AuthService struct {
 type GroupsService interface {
 	EnsureFirstUserSuperAdmin(ctx context.Context, characterID int64) error
 	IsCharacterInGroup(ctx context.Context, characterID int64, groupName string) (bool, error)
+	IsUserInGroup(ctx context.Context, userID string, groupName string) (bool, error)
 	AutoJoinCharacterToEnabledGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64, scopes string) error
 }
 
@@ -100,7 +101,7 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 	// Check if user is super admin via groups service
 	permissions := []string{}
 	if s.groupsService != nil {
-		isSuperAdmin, err := s.groupsService.IsCharacterInGroup(ctx, int64(user.CharacterID), "Super Administrator")
+		isSuperAdmin, err := s.groupsService.IsUserInGroup(ctx, user.UserID, "Super Administrator")
 		if err == nil && isSuperAdmin {
 			// Grant super admin status
 			permissions = []string{"super_admin"}
@@ -200,7 +201,7 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 	// Check if user is super admin via groups service
 	permissions := []string{}
 	if s.groupsService != nil {
-		isSuperAdmin, err := s.groupsService.IsCharacterInGroup(ctx, int64(user.CharacterID), "Super Administrator")
+		isSuperAdmin, err := s.groupsService.IsUserInGroup(ctx, user.UserID, "Super Administrator")
 		if err == nil && isSuperAdmin {
 			// Grant super admin status
 			permissions = []string{"super_admin"}

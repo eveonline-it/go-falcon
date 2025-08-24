@@ -75,15 +75,28 @@ func (m *AuthMiddleware) RequireSchedulerManagement(ctx context.Context, authHea
 
 	// Check permission via permission manager if available
 	if m.permissionManager != nil {
-		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), "scheduler:tasks:full")
-		if err == nil && hasPermission {
-			return user, nil
+		// Check for any of the scheduler permissions (read access is minimum requirement)
+		requiredPermissions := []string{
+			"scheduler:tasks:read",
+			"scheduler:tasks:create",
+			"scheduler:tasks:update",
+			"scheduler:tasks:delete",
+			"scheduler:tasks:execute",
+			"scheduler:tasks:control",
+			"scheduler:system:manage",
 		}
-		// Continue to deny access if permission failed
+
+		for _, permission := range requiredPermissions {
+			hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), permission)
+			if err == nil && hasPermission {
+				return user, nil
+			}
+		}
+		// Continue to deny access if no permissions found
 	}
 
 	// Deny access unless specific permissions are granted
-	return nil, huma.Error403Forbidden("Insufficient permissions: scheduler management requires 'scheduler:tasks:full' permission or super admin access")
+	return nil, huma.Error403Forbidden("Insufficient permissions: scheduler access requires one of the scheduler permissions")
 }
 
 // RequireTaskManagement ensures the user can modify tasks
@@ -95,10 +108,21 @@ func (m *AuthMiddleware) RequireTaskManagement(ctx context.Context, authHeader, 
 
 	// Check permission via permission manager if available
 	if m.permissionManager != nil {
-		// Check specific permission for task management
-		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), "scheduler:tasks:full")
-		if err == nil && hasPermission {
-			return user, nil
+		// Check for task management permissions (create, update, delete, execute, control)
+		taskManagementPermissions := []string{
+			"scheduler:tasks:create",
+			"scheduler:tasks:update",
+			"scheduler:tasks:delete",
+			"scheduler:tasks:execute",
+			"scheduler:tasks:control",
+			"scheduler:system:manage",
+		}
+
+		for _, permission := range taskManagementPermissions {
+			hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), permission)
+			if err == nil && hasPermission {
+				return user, nil
+			}
 		}
 		// Continue to check for general scheduler management permission
 	}

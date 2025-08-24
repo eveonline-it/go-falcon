@@ -99,14 +99,14 @@ func (s *Service) DeleteUser(ctx context.Context, characterID int) error {
 
 	// Check if groups service is available for super admin validation
 	if s.groupService != nil {
-		// Check if the character is a super admin
-		isSuperAdmin, err := s.groupService.IsCharacterInGroup(ctx, int64(characterID), "Super Administrator")
+		// Check if ANY character belonging to this user is a super admin (user-based check)
+		isSuperAdmin, err := s.groupService.IsUserInGroup(ctx, user.UserID, "Super Administrator")
 		if err != nil {
 			return fmt.Errorf("failed to check super admin status: %w", err)
 		}
 
 		if isSuperAdmin {
-			return fmt.Errorf("cannot delete super admin character")
+			return fmt.Errorf("cannot delete super administrator character")
 		}
 	}
 
