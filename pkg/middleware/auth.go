@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"go-falcon/internal/auth/models"
@@ -161,12 +162,16 @@ func CreateAuthCookieHeader(token string) string {
 	// Get cookie domain from config
 	cookieDomain := config.GetCookieDomain()
 
+	// Get cookie duration from config and convert to seconds for Max-Age
+	cookieDuration := config.GetCookieDuration()
+	maxAge := int(cookieDuration.Seconds())
+
 	// Create cookie similar to the traditional handler
 	cookie := "falcon_auth_token=" + token + "; Path=/"
 	if cookieDomain != "" {
 		cookie += "; Domain=" + cookieDomain
 	}
-	cookie += "; Max-Age=86400; HttpOnly; Secure; SameSite=Lax"
+	cookie += fmt.Sprintf("; Max-Age=%d; HttpOnly; Secure; SameSite=Lax", maxAge)
 	return cookie
 }
 

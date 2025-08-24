@@ -1,11 +1,40 @@
 package config
 
 import (
+	"log/slog"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// parseDurationWithDays parses a duration string with extended support for days.
+// A duration string is a possibly signed sequence of
+// decimal numbers, each with optional fraction and a unit suffix,
+// such as "300ms", "-1.5h", "2h45m", "7d", or "1d12h".
+// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h", "d".
+func parseDurationWithDays(s string) (time.Duration, error) {
+	// Check if string contains 'd' for days
+	if !strings.Contains(s, "d") {
+		return time.ParseDuration(s)
+	}
+
+	// Use regex to find and replace day units
+	dayRegex := regexp.MustCompile(`(\d+(?:\.\d+)?)d`)
+	converted := dayRegex.ReplaceAllStringFunc(s, func(match string) string {
+		// Extract the number part (without 'd')
+		numStr := match[:len(match)-1]
+		if num, err := strconv.ParseFloat(numStr, 64); err == nil {
+			// Convert days to hours (1 day = 24 hours)
+			hours := num * 24
+			return strconv.FormatFloat(hours, 'f', -1, 64) + "h"
+		}
+		return match // Return original if parsing fails
+	})
+
+	return time.ParseDuration(converted)
+}
 
 // GetEnv returns the value of an environment variable or a default value if not set
 func GetEnv(key, defaultValue string) string {
@@ -91,12 +120,16 @@ func GetCookieDomain() string {
 }
 
 // GetCookieDuration returns the cookie duration for auth cookies
-// Accepts values like "24h", "7d", "30m", "1h30m"
+// Accepts values like "24h", "7d", "30m", "1h30m", "1d12h" (extended format with days support)
 func GetCookieDuration() time.Duration {
 	durationStr := GetEnv("COOKIE_DURATION", "24h")
-	duration, err := time.ParseDuration(durationStr)
+	duration, err := parseDurationWithDays(durationStr)
 	if err != nil {
-		// If parsing fails, default to 24 hours
+		// If parsing fails, default to 24 hours and log a warning
+		slog.Warn("⚠️ Failed to parse COOKIE_DURATION, using default",
+			slog.String("value", durationStr),
+			slog.String("error", err.Error()),
+			slog.String("default", "24h"))
 		return 24 * time.Hour
 	}
 	return duration
