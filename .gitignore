@@ -106,3 +106,6 @@ backups/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# CLAUDE
+CLAUDE-*.md
