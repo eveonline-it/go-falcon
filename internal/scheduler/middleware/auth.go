@@ -75,7 +75,7 @@ func (m *AuthMiddleware) RequireSchedulerManagement(ctx context.Context, authHea
 
 	// Check permission via permission manager if available
 	if m.permissionManager != nil {
-		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), "scheduler:management:full")
+		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), "scheduler:tasks:full")
 		if err == nil && hasPermission {
 			return user, nil
 		}
@@ -83,7 +83,7 @@ func (m *AuthMiddleware) RequireSchedulerManagement(ctx context.Context, authHea
 	}
 
 	// Deny access unless specific permissions are granted
-	return nil, huma.Error403Forbidden("Insufficient permissions: scheduler management requires 'scheduler:management:full' permission or super admin access")
+	return nil, huma.Error403Forbidden("Insufficient permissions: scheduler management requires 'scheduler:tasks:full' permission or super admin access")
 }
 
 // RequireTaskManagement ensures the user can modify tasks
@@ -96,7 +96,7 @@ func (m *AuthMiddleware) RequireTaskManagement(ctx context.Context, authHeader, 
 	// Check permission via permission manager if available
 	if m.permissionManager != nil {
 		// Check specific permission for task management
-		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), "scheduler:tasks:manage")
+		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), "scheduler:tasks:full")
 		if err == nil && hasPermission {
 			return user, nil
 		}

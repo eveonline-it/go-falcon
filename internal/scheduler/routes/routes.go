@@ -77,11 +77,11 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Tags:        []string{"Scheduler / Status"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.SchedulerStatsInput) (*dto.SchedulerStatsOutput, error) {
-		// Validate authentication - required for stats access
+		// Validate authentication and task management permission
 		if middleware == nil || middleware.GetAuthMiddleware() == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireAuth(ctx, input.Authorization, input.Cookie)
+		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -103,11 +103,11 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Tags:        []string{"Scheduler / Tasks"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskListInput) (*dto.TaskListOutput, error) {
-		// Validate authentication - required for task listing
+		// Validate authentication and task management permission
 		if middleware == nil || middleware.GetAuthMiddleware() == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireAuth(ctx, input.Authorization, input.Cookie)
+		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -170,11 +170,11 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Tags:        []string{"Scheduler / Tasks"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskGetInput) (*dto.TaskGetOutput, error) {
-		// Validate authentication
+		// Validate authentication and task management permission
 		if middleware == nil || middleware.GetAuthMiddleware() == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireAuth(ctx, input.Authorization, input.Cookie)
+		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}

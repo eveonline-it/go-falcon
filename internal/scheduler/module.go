@@ -111,8 +111,9 @@ func (m *Module) Routes(r chi.Router) {
 	// Register health check route using base module
 	m.RegisterHealthRoute(r)
 
-	// Scheduler module now uses only Huma v2 routes - call RegisterHumaRoutes instead
-	m.RegisterHumaRoutes(r)
+	// NOTE: RegisterHumaRoutes() call DISABLED for security - it registered endpoints without authentication
+	// All secure routes are now registered via RegisterUnifiedRoutes() called from main.go
+	// m.RegisterHumaRoutes(r) // DISABLED: This registered unprotected endpoints
 }
 
 // RegisterHumaRoutes registers the Huma v2 routes

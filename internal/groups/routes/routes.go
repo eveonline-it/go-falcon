@@ -207,7 +207,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Method:      "GET",
 		Path:        "/permissions",
 		Summary:     "List all permissions",
-		Description: "Get all available permissions with optional filtering (requires authentication)",
+		Description: "Get all available permissions with optional filtering (requires admin access)",
 		Tags:        []string{"Permissions"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.listPermissions)
@@ -218,7 +218,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Method:      "GET",
 		Path:        "/permissions/{permission_id}",
 		Summary:     "Get permission",
-		Description: "Get details of a specific permission (requires authentication)",
+		Description: "Get details of a specific permission (requires admin access)",
 		Tags:        []string{"Permissions"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.getPermission)
@@ -349,8 +349,8 @@ func (m *Module) removeMember(ctx context.Context, input *dto.RemoveMemberInput)
 }
 
 func (m *Module) listMembers(ctx context.Context, input *dto.ListMembersInput) (*dto.ListMembersOutput, error) {
-	// Validate authentication
-	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and admin access
+	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}
@@ -359,8 +359,8 @@ func (m *Module) listMembers(ctx context.Context, input *dto.ListMembersInput) (
 }
 
 func (m *Module) checkMembership(ctx context.Context, input *dto.CheckMembershipInput) (*dto.MembershipCheckOutput, error) {
-	// Validate authentication
-	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and admin access
+	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}
@@ -407,8 +407,8 @@ func (m *Module) getUserGroups(ctx context.Context, input *dto.GetUserGroupsInpu
 // Permission Management Route Handlers
 
 func (m *Module) listPermissions(ctx context.Context, input *dto.ListPermissionsInput) (*dto.ListPermissionsOutput, error) {
-	// Validate authentication
-	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and admin access
+	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}
@@ -417,8 +417,8 @@ func (m *Module) listPermissions(ctx context.Context, input *dto.ListPermissions
 }
 
 func (m *Module) getPermission(ctx context.Context, input *dto.GetPermissionInput) (*dto.PermissionOutput, error) {
-	// Validate authentication
-	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and admin access
+	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}
@@ -447,8 +447,8 @@ func (m *Module) revokePermissionFromGroup(ctx context.Context, input *dto.Revok
 }
 
 func (m *Module) listGroupPermissions(ctx context.Context, input *dto.ListGroupPermissionsInput) (*dto.ListGroupPermissionsOutput, error) {
-	// Validate authentication
-	_, err := m.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and admin access
+	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}
