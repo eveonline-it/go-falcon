@@ -110,3 +110,11 @@ __pycache__/
 # MCP servers (development)
 *-mcp/
 mcp-servers/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Reports
+reports/

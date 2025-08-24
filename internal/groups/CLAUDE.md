@@ -445,6 +445,32 @@ The module automatically creates three system groups on initialization:
 - Periodic permission validation every 6 hours
 - Corp/alliance membership updates via background tasks
 
+### Cross-Module Security Integration (✅ COMPLETED)
+The groups module now provides authentication middleware and permission checking services to other modules:
+
+#### Users Module Security
+- **Permission Manager Integration**: Users module middleware uses groups service permission manager
+- **Strict Access Control**: User management operations require `"users:management:full"` permission or super admin access
+- **Self-Access Protection**: Users can only access their own data unless they have administrative permissions
+- **Statistics Endpoint Security**: User stats endpoint now requires authentication (previously public)
+
+#### Scheduler Module Security  
+- **Mandatory Authentication**: All scheduler endpoints require valid JWT authentication
+- **Permission-Based Access**: Task management operations use permission system integration
+- **System Task Protection**: System tasks remain protected from unauthorized modifications
+- **Stats Endpoint Security**: Scheduler statistics endpoint now requires authentication (previously public)
+
+#### Alliance Module Security
+- **Super Admin Protection**: Bulk import operations restricted to super administrator access only
+- **Authentication Integration**: Full integration with auth service and permission system
+- **Administrative Operations**: All administrative alliance operations now properly secured
+
+**Security Architecture:**
+- **Permission Manager**: Central permission checking via `pkg/permissions.PermissionManager`
+- **Module Dependency**: Other modules inject groups service for permission validation
+- **Strict Fallback**: Authentication middleware denies access unless explicit permissions granted
+- **Consistent Standards**: All modules follow identical security patterns based on groups module
+
 ## Performance Considerations
 
 - **Database Indexes**: Optimized for common query patterns
