@@ -19,7 +19,7 @@ type ValidationMiddleware struct {
 func NewValidationMiddleware() *ValidationMiddleware {
 	validate := validator.New()
 	dto.RegisterCustomValidators(validate)
-	
+
 	return &ValidationMiddleware{
 		validator: validate,
 	}
@@ -51,7 +51,7 @@ func (m *ValidationMiddleware) ValidateJSON(target interface{}) func(http.Handle
 // 	return m.ValidateJSON(&req)(next)
 // }
 
-// ValidateRegisterRequest validates registration request  
+// ValidateRegisterRequest validates registration request
 // TODO: Implement when RegisterRequest DTO is defined
 // func (m *ValidationMiddleware) ValidateRegisterRequest(next http.Handler) http.Handler {
 // 	var req dto.RegisterRequest

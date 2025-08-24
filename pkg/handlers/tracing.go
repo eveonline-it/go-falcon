@@ -33,15 +33,15 @@ func StartHTTPSpan(r *http.Request, operationName string, attributes ...attribut
 	if !config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		return trace.SpanFromContext(r.Context()), r
 	}
-	
+
 	tracer := otel.Tracer("go-falcon/handlers")
-	
+
 	// Get the existing context (which may already have a span from middleware)
 	ctx := r.Context()
-	
+
 	// Start a new span as a child of any existing span
 	ctx, span := tracer.Start(ctx, operationName)
-	
+
 	// Add default HTTP attributes
 	span.SetAttributes(
 		attribute.String("http.method", r.Method),
@@ -51,11 +51,11 @@ func StartHTTPSpan(r *http.Request, operationName string, attributes ...attribut
 		attribute.String("http.target", r.URL.Path),
 		attribute.String("user_agent.original", r.UserAgent()),
 	)
-	
+
 	// Add custom attributes
 	if len(attributes) > 0 {
 		span.SetAttributes(attributes...)
 	}
-	
+
 	return span, r.WithContext(ctx)
 }

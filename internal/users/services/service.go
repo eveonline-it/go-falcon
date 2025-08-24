@@ -39,7 +39,6 @@ func (s *Service) GetUserByUserID(ctx context.Context, userID string) (*models.U
 	return s.repository.GetUserByUserID(ctx, userID)
 }
 
-
 // UpdateUser updates user status and administrative fields
 func (s *Service) UpdateUser(ctx context.Context, characterID int, req dto.UserUpdateRequest) (*models.User, error) {
 	// Validate the update request

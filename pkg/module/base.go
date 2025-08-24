@@ -57,13 +57,13 @@ const (
 type Module interface {
 	// Routes sets up the HTTP routes for this module
 	Routes(r chi.Router)
-	
+
 	// StartBackgroundTasks starts any background processing for this module
 	StartBackgroundTasks(ctx context.Context)
-	
+
 	// Stop gracefully stops the module and its background tasks
 	Stop()
-	
+
 	// Name returns the module name for logging and identification
 	Name() string
 }
@@ -103,7 +103,6 @@ func (b *BaseModule) Redis() *database.Redis {
 	return b.redis
 }
 
-
 // StopChannel returns the stop channel for background tasks
 func (b *BaseModule) StopChannel() <-chan struct{} {
 	return b.stopCh
@@ -124,7 +123,7 @@ func (b *BaseModule) Stop() {
 // StartBackgroundTasks provides a default implementation for background tasks
 func (b *BaseModule) StartBackgroundTasks(ctx context.Context) {
 	slog.Info("Starting background tasks", "module", b.name)
-	
+
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 

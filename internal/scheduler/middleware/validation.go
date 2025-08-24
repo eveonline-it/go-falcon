@@ -19,7 +19,7 @@ type ValidationMiddleware struct {
 func NewValidationMiddleware() *ValidationMiddleware {
 	validate := validator.New()
 	dto.RegisterCustomValidators(validate)
-	
+
 	return &ValidationMiddleware{
 		validator: validate,
 	}
@@ -97,7 +97,7 @@ func (m *ValidationMiddleware) ValidateQueryParams(next http.Handler) http.Handl
 		query.Status = r.URL.Query().Get("status")
 		query.Type = r.URL.Query().Get("type")
 		query.Enabled = r.URL.Query().Get("enabled")
-		
+
 		// Parse tags
 		if tagsStr := r.URL.Query().Get("tags"); tagsStr != "" {
 			query.Tags = handlers.ParseCommaSeparated(tagsStr)

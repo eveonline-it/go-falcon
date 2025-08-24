@@ -29,10 +29,10 @@ func NewRepository(mongodb *database.MongoDB) *Repository {
 // GetUser retrieves a user by character ID
 func (r *Repository) GetUser(ctx context.Context, characterID int) (*models.User, error) {
 	collection := r.mongodb.Collection(models.User{}.CollectionName())
-	
+
 	var user models.User
 	filter := bson.M{"character_id": characterID}
-	
+
 	err := collection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -47,10 +47,10 @@ func (r *Repository) GetUser(ctx context.Context, characterID int) (*models.User
 // GetUserByUserID retrieves a user by user ID
 func (r *Repository) GetUserByUserID(ctx context.Context, userID string) (*models.User, error) {
 	collection := r.mongodb.Collection(models.User{}.CollectionName())
-	
+
 	var user models.User
 	filter := bson.M{"user_id": userID}
-	
+
 	err := collection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -62,11 +62,10 @@ func (r *Repository) GetUserByUserID(ctx context.Context, userID string) (*model
 	return &user, nil
 }
 
-
 // UpdateUser updates user status and administrative fields
 func (r *Repository) UpdateUser(ctx context.Context, characterID int, req dto.UserUpdateRequest) (*models.User, error) {
 	collection := r.mongodb.Collection(models.User{}.CollectionName())
-	
+
 	// Build update document
 	update := bson.M{}
 	if req.Enabled != nil {
@@ -84,19 +83,19 @@ func (r *Repository) UpdateUser(ctx context.Context, characterID int, req dto.Us
 	if req.Notes != nil {
 		update["notes"] = *req.Notes
 	}
-	
+
 	// Always update the updated_at timestamp
 	update["updated_at"] = time.Now()
 
 	// Perform update
 	filter := bson.M{"character_id": characterID}
 	updateDoc := bson.M{"$set": update}
-	
+
 	result, err := collection.UpdateOne(ctx, filter, updateDoc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update user: %w", err)
 	}
-	
+
 	if result.MatchedCount == 0 {
 		return nil, fmt.Errorf("user not found for character ID %d", characterID)
 	}
@@ -113,7 +112,7 @@ func (r *Repository) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, 
 	pipeline := []bson.M{
 		{
 			"$group": bson.M{
-				"_id": nil,
+				"_id":         nil,
 				"total_users": bson.M{"$sum": 1},
 				"enabled_users": bson.M{
 					"$sum": bson.M{
@@ -202,9 +201,9 @@ func (r *Repository) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, 
 // ListCharacters retrieves character summaries for a specific user ID
 func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.CharacterSummaryResponse, error) {
 	collection := r.mongodb.Collection(models.CharacterSummary{}.CollectionName())
-	
+
 	filter := bson.M{"user_id": userID}
-	
+
 	// Project only needed fields for character summary
 	projection := bson.M{
 		"character_id":   1,
@@ -215,7 +214,7 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 		"position":       1,
 		"last_login":     1,
 	}
-	
+
 	findOptions := options.Find().
 		SetProjection(projection).
 		SetSort(bson.D{{"character_name", 1}})
@@ -232,7 +231,7 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 		if err := cursor.Decode(&char); err != nil {
 			return nil, fmt.Errorf("failed to decode character: %w", err)
 		}
-		
+
 		characters = append(characters, dto.CharacterSummaryResponse{
 			CharacterID:   char.CharacterID,
 			CharacterName: char.CharacterName,
@@ -254,45 +253,45 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 // ListUsers retrieves paginated and filtered users
 func (r *Repository) ListUsers(ctx context.Context, input dto.UserListInput) (*dto.UserListResponse, error) {
 	collection := r.mongodb.Collection(models.User{}.CollectionName())
-	
+
 	// Build filter
 	filter := bson.M{}
-	
+
 	if input.Query != "" {
 		// Search by character name or character ID
 		query := input.Query
 		filter["$or"] = []bson.M{
 			{"character_name": bson.M{"$regex": query, "$options": "i"}},
 		}
-		
+
 		// If query is numeric, also search by character_id
 		if characterID := parseInt(query); characterID > 0 {
 			filter["$or"] = append(filter["$or"].([]bson.M), bson.M{"character_id": characterID})
 		}
 	}
-	
+
 	if input.Enabled == "true" {
 		filter["enabled"] = true
 	} else if input.Enabled == "false" {
 		filter["enabled"] = false
 	}
-	
+
 	if input.Banned == "true" {
 		filter["banned"] = true
 	} else if input.Banned == "false" {
 		filter["banned"] = false
 	}
-	
+
 	if input.Invalid == "true" {
 		filter["invalid"] = true
 	} else if input.Invalid == "false" {
 		filter["invalid"] = false
 	}
-	
+
 	if input.Position > 0 {
 		filter["position"] = input.Position
 	}
-	
+
 	// Build sort options
 	sortField := "created_at"
 	if input.SortBy != "" {
@@ -301,40 +300,40 @@ func (r *Repository) ListUsers(ctx context.Context, input dto.UserListInput) (*d
 			sortField = input.SortBy
 		}
 	}
-	
+
 	sortOrder := -1 // desc by default
 	if input.SortOrder == "asc" {
 		sortOrder = 1
 	}
-	
+
 	// Calculate pagination
 	skip := (input.Page - 1) * input.PageSize
-	
+
 	// Get total count
 	totalCount, err := collection.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count users: %w", err)
 	}
-	
+
 	// Get users
 	findOptions := options.Find().
 		SetSkip(int64(skip)).
 		SetLimit(int64(input.PageSize)).
 		SetSort(bson.D{{sortField, sortOrder}})
-	
+
 	cursor, err := collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find users: %w", err)
 	}
 	defer cursor.Close(ctx)
-	
+
 	var users []dto.UserResponse
 	for cursor.Next(ctx) {
 		var user models.User
 		if err := cursor.Decode(&user); err != nil {
 			return nil, fmt.Errorf("failed to decode user: %w", err)
 		}
-		
+
 		users = append(users, dto.UserResponse{
 			CharacterID:   user.CharacterID,
 			UserID:        user.UserID,
@@ -351,14 +350,14 @@ func (r *Repository) ListUsers(ctx context.Context, input dto.UserListInput) (*d
 			Valid:         user.Valid,
 		})
 	}
-	
+
 	if err := cursor.Err(); err != nil {
 		return nil, fmt.Errorf("cursor error: %w", err)
 	}
-	
+
 	// Calculate total pages
 	totalPages := int((totalCount + int64(input.PageSize) - 1) / int64(input.PageSize))
-	
+
 	return &dto.UserListResponse{
 		Users:      users,
 		Total:      int(totalCount),
@@ -387,17 +386,17 @@ func parseInt(s string) int {
 // DeleteUser deletes a user by character ID
 func (r *Repository) DeleteUser(ctx context.Context, characterID int) error {
 	collection := r.mongodb.Collection(models.User{}.CollectionName())
-	
+
 	filter := bson.M{"character_id": characterID}
 	result, err := collection.DeleteOne(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
-	
+
 	if result.DeletedCount == 0 {
 		return fmt.Errorf("user not found for character ID %d", characterID)
 	}
-	
+
 	return nil
 }
 

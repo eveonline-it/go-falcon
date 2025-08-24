@@ -7,21 +7,21 @@ import (
 // User represents a user with character information and state control
 // Uses the same database collection as auth module: user_profiles
 type User struct {
-	CharacterID   int       `json:"character_id" bson:"character_id"`   // EVE character ID (unique)
-	UserID        string    `json:"user_id" bson:"user_id"`             // UUID for internal identification
-	AccessToken   string    `json:"-" bson:"access_token"`              // EVE SSO access token (hidden from JSON)
-	RefreshToken  string    `json:"-" bson:"refresh_token"`             // EVE SSO refresh token (hidden from JSON)
-	Enabled       bool      `json:"enabled" bson:"enabled"`             // User account status
-	Banned        bool      `json:"banned" bson:"banned"`               // Ban status
-	Invalid       bool      `json:"invalid" bson:"invalid"`             // Token/account validity
-	Scopes        string    `json:"scopes" bson:"scopes"`               // EVE Online permissions
-	Position      int       `json:"position" bson:"position"`           // User position/rank
-	Notes         string    `json:"notes" bson:"notes"`                 // Administrative notes
-	CreatedAt     time.Time `json:"created_at" bson:"created_at"`       // Registration timestamp
-	UpdatedAt     time.Time `json:"updated_at" bson:"updated_at"`       // Last update timestamp
-	LastLogin     time.Time `json:"last_login" bson:"last_login"`       // Last login timestamp
+	CharacterID   int       `json:"character_id" bson:"character_id"`     // EVE character ID (unique)
+	UserID        string    `json:"user_id" bson:"user_id"`               // UUID for internal identification
+	AccessToken   string    `json:"-" bson:"access_token"`                // EVE SSO access token (hidden from JSON)
+	RefreshToken  string    `json:"-" bson:"refresh_token"`               // EVE SSO refresh token (hidden from JSON)
+	Enabled       bool      `json:"enabled" bson:"enabled"`               // User account status
+	Banned        bool      `json:"banned" bson:"banned"`                 // Ban status
+	Invalid       bool      `json:"invalid" bson:"invalid"`               // Token/account validity
+	Scopes        string    `json:"scopes" bson:"scopes"`                 // EVE Online permissions
+	Position      int       `json:"position" bson:"position"`             // User position/rank
+	Notes         string    `json:"notes" bson:"notes"`                   // Administrative notes
+	CreatedAt     time.Time `json:"created_at" bson:"created_at"`         // Registration timestamp
+	UpdatedAt     time.Time `json:"updated_at" bson:"updated_at"`         // Last update timestamp
+	LastLogin     time.Time `json:"last_login" bson:"last_login"`         // Last login timestamp
 	CharacterName string    `json:"character_name" bson:"character_name"` // EVE character name
-	Valid         bool      `json:"valid" bson:"valid"`                 // Character profile validity status
+	Valid         bool      `json:"valid" bson:"valid"`                   // Character profile validity status
 }
 
 // CharacterSummary represents basic character information for listing

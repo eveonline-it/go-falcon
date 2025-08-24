@@ -134,7 +134,7 @@ func LogRequest(r *http.Request, statusCode int, duration time.Duration, metadat
 // ValidationErrorResponseFromError converts validator errors to response
 func ValidationErrorResponseFromError(w http.ResponseWriter, err error) {
 	var errorMessages []string
-	
+
 	if validationErrors, ok := err.(validator.ValidationErrors); ok {
 		for _, fieldError := range validationErrors {
 			errorMessages = append(errorMessages, formatValidationError(fieldError))
@@ -142,7 +142,7 @@ func ValidationErrorResponseFromError(w http.ResponseWriter, err error) {
 	} else {
 		errorMessages = append(errorMessages, err.Error())
 	}
-	
+
 	ValidationErrorResponse(w, errorMessages)
 }
 

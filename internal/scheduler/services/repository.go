@@ -15,8 +15,8 @@ import (
 
 // Repository handles database operations for scheduler
 type Repository struct {
-	mongodb *database.MongoDB
-	tasks   *mongo.Collection
+	mongodb    *database.MongoDB
+	tasks      *mongo.Collection
 	executions *mongo.Collection
 }
 
@@ -92,7 +92,7 @@ func (r *Repository) ListTasks(ctx context.Context, filter bson.M, page, pageSiz
 func (r *Repository) GetActiveTasks(ctx context.Context) ([]models.Task, error) {
 	filter := bson.M{
 		"enabled": true,
-		"status": bson.M{"$nin": []string{"paused", "disabled"}},
+		"status":  bson.M{"$nin": []string{"paused", "disabled"}},
 	}
 
 	cursor, err := r.tasks.Find(ctx, filter)
@@ -143,26 +143,26 @@ func (r *Repository) UpdateTaskRunWithDuration(ctx context.Context, taskID strin
 		"next_run":   nextRun,
 		"updated_at": time.Now(),
 	}
-	
+
 	if duration != nil {
 		updateFields["last_run_duration"] = *duration
 	}
-	
+
 	update := bson.M{"$set": updateFields}
-	
+
 	// Update statistics
 	incFields := bson.M{
 		"metadata.total_runs": 1,
 	}
-	
+
 	if success {
 		incFields["metadata.success_count"] = 1
 	} else {
 		incFields["metadata.failure_count"] = 1
 	}
-	
+
 	update["$inc"] = incFields
-	
+
 	// Update average runtime if we have a duration
 	if duration != nil && success {
 		// Get current task to calculate new average
@@ -172,7 +172,7 @@ func (r *Repository) UpdateTaskRunWithDuration(ctx context.Context, taskID strin
 			updateFields["metadata.average_runtime"] = newAverage
 		}
 	}
-	
+
 	_, err := r.tasks.UpdateOne(ctx, bson.M{"_id": taskID}, update)
 	return err
 }
@@ -182,9 +182,9 @@ func (r *Repository) calculateNewAverage(currentAverage time.Duration, currentCo
 	if currentCount == 0 {
 		return models.Duration(newDuration)
 	}
-	
+
 	// Calculate new average: ((current_avg * current_count) + new_duration) / (current_count + 1)
-	totalTime := time.Duration(int64(currentAverage) * currentCount) + newDuration
+	totalTime := time.Duration(int64(currentAverage)*currentCount) + newDuration
 	newCount := currentCount + 1
 	return models.Duration(int64(totalTime) / newCount)
 }
@@ -208,8 +208,8 @@ func (r *Repository) HandleStaleRunningTasks(ctx context.Context) error {
 
 	update := bson.M{
 		"$set": bson.M{
-			"status":     models.TaskStatusFailed,
-			"updated_at": time.Now(),
+			"status":              models.TaskStatusFailed,
+			"updated_at":          time.Now(),
 			"metadata.last_error": "Task marked as stale after timeout",
 		},
 	}
@@ -305,7 +305,7 @@ func (r *Repository) ListExecutions(ctx context.Context, filter bson.M, page, pa
 // CleanupExecutions removes old execution records
 func (r *Repository) CleanupExecutions(ctx context.Context, retentionPeriod time.Duration) error {
 	cutoff := time.Now().Add(-retentionPeriod)
-	
+
 	filter := bson.M{
 		"started_at": bson.M{"$lt": cutoff},
 	}
@@ -375,7 +375,7 @@ func (r *Repository) GetSchedulerStats(ctx context.Context) (*models.SchedulerSt
 	pipeline := []bson.M{
 		{"$match": bson.M{"status": models.TaskStatusCompleted}},
 		{"$group": bson.M{
-			"_id": nil,
+			"_id":          nil,
 			"avg_duration": bson.M{"$avg": "$duration"},
 		}},
 	}
@@ -406,11 +406,11 @@ func (r *Repository) GetSchedulerStats(ctx context.Context) (*models.SchedulerSt
 	opts := options.FindOne().SetSort(bson.D{{Key: "next_run", Value: 1}})
 	var nextTask models.Task
 	err = r.tasks.FindOne(ctx, bson.M{
-		"enabled": true,
+		"enabled":  true,
 		"next_run": bson.M{"$ne": nil},
-		"status": bson.M{"$nin": []string{"paused", "disabled"}},
+		"status":   bson.M{"$nin": []string{"paused", "disabled"}},
 	}, opts).Decode(&nextTask)
-	
+
 	if err == nil && nextTask.NextRun != nil {
 		stats.NextScheduledRun = nextTask.NextRun
 	}
@@ -441,7 +441,7 @@ func (r *Repository) BulkUpdateTaskStatus(ctx context.Context, taskIDs []string,
 // BulkDeleteTasks deletes multiple tasks (excludes system tasks)
 func (r *Repository) BulkDeleteTasks(ctx context.Context, taskIDs []string) (int64, error) {
 	filter := bson.M{
-		"_id": bson.M{"$in": taskIDs},
+		"_id":                bson.M{"$in": taskIDs},
 		"metadata.is_system": bson.M{"$ne": true}, // Protect system tasks
 	}
 

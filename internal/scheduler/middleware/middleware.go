@@ -32,7 +32,7 @@ func (m *Middleware) GetAuthMiddleware() *AuthMiddleware {
 func (m *Middleware) RequestLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// Skip health check logging to reduce noise
 		if r.URL.Path == "/scheduler/health" {
 			next.ServeHTTP(w, r)
@@ -41,11 +41,11 @@ func (m *Middleware) RequestLogging(next http.Handler) http.Handler {
 
 		// Create response wrapper to capture status code
 		wrapped := handlers.NewResponseWrapper(w)
-		
+
 		next.ServeHTTP(wrapped, r)
-		
+
 		duration := time.Since(start)
-		
+
 		// Log request details
 		handlers.LogRequest(r, wrapped.StatusCode, duration, map[string]interface{}{
 			"module": "scheduler",
@@ -64,7 +64,7 @@ func (m *Middleware) RateLimiting(next http.Handler) http.Handler {
 		// - Task updates: 30/minute
 		// - Task listing: 100/minute
 		// - Manual execution: 5/minute
-		
+
 		// For now, pass through - implement actual rate limiting later
 		next.ServeHTTP(w, r)
 	})
@@ -94,7 +94,7 @@ func (m *Middleware) SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		
+
 		next.ServeHTTP(w, r)
 	})
 }

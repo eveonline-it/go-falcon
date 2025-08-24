@@ -33,7 +33,7 @@ func NewRepository(mongodb *database.MongoDB) *Repository {
 // GetCharacterByID retrieves a character by character ID
 func (r *Repository) GetCharacterByID(ctx context.Context, characterID int) (*models.Character, error) {
 	filter := bson.M{"character_id": characterID}
-	
+
 	var character models.Character
 	err := r.collection.FindOne(ctx, filter).Decode(&character)
 	if err != nil {
@@ -42,7 +42,7 @@ func (r *Repository) GetCharacterByID(ctx context.Context, characterID int) (*mo
 		}
 		return nil, err
 	}
-	
+
 	return &character, nil
 }
 
@@ -56,7 +56,7 @@ func (r *Repository) SaveCharacter(ctx context.Context, character *models.Charac
 	filter := bson.M{"character_id": character.CharacterID}
 	update := bson.M{"$set": character}
 	opts := options.Update().SetUpsert(true)
-	
+
 	_, err := r.collection.UpdateOne(ctx, filter, update, opts)
 	return err
 }
@@ -65,7 +65,7 @@ func (r *Repository) SaveCharacter(ctx context.Context, character *models.Charac
 func (r *Repository) SearchCharactersByName(ctx context.Context, name string) ([]*models.Character, error) {
 	var filter bson.M
 	var findOptions *options.FindOptions
-	
+
 	// Use different search strategies based on the search pattern
 	if len(name) >= 3 {
 		// For partial matches, try text search first (faster for full-text queries)
@@ -89,7 +89,7 @@ func (r *Repository) SearchCharactersByName(ctx context.Context, name string) ([
 			if !strings.HasPrefix(name, "^") {
 				regexPattern = strings.ToLower(name) // Contains search
 			}
-			
+
 			filter = bson.M{
 				"name": bson.M{
 					"$regex":   regexPattern,
@@ -113,18 +113,18 @@ func (r *Repository) SearchCharactersByName(ctx context.Context, name string) ([
 			SetSort(bson.M{"name": 1}).
 			SetLimit(20) // Smaller limit for short queries
 	}
-	
+
 	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var characters []*models.Character
 	if err := cursor.All(ctx, &characters); err != nil {
 		return nil, err
 	}
-	
+
 	return characters, nil
 }
 
@@ -158,7 +158,7 @@ func (r *Repository) GetAllCharacterIDs(ctx context.Context) ([]int, error) {
 // UpdateCharacterAffiliation updates a character's corporation and alliance affiliations
 func (r *Repository) UpdateCharacterAffiliation(ctx context.Context, affiliation *dto.CharacterAffiliation) error {
 	filter := bson.M{"character_id": affiliation.CharacterID}
-	
+
 	// Get the existing character to compare changes
 	var existingCharacter models.Character
 	err := r.collection.FindOne(ctx, filter).Decode(&existingCharacter)
@@ -191,7 +191,7 @@ func (r *Repository) UpdateCharacterAffiliation(ctx context.Context, affiliation
 		if existingCharacter.FactionID != affiliation.FactionID {
 			changes = append(changes, fmt.Sprintf("faction: %d→%d", existingCharacter.FactionID, affiliation.FactionID))
 		}
-		
+
 		if len(changes) > 0 {
 			log.Printf("🔄 Character %d affiliation UPDATED: %s", affiliation.CharacterID, strings.Join(changes, ", "))
 		}
@@ -199,9 +199,9 @@ func (r *Repository) UpdateCharacterAffiliation(ctx context.Context, affiliation
 
 	// If no document was found, we might want to create a minimal character record
 	if result.MatchedCount == 0 {
-		log.Printf("➕ Character %d NOT FOUND in database, creating new record (corp: %d, alliance: %d, faction: %d)", 
+		log.Printf("➕ Character %d NOT FOUND in database, creating new record (corp: %d, alliance: %d, faction: %d)",
 			affiliation.CharacterID, affiliation.CorporationID, affiliation.AllianceID, affiliation.FactionID)
-		
+
 		// Create a new character with minimal information
 		character := &models.Character{
 			CharacterID:   affiliation.CharacterID,
@@ -211,7 +211,7 @@ func (r *Repository) UpdateCharacterAffiliation(ctx context.Context, affiliation
 			CreatedAt:     time.Now(),
 			UpdatedAt:     time.Now(),
 		}
-		
+
 		_, err = r.collection.InsertOne(ctx, character)
 		if err != nil {
 			// Check if it's a duplicate key error (character was created concurrently)
@@ -253,12 +253,12 @@ func (r *Repository) BatchUpdateAffiliations(ctx context.Context, affiliations [
 				"created_at":   now,
 			},
 		}
-		
+
 		model := mongo.NewUpdateOneModel().
 			SetFilter(filter).
 			SetUpdate(update).
 			SetUpsert(true)
-		
+
 		models = append(models, model)
 	}
 
@@ -276,18 +276,18 @@ func (r *Repository) CheckHealth(ctx context.Context) error {
 // GetCharactersByIDs retrieves multiple characters by their IDs
 func (r *Repository) GetCharactersByIDs(ctx context.Context, characterIDs []int) ([]*models.Character, error) {
 	filter := bson.M{"character_id": bson.M{"$in": characterIDs}}
-	
+
 	cursor, err := r.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var characters []*models.Character
 	if err := cursor.All(ctx, &characters); err != nil {
 		return nil, err
 	}
-	
+
 	return characters, nil
 }
 
@@ -303,13 +303,13 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 		Keys:    bson.D{{Key: "character_id", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}
-	
+
 	// Create text index on name field for full-text search (multi-word queries)
 	nameTextIndex := mongo.IndexModel{
-		Keys: bson.D{{Key: "name", Value: "text"}},
+		Keys:    bson.D{{Key: "name", Value: "text"}},
 		Options: options.Index().SetName("name_text"),
 	}
-	
+
 	// Create case-insensitive index on name for prefix/regex searches
 	// This supports both prefix searches (^pattern) and general regex searches
 	nameRegularIndex := mongo.IndexModel{
@@ -321,7 +321,7 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 				Strength: 2, // Case-insensitive comparison
 			}),
 	}
-	
+
 	// Create compound index for efficient sorting with search
 	nameWithTimestampIndex := mongo.IndexModel{
 		Keys: bson.D{
@@ -335,14 +335,14 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 				Strength: 2, // Case-insensitive
 			}),
 	}
-	
+
 	indexModels := []mongo.IndexModel{
 		characterIDIndex,
 		nameTextIndex,
 		nameRegularIndex,
 		nameWithTimestampIndex,
 	}
-	
+
 	_, err := r.collection.Indexes().CreateMany(ctx, indexModels)
 	return err
 }

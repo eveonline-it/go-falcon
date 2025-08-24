@@ -52,8 +52,8 @@ func GetSystemTasks() []*models.Task {
 			Config: map[string]interface{}{
 				"task_name": "groups_sync",
 				"parameters": map[string]interface{}{
-					"batch_size": 50,
-					"timeout":    "10m",
+					"batch_size":           50,
+					"timeout":              "10m",
 					"validate_memberships": true,
 				},
 			},
@@ -166,9 +166,9 @@ func GetSystemTasks() []*models.Task {
 			Config: map[string]interface{}{
 				"task_name": "character_affiliation_update",
 				"parameters": map[string]interface{}{
-					"batch_size":    1000,  // ESI max batch size
-					"parallel_workers": 3,  // Concurrent ESI requests
-					"timeout":       "5m",
+					"batch_size":       1000, // ESI max batch size
+					"parallel_workers": 3,    // Concurrent ESI requests
+					"timeout":          "5m",
 				},
 			},
 			Metadata: models.TaskMetadata{
@@ -224,9 +224,9 @@ func GetSystemTasks() []*models.Task {
 			Config: map[string]interface{}{
 				"task_name": "alliance_bulk_import",
 				"parameters": map[string]interface{}{
-					"batch_size":          10,
+					"batch_size":             10,
 					"delay_between_requests": "200ms",
-					"timeout":             "30m",
+					"timeout":                "30m",
 				},
 			},
 			Metadata: models.TaskMetadata{
@@ -255,7 +255,7 @@ func GetSystemTasks() []*models.Task {
 				"task_name": "corporation_update",
 				"parameters": map[string]interface{}{
 					"concurrent_workers": 10,
-					"timeout":           "60m",
+					"timeout":            "60m",
 				},
 			},
 			Metadata: models.TaskMetadata{

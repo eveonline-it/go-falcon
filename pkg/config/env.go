@@ -113,24 +113,23 @@ func GetEnvIntSlice(key string) []int {
 	if value == "" {
 		return []int{}
 	}
-	
+
 	parts := strings.Split(value, ",")
 	result := make([]int, 0, len(parts))
-	
+
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}
-		
+
 		if num, err := strconv.Atoi(part); err == nil {
 			result = append(result, num)
 		}
 	}
-	
+
 	return result
 }
-
 
 // GetHumaPort returns the HUMA server port from environment
 func GetHumaPort() string {
@@ -160,24 +159,24 @@ func GetOpenAPIServers() []*OpenAPIServer {
 	if serversEnv == "" {
 		return nil // Return nil to use default configuration
 	}
-	
+
 	var servers []*OpenAPIServer
 	serverPairs := strings.Split(serversEnv, ",")
-	
+
 	for _, pair := range serverPairs {
 		pair = strings.TrimSpace(pair)
 		if pair == "" {
 			continue
 		}
-		
+
 		parts := strings.Split(pair, "|")
 		if len(parts) != 2 {
 			continue // Skip invalid format
 		}
-		
+
 		url := strings.TrimSpace(parts[0])
 		description := strings.TrimSpace(parts[1])
-		
+
 		if url != "" && description != "" {
 			servers = append(servers, &OpenAPIServer{
 				URL:         url,
@@ -185,7 +184,7 @@ func GetOpenAPIServers() []*OpenAPIServer {
 			})
 		}
 	}
-	
+
 	return servers
 }
 

@@ -27,7 +27,7 @@ func main() {
 		slog.Error("MongoDB connection required for restore")
 		os.Exit(1)
 	}
-	
+
 	if appCtx.Redis == nil {
 		slog.Error("Redis connection required for restore")
 		os.Exit(1)

@@ -93,7 +93,7 @@ func (m *AuthMiddleware) RequireScopes(requiredScopes ...string) func(http.Handl
 func (m *AuthMiddleware) extractAndValidateJWT(r *http.Request) (*models.AuthenticatedUser, error) {
 	// Try to get JWT from cookie or Authorization header
 	var jwtToken string
-	
+
 	// Try cookie first
 	if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 		jwtToken = cookie.Value

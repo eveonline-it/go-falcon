@@ -63,7 +63,7 @@ func (s *AuthService) HealthCheck(w http.ResponseWriter, r *http.Request) {
 func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.AuthStatusResponse, error) {
 	// Try to get JWT from cookie or header
 	var jwtToken string
-	
+
 	if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 		jwtToken = cookie.Value
 	} else {
@@ -122,7 +122,7 @@ func (s *AuthService) GetAuthStatus(ctx context.Context, r *http.Request) (*dto.
 func (s *AuthService) GetCurrentUser(ctx context.Context, r *http.Request) (*dto.UserInfoResponse, error) {
 	// Try to get JWT from cookie or header
 	var jwtToken string
-	
+
 	if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 		jwtToken = cookie.Value
 	} else {
@@ -154,12 +154,12 @@ func (s *AuthService) GetCurrentUser(ctx context.Context, r *http.Request) (*dto
 func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, cookieHeader string) (*dto.AuthStatusResponse, error) {
 	// Try to extract JWT token from headers
 	var jwtToken string
-	
+
 	// Try Authorization header first
 	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 		jwtToken = authHeader[7:]
 	}
-	
+
 	// If not found, try cookie header
 	if jwtToken == "" && cookieHeader != "" {
 		// Parse cookie header to find falcon_auth_token
@@ -222,12 +222,12 @@ func (s *AuthService) GetAuthStatusFromHeaders(ctx context.Context, authHeader, 
 func (s *AuthService) GetCurrentUserFromHeaders(ctx context.Context, authHeader, cookieHeader string) (*dto.UserInfoResponse, error) {
 	// Try to extract JWT token from headers
 	var jwtToken string
-	
+
 	// Try Authorization header first
 	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 		jwtToken = authHeader[7:]
 	}
-	
+
 	// If not found, try cookie header
 	if jwtToken == "" && cookieHeader != "" {
 		// Parse cookie header to find falcon_auth_token
@@ -314,7 +314,7 @@ func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, sta
 	// 3. User ID from existing profile for this character
 	// 4. Generate new user ID
 	userID := ""
-	
+
 	// First priority: use user ID from valid cookie if available
 	if cookieUserID != "" {
 		userID = cookieUserID
@@ -330,7 +330,7 @@ func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, sta
 			span.RecordError(err)
 			return "", nil, fmt.Errorf("failed to check existing profile: %w", err)
 		}
-		
+
 		if existingProfile != nil {
 			userID = existingProfile.UserID
 			span.SetAttributes(attribute.String("user_id_source", "existing_profile"))
@@ -354,11 +354,11 @@ func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, sta
 			// Log error but don't fail the authentication process
 			slog.Error("Failed to ensure first user super admin", "error", err, "character_id", profile.CharacterID)
 		}
-		
+
 		// Auto-join character to enabled corporation/alliance groups
 		corpID := (*int64)(nil)
 		allianceID := (*int64)(nil)
-		
+
 		if profile.CorporationID != 0 {
 			corpIDInt64 := int64(profile.CorporationID)
 			corpID = &corpIDInt64
@@ -367,10 +367,10 @@ func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, sta
 			allianceIDInt64 := int64(profile.AllianceID)
 			allianceID = &allianceIDInt64
 		}
-		
+
 		if err := s.groupsService.AutoJoinCharacterToEnabledGroups(ctx, int64(profile.CharacterID), corpID, allianceID, profile.Scopes); err != nil {
 			// Log error but don't fail authentication
-			slog.Error("Failed to auto-join character to enabled groups", 
+			slog.Error("Failed to auto-join character to enabled groups",
 				"error", err, "character_id", profile.CharacterID, "corp_id", corpID, "alliance_id", allianceID, "has_scopes", profile.Scopes != "")
 		} else {
 			slog.Info("Auto-joined character to enabled groups", "character_id", profile.CharacterID, "has_scopes", profile.Scopes != "")
@@ -456,7 +456,7 @@ func (s *AuthService) RefreshUserProfile(ctx context.Context, characterID int) (
 	if s.groupsService != nil {
 		corpID := (*int64)(nil)
 		allianceID := (*int64)(nil)
-		
+
 		if profile.CorporationID != 0 {
 			corpIDInt64 := int64(profile.CorporationID)
 			corpID = &corpIDInt64
@@ -465,10 +465,10 @@ func (s *AuthService) RefreshUserProfile(ctx context.Context, characterID int) (
 			allianceIDInt64 := int64(profile.AllianceID)
 			allianceID = &allianceIDInt64
 		}
-		
+
 		if err := s.groupsService.AutoJoinCharacterToEnabledGroups(ctx, int64(profile.CharacterID), corpID, allianceID, profile.Scopes); err != nil {
 			// Log error but don't fail profile refresh
-			slog.Error("Failed to re-sync character groups after profile refresh", 
+			slog.Error("Failed to re-sync character groups after profile refresh",
 				"error", err, "character_id", profile.CharacterID, "corp_id", corpID, "alliance_id", allianceID, "has_scopes", profile.Scopes != "")
 		} else {
 			slog.Debug("Re-synced character groups after profile refresh", "character_id", profile.CharacterID, "has_scopes", profile.Scopes != "")
@@ -564,21 +564,21 @@ func (s *AuthService) verifyEVEAccessToken(ctx context.Context, accessToken stri
 // profileToDTO converts a profile model to DTO
 func (s *AuthService) profileToDTO(profile *models.UserProfile) *dto.ProfileResponse {
 	return &dto.ProfileResponse{
-		UserID:            profile.UserID,
-		CharacterID:       profile.CharacterID,
-		CharacterName:     profile.CharacterName,
-		CorporationID:     profile.CorporationID,
-		CorporationName:   profile.CorporationName,
-		AllianceID:        profile.AllianceID,
-		AllianceName:      profile.AllianceName,
-		SecurityStatus:    profile.SecurityStatus,
-		Birthday:          profile.Birthday,
-		Scopes:            profile.Scopes,
-		TokenExpiry:       profile.TokenExpiry,
-		LastLogin:         profile.LastLogin,
-		ProfileUpdated:    profile.ProfileUpdated,
-		Valid:             profile.Valid,
-		Metadata:          profile.Metadata,
+		UserID:          profile.UserID,
+		CharacterID:     profile.CharacterID,
+		CharacterName:   profile.CharacterName,
+		CorporationID:   profile.CorporationID,
+		CorporationName: profile.CorporationName,
+		AllianceID:      profile.AllianceID,
+		AllianceName:    profile.AllianceName,
+		SecurityStatus:  profile.SecurityStatus,
+		Birthday:        profile.Birthday,
+		Scopes:          profile.Scopes,
+		TokenExpiry:     profile.TokenExpiry,
+		LastLogin:       profile.LastLogin,
+		ProfileUpdated:  profile.ProfileUpdated,
+		Valid:           profile.Valid,
+		Metadata:        profile.Metadata,
 	}
 }
 

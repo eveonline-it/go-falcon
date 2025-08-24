@@ -8,16 +8,14 @@ import (
 // HUMA INPUT DTOs (consolidated from huma_requests.go)
 // =============================================================================
 
-
 // UserUpdateRequest represents user status update request
 type UserUpdateRequest struct {
-	Enabled  *bool   `json:"enabled,omitempty"`                                         // Enable/disable user
-	Banned   *bool   `json:"banned,omitempty"`                                          // Ban/unban user  
-	Invalid  *bool   `json:"invalid,omitempty"`                                         // Set validity status
-	Position *int    `json:"position,omitempty" validate:"omitempty,min=0"`             // Update position/rank
-	Notes    *string `json:"notes,omitempty" validate:"omitempty,max=1000"`             // Update administrative notes
+	Enabled  *bool   `json:"enabled,omitempty"`                             // Enable/disable user
+	Banned   *bool   `json:"banned,omitempty"`                              // Ban/unban user
+	Invalid  *bool   `json:"invalid,omitempty"`                             // Set validity status
+	Position *int    `json:"position,omitempty" validate:"omitempty,min=0"` // Update position/rank
+	Notes    *string `json:"notes,omitempty" validate:"omitempty,max=1000"` // Update administrative notes
 }
-
 
 // ValidateUserUpdateRequest validates the user update request
 func ValidateUserUpdateRequest(req *UserUpdateRequest) error {

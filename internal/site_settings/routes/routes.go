@@ -49,7 +49,6 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Site Settings / Public"},
 	}, m.getPublicSettingsHandler)
 
-
 	// Protected endpoints (super admin only)
 	huma.Register(api, huma.Operation{
 		OperationID: "site-settings-create",
@@ -555,9 +554,9 @@ func (m *Module) reorderCorporationsHandler(ctx context.Context, input *dto.Reor
 	corporations, err := m.service.ReorderCorporations(ctx, input, int64(user.CharacterID))
 	if err != nil {
 		// Handle specific validation errors
-		if fmt.Sprintf("%s", err) == fmt.Sprintf("corporation with ID %d not found", 0) || 
-		   fmt.Sprintf("%s", err) == "position must be greater than 0" ||
-		   fmt.Sprintf("%s", err)[:19] == "duplicate position " {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("corporation with ID %d not found", 0) ||
+			fmt.Sprintf("%s", err) == "position must be greater than 0" ||
+			fmt.Sprintf("%s", err)[:19] == "duplicate position " {
 			return nil, huma.Error400BadRequest("Invalid reorder request", err)
 		}
 		return nil, huma.Error500InternalServerError("Failed to reorder corporations", err)
@@ -738,9 +737,9 @@ func (m *Module) reorderAlliancesHandler(ctx context.Context, input *dto.Reorder
 	alliances, err := m.service.ReorderAlliances(ctx, input, int64(user.CharacterID))
 	if err != nil {
 		// Handle specific validation errors
-		if fmt.Sprintf("%s", err) == fmt.Sprintf("alliance with ID %d not found", 0) || 
-		   fmt.Sprintf("%s", err) == "position must be greater than 0" ||
-		   fmt.Sprintf("%s", err)[:19] == "duplicate position " {
+		if fmt.Sprintf("%s", err) == fmt.Sprintf("alliance with ID %d not found", 0) ||
+			fmt.Sprintf("%s", err) == "position must be greater than 0" ||
+			fmt.Sprintf("%s", err)[:19] == "duplicate position " {
 			return nil, huma.Error400BadRequest("Invalid reorder request", err)
 		}
 		return nil, huma.Error500InternalServerError("Failed to reorder alliances", err)
@@ -753,4 +752,3 @@ func (m *Module) reorderAlliancesHandler(ctx context.Context, input *dto.Reorder
 		},
 	}, nil
 }
-

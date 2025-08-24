@@ -8,7 +8,7 @@ import (
 	"go-falcon/internal/auth/models"
 	authServices "go-falcon/internal/auth/services"
 	"go-falcon/pkg/permissions"
-	
+
 	"github.com/danielgtaylor/huma/v2"
 )
 
@@ -25,7 +25,7 @@ func NewAuthMiddleware(authService *authServices.AuthService, permissionManager 
 	if len(permissionManager) > 0 {
 		pm = permissionManager[0]
 	}
-	
+
 	return &AuthMiddleware{
 		authService:       authService,
 		permissionManager: pm,
@@ -37,7 +37,7 @@ func (m *AuthMiddleware) RequireAuth(ctx context.Context, authHeader, cookieHead
 	if m.authService == nil {
 		return nil, huma.Error500InternalServerError("Auth service not available")
 	}
-	
+
 	// Extract JWT token from header or cookie
 	var jwtToken string
 	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
@@ -53,16 +53,16 @@ func (m *AuthMiddleware) RequireAuth(ctx context.Context, authHeader, cookieHead
 			}
 		}
 	}
-	
+
 	if jwtToken == "" {
 		return nil, huma.Error401Unauthorized("Authentication required")
 	}
-	
+
 	user, err := m.authService.ValidateJWT(jwtToken)
 	if err != nil {
 		return nil, huma.Error401Unauthorized("Invalid authentication token", err)
 	}
-	
+
 	return user, nil
 }
 
@@ -72,7 +72,7 @@ func (m *AuthMiddleware) RequireUserManagement(ctx context.Context, authHeader, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check permission via permission manager if available
 	if m.permissionManager != nil {
 		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), "users:management:full")
@@ -81,7 +81,7 @@ func (m *AuthMiddleware) RequireUserManagement(ctx context.Context, authHeader, 
 		}
 		// Continue to super admin check if permission failed
 	}
-	
+
 	// For user management, we need to restrict access properly
 	// Since we don't have direct access to groups service here, we'll deny access
 	// unless specific permissions are granted through the permission manager
@@ -94,12 +94,12 @@ func (m *AuthMiddleware) RequireUserAccess(ctx context.Context, authHeader, cook
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Users can always access their own data
 	if user.UserID == targetUserID {
 		return user, nil
 	}
-	
+
 	// Check if user has admin permissions for accessing other users
 	return m.RequireUserManagement(ctx, authHeader, cookieHeader)
 }
@@ -110,20 +110,20 @@ func (m *AuthMiddleware) RequirePermission(ctx context.Context, authHeader, cook
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check permission via permission manager
 	if m.permissionManager != nil {
 		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), permissionID)
 		if err != nil {
 			return nil, fmt.Errorf("permission check failed: %w", err)
 		}
-		
+
 		if !hasPermission {
 			return nil, huma.Error403Forbidden(fmt.Sprintf("Permission denied: %s required", permissionID))
 		}
-		
+
 		return user, nil
 	}
-	
+
 	return nil, huma.Error500InternalServerError("Permission system not available")
 }

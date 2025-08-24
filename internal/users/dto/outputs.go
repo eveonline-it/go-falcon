@@ -21,7 +21,6 @@ type UserResponse struct {
 	Valid         bool      `json:"valid"`
 }
 
-
 // CharacterSummaryResponse represents basic character information for listing
 type CharacterSummaryResponse struct {
 	CharacterID   int        `json:"character_id"`

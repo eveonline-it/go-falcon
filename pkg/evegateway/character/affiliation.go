@@ -104,7 +104,7 @@ func (c *CharacterClient) GetCharactersAffiliationWithCache(ctx context.Context,
 					expiresAt = exp
 				}
 			}
-			
+
 			return &CharacterAffiliationResult{
 				Affiliations: affiliations,
 				ExpiresAt:    expiresAt,
@@ -145,7 +145,7 @@ func (c *CharacterClient) GetCharactersAffiliationWithCache(ctx context.Context,
 	if resp.StatusCode == http.StatusNotModified {
 		// Refresh cache expiry
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		// Get cached data
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var affiliations []CharacterAffiliation
@@ -156,7 +156,7 @@ func (c *CharacterClient) GetCharactersAffiliationWithCache(ctx context.Context,
 						expiresAt = t
 					}
 				}
-				
+
 				return &CharacterAffiliationResult{
 					Affiliations: affiliations,
 					ExpiresAt:    expiresAt,

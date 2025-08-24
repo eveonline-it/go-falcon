@@ -19,37 +19,37 @@ type PermissionManager struct {
 	staticPermissions  map[string]Permission
 	dynamicPermissions map[string]Permission
 	mu                 sync.RWMutex
-	
+
 	// Collections
-	permissionsCollection     *mongo.Collection
+	permissionsCollection      *mongo.Collection
 	groupPermissionsCollection *mongo.Collection
 }
 
 // NewPermissionManager creates a new permission manager instance
 func NewPermissionManager(db *mongo.Database) *PermissionManager {
 	pm := &PermissionManager{
-		db:                        db,
-		staticPermissions:         make(map[string]Permission),
-		dynamicPermissions:        make(map[string]Permission),
-		permissionsCollection:     db.Collection("permissions"),
+		db:                         db,
+		staticPermissions:          make(map[string]Permission),
+		dynamicPermissions:         make(map[string]Permission),
+		permissionsCollection:      db.Collection("permissions"),
 		groupPermissionsCollection: db.Collection("group_permissions"),
 	}
-	
+
 	// Load static permissions
 	pm.loadStaticPermissions()
-	
+
 	// Initialize database indexes
 	if err := pm.ensureIndexes(context.Background()); err != nil {
 		slog.Error("[Permissions] Failed to create database indexes", "error", err)
 	}
-	
+
 	return pm
 }
 
 // InitializeSystemGroupPermissions assigns static permissions to system groups
 func (pm *PermissionManager) InitializeSystemGroupPermissions(ctx context.Context) error {
 	slog.Info("[Permissions] Initializing system group permissions")
-	
+
 	// Define static permission assignments for system groups
 	systemGroupPermissions := map[string][]string{
 		"Super Administrator": {
@@ -75,7 +75,7 @@ func (pm *PermissionManager) InitializeSystemGroupPermissions(ctx context.Contex
 			// Most endpoints should be protected
 		},
 	}
-	
+
 	// Get system groups from database
 	for groupName, permissionIDs := range systemGroupPermissions {
 		// Find the system group
@@ -84,48 +84,48 @@ func (pm *PermissionManager) InitializeSystemGroupPermissions(ctx context.Contex
 			"type":      "system",
 			"is_active": true,
 		}
-		
+
 		var group struct {
 			ID primitive.ObjectID `bson:"_id"`
 		}
-		
+
 		err := pm.db.Collection("groups").FindOne(ctx, groupFilter).Decode(&group)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				slog.Warn("[Permissions] System group not found, skipping permission assignment", 
+				slog.Warn("[Permissions] System group not found, skipping permission assignment",
 					"group_name", groupName)
 				continue
 			}
 			return fmt.Errorf("failed to find system group %s: %w", groupName, err)
 		}
-		
+
 		// Assign each permission to the group
 		assigned := 0
 		for _, permissionID := range permissionIDs {
 			// Check if permission exists
 			if !pm.permissionExists(permissionID) {
-				slog.Warn("[Permissions] Permission not found, skipping assignment", 
+				slog.Warn("[Permissions] Permission not found, skipping assignment",
 					"permission_id", permissionID, "group_name", groupName)
 				continue
 			}
-			
+
 			// Check if already assigned
 			filter := bson.M{
 				"group_id":      group.ID,
 				"permission_id": permissionID,
 			}
-			
+
 			var existingAssignment struct{}
 			err := pm.groupPermissionsCollection.FindOne(ctx, filter).Decode(&existingAssignment)
 			if err == nil {
 				// Already assigned, skip
 				continue
 			} else if err != mongo.ErrNoDocuments {
-				slog.Warn("[Permissions] Error checking existing assignment", 
+				slog.Warn("[Permissions] Error checking existing assignment",
 					"error", err, "permission_id", permissionID, "group_name", groupName)
 				continue
 			}
-			
+
 			// Assign permission (system assignment, no grantedBy)
 			assignment := GroupPermission{
 				GroupID:      group.ID,
@@ -135,23 +135,23 @@ func (pm *PermissionManager) InitializeSystemGroupPermissions(ctx context.Contex
 				IsActive:     true,
 				UpdatedAt:    time.Now(),
 			}
-			
+
 			_, err = pm.groupPermissionsCollection.InsertOne(ctx, assignment)
 			if err != nil {
-				slog.Error("[Permissions] Failed to assign permission", 
+				slog.Error("[Permissions] Failed to assign permission",
 					"error", err, "permission_id", permissionID, "group_name", groupName)
 				continue
 			}
-			
+
 			assigned++
 		}
-		
-		slog.Info("[Permissions] Assigned permissions to system group", 
-			"group_name", groupName, 
-			"assigned", assigned, 
+
+		slog.Info("[Permissions] Assigned permissions to system group",
+			"group_name", groupName,
+			"assigned", assigned,
 			"total", len(permissionIDs))
 	}
-	
+
 	slog.Info("[Permissions] System group permission initialization completed")
 	return nil
 }
@@ -160,11 +160,11 @@ func (pm *PermissionManager) InitializeSystemGroupPermissions(ctx context.Contex
 func (pm *PermissionManager) loadStaticPermissions() {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	for id, permission := range StaticPermissions {
 		pm.staticPermissions[id] = permission
 	}
-	
+
 	slog.Info("[Permissions] Loaded static permissions", "count", len(pm.staticPermissions))
 }
 
@@ -173,36 +173,36 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, ser
 	// Phase 1: Validate and prepare operations WITHOUT holding the mutex
 	var operations []mongo.WriteModel
 	var validPermissions []Permission
-	
+
 	for _, perm := range servicePermissions {
 		// Validate permission structure
 		if err := pm.validatePermission(perm); err != nil {
 			return fmt.Errorf("invalid permission %s: %w", perm.ID, err)
 		}
-		
+
 		// Prevent overriding static permissions (read-only check, safe without mutex)
 		if pm.isStaticPermission(perm.ID) {
 			return fmt.Errorf("cannot register dynamic permission with static ID: %s", perm.ID)
 		}
-		
+
 		// Set creation time if not set
 		if perm.CreatedAt.IsZero() {
 			perm.CreatedAt = time.Now()
 		}
-		
+
 		validPermissions = append(validPermissions, perm)
-		
+
 		// Prepare database upsert
 		filter := bson.M{"_id": perm.ID}
 		update := bson.M{"$set": perm}
 		operation := mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(update).SetUpsert(true)
 		operations = append(operations, operation)
 	}
-	
+
 	// Phase 2: Do MongoDB operations WITHOUT holding the mutex (can hang safely)
 	upsertCount := 0
 	modifyCount := 0
-	
+
 	if len(operations) > 0 {
 		for _, op := range operations {
 			updateOp := op.(*mongo.UpdateOneModel)
@@ -211,28 +211,28 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, ser
 				slog.Warn("[Permissions] Failed to upsert permission", "error", err)
 				continue
 			}
-			
+
 			if result.UpsertedID != nil {
 				upsertCount++
 			} else {
 				modifyCount++
 			}
 		}
-		
+
 		slog.Info("[Permissions] Registered service permissions",
 			"service", servicePermissions[0].Service,
 			"count", len(servicePermissions),
 			"upserted", upsertCount,
 			"modified", modifyCount)
 	}
-	
+
 	// Phase 3: Update in-memory registry ONLY after successful DB operations (brief lock)
 	pm.mu.Lock()
 	for _, perm := range validPermissions {
 		pm.dynamicPermissions[perm.ID] = perm
 	}
 	pm.mu.Unlock()
-	
+
 	return nil
 }
 
@@ -242,12 +242,12 @@ func (pm *PermissionManager) HasPermission(ctx context.Context, characterID int6
 	if !pm.permissionExists(permissionID) {
 		return false, fmt.Errorf("permission not found: %s", permissionID)
 	}
-	
+
 	// Super admin has all permissions (except for specific restrictions)
 	if pm.isSuperAdmin(ctx, characterID) {
 		return true, nil
 	}
-	
+
 	// Check group permissions via aggregation pipeline
 	pipeline := []bson.M{
 		// Match group memberships for this character
@@ -285,13 +285,13 @@ func (pm *PermissionManager) HasPermission(ctx context.Context, characterID int6
 			"$limit": 1,
 		},
 	}
-	
+
 	cursor, err := pm.db.Collection("group_memberships").Aggregate(ctx, pipeline)
 	if err != nil {
 		return false, fmt.Errorf("failed to check permission: %w", err)
 	}
 	defer cursor.Close(ctx)
-	
+
 	return cursor.Next(ctx), nil
 }
 
@@ -302,19 +302,19 @@ func (pm *PermissionManager) CheckPermission(ctx context.Context, characterID in
 		PermissionID: permissionID,
 		Granted:      false,
 	}
-	
+
 	// Check if permission exists
 	if !pm.permissionExists(permissionID) {
 		return result, fmt.Errorf("permission not found: %s", permissionID)
 	}
-	
+
 	// Super admin check
 	if pm.isSuperAdmin(ctx, characterID) {
 		result.Granted = true
 		result.GrantedVia = "Super Administrator"
 		return result, nil
 	}
-	
+
 	// Check group permissions with group name resolution
 	pipeline := []bson.M{
 		{
@@ -363,13 +363,13 @@ func (pm *PermissionManager) CheckPermission(ctx context.Context, characterID in
 			},
 		},
 	}
-	
+
 	cursor, err := pm.db.Collection("group_memberships").Aggregate(ctx, pipeline)
 	if err != nil {
 		return result, fmt.Errorf("failed to check permission: %w", err)
 	}
 	defer cursor.Close(ctx)
-	
+
 	if cursor.Next(ctx) {
 		var doc struct {
 			GroupName string `bson:"group_name"`
@@ -382,7 +382,7 @@ func (pm *PermissionManager) CheckPermission(ctx context.Context, characterID in
 			result.GrantedVia = "Unknown Group"
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -390,17 +390,17 @@ func (pm *PermissionManager) CheckPermission(ctx context.Context, characterID in
 func (pm *PermissionManager) GetPermission(permissionID string) (Permission, bool) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	// Check static permissions first
 	if perm, exists := pm.staticPermissions[permissionID]; exists {
 		return perm, true
 	}
-	
+
 	// Check dynamic permissions
 	if perm, exists := pm.dynamicPermissions[permissionID]; exists {
 		return perm, true
 	}
-	
+
 	return Permission{}, false
 }
 
@@ -408,19 +408,19 @@ func (pm *PermissionManager) GetPermission(permissionID string) (Permission, boo
 func (pm *PermissionManager) GetAllPermissions() map[string]Permission {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	all := make(map[string]Permission)
-	
+
 	// Add static permissions
 	for id, perm := range pm.staticPermissions {
 		all[id] = perm
 	}
-	
+
 	// Add dynamic permissions
 	for id, perm := range pm.dynamicPermissions {
 		all[id] = perm
 	}
-	
+
 	return all
 }
 
@@ -430,18 +430,18 @@ func (pm *PermissionManager) GrantPermissionToGroup(ctx context.Context, groupID
 	if !pm.permissionExists(permissionID) {
 		return fmt.Errorf("permission not found: %s", permissionID)
 	}
-	
+
 	// Check if permission is static and restricted
 	if pm.isStaticPermission(permissionID) && pm.isRestrictedStaticPermission(permissionID) {
 		return fmt.Errorf("permission %s is restricted and cannot be manually granted", permissionID)
 	}
-	
+
 	// Upsert group permission
 	filter := bson.M{
 		"group_id":      groupID,
 		"permission_id": permissionID,
 	}
-	
+
 	update := bson.M{
 		"$set": bson.M{
 			"group_id":      groupID,
@@ -452,18 +452,18 @@ func (pm *PermissionManager) GrantPermissionToGroup(ctx context.Context, groupID
 			"updated_at":    time.Now(),
 		},
 	}
-	
+
 	opts := options.Update().SetUpsert(true)
 	_, err := pm.groupPermissionsCollection.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
 		return fmt.Errorf("failed to grant permission: %w", err)
 	}
-	
+
 	slog.Info("[Permissions] Granted permission to group",
 		"group_id", groupID.Hex(),
 		"permission_id", permissionID,
 		"granted_by", grantedBy)
-	
+
 	return nil
 }
 
@@ -473,32 +473,32 @@ func (pm *PermissionManager) RevokePermissionFromGroup(ctx context.Context, grou
 	if pm.isStaticPermission(permissionID) && pm.isRestrictedStaticPermission(permissionID) {
 		return fmt.Errorf("permission %s is restricted and cannot be manually revoked", permissionID)
 	}
-	
+
 	filter := bson.M{
 		"group_id":      groupID,
 		"permission_id": permissionID,
 	}
-	
+
 	update := bson.M{
 		"$set": bson.M{
 			"is_active":  false,
 			"updated_at": time.Now(),
 		},
 	}
-	
+
 	result, err := pm.groupPermissionsCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return fmt.Errorf("failed to revoke permission: %w", err)
 	}
-	
+
 	if result.MatchedCount == 0 {
 		return fmt.Errorf("permission assignment not found")
 	}
-	
+
 	slog.Info("[Permissions] Revoked permission from group",
 		"group_id", groupID.Hex(),
 		"permission_id", permissionID)
-	
+
 	return nil
 }
 
@@ -523,12 +523,12 @@ func (pm *PermissionManager) validatePermission(perm Permission) error {
 func (pm *PermissionManager) permissionExists(permissionID string) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	_, exists := pm.staticPermissions[permissionID]
 	if exists {
 		return true
 	}
-	
+
 	_, exists = pm.dynamicPermissions[permissionID]
 	return exists
 }
@@ -536,7 +536,7 @@ func (pm *PermissionManager) permissionExists(permissionID string) bool {
 func (pm *PermissionManager) isStaticPermission(permissionID string) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	_, exists := pm.staticPermissions[permissionID]
 	return exists
 }
@@ -546,7 +546,7 @@ func (pm *PermissionManager) isRestrictedStaticPermission(permissionID string) b
 	restrictedPermissions := map[string]bool{
 		"system:admin:full": true, // Only for super admin group
 	}
-	
+
 	return restrictedPermissions[permissionID]
 }
 
@@ -580,14 +580,14 @@ func (pm *PermissionManager) isSuperAdmin(ctx context.Context, characterID int64
 			"$limit": 1,
 		},
 	}
-	
+
 	cursor, err := pm.db.Collection("group_memberships").Aggregate(ctx, pipeline)
 	if err != nil {
 		slog.Error("[Permissions] Failed to check super admin status", "error", err, "character_id", characterID)
 		return false
 	}
 	defer cursor.Close(ctx)
-	
+
 	return cursor.Next(ctx)
 }
 
@@ -608,12 +608,12 @@ func (pm *PermissionManager) ensureIndexes(ctx context.Context) error {
 			Keys: bson.D{{Key: "is_static", Value: 1}},
 		},
 	}
-	
+
 	_, err := pm.permissionsCollection.Indexes().CreateMany(ctx, permIndexes)
 	if err != nil {
 		return fmt.Errorf("failed to create permissions indexes: %w", err)
 	}
-	
+
 	// Group permissions collection indexes
 	groupPermIndexes := []mongo.IndexModel{
 		{
@@ -633,11 +633,11 @@ func (pm *PermissionManager) ensureIndexes(ctx context.Context) error {
 			Keys: bson.D{{Key: "is_active", Value: 1}},
 		},
 	}
-	
+
 	_, err = pm.groupPermissionsCollection.Indexes().CreateMany(ctx, groupPermIndexes)
 	if err != nil {
 		return fmt.Errorf("failed to create group permissions indexes: %w", err)
 	}
-	
+
 	return nil
 }

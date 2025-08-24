@@ -36,7 +36,7 @@ func NewModule(db *database.MongoDB, authService *authServices.AuthService, grou
 
 	var authMiddleware *middleware.AuthMiddleware
 	var routesModule *routes.Module
-	
+
 	if authService != nil && groupsService != nil {
 		// Create middleware with dependencies
 		authMiddleware = middleware.NewAuthMiddleware(authService, groupsService)
@@ -58,7 +58,7 @@ func NewModule(db *database.MongoDB, authService *authServices.AuthService, grou
 // Initialize initializes the module
 func (m *Module) Initialize(ctx context.Context) error {
 	slog.Info("Initializing site settings module")
-	
+
 	if err := m.service.InitializeModule(ctx); err != nil {
 		return fmt.Errorf("failed to initialize site settings service: %w", err)
 	}
@@ -106,7 +106,7 @@ func (m *Module) SetDependencies(authService *authServices.AuthService, groupsSe
 		slog.Error("Cannot set site settings dependencies - auth or groups service is nil")
 		return
 	}
-	
+
 	// Create the middleware with both dependencies
 	m.middleware = middleware.NewAuthMiddleware(authService, groupsService)
 	// Recreate routes with the new middleware

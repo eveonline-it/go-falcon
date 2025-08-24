@@ -39,47 +39,47 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 	)
 
 	collection := r.mongodb.Collection("user_profiles")
-	
+
 	now := time.Now()
 	profile.UpdatedAt = now
-	
+
 	// Use upsert to create or update based on character_id
 	filter := bson.M{"character_id": profile.CharacterID}
-	
+
 	// First user super admin logic is now handled by the groups service
 	// This field will be removed in subsequent steps
 
 	// Prepare update document - exclude created_at from $set to avoid conflict
 	updateFields := bson.M{
-		"user_id":                profile.UserID,
-		"character_id":           profile.CharacterID,
-		"character_name":         profile.CharacterName,
-		"character_owner_hash":   profile.CharacterOwnerHash,
-		"corporation_id":         profile.CorporationID,
-		"corporation_name":       profile.CorporationName,
-		"alliance_id":            profile.AllianceID,
-		"alliance_name":          profile.AllianceName,
-		"security_status":        profile.SecurityStatus,
-		"birthday":               profile.Birthday,
-		"scopes":                 profile.Scopes,
-		"access_token":           profile.AccessToken,
-		"refresh_token":          profile.RefreshToken,
-		"token_expiry":           profile.TokenExpiry,
-		"last_login":             profile.LastLogin,
-		"profile_updated":        profile.ProfileUpdated,
-		"valid":                  profile.Valid,
+		"user_id":              profile.UserID,
+		"character_id":         profile.CharacterID,
+		"character_name":       profile.CharacterName,
+		"character_owner_hash": profile.CharacterOwnerHash,
+		"corporation_id":       profile.CorporationID,
+		"corporation_name":     profile.CorporationName,
+		"alliance_id":          profile.AllianceID,
+		"alliance_name":        profile.AllianceName,
+		"security_status":      profile.SecurityStatus,
+		"birthday":             profile.Birthday,
+		"scopes":               profile.Scopes,
+		"access_token":         profile.AccessToken,
+		"refresh_token":        profile.RefreshToken,
+		"token_expiry":         profile.TokenExpiry,
+		"last_login":           profile.LastLogin,
+		"profile_updated":      profile.ProfileUpdated,
+		"valid":                profile.Valid,
 		// is_super_admin field removed - now handled by groups module
-		"metadata":               profile.Metadata,
-		"updated_at":             profile.UpdatedAt,
+		"metadata":   profile.Metadata,
+		"updated_at": profile.UpdatedAt,
 	}
-	
+
 	update := bson.M{
 		"$set": updateFields,
 		"$setOnInsert": bson.M{
 			"created_at": now,
 		},
 	}
-	
+
 	opts := options.Update().SetUpsert(true)
 	_, err := collection.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
@@ -111,7 +111,7 @@ func (r *Repository) GetUserProfileByCharacterID(ctx context.Context, characterI
 	)
 
 	collection := r.mongodb.Collection("user_profiles")
-	
+
 	var profile models.UserProfile
 	err := collection.FindOne(ctx, bson.M{"character_id": characterID}).Decode(&profile)
 	if err != nil {
@@ -138,7 +138,7 @@ func (r *Repository) GetUserProfileByUserID(ctx context.Context, userID string) 
 	)
 
 	collection := r.mongodb.Collection("user_profiles")
-	
+
 	var profile models.UserProfile
 	err := collection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&profile)
 	if err != nil {
@@ -165,7 +165,7 @@ func (r *Repository) GetAllCharactersByUserID(ctx context.Context, userID string
 	)
 
 	collection := r.mongodb.Collection("user_profiles")
-	
+
 	// Find all profiles with this user_id
 	cursor, err := collection.Find(ctx, bson.M{"user_id": userID})
 	if err != nil {
@@ -206,13 +206,13 @@ func (r *Repository) GetExpiringTokens(ctx context.Context, beforeTime time.Time
 	)
 
 	collection := r.mongodb.Collection("user_profiles")
-	
+
 	filter := bson.M{
-		"valid": true,
-		"token_expiry": bson.M{"$lt": beforeTime},
+		"valid":         true,
+		"token_expiry":  bson.M{"$lt": beforeTime},
 		"refresh_token": bson.M{"$ne": ""},
 	}
-	
+
 	opts := options.Find().SetLimit(int64(limit))
 	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
@@ -243,7 +243,7 @@ func (r *Repository) UpdateProfileTokens(ctx context.Context, characterID int, a
 	)
 
 	collection := r.mongodb.Collection("user_profiles")
-	
+
 	filter := bson.M{"character_id": characterID}
 	update := bson.M{
 		"$set": bson.M{
@@ -253,7 +253,7 @@ func (r *Repository) UpdateProfileTokens(ctx context.Context, characterID int, a
 			"updated_at":    time.Now(),
 		},
 	}
-	
+
 	_, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		span.RecordError(err)
@@ -276,7 +276,7 @@ func (r *Repository) InvalidateProfile(ctx context.Context, characterID int) err
 	)
 
 	collection := r.mongodb.Collection("user_profiles")
-	
+
 	filter := bson.M{"character_id": characterID}
 	update := bson.M{
 		"$set": bson.M{
@@ -284,7 +284,7 @@ func (r *Repository) InvalidateProfile(ctx context.Context, characterID int) err
 			"updated_at": time.Now(),
 		},
 	}
-	
+
 	_, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		span.RecordError(err)
@@ -297,10 +297,10 @@ func (r *Repository) InvalidateProfile(ctx context.Context, characterID int) err
 // StoreLoginState stores OAuth login state
 func (r *Repository) StoreLoginState(ctx context.Context, state *models.EVELoginState) error {
 	collection := r.mongodb.Collection("auth_states")
-	
+
 	state.CreatedAt = time.Now()
 	state.ExpiresAt = state.CreatedAt.Add(15 * time.Minute) // States expire in 15 minutes
-	
+
 	_, err := collection.InsertOne(ctx, state)
 	return err
 }
@@ -308,13 +308,13 @@ func (r *Repository) StoreLoginState(ctx context.Context, state *models.EVELogin
 // GetLoginState retrieves and validates OAuth login state
 func (r *Repository) GetLoginState(ctx context.Context, state string) (*models.EVELoginState, error) {
 	collection := r.mongodb.Collection("auth_states")
-	
+
 	var loginState models.EVELoginState
 	err := collection.FindOne(ctx, bson.M{
-		"state": state,
+		"state":      state,
 		"expires_at": bson.M{"$gt": time.Now()},
 	}).Decode(&loginState)
-	
+
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil // State not found or expired
@@ -328,7 +328,7 @@ func (r *Repository) GetLoginState(ctx context.Context, state string) (*models.E
 // CleanupExpiredStates removes expired OAuth states
 func (r *Repository) CleanupExpiredStates(ctx context.Context) error {
 	collection := r.mongodb.Collection("auth_states")
-	
+
 	filter := bson.M{"expires_at": bson.M{"$lt": time.Now()}}
 	_, err := collection.DeleteMany(ctx, filter)
 	return err

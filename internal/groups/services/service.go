@@ -561,7 +561,7 @@ func (s *Service) GetUserGroups(ctx context.Context, input *dto.GetUserGroupsInp
 
 	// Get groups for all characters and deduplicate
 	groupMap := make(map[string]*models.Group)
-	
+
 	for _, characterID := range characterIDs {
 		groups, err := s.repo.GetCharacterGroups(ctx, characterID, filter)
 		if err != nil {
@@ -679,37 +679,35 @@ func (s *Service) membershipModelToGroupMembershipResponse(membership *models.Gr
 	}
 }
 
-
-
 // ValidateCharacterMemberships validates that a character is still in their corporation and alliance via ESI
 func (s *Service) ValidateCharacterMemberships(ctx context.Context, characterID int64) error {
 	// This is a placeholder for ESI validation - would need to integrate with evegateway
 	// For now, we'll just log that validation would happen here
-	slog.Debug("[Groups] ESI membership validation", 
+	slog.Debug("[Groups] ESI membership validation",
 		"character_id", characterID,
 		"note", "ESI validation not yet implemented - Phase 2")
-	
+
 	// TODO: Implement actual ESI validation:
 	// 1. Get character info from ESI to get current corp/alliance
 	// 2. Compare with stored group memberships
 	// 3. Remove character from groups if they've left corp/alliance
 	// 4. Add character to new groups if they've joined different corp/alliance
-	
+
 	return nil
 }
 
 // CleanupInvalidMemberships removes characters from corp/alliance groups if they're no longer members
 func (s *Service) CleanupInvalidMemberships(ctx context.Context) error {
 	// This would be called by a scheduler task to periodically clean up group memberships
-	slog.Debug("[Groups] Cleaning up invalid memberships", 
+	slog.Debug("[Groups] Cleaning up invalid memberships",
 		"note", "ESI cleanup not yet implemented - Phase 2")
-	
+
 	// TODO: Implement batch cleanup:
 	// 1. Get all corp/alliance groups
 	// 2. For each group, validate all members via ESI
 	// 3. Remove invalid memberships
 	// 4. Log cleanup results
-	
+
 	return nil
 }
 
@@ -768,9 +766,9 @@ func (s *Service) GetStatus(ctx context.Context) *dto.GroupsStatusResponse {
 
 // AutoJoinCharacterToEnabledGroups automatically joins character to corporation/alliance groups if enabled
 func (s *Service) AutoJoinCharacterToEnabledGroups(ctx context.Context, characterID int64, corporationID, allianceID *int64, scopes string) error {
-	slog.Debug("Auto-joining character to enabled groups", 
-		"character_id", characterID, 
-		"corporation_id", corporationID, 
+	slog.Debug("Auto-joining character to enabled groups",
+		"character_id", characterID,
+		"corporation_id", corporationID,
 		"alliance_id", allianceID,
 		"has_scopes", scopes != "")
 
@@ -805,9 +803,9 @@ func (s *Service) AutoJoinCharacterToEnabledGroups(ctx context.Context, characte
 	if err != nil {
 		return fmt.Errorf("failed to get enabled alliances: %w", err)
 	}
-	
-	slog.Debug("Auto-join: Retrieved enabled entities", 
-		"character_id", characterID, 
+
+	slog.Debug("Auto-join: Retrieved enabled entities",
+		"character_id", characterID,
 		"enabled_corps_count", len(enabledCorps),
 		"enabled_alliances_count", len(enabledAlliances))
 
@@ -816,10 +814,10 @@ func (s *Service) AutoJoinCharacterToEnabledGroups(ctx context.Context, characte
 		for _, corp := range enabledCorps {
 			if corp.CorporationID == *corporationID {
 				if err := s.ensureCharacterInEntityGroup(ctx, characterID, "corp", corp.CorporationID, corp.Ticker, corp.Name); err != nil {
-					slog.Error("Failed to join character to corp group", 
+					slog.Error("Failed to join character to corp group",
 						"character_id", characterID, "corp_id", *corporationID, "error", err)
 				} else {
-					slog.Info("Auto-joined character to corporation group", 
+					slog.Info("Auto-joined character to corporation group",
 						"character_id", characterID, "corp_id", *corporationID, "ticker", corp.Ticker)
 				}
 				break
@@ -832,10 +830,10 @@ func (s *Service) AutoJoinCharacterToEnabledGroups(ctx context.Context, characte
 		for _, alliance := range enabledAlliances {
 			if alliance.AllianceID == *allianceID {
 				if err := s.ensureCharacterInEntityGroup(ctx, characterID, "alliance", alliance.AllianceID, alliance.Ticker, alliance.Name); err != nil {
-					slog.Error("Failed to join character to alliance group", 
+					slog.Error("Failed to join character to alliance group",
 						"character_id", characterID, "alliance_id", *allianceID, "error", err)
 				} else {
-					slog.Info("Auto-joined character to alliance group", 
+					slog.Info("Auto-joined character to alliance group",
 						"character_id", characterID, "alliance_id", *allianceID, "ticker", alliance.Ticker)
 				}
 				break
@@ -850,14 +848,14 @@ func (s *Service) AutoJoinCharacterToEnabledGroups(ctx context.Context, characte
 func (s *Service) ensureCharacterInEntityGroup(ctx context.Context, characterID int64, entityType string, entityID int64, ticker, name string) error {
 	// Validate that ticker is not empty - this prevents creating malformed groups
 	if ticker == "" {
-		slog.Error("Cannot create entity group with empty ticker", 
+		slog.Error("Cannot create entity group with empty ticker",
 			"character_id", characterID, "entity_type", entityType, "entity_id", entityID, "name", name)
 		return fmt.Errorf("ticker is required for entity group creation")
 	}
-	
+
 	// Create or get group with new naming convention: corp_TICKER or alliance_TICKER
 	groupName := fmt.Sprintf("%s_%s", entityType, strings.ToUpper(ticker))
-	
+
 	group, err := s.createOrUpdateEntityGroup(ctx, groupName, entityType, entityID, ticker, name)
 	if err != nil {
 		return fmt.Errorf("failed to create/update entity group: %w", err)
@@ -898,9 +896,9 @@ func (s *Service) createOrUpdateEntityGroup(ctx context.Context, groupName, enti
 
 		if needsUpdate {
 			update := bson.M{
-				"name":               existing.Name,
-				"eve_entity_ticker":  existing.EVEEntityTicker,
-				"eve_entity_name":    existing.EVEEntityName,
+				"name":              existing.Name,
+				"eve_entity_ticker": existing.EVEEntityTicker,
+				"eve_entity_name":   existing.EVEEntityName,
 			}
 			if err := s.repo.UpdateGroup(ctx, existing.ID, update); err != nil {
 				return nil, fmt.Errorf("failed to update group: %w", err)
@@ -946,7 +944,7 @@ func (s *Service) removeCharacterFromEntityGroups(ctx context.Context, character
 	// Remove from each corp/alliance group
 	for _, group := range groups {
 		if err := s.repo.RemoveMembership(ctx, group.ID, characterID); err != nil {
-			slog.Error("Failed to remove character from entity group", 
+			slog.Error("Failed to remove character from entity group",
 				"character_id", characterID, "group_id", group.ID.Hex(), "error", err)
 			// Continue with other groups
 		}
@@ -987,11 +985,11 @@ func (s *Service) ensureCharacterInSystemGroup(ctx context.Context, characterID 
 		AddedAt:     time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	if err := s.repo.AddMembership(ctx, membership); err != nil {
 		return fmt.Errorf("failed to add/update membership to %s group: %w", groupDisplayName, err)
 	}
-	
+
 	slog.Info("Ensured character is in system group", "character_id", characterID, "group_name", groupDisplayName, "group_id", group.ID.Hex())
 	return nil
 }
@@ -1038,11 +1036,11 @@ func (s *Service) RemoveCharacterFromAllGroups(ctx context.Context, characterID 
 	// Remove character from each group
 	for _, group := range groups {
 		if err := s.repo.RemoveMembership(ctx, group.ID, characterID); err != nil {
-			slog.Error("Failed to remove character from group during user deletion", 
+			slog.Error("Failed to remove character from group during user deletion",
 				"character_id", characterID, "group_id", group.ID.Hex(), "group_name", group.Name, "error", err)
 			// Continue with other groups - don't fail the entire operation
 		} else {
-			slog.Info("Removed character from group during user deletion", 
+			slog.Info("Removed character from group during user deletion",
 				"character_id", characterID, "group_id", group.ID.Hex(), "group_name", group.Name)
 		}
 	}
@@ -1058,10 +1056,10 @@ func (s *Service) ListPermissions(ctx context.Context, input *dto.ListPermission
 	if s.permissionManager == nil {
 		return nil, fmt.Errorf("permission manager not available")
 	}
-	
+
 	// Get all permissions
 	allPermissions := s.permissionManager.GetAllPermissions()
-	
+
 	// Filter permissions if requested
 	var filteredPerms []permissions.Permission
 	for _, perm := range allPermissions {
@@ -1079,7 +1077,7 @@ func (s *Service) ListPermissions(ctx context.Context, input *dto.ListPermission
 		}
 		filteredPerms = append(filteredPerms, perm)
 	}
-	
+
 	// Convert to response DTOs
 	var permResponses []dto.PermissionResponse
 	for _, perm := range filteredPerms {
@@ -1095,7 +1093,7 @@ func (s *Service) ListPermissions(ctx context.Context, input *dto.ListPermission
 			CreatedAt:   perm.CreatedAt,
 		})
 	}
-	
+
 	// Get permission categories
 	var categories []dto.PermissionCategory
 	for _, cat := range permissions.PermissionCategories {
@@ -1105,7 +1103,7 @@ func (s *Service) ListPermissions(ctx context.Context, input *dto.ListPermission
 			Order:       cat.Order,
 		})
 	}
-	
+
 	return &dto.ListPermissionsOutput{
 		Body: dto.ListPermissionsResponse{
 			Permissions: permResponses,
@@ -1120,12 +1118,12 @@ func (s *Service) GetPermission(ctx context.Context, input *dto.GetPermissionInp
 	if s.permissionManager == nil {
 		return nil, fmt.Errorf("permission manager not available")
 	}
-	
+
 	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
 	if !exists {
 		return nil, fmt.Errorf("permission not found: %s", input.PermissionID)
 	}
-	
+
 	return &dto.PermissionOutput{
 		Body: dto.PermissionResponse{
 			ID:          perm.ID,
@@ -1146,31 +1144,31 @@ func (s *Service) GrantPermissionToGroup(ctx context.Context, input *dto.GrantPe
 	if s.permissionManager == nil {
 		return nil, fmt.Errorf("permission manager not available")
 	}
-	
+
 	// Parse group ID
 	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid group ID: %w", err)
 	}
-	
+
 	// Verify group exists
 	group, err := s.repo.GetGroupByID(ctx, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("group not found: %w", err)
 	}
-	
+
 	// Grant permission
 	err = s.permissionManager.GrantPermissionToGroup(ctx, groupID, input.PermissionID, grantedBy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to grant permission: %w", err)
 	}
-	
+
 	// Get permission details for response
 	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
 	if !exists {
 		return nil, fmt.Errorf("permission not found: %s", input.PermissionID)
 	}
-	
+
 	return &dto.GroupPermissionOutput{
 		Body: dto.GroupPermissionResponse{
 			GroupID:      groupID.Hex(),
@@ -1200,19 +1198,19 @@ func (s *Service) RevokePermissionFromGroup(ctx context.Context, input *dto.Revo
 	if s.permissionManager == nil {
 		return nil, fmt.Errorf("permission manager not available")
 	}
-	
+
 	// Parse group ID
 	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid group ID: %w", err)
 	}
-	
+
 	// Revoke permission
 	err = s.permissionManager.RevokePermissionFromGroup(ctx, groupID, input.PermissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to revoke permission: %w", err)
 	}
-	
+
 	return &dto.MessageOutput{
 		Body: dto.MessageResponse{
 			Message: fmt.Sprintf("Permission %s revoked from group %s", input.PermissionID, input.GroupID),
@@ -1225,19 +1223,19 @@ func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroup
 	if s.permissionManager == nil {
 		return nil, fmt.Errorf("permission manager not available")
 	}
-	
+
 	// Parse group ID
 	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid group ID: %w", err)
 	}
-	
+
 	// Get group details
 	group, err := s.repo.GetGroupByID(ctx, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("group not found: %w", err)
 	}
-	
+
 	// Build aggregation pipeline to get group permissions with permission details
 	pipeline := []bson.M{
 		{
@@ -1246,20 +1244,20 @@ func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroup
 			},
 		},
 	}
-	
+
 	// Add active filter if specified
 	if input.IsActive != "" {
 		isActive := input.IsActive == "true"
 		pipeline[0]["$match"].(bson.M)["is_active"] = isActive
 	}
-	
+
 	// Execute aggregation
 	cursor, err := s.repo.db.Collection("group_permissions").Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query group permissions: %w", err)
 	}
 	defer cursor.Close(ctx)
-	
+
 	var groupPermissions []dto.GroupPermissionResponse
 	for cursor.Next(ctx) {
 		var gp permissions.GroupPermission
@@ -1267,14 +1265,14 @@ func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroup
 			slog.Warn("Failed to decode group permission", "error", err)
 			continue
 		}
-		
+
 		// Get permission details
 		perm, exists := s.permissionManager.GetPermission(gp.PermissionID)
 		if !exists {
 			slog.Warn("Permission not found for group permission", "permission_id", gp.PermissionID)
 			continue
 		}
-		
+
 		groupPermissions = append(groupPermissions, dto.GroupPermissionResponse{
 			ID:           gp.ID.Hex(),
 			GroupID:      gp.GroupID.Hex(),
@@ -1297,7 +1295,7 @@ func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroup
 			UpdatedAt: gp.UpdatedAt,
 		})
 	}
-	
+
 	return &dto.ListGroupPermissionsOutput{
 		Body: dto.ListGroupPermissionsResponse{
 			GroupID:     groupID.Hex(),
@@ -1313,7 +1311,7 @@ func (s *Service) CheckPermission(ctx context.Context, input *dto.CheckPermissio
 	if s.permissionManager == nil {
 		return nil, fmt.Errorf("permission manager not available")
 	}
-	
+
 	// Use provided character ID or default to authenticated user
 	characterID := authenticatedCharacterID
 	if input.CharacterID != "" {
@@ -1323,13 +1321,13 @@ func (s *Service) CheckPermission(ctx context.Context, input *dto.CheckPermissio
 		}
 		characterID = parsedCharacterID
 	}
-	
+
 	// Check permission
 	permCheck, err := s.permissionManager.CheckPermission(ctx, characterID, input.PermissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check permission: %w", err)
 	}
-	
+
 	return &dto.PermissionCheckOutput{
 		Body: dto.PermissionCheckResponse{
 			CharacterID:  permCheck.CharacterID,

@@ -25,7 +25,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		*d = Duration(ns)
 		return nil
 	}
-	
+
 	dur, err := time.ParseDuration(s)
 	if err != nil {
 		return err

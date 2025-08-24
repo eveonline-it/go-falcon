@@ -7,9 +7,9 @@ import (
 
 	"go-falcon/internal/auth"
 	"go-falcon/internal/groups/services"
+	usersMiddleware "go-falcon/internal/users/middleware"
 	"go-falcon/internal/users/routes"
 	usersServices "go-falcon/internal/users/services"
-	usersMiddleware "go-falcon/internal/users/middleware"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
@@ -71,11 +71,11 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 			if m.groupService != nil {
 				permissionManager = m.groupService.GetPermissionManager()
 			}
-			
+
 			authMiddleware = usersMiddleware.NewAuthMiddleware(authService, permissionManager)
 		}
 	}
-	
+
 	routes.RegisterUsersRoutes(api, basePath, m.service, authMiddleware)
 	log.Printf("Users module unified routes registered at %s", basePath)
 }
@@ -83,10 +83,10 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 // StartBackgroundTasks starts any background processes for the module
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
 	slog.Info("Starting users-specific background tasks")
-	
+
 	// Call base implementation for common functionality
 	go m.BaseModule.StartBackgroundTasks(ctx)
-	
+
 	// Users module doesn't need specific background tasks currently
 	// This could be extended in the future for user-specific maintenance tasks
 	for {

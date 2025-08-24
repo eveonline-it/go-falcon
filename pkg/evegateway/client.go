@@ -24,14 +24,14 @@ import (
 
 // Client represents an EVE Online ESI client with all category clients
 type Client struct {
-	httpClient  *http.Client
-	baseURL     string
-	userAgent   string
+	httpClient   *http.Client
+	baseURL      string
+	userAgent    string
 	cacheManager CacheManager
 	retryClient  RetryClient
-	errorLimits *ESIErrorLimits
-	limitsMutex sync.RWMutex
-	
+	errorLimits  *ESIErrorLimits
+	limitsMutex  sync.RWMutex
+
 	// Category clients
 	Status      StatusClient
 	Character   CharacterClient
@@ -52,7 +52,7 @@ type StatusClient interface {
 	GetServerStatus(ctx context.Context) (*ESIStatusResponse, error)
 }
 
-// CharacterClient interface for character operations  
+// CharacterClient interface for character operations
 type CharacterClient interface {
 	GetCharacterInfo(ctx context.Context, characterID int) (map[string]any, error)
 	GetCharacterPortrait(ctx context.Context, characterID int) (map[string]any, error)
@@ -109,29 +109,29 @@ type CorporationClient interface {
 // NewClient creates a new EVE Online ESI client
 func NewClient() *Client {
 	var transport http.RoundTripper = http.DefaultTransport
-	
+
 	// Only add OpenTelemetry instrumentation if telemetry is enabled
 	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
-		transport = otelhttp.NewTransport(http.DefaultTransport, 
+		transport = otelhttp.NewTransport(http.DefaultTransport,
 			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 				return fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Host)
 			}),
 		)
 	}
-	
+
 	// ESI-compliant User-Agent header with contact information
 	userAgent := config.GetEnv("ESI_USER_AGENT", "go-falcon/1.0.0 contact@example.com")
-	
+
 	httpClient := &http.Client{
 		Timeout:   30 * time.Second,
 		Transport: transport,
 	}
-	
+
 	cacheManager := NewDefaultCacheManager()
 	errorLimits := &ESIErrorLimits{}
 	limitsMutex := &sync.RWMutex{}
 	retryClient := NewDefaultRetryClient(httpClient, errorLimits, limitsMutex)
-	
+
 	// Create category clients using the shared infrastructure
 	statusClient := &statusClientImpl{cacheManager, retryClient, httpClient, "https://esi.evetech.net", userAgent}
 	characterClientDirect := character.NewCharacterClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
@@ -141,7 +141,7 @@ func NewClient() *Client {
 	allianceClient := &allianceClientImpl{client: allianceClientDirect}
 	corporationClientDirect := corporation.NewCorporationClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	corporationClient := &corporationClientImpl{client: corporationClientDirect}
-	
+
 	return &Client{
 		httpClient:   httpClient,
 		baseURL:      "https://esi.evetech.net",
@@ -168,13 +168,13 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 	var span trace.Span
 	endpoint := "/status"
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
-	
+
 	// Only create spans if telemetry is enabled
 	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegate")
 		ctx, span = tracer.Start(ctx, "evegate.GetServerStatus")
 		defer span.End()
-		
+
 		span.SetAttributes(
 			attribute.String("esi.endpoint", "status"),
 			attribute.String("esi.base_url", c.baseURL),
@@ -182,11 +182,11 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 			attribute.String("cache.key", cacheKey),
 		)
 	}
-	
+
 	slog.InfoContext(ctx, "Requesting server status from ESI")
-	
+
 	// Error limits are checked in the retry client
-	
+
 	// Check cache first
 	cachedData, exists, err := c.cacheManager.Get(cacheKey)
 	if err == nil && exists {
@@ -200,7 +200,7 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 			return &status, nil
 		}
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", cacheKey, nil)
 	if err != nil {
 		if span != nil {
@@ -210,21 +210,21 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 		slog.ErrorContext(ctx, "Failed to create ESI status request", "error", err)
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	// Set required headers
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
-	
+
 	// Add conditional headers if we have cached data
 	c.cacheManager.SetConditionalHeaders(req, cacheKey)
-	
+
 	if span != nil {
 		span.SetAttributes(
 			attribute.String("http.method", req.Method),
 			attribute.String("http.url", req.URL.String()),
 		)
 	}
-	
+
 	// Use retry mechanism with exponential backoff
 	resp, err := c.retryClient.DoWithRetry(ctx, req, 3) // Max 3 retries
 	if err != nil {
@@ -236,21 +236,21 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 		return nil, fmt.Errorf("failed to call ESI: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	// Error limits are updated in the retry client
-	
+
 	if span != nil {
 		span.SetAttributes(
 			attribute.Int("http.status_code", resp.StatusCode),
 			attribute.String("http.status_text", resp.Status),
 		)
 	}
-	
+
 	// Handle 304 Not Modified - return cached data
 	if resp.StatusCode == http.StatusNotModified {
 		// Refresh the cache expiry time
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		// Get cached data (even if expired)
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			if span != nil {
@@ -258,7 +258,7 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 				span.SetStatus(codes.Ok, "cache hit - not modified")
 			}
 			slog.InfoContext(ctx, "ESI status not modified, refreshed cache expiry")
-			
+
 			var status ESIStatusResponse
 			if err := json.Unmarshal(cachedData, &status); err != nil {
 				return nil, fmt.Errorf("failed to parse cached response: %w", err)
@@ -266,7 +266,7 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 			return &status, nil
 		}
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		if span != nil {
 			span.SetStatus(codes.Error, "ESI returned error status")
@@ -274,7 +274,7 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 		slog.ErrorContext(ctx, "ESI status endpoint returned error", "status_code", resp.StatusCode)
 		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
 	}
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		if span != nil {
@@ -284,17 +284,17 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 		slog.ErrorContext(ctx, "Failed to read ESI status response", "error", err)
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	if span != nil {
 		span.SetAttributes(
 			attribute.Int("http.response_size", len(body)),
 			attribute.Bool("cache.hit", false),
 		)
 	}
-	
+
 	// Update cache with new data
 	c.cacheManager.Set(cacheKey, body, resp.Header)
-	
+
 	var status ESIStatusResponse
 	if err := json.Unmarshal(body, &status); err != nil {
 		if span != nil {
@@ -304,7 +304,7 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 		slog.ErrorContext(ctx, "Failed to parse ESI status response", "error", err)
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-	
+
 	if span != nil {
 		span.SetAttributes(
 			attribute.Int("esi.players", status.Players),
@@ -313,19 +313,19 @@ func (c *Client) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error
 		)
 		span.SetStatus(codes.Ok, "successfully retrieved ESI status")
 	}
-	
-	slog.InfoContext(ctx, "Successfully retrieved ESI status", 
+
+	slog.InfoContext(ctx, "Successfully retrieved ESI status",
 		slog.Int("players", status.Players),
 		slog.String("server_version", status.ServerVersion),
 		slog.Time("start_time", status.StartTime))
-	
+
 	return &status, nil
 }
 
 // GetCharacterInfo retrieves character information from EVE ESI
 func (c *Client) GetCharacterInfo(ctx context.Context, characterID int) (map[string]any, error) {
 	slog.Info("Requesting character info from ESI", slog.Int("character_id", characterID))
-	
+
 	// Delegate to character client
 	return c.Character.GetCharacterInfo(ctx, characterID)
 }
@@ -333,26 +333,26 @@ func (c *Client) GetCharacterInfo(ctx context.Context, characterID int) (map[str
 // GetCorporationInfo retrieves corporation information from EVE ESI
 func (c *Client) GetCorporationInfo(ctx context.Context, corporationID int) (map[string]any, error) {
 	slog.Info("Requesting corporation info from ESI", slog.Int("corporation_id", corporationID))
-	
+
 	// Get corporation info from typed client
 	corpInfo, err := c.Corporation.GetCorporationInfo(ctx, corporationID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert structured response to map for backward compatibility
 	result := map[string]any{
-		"corporation_id":   corpInfo.CorporationID,
-		"name":            corpInfo.Name,
-		"ticker":          corpInfo.Ticker,
-		"description":     corpInfo.Description,
-		"ceo_id":          corpInfo.CEOCharacterID,
-		"creator_id":      corpInfo.CreatorID,
-		"date_founded":    corpInfo.DateFounded.Format("2006-01-02T15:04:05Z"),
-		"member_count":    corpInfo.MemberCount,
-		"tax_rate":        corpInfo.TaxRate,
+		"corporation_id": corpInfo.CorporationID,
+		"name":           corpInfo.Name,
+		"ticker":         corpInfo.Ticker,
+		"description":    corpInfo.Description,
+		"ceo_id":         corpInfo.CEOCharacterID,
+		"creator_id":     corpInfo.CreatorID,
+		"date_founded":   corpInfo.DateFounded.Format("2006-01-02T15:04:05Z"),
+		"member_count":   corpInfo.MemberCount,
+		"tax_rate":       corpInfo.TaxRate,
 	}
-	
+
 	// Add optional fields if they exist (check for non-zero values due to omitempty)
 	if corpInfo.URL != "" {
 		result["url"] = corpInfo.URL
@@ -371,14 +371,14 @@ func (c *Client) GetCorporationInfo(ctx context.Context, corporationID int) (map
 	}
 	// WarEligible is a bool, so we include it always since false is valid
 	result["war_eligible"] = corpInfo.WarEligible
-	
+
 	return result, nil
 }
 
 // GetAllianceInfo retrieves alliance information from EVE ESI
 func (c *Client) GetAllianceInfo(ctx context.Context, allianceID int) (map[string]any, error) {
 	slog.Info("Requesting alliance info from ESI", slog.Int("alliance_id", allianceID))
-	
+
 	// Delegate to the alliance client
 	return c.Alliance.GetAllianceInfo(ctx, int64(allianceID))
 }
@@ -386,7 +386,7 @@ func (c *Client) GetAllianceInfo(ctx context.Context, allianceID int) (map[strin
 // RefreshToken refreshes an EVE SSO access token
 func (c *Client) RefreshToken(ctx context.Context, refreshToken string) (map[string]any, error) {
 	slog.Info("Refreshing EVE SSO token")
-	
+
 	// TODO: Implement actual token refresh
 	return map[string]any{"access_token": "placeholder", "expires_in": 1200}, nil
 }
@@ -425,20 +425,20 @@ func (c *characterClientImpl) GetCharacterInfo(ctx context.Context, characterID 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert structured response to map for backward compatibility
 	result := map[string]any{
 		"character_id":    charInfo.CharacterID,
-		"name":           charInfo.Name,
-		"description":    charInfo.Description,
-		"corporation_id": charInfo.CorporationID,
-		"birthday":       charInfo.Birthday,
-		"gender":         charInfo.Gender,
-		"race_id":        charInfo.RaceID,
-		"bloodline_id":   charInfo.BloodlineID,
+		"name":            charInfo.Name,
+		"description":     charInfo.Description,
+		"corporation_id":  charInfo.CorporationID,
+		"birthday":        charInfo.Birthday,
+		"gender":          charInfo.Gender,
+		"race_id":         charInfo.RaceID,
+		"bloodline_id":    charInfo.BloodlineID,
 		"security_status": charInfo.SecurityStatus,
 	}
-	
+
 	// Add optional fields if they exist
 	if charInfo.AllianceID != 0 {
 		result["alliance_id"] = charInfo.AllianceID
@@ -449,7 +449,7 @@ func (c *characterClientImpl) GetCharacterInfo(ctx context.Context, characterID 
 	if charInfo.FactionID != 0 {
 		result["faction_id"] = charInfo.FactionID
 	}
-	
+
 	return result, nil
 }
 
@@ -458,7 +458,7 @@ func (c *characterClientImpl) GetCharacterPortrait(ctx context.Context, characte
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert structured response to map for backward compatibility
 	return map[string]any{
 		"px64x64":   portrait.Px64x64,
@@ -473,7 +473,7 @@ func (c *characterClientImpl) GetCharactersAffiliation(ctx context.Context, char
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert structured response to map for backward compatibility
 	result := make([]map[string]interface{}, len(affiliations))
 	for i, aff := range affiliations {
@@ -488,7 +488,7 @@ func (c *characterClientImpl) GetCharactersAffiliation(ctx context.Context, char
 			result[i]["faction_id"] = aff.FactionID
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -520,12 +520,12 @@ func (a *allianceClientImpl) GetAllianceInfo(ctx context.Context, allianceID int
 	// Convert to map[string]any for backward compatibility
 	return map[string]any{
 		"creator_corporation_id":  info.CreatorCorporationID,
-		"creator_id":             info.CreatorID,
-		"date_founded":           info.DateFounded,
+		"creator_id":              info.CreatorID,
+		"date_founded":            info.DateFounded,
 		"executor_corporation_id": info.ExecutorCorporationID,
-		"faction_id":             info.FactionID,
-		"name":                   info.Name,
-		"ticker":                 info.Ticker,
+		"faction_id":              info.FactionID,
+		"name":                    info.Name,
+		"ticker":                  info.Ticker,
 	}, nil
 }
 
@@ -659,4 +659,3 @@ func (c *corporationClientImpl) GetCorporationWallets(ctx context.Context, corpo
 func (c *corporationClientImpl) GetCorporationWalletsWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationWalletResult, error) {
 	return c.client.GetCorporationWalletsWithCache(ctx, corporationID, token)
 }
-

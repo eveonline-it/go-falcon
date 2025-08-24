@@ -70,13 +70,13 @@ func (s *UpdateService) UpdateAllAffiliations(ctx context.Context) (*dto.Affilia
 		wg.Add(1)
 		go func(batchNum int, charIDs []int) {
 			defer wg.Done()
-			
+
 			// Acquire semaphore
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
 			log.Printf("Processing batch %d/%d with %d characters", batchNum+1, len(batches), len(charIDs))
-			
+
 			result := s.processBatch(ctx, charIDs)
 			resultsChan <- result
 		}(i, batch)
@@ -94,7 +94,7 @@ func (s *UpdateService) UpdateAllAffiliations(ctx context.Context) (*dto.Affilia
 	}
 
 	stats.Duration = int(time.Since(startTime).Seconds())
-	
+
 	log.Printf("🎯 AFFILIATION UPDATE COMPLETED: %d updated, %d failed, %d skipped in %d seconds (processed %d batches)",
 		stats.UpdatedCharacters, stats.FailedCharacters, stats.SkippedCharacters, stats.Duration, stats.BatchesProcessed)
 
@@ -142,7 +142,7 @@ func (s *UpdateService) processBatch(ctx context.Context, characterIDs []int) *b
 	result := &batchResult{}
 
 	log.Printf("🌐 Calling ESI /characters/affiliation/ for %d character IDs", len(characterIDs))
-	
+
 	// Call ESI to get affiliations
 	affiliations, err := s.eveGateway.Character.GetCharactersAffiliation(ctx, characterIDs)
 	if err != nil {
@@ -222,7 +222,7 @@ func (s *UpdateService) processBatch(ctx context.Context, characterIDs []int) *b
 // createBatches splits character IDs into batches
 func (s *UpdateService) createBatches(characterIDs []int, batchSize int) [][]int {
 	var batches [][]int
-	
+
 	for i := 0; i < len(characterIDs); i += batchSize {
 		end := i + batchSize
 		if end > len(characterIDs) {
@@ -230,7 +230,7 @@ func (s *UpdateService) createBatches(characterIDs []int, batchSize int) [][]int
 		}
 		batches = append(batches, characterIDs[i:end])
 	}
-	
+
 	return batches
 }
 
@@ -341,7 +341,7 @@ func (s *UpdateService) ValidateCharacters(ctx context.Context, characterIDs []i
 
 	// Process in batches
 	batches := s.createBatches(characterIDs, ESI_BATCH_SIZE)
-	
+
 	for _, batch := range batches {
 		affiliations, err := s.eveGateway.Character.GetCharactersAffiliation(ctx, batch)
 		if err != nil {

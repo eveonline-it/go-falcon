@@ -38,7 +38,7 @@ func NewAuthMiddleware(validator JWTValidator) *AuthMiddleware {
 func (m *AuthMiddleware) ValidateAuthFromHeaders(authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
 	// Try to get token from Authorization header first
 	token := m.ExtractTokenFromHeaders(authHeader)
-	
+
 	// If not found, try cookie
 	if token == "" && cookieHeader != "" {
 		token = m.ExtractTokenFromCookie(cookieHeader)
@@ -76,7 +76,6 @@ func (m *AuthMiddleware) ValidateScopesFromHeaders(authHeader, cookieHeader stri
 
 	return user, nil
 }
-
 
 // ExtractTokenFromHeaders extracts JWT token from Authorization header string
 func (m *AuthMiddleware) ExtractTokenFromHeaders(authHeader string) string {
@@ -161,7 +160,7 @@ func NewAuthError(message string) *AuthError {
 func CreateAuthCookieHeader(token string) string {
 	// Get cookie domain from config
 	cookieDomain := config.GetCookieDomain()
-	
+
 	// Create cookie similar to the traditional handler
 	cookie := "falcon_auth_token=" + token + "; Path=/"
 	if cookieDomain != "" {
@@ -175,7 +174,7 @@ func CreateAuthCookieHeader(token string) string {
 func CreateClearCookieHeader() string {
 	// Get cookie domain from config
 	cookieDomain := config.GetCookieDomain()
-	
+
 	// Clear cookie by setting it to empty with past expiration
 	cookie := "falcon_auth_token=; Path=/"
 	if cookieDomain != "" {

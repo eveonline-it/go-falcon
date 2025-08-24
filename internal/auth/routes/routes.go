@@ -16,10 +16,10 @@ import (
 
 // Routes handles HTTP routing for the Auth module
 type Routes struct {
-	authService *services.AuthService
-	middleware  *middleware.Middleware
+	authService    *services.AuthService
+	middleware     *middleware.Middleware
 	authMiddleware *humaMiddleware.AuthMiddleware
-	api         huma.API
+	api            huma.API
 }
 
 // NewRoutes creates a new Auth routes handler
@@ -27,17 +27,17 @@ func NewRoutes(authService *services.AuthService, middleware *middleware.Middlew
 	// Create Huma API with Chi adapter
 	config := huma.DefaultConfig("Go Falcon Auth Module", "1.0.0")
 	config.Info.Description = "EVE Online SSO authentication and user profile management"
-	
+
 	api := humachi.New(router, config)
 
 	// Create authentication middleware using the auth service as JWT validator
 	authMiddleware := humaMiddleware.NewAuthMiddleware(authService)
 
 	hr := &Routes{
-		authService: authService,
-		middleware:  middleware,
+		authService:    authService,
+		middleware:     middleware,
 		authMiddleware: authMiddleware,
-		api:         api,
+		api:            api,
 	}
 
 	// Register all routes
@@ -68,7 +68,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 				userID = user.UserID
 			}
 		}
-		
+
 		// Generate login URL without scopes (basic login)
 		loginResp, err := authService.InitiateEVELogin(ctx, false, userID)
 		if err != nil {
@@ -77,7 +77,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 		return &dto.EVELoginOutput{Body: *loginResp}, nil
 	})
-	
+
 	huma.Register(api, huma.Operation{
 		OperationID: "auth-eve-register",
 		Method:      "GET",
@@ -94,7 +94,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 				userID = user.UserID
 			}
 		}
-		
+
 		// Generate login URL with full scopes (registration)
 		loginResp, err := authService.InitiateEVELogin(ctx, true, userID)
 		if err != nil {
@@ -121,7 +121,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 				existingUserID = user.UserID
 			}
 		}
-		
+
 		// Handle the OAuth callback with existing user ID if available
 		jwtToken, _, err := authService.HandleEVECallbackWithUserID(ctx, input.Code, input.State, existingUserID)
 		if err != nil {
@@ -130,10 +130,10 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 		// Set authentication cookie using Huma header response
 		cookieHeader := humaMiddleware.CreateAuthCookieHeader(jwtToken)
-		
+
 		// Get frontend URL from configuration
 		frontendURL := config.GetFrontendURL()
-		
+
 		// Return HTTP 302 redirect with Location header and cookie
 		// Huma will handle this as a proper redirect response
 		return &dto.EVECallbackOutput{
@@ -257,17 +257,17 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 		// Convert to DTO response
 		response := &dto.ProfileResponse{
-			UserID:            profile.UserID,
-			CharacterID:       profile.CharacterID,
-			CharacterName:     profile.CharacterName,
-			CorporationID:     profile.CorporationID,
-			CorporationName:   profile.CorporationName,
-			AllianceID:        profile.AllianceID,
-			AllianceName:      profile.AllianceName,
-			SecurityStatus:    profile.SecurityStatus,
-			Birthday:          profile.Birthday,
-			Scopes:            profile.Scopes,
-			LastLogin:         profile.LastLogin,
+			UserID:          profile.UserID,
+			CharacterID:     profile.CharacterID,
+			CharacterName:   profile.CharacterName,
+			CorporationID:   profile.CorporationID,
+			CorporationName: profile.CorporationName,
+			AllianceID:      profile.AllianceID,
+			AllianceName:    profile.AllianceName,
+			SecurityStatus:  profile.SecurityStatus,
+			Birthday:        profile.Birthday,
+			Scopes:          profile.Scopes,
+			LastLogin:       profile.LastLogin,
 		}
 
 		return &dto.ProfileOutput{Body: *response}, nil
@@ -296,17 +296,17 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 
 		// Convert to DTO response
 		response := &dto.ProfileResponse{
-			UserID:            profile.UserID,
-			CharacterID:       profile.CharacterID,
-			CharacterName:     profile.CharacterName,
-			CorporationID:     profile.CorporationID,
-			CorporationName:   profile.CorporationName,
-			AllianceID:        profile.AllianceID,
-			AllianceName:      profile.AllianceName,
-			SecurityStatus:    profile.SecurityStatus,
-			Birthday:          profile.Birthday,
-			Scopes:            profile.Scopes,
-			LastLogin:         profile.LastLogin,
+			UserID:          profile.UserID,
+			CharacterID:     profile.CharacterID,
+			CharacterName:   profile.CharacterName,
+			CorporationID:   profile.CorporationID,
+			CorporationName: profile.CorporationName,
+			AllianceID:      profile.AllianceID,
+			AllianceName:    profile.AllianceName,
+			SecurityStatus:  profile.SecurityStatus,
+			Birthday:        profile.Birthday,
+			Scopes:          profile.Scopes,
+			LastLogin:       profile.LastLogin,
 		}
 
 		return &dto.ProfileRefreshOutput{Body: *response}, nil
@@ -393,7 +393,7 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 func (hr *Routes) registerRoutes() {
 	// EVE Online SSO endpoints (public)
 	huma.Get(hr.api, "/eve/login", hr.eveLogin)
-	huma.Get(hr.api, "/eve/register", hr.eveRegister) 
+	huma.Get(hr.api, "/eve/register", hr.eveRegister)
 	huma.Get(hr.api, "/eve/callback", hr.eveCallback)
 	huma.Post(hr.api, "/eve/token", hr.eveTokenExchange)
 	huma.Post(hr.api, "/eve/refresh", hr.eveRefresh)
@@ -401,7 +401,7 @@ func (hr *Routes) registerRoutes() {
 
 	// Status endpoint (public, no auth required)
 	huma.Get(hr.api, "/status", hr.moduleStatus)
-	
+
 	// Authentication status and user info (public with optional auth)
 	huma.Get(hr.api, "/auth-status", hr.authStatus)
 	huma.Get(hr.api, "/user", hr.userInfo)
@@ -468,7 +468,7 @@ func (hr *Routes) eveCallback(ctx context.Context, input *dto.EVECallbackInput) 
 			existingUserID = user.UserID
 		}
 	}
-	
+
 	// Handle the OAuth callback with existing user ID if available
 	jwtToken, _, err := hr.authService.HandleEVECallbackWithUserID(ctx, input.Code, input.State, existingUserID)
 	if err != nil {
@@ -477,10 +477,10 @@ func (hr *Routes) eveCallback(ctx context.Context, input *dto.EVECallbackInput) 
 
 	// Set authentication cookie using Huma header response
 	cookieHeader := humaMiddleware.CreateAuthCookieHeader(jwtToken)
-	
+
 	// Get frontend URL from configuration
 	frontendURL := config.GetFrontendURL()
-	
+
 	// Return HTTP 302 redirect with Location header and cookie
 	// Huma will handle this as a proper redirect response
 	return &dto.EVECallbackOutput{
@@ -557,17 +557,17 @@ func (hr *Routes) profile(ctx context.Context, input *dto.ProfileInput) (*dto.Pr
 
 	// Convert to DTO response
 	response := &dto.ProfileResponse{
-		UserID:            profile.UserID,
-		CharacterID:       profile.CharacterID,
-		CharacterName:     profile.CharacterName,
-		CorporationID:     profile.CorporationID,
-		CorporationName:   profile.CorporationName,
-		AllianceID:        profile.AllianceID,
-		AllianceName:      profile.AllianceName,
-		SecurityStatus:    profile.SecurityStatus,
-		Birthday:          profile.Birthday,
-		Scopes:            profile.Scopes,
-		LastLogin:         profile.LastLogin,
+		UserID:          profile.UserID,
+		CharacterID:     profile.CharacterID,
+		CharacterName:   profile.CharacterName,
+		CorporationID:   profile.CorporationID,
+		CorporationName: profile.CorporationName,
+		AllianceID:      profile.AllianceID,
+		AllianceName:    profile.AllianceName,
+		SecurityStatus:  profile.SecurityStatus,
+		Birthday:        profile.Birthday,
+		Scopes:          profile.Scopes,
+		LastLogin:       profile.LastLogin,
 	}
 
 	return &dto.ProfileOutput{Body: *response}, nil
@@ -588,17 +588,17 @@ func (hr *Routes) profileRefresh(ctx context.Context, input *dto.ProfileRefreshI
 
 	// Convert to DTO response
 	response := &dto.ProfileResponse{
-		UserID:            profile.UserID,
-		CharacterID:       profile.CharacterID,
-		CharacterName:     profile.CharacterName,
-		CorporationID:     profile.CorporationID,
-		CorporationName:   profile.CorporationName,
-		AllianceID:        profile.AllianceID,
-		AllianceName:      profile.AllianceName,
-		SecurityStatus:    profile.SecurityStatus,
-		Birthday:          profile.Birthday,
-		Scopes:            profile.Scopes,
-		LastLogin:         profile.LastLogin,
+		UserID:          profile.UserID,
+		CharacterID:     profile.CharacterID,
+		CharacterName:   profile.CharacterName,
+		CorporationID:   profile.CorporationID,
+		CorporationName: profile.CorporationName,
+		AllianceID:      profile.AllianceID,
+		AllianceName:    profile.AllianceName,
+		SecurityStatus:  profile.SecurityStatus,
+		Birthday:        profile.Birthday,
+		Scopes:          profile.Scopes,
+		LastLogin:       profile.LastLogin,
 	}
 
 	return &dto.ProfileRefreshOutput{Body: *response}, nil

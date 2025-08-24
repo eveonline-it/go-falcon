@@ -24,7 +24,7 @@ func HealthHandler(moduleName string) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		
+
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			slog.Error("Failed to encode health response", "error", err, "module", moduleName)
 		}
@@ -42,7 +42,7 @@ func SimpleHealthHandler() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		
+
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			slog.Error("Failed to encode health response", "error", err)
 		}

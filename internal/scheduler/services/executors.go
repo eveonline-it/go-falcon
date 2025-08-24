@@ -94,9 +94,9 @@ func (e *HTTPExecutor) Execute(ctx context.Context, task *models.Task) (*models.
 		Output:   output,
 		Duration: models.Duration(duration),
 		Metadata: map[string]interface{}{
-			"status_code":    resp.StatusCode,
-			"response_size":  len(body),
-			"response_time":  duration.String(),
+			"status_code":   resp.StatusCode,
+			"response_size": len(body),
+			"response_time": duration.String(),
 		},
 	}
 
@@ -182,9 +182,9 @@ type CorporationModule interface {
 
 // SystemExecutor executes system tasks
 type SystemExecutor struct {
-	authModule       AuthModule
-	characterModule  CharacterModule
-	allianceModule   AllianceModule
+	authModule        AuthModule
+	characterModule   CharacterModule
+	allianceModule    AllianceModule
 	corporationModule CorporationModule
 }
 
@@ -256,7 +256,7 @@ func (e *SystemExecutor) executeTokenRefresh(ctx context.Context, config *models
 		}, nil
 	}
 
-	output := fmt.Sprintf("Processed %d tokens: %d successful, %d failed", 
+	output := fmt.Sprintf("Processed %d tokens: %d successful, %d failed",
 		successCount+failureCount, successCount, failureCount)
 
 	return &models.TaskResult{
@@ -314,7 +314,7 @@ func (e *SystemExecutor) executeCharacterAffiliationUpdate(ctx context.Context, 
 	}
 
 	total := updated + failed + skipped
-	output := fmt.Sprintf("Processed %d characters: %d updated, %d failed, %d skipped", 
+	output := fmt.Sprintf("Processed %d characters: %d updated, %d failed, %d skipped",
 		total, updated, failed, skipped)
 
 	// Consider it a success if at least some characters were updated
@@ -354,7 +354,7 @@ func (e *SystemExecutor) executeAllianceBulkImport(ctx context.Context, config *
 	}
 
 	stats := result.Body
-	output := fmt.Sprintf("Processed %d alliances: %d created, %d updated, %d failed", 
+	output := fmt.Sprintf("Processed %d alliances: %d created, %d updated, %d failed",
 		stats.Processed, stats.Created, stats.Updated, stats.Failed)
 
 	// Consider it a success if at least some alliances were processed successfully
@@ -407,7 +407,7 @@ func (e *SystemExecutor) executeCorporationUpdate(ctx context.Context, config *m
 			Duration: models.Duration(time.Since(start)),
 			Metadata: map[string]interface{}{
 				"concurrent_workers": concurrentWorkers,
-				"error_details": errorMsg,
+				"error_details":      errorMsg,
 			},
 		}, nil
 	}

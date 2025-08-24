@@ -259,7 +259,7 @@ func (s *ProfileService) refreshSingleToken(ctx context.Context, characterID int
 // getESICharacterInfo retrieves character information from ESI
 func (s *ProfileService) getESICharacterInfo(ctx context.Context, characterID int, accessToken string) (*models.ESICharacterInfo, error) {
 	url := fmt.Sprintf("https://esi.evetech.net/latest/characters/%d/", characterID)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -291,7 +291,7 @@ func (s *ProfileService) getESICharacterInfo(ctx context.Context, characterID in
 // getESICorporationInfo retrieves corporation information from ESI
 func (s *ProfileService) getESICorporationInfo(ctx context.Context, corporationID int) (*models.ESICorporationInfo, error) {
 	url := fmt.Sprintf("https://esi.evetech.net/latest/corporations/%d/", corporationID)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -321,7 +321,7 @@ func (s *ProfileService) getESICorporationInfo(ctx context.Context, corporationI
 // getESIAllianceInfo retrieves alliance information from ESI
 func (s *ProfileService) getESIAllianceInfo(ctx context.Context, allianceID int) (*models.ESIAllianceInfo, error) {
 	url := fmt.Sprintf("https://esi.evetech.net/latest/alliances/%d/", allianceID)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err

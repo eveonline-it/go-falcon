@@ -9,16 +9,16 @@ import (
 var (
 	// Version is the semantic version (e.g., "1.2.3")
 	Version = "dev"
-	
+
 	// GitCommit is the git commit hash
 	GitCommit = "unknown"
-	
+
 	// GitBranch is the git branch name
 	GitBranch = "unknown"
-	
+
 	// BuildDate is the build timestamp
 	BuildDate = "unknown"
-	
+
 	// BuildUser is who built the binary
 	BuildUser = "unknown"
 )

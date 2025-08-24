@@ -44,14 +44,14 @@ func NewModule(db *database.MongoDB, authModule AuthModule, siteSettingsService 
 
 	var groupMiddleware *groupsMiddleware.AuthMiddleware
 	var routesModule *routes.Module
-	
+
 	if authModule != nil {
 		// Get auth service for character context resolution
 		authService := authModule.GetAuthService()
 		if authService == nil {
 			return nil, fmt.Errorf("auth service is required for groups module when auth module is provided")
 		}
-		
+
 		// Create auth middleware with character context resolution
 		groupMiddleware = groupsMiddleware.NewAuthMiddleware(authService, service)
 		slog.Info("Groups module initialized with character context middleware")
@@ -139,10 +139,10 @@ func (m *Module) SetAuthModule(authModule AuthModule) error {
 
 	// Create the auth middleware with character context resolution
 	m.middleware = groupsMiddleware.NewAuthMiddleware(authService, m.service)
-	
+
 	// Recreate routes with the new middleware
 	m.routes = routes.NewModule(m.service, m.middleware)
-	
+
 	slog.Info("Groups module updated with auth dependencies")
 	return nil
 }
@@ -152,16 +152,16 @@ func (m *Module) SetPermissionManager(permissionManager *permissions.PermissionM
 	if m.middleware == nil {
 		return fmt.Errorf("auth middleware must be set before permission manager")
 	}
-	
+
 	// Get the current auth service
 	authService := m.middleware.GetAuthService()
-	
+
 	// Recreate middleware with permission manager
 	m.middleware = groupsMiddleware.NewAuthMiddleware(authService, m.service, permissionManager)
-	
+
 	// Recreate routes with the updated middleware
 	m.routes = routes.NewModule(m.service, m.middleware)
-	
+
 	slog.Info("Groups module updated with permission manager")
 	return nil
 }

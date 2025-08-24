@@ -69,7 +69,6 @@ func ValidateUserID(next http.Handler) http.Handler {
 	})
 }
 
-
 // ValidateUserUpdateRequest validates the JSON body for user updates
 func ValidateUserUpdateRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

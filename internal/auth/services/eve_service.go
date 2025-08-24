@@ -94,7 +94,7 @@ func (s *EVEService) GenerateAuthURL(ctx context.Context, withScopes bool, userI
 	params.Set("redirect_uri", s.redirectURI)
 	params.Set("client_id", s.clientID)
 	params.Set("state", state)
-	
+
 	if withScopes && s.scopes != "" {
 		params.Set("scope", s.scopes)
 	}
@@ -192,7 +192,7 @@ func (s *EVEService) ValidateJWT(tokenString string) (*models.AuthenticatedUser,
 // GenerateJWT creates a JWT token for the authenticated user
 func (s *EVEService) GenerateJWT(userID string, characterID int, characterName, scopes string) (string, time.Time, error) {
 	expiresAt := time.Now().Add(config.GetCookieDuration())
-	
+
 	claims := jwt.MapClaims{
 		"user_id":        userID,
 		"character_id":   characterID,

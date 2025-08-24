@@ -19,15 +19,15 @@ const (
 // SiteSetting represents a site configuration setting
 type SiteSetting struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Key         string             `bson:"key" json:"key"`                            // Unique setting identifier
-	Value       interface{}        `bson:"value" json:"value"`                        // Setting value (can be any type)
-	Type        SettingType        `bson:"type" json:"type"`                          // Data type for validation
-	Category    string             `bson:"category,omitempty" json:"category"`        // Organization category
-	Description string             `bson:"description,omitempty" json:"description"`  // Human-readable description
-	IsPublic    bool               `bson:"is_public" json:"is_public"`                // Whether non-admins can read this
-	IsActive    bool               `bson:"is_active" json:"is_active"`                // Whether this setting is active
-	CreatedBy   *int64             `bson:"created_by,omitempty" json:"created_by"`    // Character ID who created
-	UpdatedBy   *int64             `bson:"updated_by,omitempty" json:"updated_by"`    // Character ID who last updated
+	Key         string             `bson:"key" json:"key"`                           // Unique setting identifier
+	Value       interface{}        `bson:"value" json:"value"`                       // Setting value (can be any type)
+	Type        SettingType        `bson:"type" json:"type"`                         // Data type for validation
+	Category    string             `bson:"category,omitempty" json:"category"`       // Organization category
+	Description string             `bson:"description,omitempty" json:"description"` // Human-readable description
+	IsPublic    bool               `bson:"is_public" json:"is_public"`               // Whether non-admins can read this
+	IsActive    bool               `bson:"is_active" json:"is_active"`               // Whether this setting is active
+	CreatedBy   *int64             `bson:"created_by,omitempty" json:"created_by"`   // Character ID who created
+	UpdatedBy   *int64             `bson:"updated_by,omitempty" json:"updated_by"`   // Character ID who last updated
 	CreatedAt   time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt   time.Time          `bson:"updated_at" json:"updated_at"`
 }
@@ -80,7 +80,7 @@ var DefaultSiteSettings = []SiteSetting{
 		IsActive:    true,
 	},
 	{
-		Key:         "contact_info",
+		Key: "contact_info",
 		Value: map[string]interface{}{
 			"email":   "admin@example.com",
 			"discord": "https://discord.gg/example",
@@ -110,7 +110,7 @@ var SettingCategories = []string{
 type ManagedCorporation struct {
 	CorporationID int64     `bson:"corporation_id" json:"corporation_id"`
 	Name          string    `bson:"name" json:"name"`
-	Ticker        string    `bson:"ticker" json:"ticker"`           // NEW: Corporation ticker
+	Ticker        string    `bson:"ticker" json:"ticker"` // NEW: Corporation ticker
 	Enabled       bool      `bson:"enabled" json:"enabled"`
 	Position      int       `bson:"position" json:"position"`
 	AddedAt       time.Time `bson:"added_at" json:"added_at"`
@@ -128,7 +128,7 @@ type ManagedCorporationsValue struct {
 type ManagedAlliance struct {
 	AllianceID int64     `bson:"alliance_id" json:"alliance_id"`
 	Name       string    `bson:"name" json:"name"`
-	Ticker     string    `bson:"ticker" json:"ticker"`             // NEW: Alliance ticker
+	Ticker     string    `bson:"ticker" json:"ticker"` // NEW: Alliance ticker
 	Enabled    bool      `bson:"enabled" json:"enabled"`
 	Position   int       `bson:"position" json:"position"`
 	AddedAt    time.Time `bson:"added_at" json:"added_at"`

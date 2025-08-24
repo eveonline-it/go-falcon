@@ -27,10 +27,10 @@ type Module struct {
 // New creates a new auth module with standardized structure
 func New(mongodb *database.MongoDB, redis *database.Redis, esiClient *evegateway.Client) *Module {
 	baseModule := module.NewBaseModule("auth", mongodb, redis)
-	
+
 	// Create services
 	authService := services.NewAuthService(mongodb, esiClient)
-	
+
 	// Create middleware with JWT validator
 	middlewareLayer := middleware.New(authService)
 
@@ -62,13 +62,13 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 // StartBackgroundTasks starts auth-specific background tasks
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
 	slog.Info("Starting auth background tasks", "module", m.Name())
-	
+
 	// Start base module background tasks
 	go m.BaseModule.StartBackgroundTasks(ctx)
-	
+
 	// Start state cleanup routine
 	go m.runStateCleanup(ctx)
-	
+
 	// Start token refresh routine (if needed)
 	go m.runTokenRefresh(ctx)
 }
@@ -135,8 +135,8 @@ func (m *Module) runTokenRefresh(ctx context.Context) {
 			if err != nil {
 				slog.Error("Failed to refresh expiring tokens", "error", err)
 			} else if success > 0 || failed > 0 {
-				slog.Info("Token refresh completed", 
-					"success", success, 
+				slog.Info("Token refresh completed",
+					"success", success,
 					"failed", failed,
 				)
 			}

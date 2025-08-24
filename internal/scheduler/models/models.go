@@ -38,54 +38,54 @@ const (
 
 // Task represents a scheduled task definition
 type Task struct {
-	ID           string                 `json:"id" bson:"_id"`
-	Name         string                 `json:"name" bson:"name"`
-	Description  string                 `json:"description" bson:"description"`
-	Type         TaskType               `json:"type" bson:"type"`
-	Schedule     string                 `json:"schedule" bson:"schedule"` // Cron format
-	Status       TaskStatus             `json:"status" bson:"status"`
-	Priority     TaskPriority           `json:"priority" bson:"priority"`
-	Enabled      bool                   `json:"enabled" bson:"enabled"`
-	Config       map[string]interface{} `json:"config" bson:"config"`
-	Metadata     TaskMetadata           `json:"metadata" bson:"metadata"`
-	LastRun      *time.Time             `json:"last_run,omitempty" bson:"last_run,omitempty"`
-	LastRunDuration *Duration            `json:"last_run_duration,omitempty" bson:"last_run_duration,omitempty"`
-	NextRun      *time.Time             `json:"next_run,omitempty" bson:"next_run,omitempty"`
-	CreatedAt    time.Time              `json:"created_at" bson:"created_at"`
-	UpdatedAt    time.Time              `json:"updated_at" bson:"updated_at"`
-	CreatedBy    string                 `json:"created_by,omitempty" bson:"created_by,omitempty"`
-	UpdatedBy    string                 `json:"updated_by,omitempty" bson:"updated_by,omitempty"`
+	ID              string                 `json:"id" bson:"_id"`
+	Name            string                 `json:"name" bson:"name"`
+	Description     string                 `json:"description" bson:"description"`
+	Type            TaskType               `json:"type" bson:"type"`
+	Schedule        string                 `json:"schedule" bson:"schedule"` // Cron format
+	Status          TaskStatus             `json:"status" bson:"status"`
+	Priority        TaskPriority           `json:"priority" bson:"priority"`
+	Enabled         bool                   `json:"enabled" bson:"enabled"`
+	Config          map[string]interface{} `json:"config" bson:"config"`
+	Metadata        TaskMetadata           `json:"metadata" bson:"metadata"`
+	LastRun         *time.Time             `json:"last_run,omitempty" bson:"last_run,omitempty"`
+	LastRunDuration *Duration              `json:"last_run_duration,omitempty" bson:"last_run_duration,omitempty"`
+	NextRun         *time.Time             `json:"next_run,omitempty" bson:"next_run,omitempty"`
+	CreatedAt       time.Time              `json:"created_at" bson:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at" bson:"updated_at"`
+	CreatedBy       string                 `json:"created_by,omitempty" bson:"created_by,omitempty"`
+	UpdatedBy       string                 `json:"updated_by,omitempty" bson:"updated_by,omitempty"`
 }
 
 // TaskMetadata contains additional task information
 type TaskMetadata struct {
-	MaxRetries     int           `json:"max_retries" bson:"max_retries"`
-	RetryInterval  Duration      `json:"retry_interval" bson:"retry_interval"`
-	Timeout        Duration      `json:"timeout" bson:"timeout"`
-	Tags           []string      `json:"tags" bson:"tags"`
-	IsSystem       bool          `json:"is_system" bson:"is_system"`
-	Source         string        `json:"source" bson:"source"` // "system", "api", "import"
-	Version        int           `json:"version" bson:"version"`
-	LastError      string        `json:"last_error,omitempty" bson:"last_error,omitempty"`
-	SuccessCount   int64         `json:"success_count" bson:"success_count"`
-	FailureCount   int64         `json:"failure_count" bson:"failure_count"`
-	TotalRuns      int64         `json:"total_runs" bson:"total_runs"`
-	AverageRuntime Duration      `json:"average_runtime" bson:"average_runtime"`
+	MaxRetries     int      `json:"max_retries" bson:"max_retries"`
+	RetryInterval  Duration `json:"retry_interval" bson:"retry_interval"`
+	Timeout        Duration `json:"timeout" bson:"timeout"`
+	Tags           []string `json:"tags" bson:"tags"`
+	IsSystem       bool     `json:"is_system" bson:"is_system"`
+	Source         string   `json:"source" bson:"source"` // "system", "api", "import"
+	Version        int      `json:"version" bson:"version"`
+	LastError      string   `json:"last_error,omitempty" bson:"last_error,omitempty"`
+	SuccessCount   int64    `json:"success_count" bson:"success_count"`
+	FailureCount   int64    `json:"failure_count" bson:"failure_count"`
+	TotalRuns      int64    `json:"total_runs" bson:"total_runs"`
+	AverageRuntime Duration `json:"average_runtime" bson:"average_runtime"`
 }
 
 // TaskExecution represents a single task execution record
 type TaskExecution struct {
-	ID           string                 `json:"id" bson:"_id"`
-	TaskID       string                 `json:"task_id" bson:"task_id"`
-	Status       TaskStatus             `json:"status" bson:"status"`
-	StartedAt    time.Time              `json:"started_at" bson:"started_at"`
-	CompletedAt  *time.Time             `json:"completed_at,omitempty" bson:"completed_at,omitempty"`
-	Duration     Duration               `json:"duration" bson:"duration"`
-	Output       string                 `json:"output,omitempty" bson:"output,omitempty"`
-	Error        string                 `json:"error,omitempty" bson:"error,omitempty"`
-	Metadata     map[string]interface{} `json:"metadata" bson:"metadata"`
-	WorkerID     string                 `json:"worker_id" bson:"worker_id"`
-	RetryCount   int                    `json:"retry_count" bson:"retry_count"`
+	ID          string                 `json:"id" bson:"_id"`
+	TaskID      string                 `json:"task_id" bson:"task_id"`
+	Status      TaskStatus             `json:"status" bson:"status"`
+	StartedAt   time.Time              `json:"started_at" bson:"started_at"`
+	CompletedAt *time.Time             `json:"completed_at,omitempty" bson:"completed_at,omitempty"`
+	Duration    Duration               `json:"duration" bson:"duration"`
+	Output      string                 `json:"output,omitempty" bson:"output,omitempty"`
+	Error       string                 `json:"error,omitempty" bson:"error,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata" bson:"metadata"`
+	WorkerID    string                 `json:"worker_id" bson:"worker_id"`
+	RetryCount  int                    `json:"retry_count" bson:"retry_count"`
 }
 
 // HTTPTaskConfig defines configuration for HTTP tasks
@@ -138,8 +138,8 @@ type SchedulerStats struct {
 
 // EngineStats represents engine statistics
 type EngineStats struct {
-	WorkerCount int `json:"worker_count"`
-	QueueSize   int `json:"queue_size"`
+	WorkerCount int  `json:"worker_count"`
+	QueueSize   int  `json:"queue_size"`
 	IsRunning   bool `json:"is_running"`
 }
 

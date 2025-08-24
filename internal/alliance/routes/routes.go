@@ -11,7 +11,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-
 // Module represents the alliance routes module
 type Module struct {
 	service    *services.Service
@@ -51,7 +50,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 	}, func(ctx context.Context, input *dto.ListAlliancesInput) (*dto.AllianceListOutput, error) {
 		return m.listAlliances(ctx, input)
 	})
-	
+
 	// Alliance information endpoint
 	huma.Register(api, huma.Operation{
 		OperationID: "alliance-get-info",
@@ -63,7 +62,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 	}, func(ctx context.Context, input *dto.GetAllianceInput) (*dto.AllianceInfoOutput, error) {
 		return m.getAllianceInfo(ctx, input)
 	})
-	
+
 	// Alliance member corporations endpoint
 	huma.Register(api, huma.Operation{
 		OperationID: "alliance-get-corporations",
@@ -75,7 +74,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 	}, func(ctx context.Context, input *dto.GetAllianceCorporationsInput) (*dto.AllianceCorporationsOutput, error) {
 		return m.getAllianceCorporations(ctx, input)
 	})
-	
+
 	// Bulk import alliances endpoint
 	huma.Register(api, huma.Operation{
 		OperationID: "alliance-bulk-import",
@@ -110,7 +109,7 @@ func (m *Module) listAlliances(ctx context.Context, input *dto.ListAlliancesInpu
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to retrieve alliances list", err)
 	}
-	
+
 	return alliances, nil
 }
 
@@ -119,7 +118,7 @@ func (m *Module) getAllianceCorporations(ctx context.Context, input *dto.GetAlli
 	if input.AllianceID <= 0 {
 		return nil, huma.Error400BadRequest("Alliance ID must be a positive integer")
 	}
-	
+
 	// Call the service to get alliance member corporations
 	corporations, err := m.service.GetAllianceCorporations(ctx, input.AllianceID)
 	if err != nil {
@@ -127,11 +126,11 @@ func (m *Module) getAllianceCorporations(ctx context.Context, input *dto.GetAlli
 		if isNotFoundError(err) {
 			return nil, huma.Error404NotFound(fmt.Sprintf("Alliance with ID %d not found", input.AllianceID))
 		}
-		
+
 		// For other errors, return a 500
 		return nil, huma.Error500InternalServerError("Failed to retrieve alliance corporations", err)
 	}
-	
+
 	return corporations, nil
 }
 
@@ -140,7 +139,7 @@ func (m *Module) getAllianceInfo(ctx context.Context, input *dto.GetAllianceInpu
 	if input.AllianceID <= 0 {
 		return nil, huma.Error400BadRequest("Alliance ID must be a positive integer")
 	}
-	
+
 	// Call the service to get alliance information
 	allianceInfo, err := m.service.GetAllianceInfo(ctx, input.AllianceID)
 	if err != nil {
@@ -148,11 +147,11 @@ func (m *Module) getAllianceInfo(ctx context.Context, input *dto.GetAllianceInpu
 		if isNotFoundError(err) {
 			return nil, huma.Error404NotFound(fmt.Sprintf("Alliance with ID %d not found", input.AllianceID))
 		}
-		
+
 		// For other errors, return a 500
 		return nil, huma.Error500InternalServerError("Failed to retrieve alliance information", err)
 	}
-	
+
 	return allianceInfo, nil
 }
 
@@ -161,13 +160,13 @@ func (m *Module) searchAlliancesByName(ctx context.Context, input *dto.SearchAll
 	if len(input.Name) < 3 {
 		return nil, huma.Error400BadRequest("Search term must be at least 3 characters long")
 	}
-	
+
 	// Call the service to search for alliances
 	results, err := m.service.SearchAlliancesByName(ctx, input.Name)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to search alliances", err)
 	}
-	
+
 	return results, nil
 }
 
@@ -187,15 +186,14 @@ func (m *Module) bulkImportAlliances(ctx context.Context, input *dto.BulkImportA
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to bulk import alliances", err)
 	}
-	
+
 	return result, nil
 }
 
 // isNotFoundError checks if the error indicates an alliance was not found
 func isNotFoundError(err error) bool {
-	// This is a simple check - in a real implementation, you'd want to 
+	// This is a simple check - in a real implementation, you'd want to
 	// examine the specific error type or HTTP status code from the ESI client
-	return err != nil && (
-		err.Error() == "ESI returned status 404" ||
+	return err != nil && (err.Error() == "ESI returned status 404" ||
 		err.Error() == "alliance not found")
 }

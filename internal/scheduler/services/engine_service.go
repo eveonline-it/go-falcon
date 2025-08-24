@@ -26,28 +26,28 @@ type EngineService struct {
 	repository *Repository
 	redis      *database.Redis
 	cron       *cron.Cron
-	
+
 	// Worker pool
-	workers    int
-	taskQueue  chan *models.TaskExecution
-	workerWg   sync.WaitGroup
-	
+	workers   int
+	taskQueue chan *models.TaskExecution
+	workerWg  sync.WaitGroup
+
 	// Task management
-	activeTasks   map[string]*models.Task
-	tasksMutex    sync.RWMutex
-	
+	activeTasks map[string]*models.Task
+	tasksMutex  sync.RWMutex
+
 	// Execution tracking with cancellation
 	runningExecutions map[string]*ExecutionContext
 	executionsMutex   sync.RWMutex
-	
+
 	// Executors
 	executors map[models.TaskType]TaskExecutor
-	
+
 	// Engine state
-	running   bool
-	runMutex  sync.RWMutex
-	stopChan  chan struct{}
-	
+	running  bool
+	runMutex sync.RWMutex
+	stopChan chan struct{}
+
 	// Module dependencies
 	authModule        AuthModule
 	characterModule   CharacterModule
@@ -199,34 +199,34 @@ func (e *EngineService) ExecuteTaskNow(ctx context.Context, taskID string) (*mod
 // StopTask stops a currently running task and cancels any running executions
 func (e *EngineService) StopTask(taskID string) error {
 	slog.Info("Stopping task", slog.String("task_id", taskID))
-	
+
 	// Find and cancel all running executions for this task
 	var cancelledExecutions []string
-	
+
 	e.executionsMutex.Lock()
 	for executionID, execContext := range e.runningExecutions {
 		if execContext.Execution.TaskID == taskID {
 			slog.Info("Cancelling running execution",
 				slog.String("task_id", taskID),
 				slog.String("execution_id", executionID))
-			
+
 			// Cancel the execution context
 			execContext.Cancel()
 			cancelledExecutions = append(cancelledExecutions, executionID)
 		}
 	}
 	e.executionsMutex.Unlock()
-	
+
 	// Update task status to paused to prevent future scheduling
 	ctx := context.Background()
 	if err := e.repository.UpdateTaskStatus(ctx, taskID, models.TaskStatusPaused); err != nil {
 		return fmt.Errorf("failed to pause task: %w", err)
 	}
-	
+
 	slog.Info("Task stopped successfully",
 		slog.String("task_id", taskID),
 		slog.Int("cancelled_executions", len(cancelledExecutions)))
-	
+
 	return nil
 }
 
@@ -234,7 +234,7 @@ func (e *EngineService) StopTask(taskID string) error {
 func (e *EngineService) GetRunningExecutions() map[string]*ExecutionContext {
 	e.executionsMutex.RLock()
 	defer e.executionsMutex.RUnlock()
-	
+
 	// Return a copy to avoid race conditions
 	result := make(map[string]*ExecutionContext)
 	for id, execContext := range e.runningExecutions {
@@ -276,7 +276,7 @@ func (e *EngineService) loadTasks(ctx context.Context) error {
 	// Schedule each task
 	for _, task := range tasks {
 		if err := e.scheduleTask(&task); err != nil {
-			slog.Error("Failed to schedule task", 
+			slog.Error("Failed to schedule task",
 				slog.String("task_id", task.ID),
 				slog.String("error", err.Error()))
 			continue
@@ -390,7 +390,7 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 
 	// Save execution start
 	if err := e.repository.CreateExecution(parentCtx, execution); err != nil {
-		slog.Error("Failed to create execution record", 
+		slog.Error("Failed to create execution record",
 			slog.String("execution_id", execution.ID),
 			slog.String("error", err.Error()))
 		return
@@ -419,7 +419,7 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 		now := time.Now()
 		execution.CompletedAt = &now
 		execution.Duration = models.Duration(now.Sub(execution.StartedAt))
-		
+
 		slog.Info("Task execution cancelled",
 			slog.String("task_id", task.ID),
 			slog.String("execution_id", execution.ID))
@@ -450,7 +450,7 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 		next := schedule.Next(now)
 		nextRun = &next
 	}
-	
+
 	// Use the new method that includes duration tracking and average calculation
 	success := execution.Status == models.TaskStatusCompleted
 	dur := time.Duration(execution.Duration)

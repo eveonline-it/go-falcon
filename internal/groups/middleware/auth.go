@@ -9,17 +9,16 @@ import (
 	authServices "go-falcon/internal/auth/services"
 	"go-falcon/internal/groups/services"
 	"go-falcon/pkg/permissions"
-	
+
 	"github.com/danielgtaylor/huma/v2"
 )
 
 // AuthMiddleware provides authentication and authorization for groups
 type AuthMiddleware struct {
-	groupService       *services.Service
-	characterContext   *CharacterContextMiddleware
-	permissionManager  *permissions.PermissionManager
+	groupService      *services.Service
+	characterContext  *CharacterContextMiddleware
+	permissionManager *permissions.PermissionManager
 }
-
 
 // NewAuthMiddleware creates a full auth middleware with character context resolution
 func NewAuthMiddleware(authService interface{}, groupService *services.Service, permissionManager ...*permissions.PermissionManager) *AuthMiddleware {
@@ -30,19 +29,19 @@ func NewAuthMiddleware(authService interface{}, groupService *services.Service, 
 			as = typed
 		}
 	}
-	
+
 	// Create character context middleware with real auth service
 	characterContext := NewCharacterContextMiddleware(as, groupService)
-	
+
 	// Handle optional permission manager
 	var pm *permissions.PermissionManager
 	if len(permissionManager) > 0 {
 		pm = permissionManager[0]
 	}
-	
+
 	return &AuthMiddleware{
-		groupService:     groupService,
-		characterContext: characterContext,
+		groupService:      groupService,
+		characterContext:  characterContext,
 		permissionManager: pm,
 	}
 }
@@ -54,7 +53,7 @@ func (m *AuthMiddleware) RequireAuth(ctx context.Context, authHeader, cookieHead
 	if err != nil {
 		return nil, huma.Error401Unauthorized("Authentication required", err)
 	}
-	
+
 	// Convert character context to AuthenticatedUser for backward compatibility
 	return &models.AuthenticatedUser{
 		UserID:        charContext.UserID,
@@ -71,7 +70,7 @@ func (m *AuthMiddleware) RequireGroupAccess(ctx context.Context, authHeader, coo
 	if err != nil {
 		return nil, huma.Error401Unauthorized("Authentication required", err)
 	}
-	
+
 	// Check permission via permission manager if available
 	if m.permissionManager != nil {
 		// Check specific permission for group management
@@ -83,7 +82,7 @@ func (m *AuthMiddleware) RequireGroupAccess(ctx context.Context, authHeader, coo
 			slog.Debug("[Groups Auth] Access granted via permission system",
 				"character_id", charContext.CharacterID,
 				"permission", "groups:management:full")
-			
+
 			// Convert to AuthenticatedUser for backward compatibility
 			return &models.AuthenticatedUser{
 				UserID:        charContext.UserID,
@@ -93,14 +92,14 @@ func (m *AuthMiddleware) RequireGroupAccess(ctx context.Context, authHeader, coo
 			}, nil
 		}
 	}
-	
+
 	// Debug logging to help identify the issue
-	slog.Debug("[Groups Auth] Checking group access (fallback to super admin)", 
+	slog.Debug("[Groups Auth] Checking group access (fallback to super admin)",
 		"character_id", charContext.CharacterID,
 		"character_name", charContext.CharacterName,
 		"is_super_admin", charContext.IsSuperAdmin,
 		"group_memberships", charContext.GroupMemberships)
-	
+
 	// Fall back to super admin check
 	if !charContext.IsSuperAdmin {
 		slog.Warn("[Groups Auth] Access denied - no group management permission",
@@ -109,7 +108,7 @@ func (m *AuthMiddleware) RequireGroupAccess(ctx context.Context, authHeader, coo
 			"groups", charContext.GroupMemberships)
 		return nil, huma.Error403Forbidden("Insufficient permissions: group management access required")
 	}
-	
+
 	// Convert to AuthenticatedUser for backward compatibility
 	return &models.AuthenticatedUser{
 		UserID:        charContext.UserID,
@@ -126,7 +125,7 @@ func (m *AuthMiddleware) RequireGroupMembershipAccess(ctx context.Context, authH
 	if err != nil {
 		return nil, huma.Error401Unauthorized("Authentication required", err)
 	}
-	
+
 	// Check permission via permission manager if available
 	if m.permissionManager != nil {
 		// Check specific permission for membership management
@@ -138,7 +137,7 @@ func (m *AuthMiddleware) RequireGroupMembershipAccess(ctx context.Context, authH
 			slog.Debug("[Groups Auth] Membership access granted via permission system",
 				"character_id", charContext.CharacterID,
 				"permission", "groups:memberships:manage")
-			
+
 			return &models.AuthenticatedUser{
 				UserID:        charContext.UserID,
 				CharacterID:   int(charContext.CharacterID),
@@ -147,7 +146,7 @@ func (m *AuthMiddleware) RequireGroupMembershipAccess(ctx context.Context, authH
 			}, nil
 		}
 	}
-	
+
 	// Fall back to group management permission
 	return m.RequireGroupAccess(ctx, authHeader, cookieHeader)
 }
@@ -169,14 +168,14 @@ func (m *AuthMiddleware) RequirePermission(ctx context.Context, authHeader, cook
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
-	
+
 	// Check permission via permission manager
 	if m.permissionManager != nil {
 		hasPermission, err := m.permissionManager.HasPermission(ctx, charContext.CharacterID, permissionID)
 		if err != nil {
 			return nil, fmt.Errorf("permission check failed: %w", err)
 		}
-		
+
 		if !hasPermission {
 			slog.Warn("[Groups Auth] Access denied - missing permission",
 				"character_id", charContext.CharacterID,
@@ -185,14 +184,14 @@ func (m *AuthMiddleware) RequirePermission(ctx context.Context, authHeader, cook
 				"groups", charContext.GroupMemberships)
 			return nil, fmt.Errorf("permission denied: %s required", permissionID)
 		}
-		
+
 		slog.Debug("[Groups Auth] Access granted via permission system",
 			"character_id", charContext.CharacterID,
 			"permission", permissionID)
 	} else {
 		return nil, fmt.Errorf("permission system not available")
 	}
-	
+
 	// Convert to AuthenticatedUser for backward compatibility
 	return &models.AuthenticatedUser{
 		UserID:        charContext.UserID,
@@ -207,7 +206,7 @@ func (m *AuthMiddleware) HasPermission(ctx context.Context, characterID int64, p
 	if m.permissionManager == nil {
 		return false, fmt.Errorf("permission system not available")
 	}
-	
+
 	return m.permissionManager.HasPermission(ctx, characterID, permissionID)
 }
 
@@ -218,17 +217,17 @@ func (m *AuthMiddleware) CheckDetailedPermission(ctx context.Context, authHeader
 	if err != nil {
 		return nil, nil, fmt.Errorf("authentication failed: %w", err)
 	}
-	
+
 	if m.permissionManager == nil {
 		return nil, nil, fmt.Errorf("permission system not available")
 	}
-	
+
 	// Get detailed permission check
 	permCheck, err := m.permissionManager.CheckPermission(ctx, charContext.CharacterID, permissionID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("permission check failed: %w", err)
 	}
-	
+
 	// Convert to AuthenticatedUser
 	user := &models.AuthenticatedUser{
 		UserID:        charContext.UserID,
@@ -236,7 +235,7 @@ func (m *AuthMiddleware) CheckDetailedPermission(ctx context.Context, authHeader
 		CharacterName: charContext.CharacterName,
 		Scopes:        "publicData",
 	}
-	
+
 	return user, permCheck, nil
 }
 

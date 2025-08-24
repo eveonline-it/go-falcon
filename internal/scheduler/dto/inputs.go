@@ -63,7 +63,7 @@ type BulkTaskOperationRequest struct {
 // TaskImportRequest represents a request to import tasks
 type TaskImportRequest struct {
 	Tasks     []TaskCreateRequest `json:"tasks" validate:"required,min=1"`
-	Overwrite bool               `json:"overwrite"`
+	Overwrite bool                `json:"overwrite"`
 }
 
 // TaskCreateInput represents the input for creating a new task

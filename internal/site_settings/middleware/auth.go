@@ -6,21 +6,21 @@ import (
 
 	"go-falcon/internal/auth/models"
 	authServices "go-falcon/internal/auth/services"
-	"go-falcon/internal/groups/services"
 	groupsMiddleware "go-falcon/internal/groups/middleware"
+	"go-falcon/internal/groups/services"
 )
 
 // AuthMiddleware provides authentication and authorization for site settings
 type AuthMiddleware struct {
-	authService   *authServices.AuthService
-	groupService  *services.Service
+	authService      *authServices.AuthService
+	groupService     *services.Service
 	characterContext *groupsMiddleware.CharacterContextMiddleware
 }
 
 // NewAuthMiddleware creates a new auth middleware instance
 func NewAuthMiddleware(authService *authServices.AuthService, groupService *services.Service) *AuthMiddleware {
 	characterContext := groupsMiddleware.NewCharacterContextMiddleware(authService, groupService)
-	
+
 	return &AuthMiddleware{
 		authService:      authService,
 		groupService:     groupService,
@@ -35,7 +35,7 @@ func (m *AuthMiddleware) RequireAuth(ctx context.Context, authHeader, cookieHead
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
-	
+
 	// Convert character context to AuthenticatedUser for backward compatibility
 	return &models.AuthenticatedUser{
 		UserID:        charContext.UserID,
@@ -52,12 +52,12 @@ func (m *AuthMiddleware) RequireSuperAdmin(ctx context.Context, authHeader, cook
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
-	
+
 	// Check if user has super admin privileges
 	if !charContext.IsSuperAdmin {
 		return nil, fmt.Errorf("super admin access required for site settings management")
 	}
-	
+
 	// Convert to AuthenticatedUser for backward compatibility
 	return &models.AuthenticatedUser{
 		UserID:        charContext.UserID,

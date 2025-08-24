@@ -29,7 +29,7 @@ type CharacterInfoResult struct {
 	Cache CacheInfo              `json:"cache"`
 }
 
-// CharacterPortraitResult contains portrait info and cache information  
+// CharacterPortraitResult contains portrait info and cache information
 type CharacterPortraitResult struct {
 	Data  *CharacterPortraitResponse `json:"data"`
 	Cache CacheInfo                  `json:"cache"`
@@ -47,18 +47,18 @@ type Client interface {
 
 // CharacterInfoResponse represents character public information
 type CharacterInfoResponse struct {
-	CharacterID     int       `json:"character_id"`
-	Name            string    `json:"name"`
-	Description     string    `json:"description"`
-	CorporationID   int       `json:"corporation_id"`
-	AllianceID      int       `json:"alliance_id,omitempty"`
-	Birthday        time.Time `json:"birthday"`
-	Gender          string    `json:"gender"`
-	RaceID          int       `json:"race_id"`
-	BloodlineID     int       `json:"bloodline_id"`
-	AncestryID      int       `json:"ancestry_id,omitempty"`
-	SecurityStatus  float64   `json:"security_status,omitempty"`
-	FactionID       int       `json:"faction_id,omitempty"`
+	CharacterID    int       `json:"character_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	CorporationID  int       `json:"corporation_id"`
+	AllianceID     int       `json:"alliance_id,omitempty"`
+	Birthday       time.Time `json:"birthday"`
+	Gender         string    `json:"gender"`
+	RaceID         int       `json:"race_id"`
+	BloodlineID    int       `json:"bloodline_id"`
+	AncestryID     int       `json:"ancestry_id,omitempty"`
+	SecurityStatus float64   `json:"security_status,omitempty"`
+	FactionID      int       `json:"faction_id,omitempty"`
 }
 
 // CharacterPortraitResponse represents character portrait URLs
@@ -386,10 +386,10 @@ func (c *CharacterClient) GetCharacterPortrait(ctx context.Context, characterID 
 					span.SetStatus(codes.Ok, "cache hit - not modified")
 				}
 				slog.InfoContext(ctx, "Character portrait not modified, using cached data")
-				
+
 				// Refresh the expiry since ESI confirmed data is still valid
 				c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-				
+
 				return &portrait, nil
 			}
 		} else {

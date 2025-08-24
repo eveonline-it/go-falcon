@@ -102,21 +102,21 @@ type Client interface {
 
 // CorporationInfoResponse represents corporation public information
 type CorporationInfoResponse struct {
-	CorporationID   int       `json:"corporation_id"`
-	Name            string    `json:"name"`
-	Ticker          string    `json:"ticker"`
-	Description     string    `json:"description"`
-	URL             string    `json:"url,omitempty"`
-	AllianceID      int       `json:"alliance_id,omitempty"`
-	CEOCharacterID  int       `json:"ceo_id"`
-	CreatorID       int       `json:"creator_id"`
-	DateFounded     time.Time `json:"date_founded"`
-	FactionID       int       `json:"faction_id,omitempty"`
-	HomeStationID   int       `json:"home_station_id,omitempty"`
-	MemberCount     int       `json:"member_count"`
-	Shares          int64     `json:"shares,omitempty"`
-	TaxRate         float64   `json:"tax_rate"`
-	WarEligible     bool      `json:"war_eligible,omitempty"`
+	CorporationID  int       `json:"corporation_id"`
+	Name           string    `json:"name"`
+	Ticker         string    `json:"ticker"`
+	Description    string    `json:"description"`
+	URL            string    `json:"url,omitempty"`
+	AllianceID     int       `json:"alliance_id,omitempty"`
+	CEOCharacterID int       `json:"ceo_id"`
+	CreatorID      int       `json:"creator_id"`
+	DateFounded    time.Time `json:"date_founded"`
+	FactionID      int       `json:"faction_id,omitempty"`
+	HomeStationID  int       `json:"home_station_id,omitempty"`
+	MemberCount    int       `json:"member_count"`
+	Shares         int64     `json:"shares,omitempty"`
+	TaxRate        float64   `json:"tax_rate"`
+	WarEligible    bool      `json:"war_eligible,omitempty"`
 }
 
 // CorporationMember represents a corporation member
@@ -126,19 +126,19 @@ type CorporationMember struct {
 
 // CorporationStructure represents a corporation structure
 type CorporationStructure struct {
-	StructureID         int64     `json:"structure_id"`
-	TypeID              int       `json:"type_id"`
-	SystemID            int       `json:"system_id"`
-	ProfileID           int       `json:"profile_id"`
-	FuelExpires         time.Time `json:"fuel_expires,omitempty"`
-	StateTimerStart     time.Time `json:"state_timer_start,omitempty"`
-	StateTimerEnd       time.Time `json:"state_timer_end,omitempty"`
-	UnanchorsAt         time.Time `json:"unanchors_at,omitempty"`
-	State               string    `json:"state"`
-	ReinforceHour       int       `json:"reinforce_hour,omitempty"`
-	ReinforceWeekday    int       `json:"reinforce_weekday,omitempty"`
-	CorporationID       int       `json:"corporation_id"`
-	Services            []Service `json:"services,omitempty"`
+	StructureID      int64     `json:"structure_id"`
+	TypeID           int       `json:"type_id"`
+	SystemID         int       `json:"system_id"`
+	ProfileID        int       `json:"profile_id"`
+	FuelExpires      time.Time `json:"fuel_expires,omitempty"`
+	StateTimerStart  time.Time `json:"state_timer_start,omitempty"`
+	StateTimerEnd    time.Time `json:"state_timer_end,omitempty"`
+	UnanchorsAt      time.Time `json:"unanchors_at,omitempty"`
+	State            string    `json:"state"`
+	ReinforceHour    int       `json:"reinforce_hour,omitempty"`
+	ReinforceWeekday int       `json:"reinforce_weekday,omitempty"`
+	CorporationID    int       `json:"corporation_id"`
+	Services         []Service `json:"services,omitempty"`
 }
 
 // Service represents a structure service
@@ -149,10 +149,10 @@ type Service struct {
 
 // CorporationAllianceHistory represents corporation alliance history entry
 type CorporationAllianceHistory struct {
-	AllianceID  int       `json:"alliance_id,omitempty"`
-	IsDeleted   bool      `json:"is_deleted,omitempty"`
-	RecordID    int       `json:"record_id"`
-	StartDate   time.Time `json:"start_date"`
+	AllianceID int       `json:"alliance_id,omitempty"`
+	IsDeleted  bool      `json:"is_deleted,omitempty"`
+	RecordID   int       `json:"record_id"`
+	StartDate  time.Time `json:"start_date"`
 }
 
 // CorporationIcons represents corporation icon URLs
@@ -177,26 +177,26 @@ type CorporationWallet struct {
 
 // CorporationMemberTracking represents member tracking information
 type CorporationMemberTracking struct {
-	BaseID              int       `json:"base_id,omitempty"`
-	CharacterID         int       `json:"character_id"`
-	LocationID          int64     `json:"location_id,omitempty"`
-	LogoffDate          time.Time `json:"logoff_date,omitempty"`
-	LogonDate           time.Time `json:"logon_date,omitempty"`
-	ShipTypeID          int       `json:"ship_type_id,omitempty"`
-	StartDate           time.Time `json:"start_date,omitempty"`
+	BaseID      int       `json:"base_id,omitempty"`
+	CharacterID int       `json:"character_id"`
+	LocationID  int64     `json:"location_id,omitempty"`
+	LogoffDate  time.Time `json:"logoff_date,omitempty"`
+	LogonDate   time.Time `json:"logon_date,omitempty"`
+	ShipTypeID  int       `json:"ship_type_id,omitempty"`
+	StartDate   time.Time `json:"start_date,omitempty"`
 }
 
 // CorporationMemberRoles represents member roles information
 type CorporationMemberRoles struct {
-	CharacterID     int      `json:"character_id"`
-	GrantedRoles    []string `json:"grantable_roles,omitempty"`
-	GrantableRoles  []string `json:"grantable_roles_at_base,omitempty"`
-	GrantableRolesAtHQ []string `json:"grantable_roles_at_hq,omitempty"`
+	CharacterID           int      `json:"character_id"`
+	GrantedRoles          []string `json:"grantable_roles,omitempty"`
+	GrantableRoles        []string `json:"grantable_roles_at_base,omitempty"`
+	GrantableRolesAtHQ    []string `json:"grantable_roles_at_hq,omitempty"`
 	GrantableRolesAtOther []string `json:"grantable_roles_at_other,omitempty"`
-	Roles           []string `json:"roles,omitempty"`
-	RolesAtBase     []string `json:"roles_at_base,omitempty"`
-	RolesAtHQ       []string `json:"roles_at_hq,omitempty"`
-	RolesAtOther    []string `json:"roles_at_other,omitempty"`
+	Roles                 []string `json:"roles,omitempty"`
+	RolesAtBase           []string `json:"roles_at_base,omitempty"`
+	RolesAtHQ             []string `json:"roles_at_hq,omitempty"`
+	RolesAtOther          []string `json:"roles_at_other,omitempty"`
 }
 
 // CacheManager interface for caching operations
@@ -355,7 +355,6 @@ func (c *CorporationClient) GetCorporationInfo(ctx context.Context, corporationI
 		slog.ErrorContext(ctx, "Failed to read corporation info response", "error", err)
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-
 
 	if span != nil {
 		span.SetAttributes(
@@ -600,12 +599,12 @@ func (c *CorporationClient) GetCorporationIconsWithCache(ctx context.Context, co
 // Helper method to make authenticated requests
 func (c *CorporationClient) makeAuthenticatedRequest(ctx context.Context, endpoint, token string, cacheKey string) ([]byte, error) {
 	var span trace.Span
-	
+
 	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
 		tracer := otel.Tracer("go-falcon/evegateway/corporation")
 		ctx, span = tracer.Start(ctx, "corporation.makeAuthenticatedRequest")
 		defer span.End()
-		
+
 		span.SetAttributes(
 			attribute.String("esi.endpoint", endpoint),
 			attribute.String("cache.key", cacheKey),

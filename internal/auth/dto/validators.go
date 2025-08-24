@@ -45,13 +45,13 @@ func validateEVEScopes(fl validator.FieldLevel) bool {
 // ValidateStruct validates a struct using the validator instance
 func ValidateStruct(validate *validator.Validate, s interface{}) []string {
 	var errors []string
-	
+
 	if err := validate.Struct(s); err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
 			errors = append(errors, formatValidationError(err))
 		}
 	}
-	
+
 	return errors
 }
 

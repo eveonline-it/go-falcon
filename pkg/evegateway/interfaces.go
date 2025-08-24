@@ -109,7 +109,7 @@ func (c *DefaultCacheManager) GetMetadata(key string) (map[string]interface{}, e
 	}
 
 	metadata := map[string]interface{}{
-		"expires_at":     entry.Expires,
+		"expires_at":    entry.Expires,
 		"etag":          entry.ETag,
 		"last_modified": entry.LastModified,
 		"cached":        true,
@@ -217,17 +217,17 @@ func parseCacheControlMaxAge(cacheControl string) int {
 	if !strings.Contains(cacheControl, "max-age=") {
 		return 0
 	}
-	
+
 	parts := strings.Split(cacheControl, "max-age=")
 	if len(parts) < 2 {
 		return 0
 	}
-	
+
 	maxAgeStr := strings.Split(parts[1], ",")[0]
 	maxAge, err := strconv.Atoi(strings.TrimSpace(maxAgeStr))
 	if err != nil {
 		return 0
 	}
-	
+
 	return maxAge
 }

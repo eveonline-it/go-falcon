@@ -29,13 +29,13 @@ func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *eveg
 	// Initialize repository and service
 	repository := services.NewRepository(mongodb)
 	service := services.NewService(repository, eveClient)
-	
+
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService, permissionManager)
-	
+
 	// Initialize routes
 	routesModule := routes.NewModule(service, authMiddleware)
-	
+
 	// Create the module
 	m := &Module{
 		BaseModule: module.NewBaseModule("alliance", mongodb, redis),
@@ -43,19 +43,19 @@ func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *eveg
 		routes:     routesModule,
 		middleware: authMiddleware,
 	}
-	
+
 	slog.Info("Alliance module initialized", "name", m.Name())
-	
+
 	return m
 }
 
 // RegisterUnifiedRoutes registers all alliance routes with the provided Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 	slog.Info("Registering alliance unified routes", "basePath", basePath)
-	
+
 	// Register all routes through the routes module with basePath
 	m.routes.RegisterUnifiedRoutes(api, basePath)
-	
+
 	slog.Info("Alliance unified routes registered successfully", "basePath", basePath)
 }
 

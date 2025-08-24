@@ -146,7 +146,7 @@ func (c *StatusClient) GetServerStatus(ctx context.Context) (*ServerStatusRespon
 	if resp.StatusCode == http.StatusNotModified {
 		// Refresh the cache expiry time
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		// Get cached data (even if expired)
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			if span != nil {

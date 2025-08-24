@@ -31,12 +31,12 @@ func NewRepository(mongodb *database.MongoDB) *Repository {
 func (r *Repository) GetCorporationByID(ctx context.Context, corporationID int) (*models.Corporation, error) {
 	var corporation models.Corporation
 	filter := bson.M{"corporation_id": corporationID, "deleted_at": bson.M{"$exists": false}}
-	
+
 	err := r.collection.FindOne(ctx, filter).Decode(&corporation)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &corporation, nil
 }
 
@@ -44,7 +44,7 @@ func (r *Repository) GetCorporationByID(ctx context.Context, corporationID int) 
 func (r *Repository) CreateCorporation(ctx context.Context, corporation *models.Corporation) error {
 	corporation.CreatedAt = time.Now().UTC()
 	corporation.UpdatedAt = time.Now().UTC()
-	
+
 	_, err := r.collection.InsertOne(ctx, corporation)
 	return err
 }
@@ -52,10 +52,10 @@ func (r *Repository) CreateCorporation(ctx context.Context, corporation *models.
 // UpdateCorporation updates an existing corporation record
 func (r *Repository) UpdateCorporation(ctx context.Context, corporation *models.Corporation) error {
 	corporation.UpdatedAt = time.Now().UTC()
-	
+
 	filter := bson.M{"corporation_id": corporation.CorporationID, "deleted_at": bson.M{"$exists": false}}
 	update := bson.M{"$set": corporation}
-	
+
 	_, err := r.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
 	return err
 }
@@ -63,17 +63,17 @@ func (r *Repository) UpdateCorporation(ctx context.Context, corporation *models.
 // GetAllCorporationIDs retrieves all corporation IDs from the database
 func (r *Repository) GetAllCorporationIDs(ctx context.Context) ([]int, error) {
 	filter := bson.M{"deleted_at": bson.M{"$exists": false}}
-	
+
 	// Only project the corporation_id field for efficiency
 	projection := bson.M{"corporation_id": 1}
 	findOptions := options.Find().SetProjection(projection)
-	
+
 	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var corporationIDs []int
 	for cursor.Next(ctx) {
 		var doc struct {
@@ -84,11 +84,11 @@ func (r *Repository) GetAllCorporationIDs(ctx context.Context) ([]int, error) {
 		}
 		corporationIDs = append(corporationIDs, doc.CorporationID)
 	}
-	
+
 	if err := cursor.Err(); err != nil {
 		return nil, err
 	}
-	
+
 	return corporationIDs, nil
 }
 
@@ -96,7 +96,7 @@ func (r *Repository) GetAllCorporationIDs(ctx context.Context) ([]int, error) {
 func (r *Repository) SearchCorporationsByName(ctx context.Context, name string) ([]*models.Corporation, error) {
 	var filter bson.M
 	var findOptions *options.FindOptions
-	
+
 	// Use different search strategies based on the search pattern
 	if len(name) >= 3 {
 		// For partial matches, try text search first (faster for full-text queries)
@@ -117,7 +117,7 @@ func (r *Repository) SearchCorporationsByName(ctx context.Context, name string) 
 			// Use case-insensitive regex for single-word prefix/contains search
 			// Also search in ticker field for corporation ticker searches
 			regexPattern := strings.ToLower(name)
-			
+
 			filter = bson.M{
 				"$or": []bson.M{
 					{
@@ -161,27 +161,27 @@ func (r *Repository) SearchCorporationsByName(ctx context.Context, name string) 
 			SetSort(bson.M{"member_count": -1}).
 			SetLimit(20) // Smaller limit for short queries
 	}
-	
+
 	// Add soft delete filter and handle legacy ID field mapping
 	filter["deleted_at"] = bson.M{"$exists": false}
-	
+
 	// Convert name and ticker searches to handle both corporation_id and legacy id field
 	if len(name) >= 3 && !strings.Contains(name, " ") && len(strings.Fields(name)) <= 1 {
 		// For single-word searches, we need to ensure both corporation_id and legacy id are available
 		// But we keep the existing filter as-is for now since the search conversion will handle legacy IDs
 	}
-	
+
 	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var corporations []*models.Corporation
 	if err := cursor.All(ctx, &corporations); err != nil {
 		return nil, err
 	}
-	
+
 	return corporations, nil
 }
 

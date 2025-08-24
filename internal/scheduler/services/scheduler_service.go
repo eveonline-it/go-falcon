@@ -327,11 +327,11 @@ func (s *SchedulerService) GetExecution(ctx context.Context, executionID string)
 func (s *SchedulerService) ListExecutions(ctx context.Context, query *dto.ExecutionListInput) (*dto.ExecutionListResponse, error) {
 	// Build filter
 	filter := bson.M{}
-	
+
 	if query.Status != "" {
 		filter["status"] = query.Status
 	}
-	
+
 	if query.TaskID != "" {
 		filter["task_id"] = query.TaskID
 	}

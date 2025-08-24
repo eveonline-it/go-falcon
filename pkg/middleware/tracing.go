@@ -18,10 +18,10 @@ func TracingMiddleware(next http.Handler) http.Handler {
 	}
 
 	tracer := otel.Tracer("falcon-api")
-	
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
-		
+
 		ctx, span := tracer.Start(ctx, r.Method+" "+r.URL.Path,
 			trace.WithAttributes(
 				attribute.String("http.method", r.Method),
@@ -33,10 +33,10 @@ func TracingMiddleware(next http.Handler) http.Handler {
 		defer span.End()
 
 		r = r.WithContext(ctx)
-		
+
 		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(rw, r)
-		
+
 		span.SetAttributes(
 			attribute.Int("http.status_code", rw.statusCode),
 		)

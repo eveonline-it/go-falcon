@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	
+
 	"go-falcon/pkg/config"
 
 	"go.opentelemetry.io/otel"
@@ -13,9 +13,9 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
@@ -119,8 +119,8 @@ func (tm *TelemetryManager) initTracing(ctx context.Context, res *resource.Resou
 	))
 
 	tm.shutdownFuncs = append(tm.shutdownFuncs, tp.Shutdown)
-	
-	slog.Info("OpenTelemetry tracing initialized", 
+
+	slog.Info("OpenTelemetry tracing initialized",
 		"endpoint", tm.config.OTLPEndpoint,
 		"service", tm.config.ServiceName)
 	return nil
@@ -173,7 +173,7 @@ func (tm *TelemetryManager) setupLogger() {
 	}
 
 	logger := slog.New(handler)
-	
+
 	// Set as default logger
 	slog.SetDefault(logger)
 	tm.logger = logger
@@ -181,13 +181,13 @@ func (tm *TelemetryManager) setupLogger() {
 
 func (tm *TelemetryManager) Shutdown(ctx context.Context) error {
 	slog.Info("Shutting down telemetry...")
-	
+
 	for _, shutdown := range tm.shutdownFuncs {
 		if err := shutdown(ctx); err != nil {
 			slog.Error("Error shutting down telemetry component", "error", err)
 		}
 	}
-	
+
 	return nil
 }
 

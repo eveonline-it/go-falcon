@@ -94,7 +94,7 @@ func (s *Service) ensureLoaded() error {
 	}
 
 	s.loaded = true
-	
+
 	// Log memory usage after loading SDE data
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -111,7 +111,7 @@ func (s *Service) ensureLoaded() error {
 		"heap_size", formatBytes(m.HeapAlloc),
 		"total_alloc", formatBytes(m.TotalAlloc),
 	)
-	
+
 	return nil
 }
 

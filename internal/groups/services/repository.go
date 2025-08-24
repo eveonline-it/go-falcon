@@ -142,7 +142,7 @@ func (r *Repository) GetGroupBySystemName(ctx context.Context, systemName string
 // GetGroupByEVEEntityID retrieves a group by EVE entity ID (corporation or alliance)
 func (r *Repository) GetGroupByEVEEntityID(ctx context.Context, eveEntityID int64) (*models.Group, error) {
 	filter := bson.M{"eve_entity_id": eveEntityID}
-	
+
 	var group models.Group
 	err := r.groupsCollection.FindOne(ctx, filter).Decode(&group)
 	if err != nil {
@@ -151,7 +151,7 @@ func (r *Repository) GetGroupByEVEEntityID(ctx context.Context, eveEntityID int6
 		}
 		return nil, fmt.Errorf("failed to get group by EVE entity ID: %w", err)
 	}
-	
+
 	return &group, nil
 }
 
@@ -224,7 +224,7 @@ func (r *Repository) DeleteGroup(ctx context.Context, id primitive.ObjectID) err
 // AddMembership adds a character to a group
 func (r *Repository) AddMembership(ctx context.Context, membership *models.GroupMembership) error {
 	now := time.Now()
-	
+
 	// Use upsert to handle duplicates gracefully
 	filter := bson.M{
 		"group_id":     membership.GroupID,
@@ -430,13 +430,13 @@ func (r *Repository) GetCharacterNames(ctx context.Context, characterIDs []int64
 func (r *Repository) GetCharacterIDsByUserID(ctx context.Context, userID string) ([]int64, error) {
 	// Query the user_profiles collection (same as used by auth/users modules)
 	userProfilesCollection := r.db.Database.Collection("user_profiles")
-	
+
 	// Build filter for user_id
 	filter := bson.M{"user_id": userID}
-	
+
 	// Query only the character_id field we need
 	projection := bson.M{"character_id": 1}
-	
+
 	cursor, err := userProfilesCollection.Find(ctx, filter, options.Find().SetProjection(projection))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query user profiles: %w", err)

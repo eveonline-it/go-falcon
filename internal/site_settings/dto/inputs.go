@@ -78,10 +78,10 @@ type AddCorporationInput struct {
 
 // UpdateCorporationStatusInput represents the input for enabling/disabling a corporation
 type UpdateCorporationStatusInput struct {
-	Authorization   string `header:"Authorization" description:"Bearer token for authentication"`
-	Cookie          string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
-	CorporationID   int64  `path:"corp_id" required:"true" minimum:"1" description:"Corporation ID"`
-	Body            struct {
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	CorporationID int64  `path:"corp_id" required:"true" minimum:"1" description:"Corporation ID"`
+	Body          struct {
 		Enabled bool `json:"enabled" required:"true" description:"Whether the corporation should be enabled"`
 	}
 }
@@ -95,11 +95,11 @@ type RemoveCorporationInput struct {
 
 // ListManagedCorporationsInput represents the input for listing managed corporations
 type ListManagedCorporationsInput struct {
-	Authorization  string `header:"Authorization" description:"Bearer token for authentication"`
-	Cookie         string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
-	EnabledFilter  string `query:"enabled" description:"Filter by enabled status: 'true', 'false', or empty for all"`
-	Page           int    `query:"page" minimum:"1" default:"1" description:"Page number"`
-	Limit          int    `query:"limit" minimum:"1" maximum:"100" default:"20" description:"Items per page"`
+	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
+	EnabledFilter string `query:"enabled" description:"Filter by enabled status: 'true', 'false', or empty for all"`
+	Page          int    `query:"page" minimum:"1" default:"1" description:"Page number"`
+	Limit         int    `query:"limit" minimum:"1" maximum:"100" default:"20" description:"Items per page"`
 }
 
 // GetManagedCorporationInput represents the input for getting a specific managed corporation
@@ -222,4 +222,3 @@ type ReorderAlliancesInput struct {
 		AllianceOrders []ReorderAllianceItem `json:"alliance_orders" required:"true" description:"New ordering for alliances"`
 	}
 }
-

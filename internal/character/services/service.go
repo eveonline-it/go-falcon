@@ -33,7 +33,7 @@ func (s *Service) CreateIndexes(ctx context.Context) error {
 // GetCharacterProfile retrieves character profile from DB or ESI if not found
 func (s *Service) GetCharacterProfile(ctx context.Context, characterID int) (*dto.CharacterProfileOutput, error) {
 	log.Printf("GetCharacterProfile called for character ID: %d", characterID)
-	
+
 	// Try to get from database first
 	character, err := s.repository.GetCharacterByID(ctx, characterID)
 	if err != nil {
@@ -49,7 +49,7 @@ func (s *Service) GetCharacterProfile(ctx context.Context, characterID int) (*dt
 		log.Printf("Returning profile output: %+v", result)
 		return result, nil
 	}
-	
+
 	log.Printf("Character not found in DB, fetching from ESI")
 
 	// Not in DB, fetch from ESI
@@ -58,14 +58,14 @@ func (s *Service) GetCharacterProfile(ctx context.Context, characterID int) (*dt
 		log.Printf("Error fetching from ESI: %v", err)
 		return nil, err
 	}
-	
+
 	log.Printf("ESI data received: %+v", esiData)
 
 	// Parse the map response - using safe type assertions with defaults
 	character = &models.Character{
 		CharacterID: characterID, // We already have this
 	}
-	
+
 	// Parse fields from map with safe type assertions
 	if name, ok := esiData["name"].(string); ok {
 		character.Name = name
@@ -104,7 +104,7 @@ func (s *Service) GetCharacterProfile(ctx context.Context, characterID int) (*dt
 	} else if ancestryID, ok := esiData["ancestry_id"].(int); ok {
 		character.AncestryID = ancestryID
 	}
-	
+
 	// Handle birthday if present as time.Time
 	if birthday, ok := esiData["birthday"].(time.Time); ok {
 		character.Birthday = birthday
@@ -132,28 +132,28 @@ func (s *Service) GetCharacterProfile(ctx context.Context, characterID int) (*dt
 // SearchCharactersByName searches characters by name
 func (s *Service) SearchCharactersByName(ctx context.Context, name string) (*dto.SearchCharactersByNameOutput, error) {
 	log.Printf("SearchCharactersByName called with name: %s", name)
-	
+
 	characters, err := s.repository.SearchCharactersByName(ctx, name)
 	if err != nil {
 		log.Printf("Error searching characters: %v", err)
 		return nil, err
 	}
-	
+
 	log.Printf("Found %d characters matching name: %s", len(characters), name)
-	
+
 	// Convert to DTOs
 	profiles := make([]dto.CharacterProfile, len(characters))
 	for i, character := range characters {
 		profiles[i] = *s.characterToProfile(character)
 	}
-	
+
 	result := &dto.SearchCharactersByNameOutput{
 		Body: dto.SearchCharactersResult{
 			Characters: profiles,
 			Count:      len(profiles),
 		},
 	}
-	
+
 	return result, nil
 }
 
@@ -191,7 +191,7 @@ func (s *Service) GetStatus(ctx context.Context) *dto.CharacterStatusResponse {
 	// Check EVE Gateway availability (optional check)
 	// We don't want the module to be unhealthy just because ESI is down
 	// since we have database fallback
-	
+
 	return &dto.CharacterStatusResponse{
 		Module: "character",
 		Status: "healthy",

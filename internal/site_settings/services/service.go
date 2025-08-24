@@ -47,7 +47,6 @@ func (s *Service) CreateSetting(ctx context.Context, input *dto.CreateSiteSettin
 	if err := s.validateValueType(input.Body.Value, input.Body.Type); err != nil {
 		return nil, fmt.Errorf("invalid value for type '%s': %w", input.Body.Type, err)
 	}
-	
 
 	setting := &models.SiteSetting{
 		Key:         input.Body.Key,
@@ -132,7 +131,7 @@ func (s *Service) DeleteSetting(ctx context.Context, key string) error {
 func (s *Service) ListSettings(ctx context.Context, input *dto.ListSiteSettingsInput) ([]*models.SiteSetting, int, error) {
 	// Convert string filters to boolean pointers
 	var isPublic, isActive *bool
-	
+
 	// Parse IsPublicFilter
 	if input.IsPublicFilter != "" {
 		if input.IsPublicFilter == "true" {
@@ -143,7 +142,7 @@ func (s *Service) ListSettings(ctx context.Context, input *dto.ListSiteSettingsI
 			isPublic = &val
 		}
 	}
-	
+
 	// Parse IsActiveFilter
 	if input.IsActiveFilter != "" {
 		if input.IsActiveFilter == "true" {
@@ -154,7 +153,7 @@ func (s *Service) ListSettings(ctx context.Context, input *dto.ListSiteSettingsI
 			isActive = &val
 		}
 	}
-	
+
 	return s.repo.ListSettings(
 		ctx,
 		input.Category,
@@ -237,7 +236,7 @@ func (s *Service) GetHealth(ctx context.Context) (*dto.SiteSettingsHealthRespons
 			PublicCount: 0,
 		}, err
 	}
-	
+
 	// Count public settings
 	publicCount, err := s.repo.collection.CountDocuments(ctx, bson.M{"is_public": true})
 	if err != nil {
@@ -247,7 +246,7 @@ func (s *Service) GetHealth(ctx context.Context) (*dto.SiteSettingsHealthRespons
 			PublicCount: 0,
 		}, err
 	}
-	
+
 	return &dto.SiteSettingsHealthResponse{
 		Health:      "healthy",
 		TotalCount:  int(totalCount),
@@ -522,13 +521,13 @@ func (s *Service) getManagedCorporationsData(ctx context.Context) ([]dto.Managed
 
 	// Parse the setting value using proper BSON unmarshaling
 	var managedCorpsValue models.ManagedCorporationsValue
-	
+
 	// Marshal the setting.Value to BSON and then unmarshal to our struct
 	valueBytes, err := bson.Marshal(setting.Value)
 	if err != nil {
 		return []dto.ManagedCorporation{}, nil
 	}
-	
+
 	if err := bson.Unmarshal(valueBytes, &managedCorpsValue); err != nil {
 		return []dto.ManagedCorporation{}, nil
 	}
@@ -569,7 +568,7 @@ func (s *Service) updateManagedCorporationsSetting(ctx context.Context, corporat
 			UpdatedBy:     corp.UpdatedBy,
 		}
 	}
-	
+
 	settingValue := models.ManagedCorporationsValue{
 		Corporations: modelCorps,
 	}
@@ -622,11 +621,11 @@ func (s *Service) ReorderCorporations(ctx context.Context, input *dto.ReorderCor
 		if _, exists := corpMap[order.CorporationID]; !exists {
 			return nil, fmt.Errorf("corporation with ID %d not found", order.CorporationID)
 		}
-		
+
 		if order.Position < 1 {
 			return nil, fmt.Errorf("position must be greater than 0")
 		}
-		
+
 		if positionMap[order.Position] {
 			return nil, fmt.Errorf("duplicate position %d", order.Position)
 		}
@@ -950,11 +949,11 @@ func (s *Service) ReorderAlliances(ctx context.Context, input *dto.ReorderAllian
 		if _, exists := allianceMap[order.AllianceID]; !exists {
 			return nil, fmt.Errorf("alliance with ID %d not found", order.AllianceID)
 		}
-		
+
 		if order.Position < 1 {
 			return nil, fmt.Errorf("position must be greater than 0")
 		}
-		
+
 		if positionMap[order.Position] {
 			return nil, fmt.Errorf("duplicate position %d", order.Position)
 		}
@@ -1008,13 +1007,13 @@ func (s *Service) getManagedAlliancesData(ctx context.Context) ([]dto.ManagedAll
 
 	// Parse the setting value using proper BSON unmarshaling
 	var managedAlliancesValue models.ManagedAlliancesValue
-	
+
 	// Marshal the setting.Value to BSON and then unmarshal to our struct
 	valueBytes, err := bson.Marshal(setting.Value)
 	if err != nil {
 		return []dto.ManagedAlliance{}, nil
 	}
-	
+
 	if err := bson.Unmarshal(valueBytes, &managedAlliancesValue); err != nil {
 		return []dto.ManagedAlliance{}, nil
 	}
@@ -1055,7 +1054,7 @@ func (s *Service) updateManagedAlliancesSetting(ctx context.Context, alliances [
 			UpdatedBy:  alliance.UpdatedBy,
 		}
 	}
-	
+
 	settingValue := models.ManagedAlliancesValue{
 		Alliances: modelAlliances,
 	}
@@ -1146,23 +1145,23 @@ func (s *Service) GetEnabledCorporations(ctx context.Context) ([]models.ManagedC
 	if err != nil {
 		return nil, fmt.Errorf("failed to get managed corporations: %w", err)
 	}
-	
+
 	if setting == nil {
 		return []models.ManagedCorporation{}, nil
 	}
-	
+
 	var managedCorpsValue models.ManagedCorporationsValue
-	
+
 	// Marshal the setting.Value to BSON and then unmarshal to our struct
 	valueBytes, err := bson.Marshal(setting.Value)
 	if err != nil {
 		return []models.ManagedCorporation{}, nil
 	}
-	
+
 	if err := bson.Unmarshal(valueBytes, &managedCorpsValue); err != nil {
 		return []models.ManagedCorporation{}, nil
 	}
-	
+
 	// Return only enabled corporations
 	var enabled []models.ManagedCorporation
 	for _, corp := range managedCorpsValue.Corporations {
@@ -1170,7 +1169,7 @@ func (s *Service) GetEnabledCorporations(ctx context.Context) ([]models.ManagedC
 			enabled = append(enabled, corp)
 		}
 	}
-	
+
 	return enabled, nil
 }
 
@@ -1180,23 +1179,23 @@ func (s *Service) GetEnabledAlliances(ctx context.Context) ([]models.ManagedAlli
 	if err != nil {
 		return nil, fmt.Errorf("failed to get managed alliances: %w", err)
 	}
-	
+
 	if setting == nil {
 		return []models.ManagedAlliance{}, nil
 	}
-	
+
 	var managedAlliancesValue models.ManagedAlliancesValue
-	
+
 	// Marshal the setting.Value to BSON and then unmarshal to our struct
 	valueBytes, err := bson.Marshal(setting.Value)
 	if err != nil {
 		return []models.ManagedAlliance{}, nil
 	}
-	
+
 	if err := bson.Unmarshal(valueBytes, &managedAlliancesValue); err != nil {
 		return []models.ManagedAlliance{}, nil
 	}
-	
+
 	// Return only enabled alliances
 	var enabled []models.ManagedAlliance
 	for _, alliance := range managedAlliancesValue.Alliances {
@@ -1204,8 +1203,6 @@ func (s *Service) GetEnabledAlliances(ctx context.Context) ([]models.ManagedAlli
 			enabled = append(enabled, alliance)
 		}
 	}
-	
+
 	return enabled, nil
 }
-
-

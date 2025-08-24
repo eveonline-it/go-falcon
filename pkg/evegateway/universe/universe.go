@@ -58,15 +58,15 @@ type SystemInfoResponse struct {
 
 // StationInfoResponse represents station information
 type StationInfoResponse struct {
-	StationID       int     `json:"station_id"`
-	Name            string  `json:"name"`
-	SystemID        int     `json:"system_id"`
-	TypeID          int     `json:"type_id"`
-	Race            string  `json:"race,omitempty"`
-	Owner           int     `json:"owner,omitempty"`
-	MaxDockableShip int     `json:"max_dockable_ship_volume,omitempty"`
-	OfficeRentalCost int    `json:"office_rental_cost,omitempty"`
-	ReprocessingEff float64 `json:"reprocessing_efficiency,omitempty"`
+	StationID        int     `json:"station_id"`
+	Name             string  `json:"name"`
+	SystemID         int     `json:"system_id"`
+	TypeID           int     `json:"type_id"`
+	Race             string  `json:"race,omitempty"`
+	Owner            int     `json:"owner,omitempty"`
+	MaxDockableShip  int     `json:"max_dockable_ship_volume,omitempty"`
+	OfficeRentalCost int     `json:"office_rental_cost,omitempty"`
+	ReprocessingEff  float64 `json:"reprocessing_efficiency,omitempty"`
 }
 
 // UniverseClient implements universe-related ESI operations
@@ -163,7 +163,7 @@ func (c *UniverseClient) GetSystemInfo(ctx context.Context, systemID int) (*Syst
 
 	if resp.StatusCode == http.StatusNotModified {
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var system SystemInfoResponse
 			if err := json.Unmarshal(cachedData, &system); err == nil {
@@ -327,7 +327,7 @@ func (c *UniverseClient) GetStationInfo(ctx context.Context, stationID int) (*St
 
 	if resp.StatusCode == http.StatusNotModified {
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var station StationInfoResponse
 			if err := json.Unmarshal(cachedData, &station); err == nil {

@@ -34,14 +34,14 @@ func (pm *PermissionMiddleware) RequirePermission(permissionID string) func(http
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			
+
 			// Get auth headers
 			authHeader := r.Header.Get("Authorization")
 			cookieHeader := ""
 			if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 				cookieHeader = cookie.Value
 			}
-			
+
 			// Validate authentication
 			user, err := pm.authService.ValidateToken(ctx, authHeader, cookieHeader)
 			if err != nil {
@@ -52,7 +52,7 @@ func (pm *PermissionMiddleware) RequirePermission(permissionID string) func(http
 				http.Error(w, "Authentication required", http.StatusUnauthorized)
 				return
 			}
-			
+
 			// Check permission
 			hasPermission, err := pm.permissionManager.HasPermission(ctx, int64(user.CharacterID), permissionID)
 			if err != nil {
@@ -63,7 +63,7 @@ func (pm *PermissionMiddleware) RequirePermission(permissionID string) func(http
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-			
+
 			if !hasPermission {
 				slog.Warn("[Permissions] Access denied",
 					"character_id", user.CharacterID,
@@ -73,7 +73,7 @@ func (pm *PermissionMiddleware) RequirePermission(permissionID string) func(http
 				http.Error(w, fmt.Sprintf("Permission denied: %s required", permissionID), http.StatusForbidden)
 				return
 			}
-			
+
 			// Permission granted, add user to context and continue
 			ctx = context.WithValue(ctx, "authenticated_user", user)
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -86,14 +86,14 @@ func (pm *PermissionMiddleware) RequireAnyPermission(permissionIDs ...string) fu
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			
+
 			// Get auth headers
 			authHeader := r.Header.Get("Authorization")
 			cookieHeader := ""
 			if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 				cookieHeader = cookie.Value
 			}
-			
+
 			// Validate authentication
 			user, err := pm.authService.ValidateToken(ctx, authHeader, cookieHeader)
 			if err != nil {
@@ -104,11 +104,11 @@ func (pm *PermissionMiddleware) RequireAnyPermission(permissionIDs ...string) fu
 				http.Error(w, "Authentication required", http.StatusUnauthorized)
 				return
 			}
-			
+
 			// Check if user has any of the required permissions
 			var hasPermission bool
 			var grantedPermission string
-			
+
 			for _, permissionID := range permissionIDs {
 				granted, err := pm.permissionManager.HasPermission(ctx, int64(user.CharacterID), permissionID)
 				if err != nil {
@@ -118,14 +118,14 @@ func (pm *PermissionMiddleware) RequireAnyPermission(permissionIDs ...string) fu
 						"permission_id", permissionID)
 					continue
 				}
-				
+
 				if granted {
 					hasPermission = true
 					grantedPermission = permissionID
 					break
 				}
 			}
-			
+
 			if !hasPermission {
 				slog.Warn("[Permissions] Access denied - no required permissions",
 					"character_id", user.CharacterID,
@@ -135,13 +135,13 @@ func (pm *PermissionMiddleware) RequireAnyPermission(permissionIDs ...string) fu
 				http.Error(w, fmt.Sprintf("Permission denied: one of [%s] required", strings.Join(permissionIDs, ", ")), http.StatusForbidden)
 				return
 			}
-			
+
 			slog.Debug("[Permissions] Access granted",
 				"character_id", user.CharacterID,
 				"character_name", user.CharacterName,
 				"granted_permission", grantedPermission,
 				"path", r.URL.Path)
-			
+
 			// Permission granted, add user to context and continue
 			ctx = context.WithValue(ctx, "authenticated_user", user)
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -156,13 +156,13 @@ func (pm *PermissionMiddleware) CheckPermission(ctx context.Context, authHeader,
 	if err != nil {
 		return nil, false, fmt.Errorf("authentication failed: %w", err)
 	}
-	
+
 	// Check permission
 	hasPermission, err := pm.permissionManager.HasPermission(ctx, int64(user.CharacterID), permissionID)
 	if err != nil {
 		return user, false, fmt.Errorf("permission check failed: %w", err)
 	}
-	
+
 	return user, hasPermission, nil
 }
 
@@ -173,13 +173,13 @@ func (pm *PermissionMiddleware) GetDetailedPermissionCheck(ctx context.Context, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("authentication failed: %w", err)
 	}
-	
+
 	// Get detailed permission check
 	permCheck, err := pm.permissionManager.CheckPermission(ctx, int64(user.CharacterID), permissionID)
 	if err != nil {
 		return user, nil, fmt.Errorf("permission check failed: %w", err)
 	}
-	
+
 	return user, permCheck, nil
 }
 
@@ -187,14 +187,14 @@ func (pm *PermissionMiddleware) GetDetailedPermissionCheck(ctx context.Context, 
 func (pm *PermissionMiddleware) AuthenticateOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		
+
 		// Get auth headers
 		authHeader := r.Header.Get("Authorization")
 		cookieHeader := ""
 		if cookie, err := r.Cookie("falcon_auth_token"); err == nil {
 			cookieHeader = cookie.Value
 		}
-		
+
 		// Validate authentication
 		user, err := pm.authService.ValidateToken(ctx, authHeader, cookieHeader)
 		if err != nil {
@@ -204,7 +204,7 @@ func (pm *PermissionMiddleware) AuthenticateOnly(next http.Handler) http.Handler
 			http.Error(w, "Authentication required", http.StatusUnauthorized)
 			return
 		}
-		
+
 		// Add user to context and continue
 		ctx = context.WithValue(ctx, "authenticated_user", user)
 		next.ServeHTTP(w, r.WithContext(ctx))

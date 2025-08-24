@@ -56,7 +56,7 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 func (r *Repository) Create(ctx context.Context, setting *models.SiteSetting) error {
 	setting.CreatedAt = time.Now()
 	setting.UpdatedAt = setting.CreatedAt
-	
+
 	result, err := r.collection.InsertOne(ctx, setting)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -64,7 +64,7 @@ func (r *Repository) Create(ctx context.Context, setting *models.SiteSetting) er
 		}
 		return fmt.Errorf("failed to create setting: %w", err)
 	}
-	
+
 	setting.ID = result.InsertedID.(primitive.ObjectID)
 	return nil
 }
@@ -86,24 +86,24 @@ func (r *Repository) GetByKey(ctx context.Context, key string) (*models.SiteSett
 func (r *Repository) Update(ctx context.Context, key string, updates bson.M, updatedBy int64) (*models.SiteSetting, error) {
 	updates["updated_at"] = time.Now()
 	updates["updated_by"] = updatedBy
-	
+
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	var setting models.SiteSetting
-	
+
 	err := r.collection.FindOneAndUpdate(
 		ctx,
 		bson.M{"key": key},
 		bson.M{"$set": updates},
 		opts,
 	).Decode(&setting)
-	
+
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("setting with key '%s' not found", key)
 		}
 		return nil, fmt.Errorf("failed to update setting: %w", err)
 	}
-	
+
 	return &setting, nil
 }
 
@@ -113,11 +113,11 @@ func (r *Repository) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete setting: %w", err)
 	}
-	
+
 	if result.DeletedCount == 0 {
 		return fmt.Errorf("setting with key '%s' not found", key)
 	}
-	
+
 	return nil
 }
 
@@ -221,7 +221,7 @@ func (r *Repository) CheckHealth(ctx context.Context) error {
 // List retrieves settings with optional filters and pagination
 func (r *Repository) List(ctx context.Context, category string, isPublic, isActive *bool, characterID *int64, page, limit int) ([]*models.SiteSetting, error) {
 	filter := bson.M{}
-	
+
 	if category != "" {
 		filter["category"] = category
 	}
@@ -234,7 +234,7 @@ func (r *Repository) List(ctx context.Context, category string, isPublic, isActi
 
 	// Calculate skip based on page
 	skip := (page - 1) * limit
-	
+
 	opts := options.Find().
 		SetSkip(int64(skip)).
 		SetLimit(int64(limit)).
@@ -257,11 +257,11 @@ func (r *Repository) List(ctx context.Context, category string, isPublic, isActi
 // GetAllianceTicker fetches alliance ticker from the alliances collection
 func (r *Repository) GetAllianceTicker(ctx context.Context, allianceID int64) (string, error) {
 	alliancesCollection := r.db.Collection("alliances")
-	
+
 	var result struct {
 		Ticker string `bson:"ticker"`
 	}
-	
+
 	err := alliancesCollection.FindOne(ctx, bson.M{"alliance_id": allianceID}).Decode(&result)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -269,6 +269,6 @@ func (r *Repository) GetAllianceTicker(ctx context.Context, allianceID int64) (s
 		}
 		return "", err
 	}
-	
+
 	return result.Ticker, nil
 }

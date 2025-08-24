@@ -27,7 +27,7 @@ func validateCronExpression(fl validator.FieldLevel) bool {
 	if len(parts) != 6 {
 		return false
 	}
-	
+
 	// Use cron library for proper validation
 	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	_, err := parser.Parse(schedule)
@@ -38,7 +38,7 @@ func validateCronExpression(fl validator.FieldLevel) bool {
 func validateTaskType(fl validator.FieldLevel) bool {
 	taskType := fl.Field().String()
 	validTypes := []string{"http", "function", "system", "custom"}
-	
+
 	for _, validType := range validTypes {
 		if taskType == validType {
 			return true
@@ -51,7 +51,7 @@ func validateTaskType(fl validator.FieldLevel) bool {
 func validateTaskPriority(fl validator.FieldLevel) bool {
 	priority := fl.Field().String()
 	validPriorities := []string{"low", "normal", "high", "critical"}
-	
+
 	for _, validPriority := range validPriorities {
 		if priority == validPriority {
 			return true
@@ -64,7 +64,7 @@ func validateTaskPriority(fl validator.FieldLevel) bool {
 func validateTaskStatus(fl validator.FieldLevel) bool {
 	status := fl.Field().String()
 	validStatuses := []string{"pending", "running", "completed", "failed", "paused", "disabled"}
-	
+
 	for _, validStatus := range validStatuses {
 		if status == validStatus {
 			return true

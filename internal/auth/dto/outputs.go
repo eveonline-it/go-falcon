@@ -8,12 +8,12 @@ import "time"
 
 // AuthStatusResponse represents authentication status
 type AuthStatusResponse struct {
-	Authenticated   bool     `json:"authenticated"`
-	UserID          *string  `json:"user_id"`
-	CharacterID     *int     `json:"character_id"`
-	CharacterName   *string  `json:"character_name"`
-	Characters      []string `json:"characters"`
-	Permissions     []string `json:"permissions"`
+	Authenticated bool     `json:"authenticated"`
+	UserID        *string  `json:"user_id"`
+	CharacterID   *int     `json:"character_id"`
+	CharacterName *string  `json:"character_name"`
+	Characters    []string `json:"characters"`
+	Permissions   []string `json:"permissions"`
 }
 
 // EVELoginResponse represents EVE SSO login initiation response
@@ -33,21 +33,21 @@ type UserInfoResponse struct {
 
 // ProfileResponse represents a user profile
 type ProfileResponse struct {
-	UserID            string            `json:"user_id"`
-	CharacterID       int               `json:"character_id"`
-	CharacterName     string            `json:"character_name"`
-	CorporationID     int               `json:"corporation_id,omitempty"`
-	CorporationName   string            `json:"corporation_name,omitempty"`
-	AllianceID        int               `json:"alliance_id,omitempty"`
-	AllianceName      string            `json:"alliance_name,omitempty"`
-	SecurityStatus    float64           `json:"security_status,omitempty"`
-	Birthday          time.Time         `json:"birthday,omitempty"`
-	Scopes            string            `json:"scopes"`
-	TokenExpiry       time.Time         `json:"token_expiry,omitempty"`
-	LastLogin         time.Time         `json:"last_login"`
-	ProfileUpdated    time.Time         `json:"profile_updated"`
-	Valid             bool              `json:"valid"`
-	Metadata          map[string]string `json:"metadata,omitempty"`
+	UserID          string            `json:"user_id"`
+	CharacterID     int               `json:"character_id"`
+	CharacterName   string            `json:"character_name"`
+	CorporationID   int               `json:"corporation_id,omitempty"`
+	CorporationName string            `json:"corporation_name,omitempty"`
+	AllianceID      int               `json:"alliance_id,omitempty"`
+	AllianceName    string            `json:"alliance_name,omitempty"`
+	SecurityStatus  float64           `json:"security_status,omitempty"`
+	Birthday        time.Time         `json:"birthday,omitempty"`
+	Scopes          string            `json:"scopes"`
+	TokenExpiry     time.Time         `json:"token_expiry,omitempty"`
+	LastLogin       time.Time         `json:"last_login"`
+	ProfileUpdated  time.Time         `json:"profile_updated"`
+	Valid           bool              `json:"valid"`
+	Metadata        map[string]string `json:"metadata,omitempty"`
 }
 
 // PublicProfileResponse represents public character information
@@ -90,7 +90,7 @@ type VerifyResponse struct {
 }
 
 // =============================================================================
-// HUMA OUTPUT DTOs  
+// HUMA OUTPUT DTOs
 // =============================================================================
 
 // EVELoginOutput represents the output for EVE SSO login initiation

@@ -198,9 +198,9 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Groups / Users"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.getUserGroups)
-	
+
 	// Permission Management Endpoints
-	
+
 	// List all permissions
 	huma.Register(api, huma.Operation{
 		OperationID: "permissions-list",
@@ -211,7 +211,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Permissions"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.listPermissions)
-	
+
 	// Get specific permission
 	huma.Register(api, huma.Operation{
 		OperationID: "permissions-get",
@@ -222,7 +222,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Permissions"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.getPermission)
-	
+
 	// Grant permission to group
 	huma.Register(api, huma.Operation{
 		OperationID: "groups-grant-permission",
@@ -233,7 +233,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Group Permissions"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.grantPermissionToGroup)
-	
+
 	// Revoke permission from group
 	huma.Register(api, huma.Operation{
 		OperationID: "groups-revoke-permission",
@@ -244,7 +244,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Group Permissions"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.revokePermissionFromGroup)
-	
+
 	// List group permissions
 	huma.Register(api, huma.Operation{
 		OperationID: "groups-list-permissions",
@@ -255,7 +255,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Tags:        []string{"Group Permissions"},
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, m.listGroupPermissions)
-	
+
 	// Check permission
 	huma.Register(api, huma.Operation{
 		OperationID: "permissions-check",
@@ -374,7 +374,7 @@ func (m *Module) getCharacterGroups(ctx context.Context, input *dto.GetCharacter
 	if err != nil {
 		return nil, fmt.Errorf("invalid character ID: %w", err)
 	}
-	
+
 	// Use bypass authentication for super admin character or normal auth for others
 	_, err = m.middleware.GetCharacterContextWithBypass(ctx, characterID, input.Authorization, input.Cookie)
 	if err != nil {

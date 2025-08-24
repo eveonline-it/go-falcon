@@ -12,9 +12,9 @@ import (
 
 // DefaultRetryClient implements retry logic with exponential backoff
 type DefaultRetryClient struct {
-	httpClient    *http.Client
-	errorLimits   *ESIErrorLimits
-	limitsMutex   *sync.RWMutex
+	httpClient  *http.Client
+	errorLimits *ESIErrorLimits
+	limitsMutex *sync.RWMutex
 }
 
 // NewDefaultRetryClient creates a new default retry client
@@ -144,4 +144,3 @@ func (r *DefaultRetryClient) backoffForError(ctx context.Context, statusCode int
 		return nil
 	}
 }
-

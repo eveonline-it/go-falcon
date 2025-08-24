@@ -4,17 +4,17 @@ import "encoding/json"
 
 // Agent represents an EVE Online agent from the SDE
 type Agent struct {
-	AgentTypeID    int  `json:"agentTypeID"`
-	CorporationID  int  `json:"corporationID"`
-	DivisionID     int  `json:"divisionID"`
-	IsLocator      bool `json:"isLocator"`
-	Level          int  `json:"level"`
-	LocationID     int  `json:"locationID"`
+	AgentTypeID   int  `json:"agentTypeID"`
+	CorporationID int  `json:"corporationID"`
+	DivisionID    int  `json:"divisionID"`
+	IsLocator     bool `json:"isLocator"`
+	Level         int  `json:"level"`
+	LocationID    int  `json:"locationID"`
 }
 
 // Category represents an EVE Online item category from the SDE
 type Category struct {
-	Name      map[string]string `json:"name"`      // Internationalized names
+	Name      map[string]string `json:"name"` // Internationalized names
 	Published bool              `json:"published"`
 }
 
@@ -80,7 +80,7 @@ func (fs *FlexibleString) UnmarshalJSON(data []byte) error {
 		fs.Value = str
 		return nil
 	}
-	
+
 	// If that fails, try as boolean
 	var boolean bool
 	if err := json.Unmarshal(data, &boolean); err == nil {
@@ -91,7 +91,7 @@ func (fs *FlexibleString) UnmarshalJSON(data []byte) error {
 		}
 		return nil
 	}
-	
+
 	// If both fail, return empty string
 	fs.Value = ""
 	return nil
@@ -136,31 +136,31 @@ type NPCCorporation struct {
 
 // TypeID represents basic type information from typeIDs.yaml
 type TypeID struct {
-	Name          map[string]string `json:"name"`
-	Description   map[string]string `json:"description,omitempty"`
-	GroupID       int               `json:"groupID,omitempty"`
-	Published     bool              `json:"published,omitempty"`
+	Name        map[string]string `json:"name"`
+	Description map[string]string `json:"description,omitempty"`
+	GroupID     int               `json:"groupID,omitempty"`
+	Published   bool              `json:"published,omitempty"`
 }
 
 // Type represents detailed type information from types.yaml
 type Type struct {
-	BasePrice     float64           `json:"basePrice,omitempty"`
-	Capacity      float64           `json:"capacity,omitempty"`
-	Description   map[string]string `json:"description,omitempty"`
-	FactionID     int               `json:"factionID,omitempty"`
-	GraphicID     int               `json:"graphicID,omitempty"`
-	GroupID       int               `json:"groupID,omitempty"`
-	IconID        int               `json:"iconID,omitempty"`
-	Mass          float64           `json:"mass,omitempty"`
-	Name          map[string]string `json:"name"`
-	PackagedVolume float64          `json:"packagedVolume,omitempty"`
-	PortionSize   int               `json:"portionSize,omitempty"`
-	Published     bool              `json:"published,omitempty"`
-	RaceID        int               `json:"raceID,omitempty"`
-	Radius        float64           `json:"radius,omitempty"`
-	SofFactionName string           `json:"sofFactionName,omitempty"`
-	SoundID       int               `json:"soundID,omitempty"`
-	Volume        float64           `json:"volume,omitempty"`
+	BasePrice      float64           `json:"basePrice,omitempty"`
+	Capacity       float64           `json:"capacity,omitempty"`
+	Description    map[string]string `json:"description,omitempty"`
+	FactionID      int               `json:"factionID,omitempty"`
+	GraphicID      int               `json:"graphicID,omitempty"`
+	GroupID        int               `json:"groupID,omitempty"`
+	IconID         int               `json:"iconID,omitempty"`
+	Mass           float64           `json:"mass,omitempty"`
+	Name           map[string]string `json:"name"`
+	PackagedVolume float64           `json:"packagedVolume,omitempty"`
+	PortionSize    int               `json:"portionSize,omitempty"`
+	Published      bool              `json:"published,omitempty"`
+	RaceID         int               `json:"raceID,omitempty"`
+	Radius         float64           `json:"radius,omitempty"`
+	SofFactionName string            `json:"sofFactionName,omitempty"`
+	SoundID        int               `json:"soundID,omitempty"`
+	Volume         float64           `json:"volume,omitempty"`
 }
 
 // TypeMaterial represents material requirements for a type

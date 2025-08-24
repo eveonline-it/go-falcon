@@ -286,4 +286,3 @@ type SiteSettingsStatusResponse struct {
 	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
 	Message string `json:"message,omitempty" description:"Optional status message or error details"`
 }
-

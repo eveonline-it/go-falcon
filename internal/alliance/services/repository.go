@@ -31,12 +31,12 @@ func NewRepository(mongodb *database.MongoDB) *Repository {
 func (r *Repository) GetAllianceByID(ctx context.Context, allianceID int) (*models.Alliance, error) {
 	var alliance models.Alliance
 	filter := bson.M{"alliance_id": allianceID, "deleted_at": bson.M{"$exists": false}}
-	
+
 	err := r.collection.FindOne(ctx, filter).Decode(&alliance)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &alliance, nil
 }
 
@@ -44,7 +44,7 @@ func (r *Repository) GetAllianceByID(ctx context.Context, allianceID int) (*mode
 func (r *Repository) CreateAlliance(ctx context.Context, alliance *models.Alliance) error {
 	alliance.CreatedAt = time.Now().UTC()
 	alliance.UpdatedAt = time.Now().UTC()
-	
+
 	_, err := r.collection.InsertOne(ctx, alliance)
 	return err
 }
@@ -52,10 +52,10 @@ func (r *Repository) CreateAlliance(ctx context.Context, alliance *models.Allian
 // UpdateAlliance updates an existing alliance record
 func (r *Repository) UpdateAlliance(ctx context.Context, alliance *models.Alliance) error {
 	alliance.UpdatedAt = time.Now().UTC()
-	
+
 	filter := bson.M{"alliance_id": alliance.AllianceID, "deleted_at": bson.M{"$exists": false}}
 	update := bson.M{"$set": alliance}
-	
+
 	_, err := r.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
 	return err
 }
@@ -64,7 +64,7 @@ func (r *Repository) UpdateAlliance(ctx context.Context, alliance *models.Allian
 func (r *Repository) SearchAlliancesByName(ctx context.Context, name string) ([]*models.Alliance, error) {
 	var filter bson.M
 	var findOptions *options.FindOptions
-	
+
 	// Use different search strategies based on the search pattern
 	if len(name) >= 3 {
 		// For partial matches, try text search first (faster for full-text queries)
@@ -85,7 +85,7 @@ func (r *Repository) SearchAlliancesByName(ctx context.Context, name string) ([]
 			// Use case-insensitive regex for single-word prefix/contains search
 			// Also search in ticker field for alliance ticker searches
 			regexPattern := strings.ToLower(name)
-			
+
 			filter = bson.M{
 				"$or": []bson.M{
 					{
@@ -129,21 +129,21 @@ func (r *Repository) SearchAlliancesByName(ctx context.Context, name string) ([]
 			SetSort(bson.M{"date_founded": -1}).
 			SetLimit(20) // Smaller limit for short queries
 	}
-	
+
 	// Add soft delete filter
 	filter["deleted_at"] = bson.M{"$exists": false}
-	
+
 	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var alliances []*models.Alliance
 	if err := cursor.All(ctx, &alliances); err != nil {
 		return nil, err
 	}
-	
+
 	return alliances, nil
 }
 
@@ -153,7 +153,7 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 		Keys:    bson.D{{Key: "alliance_id", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}
-	
+
 	_, err := r.collection.Indexes().CreateOne(ctx, indexModel)
 	return err
 }

@@ -6,7 +6,7 @@ type GetAllianceInput struct {
 }
 
 // ListAlliancesInput represents the input for listing all alliances (no parameters needed)
-type ListAlliancesInput struct {}
+type ListAlliancesInput struct{}
 
 // GetAllianceCorporationsInput represents the input for getting alliance member corporations
 type GetAllianceCorporationsInput struct {

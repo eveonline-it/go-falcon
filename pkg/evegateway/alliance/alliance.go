@@ -40,10 +40,10 @@ type AllianceInfoResponse struct {
 
 // AllianceContact represents an alliance contact
 type AllianceContact struct {
-	ContactID   int64     `json:"contact_id"`
-	ContactType string    `json:"contact_type"` // character, corporation, alliance, faction
-	LabelIDs    []int64   `json:"label_ids,omitempty"`
-	Standing    float64   `json:"standing"`
+	ContactID   int64   `json:"contact_id"`
+	ContactType string  `json:"contact_type"` // character, corporation, alliance, faction
+	LabelIDs    []int64 `json:"label_ids,omitempty"`
+	Standing    float64 `json:"standing"`
 }
 
 // AllianceContactLabel represents an alliance contact label
@@ -168,7 +168,7 @@ func (c *AllianceClient) GetAlliances(ctx context.Context) ([]int64, error) {
 	// Handle 304 Not Modified
 	if resp.StatusCode == http.StatusNotModified {
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			if span != nil {
 				span.SetAttributes(attribute.Bool("cache.hit", true))
@@ -299,7 +299,7 @@ func (c *AllianceClient) GetAllianceInfo(ctx context.Context, allianceID int64) 
 
 	if resp.StatusCode == http.StatusNotModified {
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var alliance AllianceInfoResponse
 			if err := json.Unmarshal(cachedData, &alliance); err == nil {
@@ -550,7 +550,7 @@ func (c *AllianceClient) GetAllianceCorporations(ctx context.Context, allianceID
 
 	if resp.StatusCode == http.StatusNotModified {
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var corporations []int64
 			if err := json.Unmarshal(cachedData, &corporations); err == nil {
@@ -657,7 +657,7 @@ func (c *AllianceClient) GetAllianceIcons(ctx context.Context, allianceID int64)
 
 	if resp.StatusCode == http.StatusNotModified {
 		c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
-		
+
 		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
 			var icons AllianceIconsResponse
 			if err := json.Unmarshal(cachedData, &icons); err == nil {
