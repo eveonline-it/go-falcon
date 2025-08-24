@@ -128,7 +128,7 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, per
 
 // Group permission assignment
 func (pm *PermissionManager) GrantPermissionToGroup(ctx context.Context, groupID primitive.ObjectID, permissionID string, grantedBy int64) error
-func (pm *PermissionManager) RevokePermissionFromGroup(ctx context.Context, groupID primitive.ObjectID, permissionID string) error
+func (pm *PermissionManager) DeletePermissionFromGroup(ctx context.Context, groupID primitive.ObjectID, permissionID string) error
 ```
 
 ### Permission Resolution Logic

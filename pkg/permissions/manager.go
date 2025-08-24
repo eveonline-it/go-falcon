@@ -467,8 +467,8 @@ func (pm *PermissionManager) GrantPermissionToGroup(ctx context.Context, groupID
 	return nil
 }
 
-// RevokePermissionFromGroup revokes a permission from a group
-func (pm *PermissionManager) RevokePermissionFromGroup(ctx context.Context, groupID primitive.ObjectID, permissionID string) error {
+// DeletePermissionFromGroup deletes a permission from a group
+func (pm *PermissionManager) DeletePermissionFromGroup(ctx context.Context, groupID primitive.ObjectID, permissionID string) error {
 	// Check if permission is static and restricted
 	if pm.isStaticPermission(permissionID) && pm.isRestrictedStaticPermission(permissionID) {
 		return fmt.Errorf("permission %s is restricted and cannot be manually revoked", permissionID)
@@ -477,25 +477,19 @@ func (pm *PermissionManager) RevokePermissionFromGroup(ctx context.Context, grou
 	filter := bson.M{
 		"group_id":      groupID,
 		"permission_id": permissionID,
+		// Delete permission regardless of active status
 	}
 
-	update := bson.M{
-		"$set": bson.M{
-			"is_active":  false,
-			"updated_at": time.Now(),
-		},
-	}
-
-	result, err := pm.groupPermissionsCollection.UpdateOne(ctx, filter, update)
+	result, err := pm.groupPermissionsCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("failed to revoke permission: %w", err)
 	}
 
-	if result.MatchedCount == 0 {
+	if result.DeletedCount == 0 {
 		return fmt.Errorf("permission assignment not found")
 	}
 
-	slog.Info("[Permissions] Revoked permission from group",
+	slog.Info("[Permissions] Deleted permission from group",
 		"group_id", groupID.Hex(),
 		"permission_id", permissionID)
 

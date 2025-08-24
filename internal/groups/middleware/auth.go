@@ -166,14 +166,14 @@ func (m *AuthMiddleware) RequirePermission(ctx context.Context, authHeader, cook
 	// Resolve character context
 	charContext, err := m.characterContext.ResolveCharacterContext(ctx, authHeader, cookieHeader)
 	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %w", err)
+		return nil, huma.Error401Unauthorized("authentication failed", err)
 	}
 
 	// Check permission via permission manager
 	if m.permissionManager != nil {
 		hasPermission, err := m.permissionManager.HasPermission(ctx, charContext.CharacterID, permissionID)
 		if err != nil {
-			return nil, fmt.Errorf("permission check failed: %w", err)
+			return nil, huma.Error500InternalServerError("permission check failed", err)
 		}
 
 		if !hasPermission {
@@ -182,14 +182,14 @@ func (m *AuthMiddleware) RequirePermission(ctx context.Context, authHeader, cook
 				"character_name", charContext.CharacterName,
 				"required_permission", permissionID,
 				"groups", charContext.GroupMemberships)
-			return nil, fmt.Errorf("permission denied: %s required", permissionID)
+			return nil, huma.Error403Forbidden(fmt.Sprintf("permission denied: %s required", permissionID))
 		}
 
 		slog.Debug("[Groups Auth] Access granted via permission system",
 			"character_id", charContext.CharacterID,
 			"permission", permissionID)
 	} else {
-		return nil, fmt.Errorf("permission system not available")
+		return nil, huma.Error500InternalServerError("permission system not available")
 	}
 
 	// Convert to AuthenticatedUser for backward compatibility
@@ -215,17 +215,17 @@ func (m *AuthMiddleware) CheckDetailedPermission(ctx context.Context, authHeader
 	// Resolve character context
 	charContext, err := m.characterContext.ResolveCharacterContext(ctx, authHeader, cookieHeader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("authentication failed: %w", err)
+		return nil, nil, huma.Error401Unauthorized("authentication failed", err)
 	}
 
 	if m.permissionManager == nil {
-		return nil, nil, fmt.Errorf("permission system not available")
+		return nil, nil, huma.Error500InternalServerError("permission system not available")
 	}
 
 	// Get detailed permission check
 	permCheck, err := m.permissionManager.CheckPermission(ctx, charContext.CharacterID, permissionID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("permission check failed: %w", err)
+		return nil, nil, huma.Error500InternalServerError("permission check failed", err)
 	}
 
 	// Convert to AuthenticatedUser

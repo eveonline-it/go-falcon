@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -1095,7 +1096,7 @@ func (s *Service) RemoveCharacterFromAllGroups(ctx context.Context, characterID 
 // ListPermissions returns all available permissions
 func (s *Service) ListPermissions(ctx context.Context, input *dto.ListPermissionsInput) (*dto.ListPermissionsOutput, error) {
 	if s.permissionManager == nil {
-		return nil, fmt.Errorf("permission manager not available")
+		return nil, huma.Error500InternalServerError("permission manager not available")
 	}
 
 	// Get all permissions
@@ -1157,12 +1158,12 @@ func (s *Service) ListPermissions(ctx context.Context, input *dto.ListPermission
 // GetPermission returns a specific permission by ID
 func (s *Service) GetPermission(ctx context.Context, input *dto.GetPermissionInput) (*dto.PermissionOutput, error) {
 	if s.permissionManager == nil {
-		return nil, fmt.Errorf("permission manager not available")
+		return nil, huma.Error500InternalServerError("permission manager not available")
 	}
 
 	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
 	if !exists {
-		return nil, fmt.Errorf("permission not found: %s", input.PermissionID)
+		return nil, huma.Error404NotFound(fmt.Sprintf("permission not found: %s", input.PermissionID))
 	}
 
 	return &dto.PermissionOutput{
@@ -1183,31 +1184,41 @@ func (s *Service) GetPermission(ctx context.Context, input *dto.GetPermissionInp
 // GrantPermissionToGroup assigns a permission to a group
 func (s *Service) GrantPermissionToGroup(ctx context.Context, input *dto.GrantPermissionToGroupInput, grantedBy int64) (*dto.GroupPermissionOutput, error) {
 	if s.permissionManager == nil {
-		return nil, fmt.Errorf("permission manager not available")
+		return nil, huma.Error500InternalServerError("permission manager not available")
 	}
 
 	// Parse group ID
 	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid group ID: %w", err)
+		return nil, huma.Error400BadRequest("invalid group ID", err)
 	}
 
 	// Verify group exists
 	group, err := s.repo.GetGroupByID(ctx, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("group not found: %w", err)
+		return nil, huma.Error404NotFound("group not found", err)
 	}
 
 	// Grant permission
 	err = s.permissionManager.GrantPermissionToGroup(ctx, groupID, input.PermissionID, grantedBy)
 	if err != nil {
-		return nil, fmt.Errorf("failed to grant permission: %w", err)
+		// Check for specific error cases
+		if strings.Contains(err.Error(), "not found") {
+			return nil, huma.Error404NotFound("permission not found")
+		}
+		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "duplicate") {
+			return nil, huma.Error409Conflict("permission already granted to group")
+		}
+		if strings.Contains(err.Error(), "restricted") {
+			return nil, huma.Error403Forbidden(err.Error())
+		}
+		return nil, huma.Error500InternalServerError("failed to grant permission", err)
 	}
 
 	// Get permission details for response
 	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
 	if !exists {
-		return nil, fmt.Errorf("permission not found: %s", input.PermissionID)
+		return nil, huma.Error404NotFound(fmt.Sprintf("permission not found: %s", input.PermissionID))
 	}
 
 	return &dto.GroupPermissionOutput{
@@ -1234,27 +1245,34 @@ func (s *Service) GrantPermissionToGroup(ctx context.Context, input *dto.GrantPe
 	}, nil
 }
 
-// RevokePermissionFromGroup removes a permission from a group
+// RevokePermissionFromGroup deletes a permission from a group
 func (s *Service) RevokePermissionFromGroup(ctx context.Context, input *dto.RevokePermissionFromGroupInput) (*dto.MessageOutput, error) {
 	if s.permissionManager == nil {
-		return nil, fmt.Errorf("permission manager not available")
+		return nil, huma.Error500InternalServerError("permission manager not available")
 	}
 
 	// Parse group ID
 	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid group ID: %w", err)
+		return nil, huma.Error400BadRequest("invalid group ID", err)
 	}
 
-	// Revoke permission
-	err = s.permissionManager.RevokePermissionFromGroup(ctx, groupID, input.PermissionID)
+	// Delete permission
+	err = s.permissionManager.DeletePermissionFromGroup(ctx, groupID, input.PermissionID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to revoke permission: %w", err)
+		// Check for specific error cases
+		if strings.Contains(err.Error(), "not found") {
+			return nil, huma.Error404NotFound("permission assignment not found")
+		}
+		if strings.Contains(err.Error(), "restricted") {
+			return nil, huma.Error403Forbidden(err.Error())
+		}
+		return nil, huma.Error500InternalServerError("failed to delete permission", err)
 	}
 
 	return &dto.MessageOutput{
 		Body: dto.MessageResponse{
-			Message: fmt.Sprintf("Permission %s revoked from group %s", input.PermissionID, input.GroupID),
+			Message: fmt.Sprintf("Permission %s deleted from group %s", input.PermissionID, input.GroupID),
 		},
 	}, nil
 }
@@ -1262,31 +1280,38 @@ func (s *Service) RevokePermissionFromGroup(ctx context.Context, input *dto.Revo
 // UpdateGroupPermissionStatus updates the active status of a group permission
 func (s *Service) UpdateGroupPermissionStatus(ctx context.Context, input *dto.UpdateGroupPermissionStatusInput, updatedBy int64) (*dto.GroupPermissionOutput, error) {
 	if s.permissionManager == nil {
-		return nil, fmt.Errorf("permission manager not available")
+		return nil, huma.Error500InternalServerError("permission manager not available")
 	}
 
 	// Parse group ID
 	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid group ID: %w", err)
+		return nil, huma.Error400BadRequest("invalid group ID", err)
 	}
 
 	// Verify group exists
 	group, err := s.repo.GetGroupByID(ctx, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("group not found: %w", err)
+		return nil, huma.Error404NotFound("group not found", err)
 	}
 
 	// Update permission status
 	err = s.permissionManager.UpdateGroupPermissionStatus(ctx, groupID, input.PermissionID, input.Body.IsActive, updatedBy)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update permission status: %w", err)
+		// Check for specific error cases
+		if strings.Contains(err.Error(), "not found") {
+			return nil, huma.Error404NotFound("permission assignment not found")
+		}
+		if strings.Contains(err.Error(), "restricted") {
+			return nil, huma.Error403Forbidden(err.Error())
+		}
+		return nil, huma.Error500InternalServerError("failed to update permission status", err)
 	}
 
 	// Get permission details for response
 	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
 	if !exists {
-		return nil, fmt.Errorf("permission not found: %s", input.PermissionID)
+		return nil, huma.Error404NotFound(fmt.Sprintf("permission not found: %s", input.PermissionID))
 	}
 
 	return &dto.GroupPermissionOutput{
@@ -1316,19 +1341,19 @@ func (s *Service) UpdateGroupPermissionStatus(ctx context.Context, input *dto.Up
 // ListGroupPermissions returns all permissions assigned to a group
 func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroupPermissionsInput) (*dto.ListGroupPermissionsOutput, error) {
 	if s.permissionManager == nil {
-		return nil, fmt.Errorf("permission manager not available")
+		return nil, huma.Error500InternalServerError("permission manager not available")
 	}
 
 	// Parse group ID
 	groupID, err := primitive.ObjectIDFromHex(input.GroupID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid group ID: %w", err)
+		return nil, huma.Error400BadRequest("invalid group ID", err)
 	}
 
 	// Get group details
 	group, err := s.repo.GetGroupByID(ctx, groupID)
 	if err != nil {
-		return nil, fmt.Errorf("group not found: %w", err)
+		return nil, huma.Error404NotFound("group not found", err)
 	}
 
 	// Build aggregation pipeline to get group permissions with permission details
@@ -1349,7 +1374,7 @@ func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroup
 	// Execute aggregation
 	cursor, err := s.repo.db.Collection("group_permissions").Aggregate(ctx, pipeline)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query group permissions: %w", err)
+		return nil, huma.Error500InternalServerError("failed to query group permissions", err)
 	}
 	defer cursor.Close(ctx)
 
@@ -1404,7 +1429,7 @@ func (s *Service) ListGroupPermissions(ctx context.Context, input *dto.ListGroup
 // CheckPermission checks if a character has a specific permission
 func (s *Service) CheckPermission(ctx context.Context, input *dto.CheckPermissionInput, authenticatedCharacterID int64) (*dto.PermissionCheckOutput, error) {
 	if s.permissionManager == nil {
-		return nil, fmt.Errorf("permission manager not available")
+		return nil, huma.Error500InternalServerError("permission manager not available")
 	}
 
 	// Use provided character ID or default to authenticated user
@@ -1412,7 +1437,7 @@ func (s *Service) CheckPermission(ctx context.Context, input *dto.CheckPermissio
 	if input.CharacterID != "" {
 		parsedCharacterID, err := strconv.ParseInt(input.CharacterID, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("invalid character ID: %w", err)
+			return nil, huma.Error400BadRequest("invalid character ID", err)
 		}
 		characterID = parsedCharacterID
 	}
@@ -1420,7 +1445,7 @@ func (s *Service) CheckPermission(ctx context.Context, input *dto.CheckPermissio
 	// Check permission
 	permCheck, err := s.permissionManager.CheckPermission(ctx, characterID, input.PermissionID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check permission: %w", err)
+		return nil, huma.Error500InternalServerError("failed to check permission", err)
 	}
 
 	return &dto.PermissionCheckOutput{
