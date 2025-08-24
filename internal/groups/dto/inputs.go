@@ -125,7 +125,9 @@ type GrantPermissionToGroupInput struct {
 	Authorization string `header:"Authorization" description:"Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Cookie header containing falcon_auth_token"`
 	GroupID       string `path:"group_id" required:"true" description:"Group ID"`
-	PermissionID  string `json:"permission_id" required:"true" minLength:"3" description:"Permission ID to grant"`
+	Body          struct {
+		PermissionID string `json:"permission_id" required:"true" minLength:"3" description:"Permission ID to grant"`
+	} `json:"body"`
 }
 
 // RevokePermissionFromGroupInput represents the input for revoking a permission from a group

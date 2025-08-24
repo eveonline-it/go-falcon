@@ -1200,7 +1200,7 @@ func (s *Service) GrantPermissionToGroup(ctx context.Context, input *dto.GrantPe
 	}
 
 	// Grant permission
-	err = s.permissionManager.GrantPermissionToGroup(ctx, groupID, input.PermissionID, grantedBy)
+	err = s.permissionManager.GrantPermissionToGroup(ctx, groupID, input.Body.PermissionID, grantedBy)
 	if err != nil {
 		// Check for specific error cases
 		if strings.Contains(err.Error(), "not found") {
@@ -1216,16 +1216,16 @@ func (s *Service) GrantPermissionToGroup(ctx context.Context, input *dto.GrantPe
 	}
 
 	// Get permission details for response
-	perm, exists := s.permissionManager.GetPermission(input.PermissionID)
+	perm, exists := s.permissionManager.GetPermission(input.Body.PermissionID)
 	if !exists {
-		return nil, huma.Error404NotFound(fmt.Sprintf("permission not found: %s", input.PermissionID))
+		return nil, huma.Error404NotFound(fmt.Sprintf("permission not found: %s", input.Body.PermissionID))
 	}
 
 	return &dto.GroupPermissionOutput{
 		Body: dto.GroupPermissionResponse{
 			GroupID:      groupID.Hex(),
 			GroupName:    group.Name,
-			PermissionID: input.PermissionID,
+			PermissionID: input.Body.PermissionID,
 			Permission: dto.PermissionResponse{
 				ID:          perm.ID,
 				Service:     perm.Service,
