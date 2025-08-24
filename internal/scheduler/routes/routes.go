@@ -24,7 +24,7 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 	// Create Huma API with Chi adapter
 	config := huma.DefaultConfig("Go Falcon Scheduler Module", "1.0.0")
 	config.Info.Description = "Task scheduling and management system with cron support and distributed execution"
-	
+
 	api := humachi.New(router, config)
 
 	hr := &Routes{
@@ -33,8 +33,9 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 		api:        api,
 	}
 
-	// Register all routes
-	hr.registerRoutes()
+	// Note: registerRoutes() call removed for security - it registered endpoints without authentication
+	// All secure routes are now registered via RegisterSchedulerRoutes() called by RegisterUnifiedRoutes()
+	// hr.registerRoutes() // REMOVED: This registered unprotected endpoints
 
 	return hr
 }

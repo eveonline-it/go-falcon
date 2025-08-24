@@ -24,7 +24,7 @@ func NewRoutes(service *services.Service, router chi.Router) *Routes {
 	// Create Huma API with Chi adapter
 	config := huma.DefaultConfig("Go Falcon Users Module", "1.0.0")
 	config.Info.Description = "User management and character administration"
-	
+
 	api := humachi.New(router, config)
 
 	hr := &Routes{
@@ -32,8 +32,9 @@ func NewRoutes(service *services.Service, router chi.Router) *Routes {
 		api:     api,
 	}
 
-	// Register all routes
-	hr.registerRoutes()
+	// Note: registerRoutes() call removed for security - it exposed stats endpoint without authentication
+	// All secure routes are now registered via RegisterUsersRoutes() called by RegisterUnifiedRoutes()
+	// hr.registerRoutes() // REMOVED: This exposed unprotected endpoints
 
 	return hr
 }
@@ -120,7 +121,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		if user == nil {
 			return nil, huma.Error404NotFound("User not found")
 		}
-		
+
 		userResponse := service.UserToResponse(user)
 		return &dto.UserGetOutput{Body: *userResponse}, nil
 	})
@@ -147,7 +148,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		if user == nil {
 			return nil, huma.Error404NotFound("User not found")
 		}
-		
+
 		userResponse := service.UserToResponse(user)
 		return &dto.UserUpdateOutput{Body: *userResponse}, nil
 	})
@@ -172,13 +173,13 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get user characters", err)
 		}
-		
+
 		response := dto.CharacterListResponse{
 			UserID:     input.UserID,
 			Characters: characters,
 			Count:      len(characters),
 		}
-		
+
 		return &dto.UserCharactersOutput{Body: response}, nil
 	})
 
@@ -209,7 +210,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 			}
 			return nil, huma.Error500InternalServerError("Failed to delete user", err)
 		}
-		
+
 		return &dto.UserDeleteOutput{
 			Body: dto.UserDeleteResponse{
 				Success: true,
@@ -223,7 +224,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 func (hr *Routes) registerRoutes() {
 	// Status endpoint (public, no auth required)
 	huma.Get(hr.api, "/status", hr.getStatus)
-	
+
 	// Public endpoints
 	huma.Get(hr.api, "/stats", hr.getUserStats)
 
@@ -270,7 +271,7 @@ func (hr *Routes) getUser(ctx context.Context, input *dto.UserGetInput) (*dto.Us
 	if user == nil {
 		return nil, huma.Error404NotFound("User not found")
 	}
-	
+
 	userResponse := hr.service.UserToResponse(user)
 	return &dto.UserGetOutput{Body: *userResponse}, nil
 }
@@ -283,7 +284,7 @@ func (hr *Routes) updateUser(ctx context.Context, input *dto.UserUpdateInput) (*
 	if user == nil {
 		return nil, huma.Error404NotFound("User not found")
 	}
-	
+
 	userResponse := hr.service.UserToResponse(user)
 	return &dto.UserUpdateOutput{Body: *userResponse}, nil
 }
@@ -295,13 +296,13 @@ func (hr *Routes) getUserCharacters(ctx context.Context, input *dto.UserCharacte
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to get user characters", err)
 	}
-	
+
 	response := dto.CharacterListResponse{
 		UserID:     input.UserID,
 		Characters: characters,
 		Count:      len(characters),
 	}
-	
+
 	return &dto.UserCharactersOutput{Body: response}, nil
 }
 
@@ -317,7 +318,7 @@ func (hr *Routes) deleteUser(ctx context.Context, input *dto.UserDeleteInput) (*
 		}
 		return nil, huma.Error500InternalServerError("Failed to delete user", err)
 	}
-	
+
 	return &dto.UserDeleteOutput{
 		Body: dto.UserDeleteResponse{
 			Success: true,

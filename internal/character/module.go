@@ -5,8 +5,11 @@ import (
 	"log"
 	"time"
 
+	"go-falcon/internal/auth"
+	"go-falcon/internal/character/middleware"
 	"go-falcon/internal/character/routes"
 	"go-falcon/internal/character/services"
+	groupsServices "go-falcon/internal/groups/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
@@ -22,10 +25,12 @@ type Module struct {
 	service       *services.Service
 	updateService *services.UpdateService
 	eveGateway    *evegateway.Client
+	authModule    *auth.Module
+	groupService  *groupsServices.Service
 }
 
 // New creates a new character module instance
-func New(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client, authModule *auth.Module) *Module {
 	service := services.NewService(mongodb, eveGateway)
 	updateService := services.NewUpdateService(mongodb, eveGateway)
 
@@ -34,7 +39,14 @@ func New(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegatewa
 		service:       service,
 		updateService: updateService,
 		eveGateway:    eveGateway,
+		authModule:    authModule,
+		groupService:  nil, // Will be set after groups module initialization
 	}
+}
+
+// SetGroupService sets the groups service dependency
+func (m *Module) SetGroupService(groupService *groupsServices.Service) {
+	m.groupService = groupService
 }
 
 // GetUpdateService returns the update service for scheduler integration
@@ -54,13 +66,13 @@ func (m *Module) UpdateAllAffiliations(ctx context.Context) (updated, failed, sk
 // Initialize sets up the character module, creating necessary database indexes
 func (m *Module) Initialize(ctx context.Context) error {
 	log.Printf("Initializing character module...")
-	
+
 	// Create database indexes for optimal performance
 	if err := m.service.CreateIndexes(ctx); err != nil {
 		log.Printf("Failed to create character indexes: %v", err)
 		return err
 	}
-	
+
 	log.Printf("Character module initialized successfully")
 	return nil
 }
@@ -77,7 +89,22 @@ func (m *Module) RegisterHumaRoutes(r chi.Router) {
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterCharacterRoutes(api, basePath, m.service)
+	// Create auth middleware if auth module is available
+	var authMiddleware *middleware.AuthMiddleware
+	if m.authModule != nil {
+		authService := m.authModule.GetAuthService()
+		if authService != nil {
+			// Get permission manager from groups service if available
+			var permissionManager *permissions.PermissionManager
+			if m.groupService != nil {
+				permissionManager = m.groupService.GetPermissionManager()
+			}
+
+			authMiddleware = middleware.NewAuthMiddleware(authService, permissionManager)
+		}
+	}
+
+	routes.RegisterCharacterRoutes(api, basePath, m.service, authMiddleware)
 	log.Printf("Character module unified routes registered at %s", basePath)
 }
 
@@ -123,6 +150,6 @@ func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *per
 			CreatedAt:   time.Now(),
 		},
 	}
-	
+
 	return permissionManager.RegisterServicePermissions(ctx, characterPermissions)
 }

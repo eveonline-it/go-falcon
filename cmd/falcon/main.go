@@ -45,7 +45,7 @@ func customLoggerMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		
+
 		// Use the default chi logger for all other requests
 		middleware.Logger(next).ServeHTTP(w, r)
 	})
@@ -55,24 +55,24 @@ func customLoggerMiddleware(next http.Handler) http.Handler {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		
+
 		// Allow requests from any subdomain of eveonline.it or localhost for development
-		if strings.HasSuffix(origin, ".eveonline.it") || origin == "https://eveonline.it" || 
-		   strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "https://localhost") {
+		if strings.HasSuffix(origin, ".eveonline.it") || origin == "https://eveonline.it" ||
+			strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "https://localhost") {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
-		
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
 		w.Header().Set("Access-Control-Max-Age", "86400")
-		
+
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -80,7 +80,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 func main() {
 	// Display startup banner
 	displayBanner()
-	
+
 	// Display version information
 	versionInfo := version.Get()
 	log.Printf("🏷️  Version: %s", version.GetVersionString())
@@ -108,7 +108,7 @@ func main() {
 	runtime.ReadMemStats(&m)
 	runtime.GC() // Force GC to get more accurate stats
 	runtime.ReadMemStats(&m)
-	
+
 	log.Printf("💾 Memory Configuration:")
 	log.Printf(" - Heap allocated: %s", formatBytes(m.HeapAlloc))
 	log.Printf(" - Heap system: %s", formatBytes(m.HeapSys))
@@ -116,7 +116,7 @@ func main() {
 	log.Printf(" - Stack: %s", formatBytes(m.StackSys))
 	log.Printf(" - GC cycles: %d", m.NumGC)
 	log.Printf(" - Next GC target: %s", formatBytes(m.NextGC))
-	
+
 	// Print memory limits if available (cgroups v1/v2)
 	printMemoryLimits()
 
@@ -136,87 +136,94 @@ func main() {
 
 	// Initialize EVE Online ESI client as shared package
 	evegateClient := evegateway.NewClient()
-	
+
 	// Initialize modules in dependency order
 	var modules []module.Module
-	
-	// 1. Initialize base modules without dependencies
-	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
-	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient)
-	
+
+	// 1. Initialize base modules without dependencies (corporation needs auth, will be moved later)
+
 	// 2. Initialize site settings module (no dependencies)
 	siteSettingsModule, err := site_settings.NewModule(appCtx.MongoDB, nil, nil)
 	if err != nil {
 		log.Fatalf("Failed to initialize site settings module: %v", err)
 	}
-	
+
 	// Initialize site settings first
 	if err := siteSettingsModule.Initialize(ctx); err != nil {
 		log.Fatalf("Failed to initialize site settings: %v", err)
 	}
-	
+
 	// 3. Initialize groups module with site settings dependency
 	groupsModule, err := groups.NewModule(appCtx.MongoDB, nil, siteSettingsModule.GetService())
 	if err != nil {
 		log.Fatalf("Failed to initialize groups module: %v", err)
 	}
-	
+
 	// Initialize groups module
 	if err := groupsModule.Initialize(ctx); err != nil {
 		log.Fatalf("Failed to initialize groups module: %v", err)
 	}
-	
+
 	// 4. Initialize auth module and set groups service dependency
 	authModule := auth.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	authModule.GetAuthService().SetGroupsService(groupsModule.GetService())
-	
+
 	// 5. Update groups module with auth dependencies
 	if err := groupsModule.SetAuthModule(authModule); err != nil {
 		log.Fatalf("Failed to set auth dependencies on groups module: %v", err)
 	}
-	
+
 	// 6. Initialize permission manager
 	log.Printf("🔐 Initializing permission management system")
 	permissionManager := permissions.NewPermissionManager(appCtx.MongoDB.Database)
-	
+
 	// Set permission manager in groups module
 	if err := groupsModule.SetPermissionManager(permissionManager); err != nil {
 		log.Fatalf("Failed to set permission manager on groups module: %v", err)
 	}
-	
+
+	// 7. Initialize character module with auth dependency
+	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule)
+	characterModule.SetGroupService(groupsModule.GetService())
+
+	// 8. Initialize corporation module with auth dependency
+	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule)
+	corporationModule.SetGroupService(groupsModule.GetService())
+
 	// Update groups service with permission manager
 	groupsModule.GetService().SetPermissionManager(permissionManager)
-	
+
 	// 7. Initialize remaining modules that depend on auth
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule.GetAuthService(), permissionManager)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule)
 	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
-	
+	schedulerModule.SetGroupService(groupsModule.GetService())
+
 	// 8. Register service permissions
 	log.Printf("📝 Registering service permissions")
-	
+
 	// Register permissions in background to avoid startup hang
 	go func() {
 		log.Printf("🔄 Starting permission registration in background...")
-		
+
 		// Register scheduler permissions
 		if err := schedulerModule.RegisterPermissions(ctx, permissionManager); err != nil {
 			log.Printf("❌ Failed to register scheduler permissions: %v", err)
 		} else {
 			log.Printf("   ⏰ Scheduler permissions registered successfully")
 		}
-		
-		// Register character permissions  
+
+		// Register character permissions
 		if err := characterModule.RegisterPermissions(ctx, permissionManager); err != nil {
 			log.Printf("❌ Failed to register character permissions: %v", err)
 		} else {
 			log.Printf("   🚀 Character permissions registered successfully")
 		}
-		
+
 		log.Printf("✅ Background permission registration completed")
 	}()
-	
+
 	// TODO: Register other service permissions as they implement the RegisterPermissions method
 	// if err := corporationModule.RegisterPermissions(ctx, permissionManager); err != nil {
 	//     log.Fatalf("Failed to register corporation permissions: %v", err)
@@ -224,56 +231,56 @@ func main() {
 	// if err := allianceModule.RegisterPermissions(ctx, permissionManager); err != nil {
 	//     log.Fatalf("Failed to register alliance permissions: %v", err)
 	// }
-	
+
 	// 9. Initialize system group permissions (must be after service permissions are registered)
 	log.Printf("🔐 Initializing system group permissions")
-	
+
 	// Initialize system group permissions in background after a delay
 	go func() {
 		time.Sleep(3 * time.Second) // Wait for service to start
 		log.Printf("🔄 Starting system group permission initialization in background...")
-		
+
 		if err := permissionManager.InitializeSystemGroupPermissions(ctx); err != nil {
 			log.Printf("❌ Failed to initialize system group permissions: %v", err)
 		} else {
 			log.Printf("✅ System group permissions initialized successfully")
 		}
 	}()
-	
+
 	log.Printf("✅ Permission system initialized (background registration enabled)")
-	
+
 	// Update site settings with auth and groups services
 	siteSettingsModule.SetDependencies(authModule.GetAuthService(), groupsModule.GetService())
-	
+
 	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, siteSettingsModule)
-	
+
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
 	go func() {
 		time.Sleep(5 * time.Second) // Wait for main service to be fully operational
 		log.Printf("🔄 Starting character module initialization in background...")
-		
+
 		if err := characterModule.Initialize(ctx); err != nil {
 			log.Printf("❌ Failed to initialize character module: %v", err)
 		} else {
 			log.Printf("✅ Character module initialized successfully (indexes created)")
 		}
 	}()
-	
+
 	log.Printf("🚀 Character module initialization scheduled for background")
-	
+
 	log.Printf("🚀 EVE Online ESI client initialized")
 
 	// Mount module routes with configurable API prefix
 	apiPrefix := config.GetAPIPrefix()
 	log.Printf("🔗 Using API prefix: '%s'", apiPrefix)
-	
+
 	// Scalar API Documentation
 	r.Get("/docs", scalarDocsHandler(apiPrefix))
-	
+
 	// Create unified Huma v2 API for integrated mode
 	log.Printf("🚀 Creating unified Huma v2 API (type-safe APIs with single OpenAPI specification)")
-	
+
 	// Create unified Huma API configuration
 	humaConfig := huma.DefaultConfig("Go Falcon API", "1.0.0")
 	humaConfig.Info.Description = "Unified EVE Online API with modular architecture"
@@ -281,26 +288,26 @@ func main() {
 		Name: "Go Falcon",
 		URL:  "https://github.com/your-org/go-falcon",
 	}
-	
+
 	// Disable default docs path since we're using Scalar
 	humaConfig.DocsPath = ""
-	
+
 	// Add security schemes for authentication
 	humaConfig.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
 		"bearerAuth": {
-			Type:   "http",
-			Scheme: "bearer",
+			Type:         "http",
+			Scheme:       "bearer",
 			BearerFormat: "JWT",
-			Description: "JWT Bearer token authentication",
+			Description:  "JWT Bearer token authentication",
 		},
 		"cookieAuth": {
-			Type: "apiKey",
-			In:   "cookie",
-			Name: "falcon_auth_token",
+			Type:        "apiKey",
+			In:          "cookie",
+			Name:        "falcon_auth_token",
 			Description: "JWT authentication cookie",
 		},
 	}
-	
+
 	// Add tags for better organization in Scalar docs
 	humaConfig.Tags = []*huma.Tag{
 		{Name: "Health", Description: "Module health checks and system status"},
@@ -327,7 +334,7 @@ func main() {
 		{Name: "Site Settings / Public", Description: "Public site settings accessible without authentication"},
 		{Name: "Site Settings / Management", Description: "Administrative site settings management operations"},
 	}
-	
+
 	// Add servers based on environment configuration or defaults
 	customServers := config.GetOpenAPIServers()
 	if customServers != nil {
@@ -358,7 +365,7 @@ func main() {
 			}
 		}
 	}
-	
+
 	// Create the unified API on main router
 	var unifiedAPI huma.API
 	if apiPrefix == "" {
@@ -369,48 +376,48 @@ func main() {
 			unifiedAPI = humachi.New(prefixRouter, humaConfig)
 		})
 	}
-	
+
 	log.Printf("✅ Unified Huma v2 API created")
 	log.Printf("🔧 Single OpenAPI 3.1.1 specification will be available at %s/openapi.json", apiPrefix)
 	log.Printf("📚 Scalar API Documentation available at /docs")
-	
+
 	// Register all module routes on the unified API
 	log.Printf("📝 Registering module routes on unified API:")
-	
+
 	// Register auth module routes
 	log.Printf("   🔐 Auth module: /auth/*")
 	authModule.RegisterUnifiedRoutes(unifiedAPI, "/auth")
-	
+
 	// Register users module routes
 	log.Printf("   👥 Users module: /users/*")
 	usersModule.RegisterUnifiedRoutes(unifiedAPI, "/users")
-	
+
 	// Register scheduler module routes
 	log.Printf("   ⏰ Scheduler module: /scheduler/*")
 	schedulerModule.RegisterUnifiedRoutes(unifiedAPI, "/scheduler")
-	
+
 	// Register character module routes
 	log.Printf("   🚀 Character module: /character/*")
 	characterModule.RegisterUnifiedRoutes(unifiedAPI, "/character")
-	
+
 	// Register corporation module routes
 	log.Printf("   🏢 Corporation module: /corporations/*")
 	corporationModule.RegisterUnifiedRoutes(unifiedAPI, "/corporations")
-	
+
 	// Register alliance module routes
 	log.Printf("   🤝 Alliance module: /alliances/*")
 	allianceModule.RegisterUnifiedRoutes(unifiedAPI, "/alliances")
-	
+
 	// Register groups module routes
 	log.Printf("   👥 Groups module: /groups/*")
 	groupsModule.RegisterUnifiedRoutes(unifiedAPI)
-	
+
 	// Register site settings module routes
 	log.Printf("   ⚙️  Site Settings module: /site-settings/*")
 	siteSettingsModule.RegisterUnifiedRoutes(unifiedAPI)
-	
+
 	log.Printf("✅ All modules registered on unified API")
-	
+
 	// Note: evegateway is now a shared package for EVE Online ESI integration
 	// Other services can import and use: evegateway.NewClient().GetServerStatus(ctx)
 	_ = evegateClient // Available for modules to use
@@ -426,7 +433,7 @@ func main() {
 	humaPort := config.GetHumaPort()
 	humaHost := config.GetHumaHost()
 	separateHumaServer := config.GetHumaSeparateServer()
-	
+
 	// Display HUMA configuration
 	log.Printf("🔧 HUMA Configuration:")
 	log.Printf(" - Separate Server: %v", separateHumaServer)
@@ -443,7 +450,7 @@ func main() {
 	} else {
 		log.Printf(" - Mode: Integrated - HUMA APIs on main server %s:%s", host, port)
 	}
-	
+
 	// Main server
 	srv := &http.Server{
 		Addr:         host + ":" + port,
@@ -460,16 +467,16 @@ func main() {
 		log.Printf("⚠️  This feature will be reimplemented with unified OpenAPI support")
 		log.Printf("⚠️  For now, all routes are served from the main server")
 	}
-	
+
 	// Display final configuration
 	if separateHumaServer && humaPort != "" {
 		log.Printf("⚠️  HUMA_SEPARATE_SERVER=true but feature disabled - using integrated mode")
 	}
-	
+
 	if humaPort != "" && !separateHumaServer {
 		log.Printf("⚠️  HUMA_PORT=%s set but HUMA_SEPARATE_SERVER=false - using integrated mode", humaPort)
 	}
-	
+
 	log.Printf("✅ Unified HUMA API available on main server: %s:%s", host, port)
 	if host == "0.0.0.0" {
 		log.Printf("📋 Single OpenAPI specification: http://localhost:%s%s/openapi.json", port, apiPrefix)
@@ -505,7 +512,7 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Main server forced to shutdown", "error", err)
 	}
-	
+
 	// Shutdown separate HUMA server if running
 	if humaSrv != nil {
 		if err := humaSrv.Shutdown(shutdownCtx); err != nil {
@@ -528,7 +535,7 @@ func enhancedHealthHandler(w http.ResponseWriter, r *http.Request) {
 	// Health checks are excluded from logging to reduce noise
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	
+
 	versionInfo := version.Get()
 	response := fmt.Sprintf(`{
 		"status": "healthy",
@@ -539,7 +546,7 @@ func enhancedHealthHandler(w http.ResponseWriter, r *http.Request) {
 		"go_version": "%s",
 		"platform": "%s"
 	}`, versionInfo.Version, versionInfo.GitCommit, versionInfo.BuildDate, versionInfo.GoVersion, versionInfo.Platform)
-	
+
 	w.Write([]byte(response))
 }
 
@@ -551,24 +558,24 @@ func scalarDocsHandler(apiPrefix string) http.HandlerFunc {
 		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 			scheme = "https"
 		}
-		
+
 		host := r.Host
 		if host == "" {
 			host = r.Header.Get("Host")
 		}
-		
+
 		openAPIPath := "/openapi.json"
 		if apiPrefix != "" {
 			openAPIPath = apiPrefix + "/openapi.json"
 		}
-		
+
 		// Build absolute URL for OpenAPI spec
 		openAPIURL := fmt.Sprintf("%s://%s%s", scheme, host, openAPIPath)
-		
+
 		// Serve the Scalar documentation HTML
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		
+
 		// Scalar HTML with simpler configuration
 		html := fmt.Sprintf(`<!DOCTYPE html>
 <html>
@@ -590,7 +597,7 @@ func scalarDocsHandler(apiPrefix string) http.HandlerFunc {
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>`, openAPIURL)
-		
+
 		w.Write([]byte(html))
 	}
 }
@@ -616,12 +623,12 @@ func displayBanner() {
 
 	lines := strings.Split(string(content), "\n")
 	colors := []string{
-		"\033[38;5;33m",  // Bright blue
-		"\033[38;5;39m",  // Cyan
-		"\033[38;5;75m",  // Light blue
-		"\033[38;5;51m",  // Bright cyan
-		"\033[38;5;33m",  // Bright blue
-		"\033[38;5;39m",  // Cyan
+		"\033[38;5;33m", // Bright blue
+		"\033[38;5;39m", // Cyan
+		"\033[38;5;75m", // Light blue
+		"\033[38;5;51m", // Bright cyan
+		"\033[38;5;33m", // Bright blue
+		"\033[38;5;39m", // Cyan
 	}
 
 	fmt.Print("\n")
@@ -656,13 +663,13 @@ func printMemoryLimits() {
 		log.Printf(" - Container limit: %s (cgroups v2)", formatBytes(uint64(limit)))
 		return
 	}
-	
+
 	// Try cgroups v1 (older systems)
 	if limit := readCgroupV1MemoryLimit(); limit > 0 {
 		log.Printf(" - Container limit: %s (cgroups v1)", formatBytes(uint64(limit)))
 		return
 	}
-	
+
 	log.Printf(" - Container limit: Not detected (running outside container or unsupported)")
 }
 
@@ -672,17 +679,17 @@ func readCgroupV2MemoryLimit() int64 {
 	if err != nil {
 		return 0
 	}
-	
+
 	limitStr := strings.TrimSpace(string(data))
 	if limitStr == "max" {
 		return 0 // No limit set
 	}
-	
+
 	limit, err := strconv.ParseInt(limitStr, 10, 64)
 	if err != nil {
 		return 0
 	}
-	
+
 	return limit
 }
 
@@ -692,18 +699,18 @@ func readCgroupV1MemoryLimit() int64 {
 	if err != nil {
 		return 0
 	}
-	
+
 	limitStr := strings.TrimSpace(string(data))
 	limit, err := strconv.ParseInt(limitStr, 10, 64)
 	if err != nil {
 		return 0
 	}
-	
+
 	// cgroups v1 sometimes returns very large values when no limit is set
 	// Anything larger than 1TB is probably "unlimited"
 	if limit > 1024*1024*1024*1024 {
 		return 0
 	}
-	
+
 	return limit
 }

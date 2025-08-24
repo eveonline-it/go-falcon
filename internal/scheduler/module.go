@@ -2,11 +2,13 @@ package scheduler
 
 import (
 	"context"
-	"log/slog"
 	"log"
+	"log/slog"
 	"time"
 
 	"go-falcon/internal/alliance/dto"
+	"go-falcon/internal/auth"
+	groupsServices "go-falcon/internal/groups/services"
 	"go-falcon/internal/scheduler/middleware"
 	"go-falcon/internal/scheduler/routes"
 	"go-falcon/internal/scheduler/services"
@@ -14,8 +16,8 @@ import (
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/go-chi/chi/v5"
 )
 
 // Module represents the standardized scheduler module
@@ -24,12 +26,13 @@ type Module struct {
 	schedulerService *services.SchedulerService
 	middleware       *middleware.Middleware
 	routes           *routes.Routes
-	
+
 	// Dependencies
-	authModule        AuthModule
+	authModule        *auth.Module
 	characterModule   CharacterModule
 	allianceModule    AllianceModule
 	corporationModule CorporationModule
+	groupService      *groupsServices.Service
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -53,19 +56,24 @@ type CorporationModule interface {
 }
 
 // New creates a new scheduler module with standardized structure
-func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule) *Module {
 	baseModule := module.NewBaseModule("scheduler", mongodb, redis)
-	
+
 	// Create services
 	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule, corporationModule)
-	
-	// Create auth middleware - will be nil if authModule doesn't have the right interface
+
+	// Create auth middleware if auth module is available
 	var authMiddleware *middleware.AuthMiddleware
-	// TODO: Create auth middleware when auth service is available
-	
+	if authModule != nil {
+		authService := authModule.GetAuthService()
+		if authService != nil {
+			authMiddleware = middleware.NewAuthMiddleware(authService)
+		}
+	}
+
 	// Create middleware
 	middlewareLayer := middleware.New(authMiddleware)
-	
+
 	return &Module{
 		BaseModule:        baseModule,
 		schedulerService:  schedulerService,
@@ -75,6 +83,22 @@ func New(mongodb *database.MongoDB, redis *database.Redis, authModule AuthModule
 		characterModule:   characterModule,
 		allianceModule:    allianceModule,
 		corporationModule: corporationModule,
+		groupService:      nil, // Will be set after groups module initialization
+	}
+}
+
+// SetGroupService sets the groups service dependency
+func (m *Module) SetGroupService(groupService *groupsServices.Service) {
+	m.groupService = groupService
+
+	// Update auth middleware with permission manager
+	if m.authModule != nil && groupService != nil {
+		authService := m.authModule.GetAuthService()
+		if authService != nil {
+			permissionManager := groupService.GetPermissionManager()
+			authMiddleware := middleware.NewAuthMiddleware(authService, permissionManager)
+			m.middleware = middleware.New(authMiddleware)
+		}
 	}
 }
 
@@ -83,10 +107,10 @@ func (m *Module) Routes(r chi.Router) {
 	// Apply middleware first
 	r.Use(m.middleware.RequestLogging)
 	r.Use(m.middleware.SecurityHeaders)
-	
+
 	// Register health check route using base module
 	m.RegisterHealthRoute(r)
-	
+
 	// Scheduler module now uses only Huma v2 routes - call RegisterHumaRoutes instead
 	m.RegisterHumaRoutes(r)
 }
@@ -101,10 +125,10 @@ func (m *Module) RegisterHumaRoutes(r chi.Router) {
 // StartBackgroundTasks starts scheduler-specific background tasks
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
 	slog.Info("Starting scheduler background tasks", "module", m.Name())
-	
+
 	// Start base module background tasks
 	go m.BaseModule.StartBackgroundTasks(ctx)
-	
+
 	// Initialize hardcoded system tasks
 	go m.initializeSystemTasks(ctx)
 
@@ -209,7 +233,7 @@ func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *per
 			CreatedAt:   time.Now(),
 		},
 	}
-	
+
 	return permissionManager.RegisterServicePermissions(ctx, schedulerPermissions)
 }
 
@@ -224,12 +248,12 @@ func (m *Module) initializeSystemTasks(ctx context.Context) {
 func (m *Module) startEngine(ctx context.Context) {
 	// Wait a moment for database connections to be ready
 	time.Sleep(2 * time.Second)
-	
+
 	if err := m.schedulerService.StartEngine(ctx); err != nil {
 		slog.Error("Failed to start scheduler engine", "error", err)
 		return
 	}
-	
+
 	slog.Info("Scheduler engine started successfully")
 }
 
@@ -300,10 +324,10 @@ func (m *Module) runHealthMonitoring(ctx context.Context) {
 // Stop implements the Module interface - gracefully stops the module
 func (m *Module) Stop() {
 	slog.Info("Stopping scheduler module", "module", m.Name())
-	
+
 	// Call base module stop first
 	m.BaseModule.Stop()
-	
+
 	// Stop the scheduler engine
 	if err := m.schedulerService.StopEngine(); err != nil {
 		slog.Error("Error stopping scheduler engine", "error", err)
@@ -316,6 +340,7 @@ func (m *Module) Shutdown() error {
 	m.Stop()
 	return nil
 }
+
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 	routes.RegisterSchedulerRoutes(api, basePath, m.schedulerService, m.middleware)

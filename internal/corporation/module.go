@@ -4,11 +4,15 @@ import (
 	"context"
 	"log/slog"
 
+	"go-falcon/internal/auth"
+	"go-falcon/internal/corporation/middleware"
 	"go-falcon/internal/corporation/routes"
 	"go-falcon/internal/corporation/services"
+	groupsServices "go-falcon/internal/groups/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -17,38 +21,62 @@ import (
 // Module represents the corporation module
 type Module struct {
 	*module.BaseModule
-	service *services.Service
-	routes  *routes.Module
+	service      *services.Service
+	routes       *routes.Module
+	authModule   *auth.Module
+	groupService *groupsServices.Service
 }
 
 // NewModule creates a new corporation module instance
-func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client) *Module {
+func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client, authModule *auth.Module) *Module {
 	// Initialize repository and service
 	repository := services.NewRepository(mongodb)
 	service := services.NewService(repository, eveClient)
-	
+
 	// Initialize routes
 	routesModule := routes.NewModule(service)
-	
+
 	// Create the module
 	m := &Module{
-		BaseModule: module.NewBaseModule("corporation", mongodb, redis),
-		service:    service,
-		routes:     routesModule,
+		BaseModule:   module.NewBaseModule("corporation", mongodb, redis),
+		service:      service,
+		routes:       routesModule,
+		authModule:   authModule,
+		groupService: nil, // Will be set after groups module initialization
 	}
-	
+
 	slog.Info("Corporation module initialized", "name", m.Name())
-	
+
 	return m
+}
+
+// SetGroupService sets the groups service dependency
+func (m *Module) SetGroupService(groupService *groupsServices.Service) {
+	m.groupService = groupService
 }
 
 // RegisterUnifiedRoutes registers all corporation routes with the provided Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 	slog.Info("Registering corporation unified routes", "basePath", basePath)
-	
-	// Register all routes through the routes module with basePath
-	m.routes.RegisterUnifiedRoutes(api, basePath)
-	
+
+	// Create auth middleware if auth module is available
+	var authMiddleware *middleware.AuthMiddleware
+	if m.authModule != nil {
+		authService := m.authModule.GetAuthService()
+		if authService != nil {
+			// Get permission manager from groups service if available
+			var permissionManager *permissions.PermissionManager
+			if m.groupService != nil {
+				permissionManager = m.groupService.GetPermissionManager()
+			}
+
+			authMiddleware = middleware.NewAuthMiddleware(authService, permissionManager)
+		}
+	}
+
+	// Register all routes through the routes module with basePath and auth middleware
+	m.routes.RegisterUnifiedRoutes(api, basePath, authMiddleware)
+
 	slog.Info("Corporation unified routes registered successfully", "basePath", basePath)
 }
 
