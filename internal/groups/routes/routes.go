@@ -87,7 +87,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.ListGroupsInput) (*dto.ListGroupsOutput, error) {
 		// Validate authentication and check permissions
-		_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
+		_, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:view:all")
 		if err != nil {
 			return nil, err
 		}
@@ -290,7 +290,7 @@ func (m *Module) createGroup(ctx context.Context, input *dto.CreateGroupInput) (
 
 func (m *Module) getGroup(ctx context.Context, input *dto.GetGroupInput) (*dto.GroupOutput, error) {
 	// Validate authentication and check permissions
-	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
+	_, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:view:all")
 	if err != nil {
 		return nil, err
 	}
@@ -349,8 +349,8 @@ func (m *Module) removeMember(ctx context.Context, input *dto.RemoveMemberInput)
 }
 
 func (m *Module) listMembers(ctx context.Context, input *dto.ListMembersInput) (*dto.ListMembersOutput, error) {
-	// Validate authentication and admin access
-	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and check permissions
+	_, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:view:all")
 	if err != nil {
 		return nil, err
 	}
@@ -359,8 +359,8 @@ func (m *Module) listMembers(ctx context.Context, input *dto.ListMembersInput) (
 }
 
 func (m *Module) checkMembership(ctx context.Context, input *dto.CheckMembershipInput) (*dto.MembershipCheckOutput, error) {
-	// Validate authentication and admin access
-	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and check permissions
+	_, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:view:all")
 	if err != nil {
 		return nil, err
 	}
@@ -447,8 +447,8 @@ func (m *Module) revokePermissionFromGroup(ctx context.Context, input *dto.Revok
 }
 
 func (m *Module) listGroupPermissions(ctx context.Context, input *dto.ListGroupPermissionsInput) (*dto.ListGroupPermissionsOutput, error) {
-	// Validate authentication and admin access
-	_, err := m.middleware.RequireGroupAccess(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and check permissions
+	_, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:view:all")
 	if err != nil {
 		return nil, err
 	}
