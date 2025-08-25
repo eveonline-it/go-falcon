@@ -22,6 +22,7 @@ import (
 	"go-falcon/internal/groups"
 	"go-falcon/internal/scheduler"
 	"go-falcon/internal/site_settings"
+	"go-falcon/internal/sitemap"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
@@ -193,6 +194,12 @@ func main() {
 	// Update groups service with permission manager
 	groupsModule.GetService().SetPermissionManager(permissionManager)
 
+	// 6.5. Initialize sitemap module with permission manager and groups service
+	sitemapModule, err := sitemap.NewModule(appCtx.MongoDB, appCtx.Redis, permissionManager, groupsModule.GetService())
+	if err != nil {
+		log.Fatalf("Failed to initialize sitemap module: %v", err)
+	}
+
 	// 7. Initialize remaining modules that depend on auth
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule.GetAuthService(), permissionManager)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule, evegateClient)
@@ -219,6 +226,18 @@ func main() {
 			log.Printf("❌ Failed to register character permissions: %v", err)
 		} else {
 			log.Printf("   🚀 Character permissions registered successfully")
+		}
+
+		// Register sitemap permissions
+		if err := sitemapModule.RegisterPermissions(ctx, permissionManager); err != nil {
+			log.Printf("❌ Failed to register sitemap permissions: %v", err)
+		} else {
+			log.Printf("   🗺️  Sitemap permissions registered successfully")
+		}
+
+		// Seed default routes for sitemap
+		if err := sitemapModule.SeedDefaultRoutes(ctx); err != nil {
+			log.Printf("❌ Failed to seed default routes: %v", err)
 		}
 
 		log.Printf("✅ Background permission registration completed")
@@ -252,7 +271,7 @@ func main() {
 	// Update site settings with auth and groups services
 	siteSettingsModule.SetDependencies(authModule.GetAuthService(), groupsModule.GetService())
 
-	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, siteSettingsModule)
+	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, sitemapModule, siteSettingsModule)
 
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
@@ -411,6 +430,10 @@ func main() {
 	// Register groups module routes
 	log.Printf("   👥 Groups module: /groups/*")
 	groupsModule.RegisterUnifiedRoutes(unifiedAPI)
+
+	// Register sitemap module routes
+	log.Printf("   🗺️  Sitemap module: /sitemap/*")
+	sitemapModule.RegisterUnifiedRoutes(unifiedAPI)
 
 	// Register site settings module routes
 	log.Printf("   ⚙️  Site Settings module: /site-settings/*")

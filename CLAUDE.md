@@ -87,6 +87,13 @@ go-falcon/
 │   │   ├── services/     # Business logic
 │   │   ├── models/       # Database schemas
 │   │   └── CLAUDE.md     # Module documentation
+│   ├── sitemap/          # Backend-managed dynamic routing
+│   │   ├── dto/          # Input/Output structures
+│   │   ├── middleware/   # Auth-specific middleware
+│   │   ├── routes/       # Route definitions
+│   │   ├── services/     # Business logic and repository
+│   │   ├── models/       # Database schemas
+│   │   └── CLAUDE.md     # Module documentation
 │   └── users/            # User management
 │       ├── dto/          # Input/Output structures
 │   │   ├── middleware/   # Auth-specific middleware
@@ -256,6 +263,7 @@ In-memory SDE (Static Data Export) service:
 | **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution, character/corporation/alliance automated updates |
 | **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User management and profile operations |
 | **Groups** | [`internal/groups/CLAUDE.md`](internal/groups/CLAUDE.md) | Group and role-based access control, character name resolution |
+| **Sitemap** | [`internal/sitemap/CLAUDE.md`](internal/sitemap/CLAUDE.md) | Backend-managed dynamic routing, permission-based navigation, React integration |
 | **Character** | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md) | Character information, portraits, background affiliation updates |
 | **Corporation** | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management, automated ESI updates |
 | **Alliance** | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md) | Alliance information, member corporations, relationship data |
