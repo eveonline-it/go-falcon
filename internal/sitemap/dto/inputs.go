@@ -97,7 +97,9 @@ type ListRoutesInput struct {
 
 // BulkUpdateOrderInput represents the input for updating navigation order
 type BulkUpdateOrderInput struct {
-	Updates []OrderUpdate `json:"updates" required:"true" minItems:"1" description:"Order updates"`
+	Body struct {
+		Updates []OrderUpdate `json:"updates" description:"Order updates"`
+	} `json:"body"`
 }
 
 // OrderUpdate represents a single order update

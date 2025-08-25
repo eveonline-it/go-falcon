@@ -220,7 +220,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		},
 	}, func(ctx context.Context, input *dto.BulkUpdateOrderInput) (*dto.BulkUpdateOutput, error) {
 		// TODO: Add proper admin authentication check
-		updated, failed, errors := r.service.BulkUpdateOrder(ctx, input.Updates)
+		updated, failed, errors := r.service.BulkUpdateOrder(ctx, input.Body.Updates)
 
 		response := dto.BulkUpdateResponse{
 			Updated: updated,

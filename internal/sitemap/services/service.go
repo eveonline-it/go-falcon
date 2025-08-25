@@ -678,9 +678,6 @@ func (s *Service) GetRoutes(ctx context.Context, input *dto.ListRoutesInput) ([]
 	// Apply hierarchical sorting only if requested (default)
 	if input.Sort == "" || input.Sort == "hierarchical" {
 		routes = s.sortRoutesHierarchicallyForAdmin(routes)
-		fmt.Printf("📊 Applied hierarchical sorting to %d routes\n", len(routes))
-	} else {
-		fmt.Printf("📊 Applied %s sorting to %d routes\n", input.Sort, len(routes))
 	}
 
 	count, err := s.repository.CountRoutes(ctx, filter)
@@ -707,34 +704,19 @@ func (s *Service) BulkUpdateOrder(ctx context.Context, updates []dto.OrderUpdate
 	failed := 0
 	var errors []string
 
-	// Debug logging
-	fmt.Printf("🔄 BulkUpdateOrder: Updating %d routes\n", len(updates))
+	if len(updates) == 0 {
+		return updated, failed, errors
+	}
 
 	for _, update := range updates {
-		// Verify route exists before updating
-		existingRoute, checkErr := s.repository.GetRouteByRouteID(ctx, update.RouteID)
-		if checkErr != nil {
-			failed++
-			errors = append(errors, fmt.Sprintf("Route %s not found: %v", update.RouteID, checkErr))
-			continue
-		}
-
-		// Log the update
-		fmt.Printf("📝 Updating route %s (%s): nav_order %d → %d\n",
-			update.RouteID, existingRoute.Name, existingRoute.NavOrder, update.NavOrder)
-
 		err := s.repository.UpdateRouteOrder(ctx, update.RouteID, update.NavOrder)
 		if err != nil {
 			failed++
 			errors = append(errors, fmt.Sprintf("Failed to update %s: %v", update.RouteID, err))
-			fmt.Printf("❌ Failed to update route %s: %v\n", update.RouteID, err)
 		} else {
 			updated++
-			fmt.Printf("✅ Successfully updated route %s nav_order to %d\n", update.RouteID, update.NavOrder)
 		}
 	}
-
-	fmt.Printf("📊 BulkUpdateOrder complete: %d updated, %d failed\n", updated, failed)
 
 	// Force refresh any cached navigation data by triggering a test fetch
 	if updated > 0 {
@@ -746,7 +728,6 @@ func (s *Service) BulkUpdateOrder(ctx context.Context, updates []dto.OrderUpdate
 				MaxDepth:        5,
 				ExpandFolders:   false,
 			})
-			fmt.Printf("🔄 Navigation cache refreshed after reorder\n")
 		}()
 	}
 
@@ -1303,24 +1284,6 @@ func (s *Service) sortRoutesHierarchicallyForAdmin(routes []models.Route) []mode
 	// Process all root routes and their children
 	for _, root := range rootRoutes {
 		addRouteAndChildren(root)
-	}
-
-	// Debug logging - show final hierarchical order
-	if len(result) > 0 {
-		fmt.Printf("🔄 Admin hierarchical sorting complete: %d routes\n", len(result))
-		fmt.Printf("📋 Final order:\n")
-		for i, route := range result {
-			indent := ""
-			for d := 0; d < route.Depth; d++ {
-				indent += "  "
-			}
-			folderIcon := ""
-			if route.IsFolder {
-				folderIcon = " 📁"
-			}
-			fmt.Printf("  %2d. %s%s%s (order:%d, depth:%d, type:%s)\n",
-				i+1, indent, route.Name, folderIcon, route.NavOrder, route.Depth, route.Type)
-		}
 	}
 
 	return result
