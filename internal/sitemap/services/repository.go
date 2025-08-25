@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"go-falcon/internal/sitemap/dto"
 	"go-falcon/internal/sitemap/models"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -157,123 +156,6 @@ func (r *Repository) DeleteRouteAndChildren(ctx context.Context, routeID string)
 // CountRoutes counts routes matching a filter
 func (r *Repository) CountRoutes(ctx context.Context, filter bson.M) (int64, error) {
 	return r.collection.CountDocuments(ctx, filter)
-}
-
-// GetRouteStatistics returns route statistics
-func (r *Repository) GetRouteStatistics(ctx context.Context) (*dto.RouteStatsResponse, error) {
-	stats := &dto.RouteStatsResponse{
-		RoutesByType:     make(map[string]int64),
-		RoutesByGroup:    make(map[string]int64),
-		RoutesByPosition: make(map[string]int64),
-		LastUpdated:      time.Now(),
-	}
-
-	// Total routes
-	total, err := r.collection.CountDocuments(ctx, bson.M{})
-	if err != nil {
-		return nil, err
-	}
-	stats.TotalRoutes = total
-
-	// Enabled routes
-	enabled, err := r.collection.CountDocuments(ctx, bson.M{"is_enabled": true})
-	if err != nil {
-		return nil, err
-	}
-	stats.EnabledRoutes = enabled
-	stats.DisabledRoutes = total - enabled
-
-	// Public routes
-	public, err := r.collection.CountDocuments(ctx, bson.M{"type": models.RouteTypePublic})
-	if err != nil {
-		return nil, err
-	}
-	stats.PublicRoutes = public
-
-	// Protected routes
-	protected, err := r.collection.CountDocuments(ctx, bson.M{"type": models.RouteTypeProtected})
-	if err != nil {
-		return nil, err
-	}
-	stats.ProtectedRoutes = protected
-
-	// Routes by type aggregation
-	pipeline := []bson.M{
-		{"$group": bson.M{
-			"_id":   "$type",
-			"count": bson.M{"$sum": 1},
-		}},
-	}
-	cursor, err := r.collection.Aggregate(ctx, pipeline)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var results []struct {
-		Type  string `bson:"_id"`
-		Count int64  `bson:"count"`
-	}
-	if err = cursor.All(ctx, &results); err != nil {
-		return nil, err
-	}
-
-	for _, result := range results {
-		stats.RoutesByType[result.Type] = result.Count
-	}
-
-	// Routes by group
-	pipeline = []bson.M{
-		{"$match": bson.M{"group": bson.M{"$ne": nil}}},
-		{"$group": bson.M{
-			"_id":   "$group",
-			"count": bson.M{"$sum": 1},
-		}},
-	}
-	cursor, err = r.collection.Aggregate(ctx, pipeline)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var groupResults []struct {
-		Group string `bson:"_id"`
-		Count int64  `bson:"count"`
-	}
-	if err = cursor.All(ctx, &groupResults); err != nil {
-		return nil, err
-	}
-
-	for _, result := range groupResults {
-		stats.RoutesByGroup[result.Group] = result.Count
-	}
-
-	// Routes by navigation position
-	pipeline = []bson.M{
-		{"$group": bson.M{
-			"_id":   "$nav_position",
-			"count": bson.M{"$sum": 1},
-		}},
-	}
-	cursor, err = r.collection.Aggregate(ctx, pipeline)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var posResults []struct {
-		Position string `bson:"_id"`
-		Count    int64  `bson:"count"`
-	}
-	if err = cursor.All(ctx, &posResults); err != nil {
-		return nil, err
-	}
-
-	for _, result := range posResults {
-		stats.RoutesByPosition[result.Position] = result.Count
-	}
-
-	return stats, nil
 }
 
 // CreateIndexes creates database indexes for optimal performance

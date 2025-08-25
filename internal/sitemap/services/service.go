@@ -37,148 +37,32 @@ func NewService(db *mongo.Database, permissionManager *permissions.PermissionMan
 	}
 }
 
-// GetUserSitemap returns routes and navigation filtered by user permissions
-func (s *Service) GetUserSitemap(ctx context.Context, userID string, characterID int64, includeDisabled, includeHidden bool) (*models.SitemapResponse, error) {
-	// Get user permissions
-	userPermissions, err := s.getUserPermissions(ctx, characterID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user permissions: %w", err)
-	}
-
-	// Get user groups - TODO: Fix interface integration
-	var userGroups []string
-	if s.groupService != nil {
-		// For now, return empty groups - can be enhanced when interface is properly integrated
-		userGroups = []string{}
-	}
-
-	// Check if user is super admin
-	isSuperAdmin := false
-	for _, group := range userGroups {
-		if group == "Super Administrator" || group == "super_admin" {
-			isSuperAdmin = true
-			break
-		}
-	}
-
-	// Fetch all enabled routes (or all routes for admin)
+// GetAllEnabledRoutes returns all enabled routes regardless of type (for testing/debugging)
+func (s *Service) GetAllEnabledRoutes(ctx context.Context, includeDisabled, includeHidden bool) (*models.SitemapResponse, error) {
+	// Build filter based on parameters
 	filter := bson.M{}
-	if !includeDisabled && !isSuperAdmin {
+	if !includeDisabled {
 		filter["is_enabled"] = true
 	}
 
 	routes, err := s.repository.GetRoutes(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get routes: %w", err)
-	}
-
-	// Filter routes based on permissions
-	accessibleRoutes := s.filterRoutesByPermissions(routes, userPermissions, userGroups, isSuperAdmin)
-
-	// Build route configs for frontend
-	routeConfigs := s.buildRouteConfigs(accessibleRoutes)
-
-	// Build navigation structure
-	navigation := s.buildNavigation(accessibleRoutes, includeHidden)
-
-	// Get feature flags (could be based on user settings, environment, etc.)
-	features := s.getUserFeatures(ctx, characterID)
-
-	return &models.SitemapResponse{
-		Routes:          routeConfigs,
-		Navigation:      navigation,
-		UserPermissions: userPermissions,
-		UserGroups:      userGroups,
-		Features:        features,
-	}, nil
-}
-
-// GetPublicSitemap returns only public routes for unauthenticated users
-func (s *Service) GetPublicSitemap(ctx context.Context) (*dto.PublicSitemapResponse, error) {
-	// Fetch only public enabled routes
-	filter := bson.M{
-		"type":       models.RouteTypePublic,
-		"is_enabled": true,
-	}
-
-	routes, err := s.repository.GetRoutes(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get public routes: %w", err)
+		return nil, fmt.Errorf("failed to get all routes: %w", err)
 	}
 
 	// Build route configs
 	routeConfigs := s.buildRouteConfigs(routes)
 
-	// Build navigation (only public items)
-	navigation := s.buildNavigation(routes, false)
+	// Build navigation
+	navigation := s.buildNavigation(routes, includeHidden)
 
-	return &dto.PublicSitemapResponse{
-		Routes:     routeConfigs,
-		Navigation: navigation,
+	return &models.SitemapResponse{
+		Routes:          routeConfigs,
+		Navigation:      navigation,
+		UserPermissions: []string{}, // Empty for now
+		UserGroups:      []string{}, // Empty for now
+		Features:        make(map[string]bool),
 	}, nil
-}
-
-// filterRoutesByPermissions filters routes based on user permissions and groups
-func (s *Service) filterRoutesByPermissions(routes []models.Route, permissions []string, groups []string, isSuperAdmin bool) []models.Route {
-	// Super admin gets all routes
-	if isSuperAdmin {
-		return routes
-	}
-
-	var accessible []models.Route
-	permMap := make(map[string]bool)
-	for _, p := range permissions {
-		permMap[p] = true
-	}
-
-	groupMap := make(map[string]bool)
-	for _, g := range groups {
-		groupMap[g] = true
-	}
-
-	for _, route := range routes {
-		// Check route type
-		switch route.Type {
-		case models.RouteTypePublic:
-			accessible = append(accessible, route)
-
-		case models.RouteTypeAuth:
-			// Just needs authentication (user is authenticated if we're here)
-			accessible = append(accessible, route)
-
-		case models.RouteTypeProtected:
-			// Check required permissions (AND logic)
-			hasAllPerms := true
-			for _, reqPerm := range route.RequiredPermissions {
-				if !permMap[reqPerm] {
-					hasAllPerms = false
-					break
-				}
-			}
-
-			// Check required groups (OR logic)
-			hasAnyGroup := false
-			if len(route.RequiredGroups) > 0 {
-				for _, reqGroup := range route.RequiredGroups {
-					if groupMap[reqGroup] {
-						hasAnyGroup = true
-						break
-					}
-				}
-			}
-
-			// Access granted if has all permissions OR any required group
-			if hasAllPerms || (len(route.RequiredGroups) > 0 && hasAnyGroup) {
-				accessible = append(accessible, route)
-			}
-
-		case models.RouteTypeAdmin:
-			// Already handled by super admin check above
-			continue
-		}
-	}
-
-	return accessible
 }
 
 // buildRouteConfigs converts routes to frontend-consumable format
@@ -283,8 +167,9 @@ func (s *Service) sortRoutesByOrder(routes []models.Route) []models.Route {
 
 // groupNavigationItems groups navigation items by their group field
 func (s *Service) groupNavigationItems(routes []models.Route) []models.NavigationGroup {
-	// Map to store grouped items
+	// Map to store grouped items and track minimum nav_order for each group
 	groupMap := make(map[string][]models.NavItem)
+	groupOrder := make(map[string]int) // Track minimum nav_order for each group
 	var ungrouped []models.NavItem
 
 	for _, route := range routes {
@@ -308,21 +193,48 @@ func (s *Service) groupNavigationItems(routes []models.Route) []models.Navigatio
 
 		// Group items
 		if route.Group != nil && *route.Group != "" {
-			groupMap[*route.Group] = append(groupMap[*route.Group], navItem)
+			groupName := *route.Group
+			groupMap[groupName] = append(groupMap[groupName], navItem)
+
+			// Track the minimum nav_order for this group
+			if existingOrder, exists := groupOrder[groupName]; !exists || route.NavOrder < existingOrder {
+				groupOrder[groupName] = route.NavOrder
+			}
 		} else {
 			ungrouped = append(ungrouped, navItem)
 		}
 	}
 
-	// Build navigation groups
+	// Build navigation groups sorted by group order
 	var navGroups []models.NavigationGroup
 
-	// Add grouped items
-	for groupName, items := range groupMap {
-		navGroups = append(navGroups, models.NavigationGroup{
-			Label: groupName,
-			Items: items,
-		})
+	// Create a sorted list of group names by their nav_order
+	type GroupInfo struct {
+		Name  string
+		Order int
+	}
+	var sortedGroups []GroupInfo
+	for groupName, order := range groupOrder {
+		sortedGroups = append(sortedGroups, GroupInfo{Name: groupName, Order: order})
+	}
+
+	// Sort groups by their minimum nav_order
+	for i := 0; i < len(sortedGroups); i++ {
+		for j := i + 1; j < len(sortedGroups); j++ {
+			if sortedGroups[i].Order > sortedGroups[j].Order {
+				sortedGroups[i], sortedGroups[j] = sortedGroups[j], sortedGroups[i]
+			}
+		}
+	}
+
+	// Add grouped items in correct order
+	for _, group := range sortedGroups {
+		if items, exists := groupMap[group.Name]; exists {
+			navGroups = append(navGroups, models.NavigationGroup{
+				Label: group.Name,
+				Items: items,
+			})
+		}
 	}
 
 	// Add ungrouped items
@@ -398,8 +310,8 @@ func (s *Service) CreateRoute(ctx context.Context, input *dto.CreateRouteInput) 
 
 // UpdateRoute updates an existing route
 func (s *Service) UpdateRoute(ctx context.Context, routeID string, input *dto.UpdateRouteInput) (*models.Route, error) {
-	// Get existing route
-	route, err := s.repository.GetRouteByRouteID(ctx, routeID)
+	// Get existing route (handles both ObjectID and route_id)
+	route, err := s.GetRouteByID(ctx, routeID)
 	if err != nil {
 		return nil, fmt.Errorf("route not found: %w", err)
 	}
@@ -488,8 +400,8 @@ func (s *Service) UpdateRoute(ctx context.Context, routeID string, input *dto.Up
 
 // DeleteRoute deletes a route and its children
 func (s *Service) DeleteRoute(ctx context.Context, routeID string) (int, error) {
-	// Get route to check if it exists
-	route, err := s.repository.GetRouteByRouteID(ctx, routeID)
+	// Get route to check if it exists (handles both ObjectID and route_id)
+	route, err := s.GetRouteByID(ctx, routeID)
 	if err != nil {
 		return 0, fmt.Errorf("route not found: %w", err)
 	}
@@ -579,79 +491,6 @@ func (s *Service) BulkUpdateOrder(ctx context.Context, updates []dto.OrderUpdate
 	return updated, failed, errors
 }
 
-// GetRouteStats returns statistics about routes
-func (s *Service) GetRouteStats(ctx context.Context) (*dto.RouteStatsResponse, error) {
-	stats, err := s.repository.GetRouteStatistics(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get route statistics: %w", err)
-	}
-	return stats, nil
-}
-
-// CheckRouteAccess checks if a user can access a specific route
-func (s *Service) CheckRouteAccess(ctx context.Context, routeID string, characterID int64) (*dto.RouteAccessResponse, error) {
-	// Get route
-	route, err := s.repository.GetRouteByRouteID(ctx, routeID)
-	if err != nil {
-		return &dto.RouteAccessResponse{
-			RouteID:    routeID,
-			Accessible: false,
-			Reason:     "Route not found",
-		}, nil
-	}
-
-	// Get user permissions
-	userPermissions, err := s.getUserPermissions(ctx, characterID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user permissions: %w", err)
-	}
-
-	// Check access
-	response := &dto.RouteAccessResponse{
-		RouteID:    route.RouteID,
-		Path:       route.Path,
-		Accessible: true,
-	}
-
-	// Check based on route type
-	switch route.Type {
-	case models.RouteTypePublic:
-		// Always accessible
-		return response, nil
-
-	case models.RouteTypeAuth:
-		// Just needs authentication (already authenticated if here)
-		return response, nil
-
-	case models.RouteTypeProtected:
-		// Check permissions
-		permMap := make(map[string]bool)
-		for _, p := range userPermissions {
-			permMap[p] = true
-		}
-
-		var missing []string
-		for _, reqPerm := range route.RequiredPermissions {
-			if !permMap[reqPerm] {
-				missing = append(missing, reqPerm)
-			}
-		}
-
-		if len(missing) > 0 {
-			response.Accessible = false
-			response.Reason = "Missing required permissions"
-			response.Missing = missing
-		}
-
-	case models.RouteTypeAdmin:
-		// Check for super admin
-		response.Accessible = false
-		response.Reason = "Admin access required"
-	}
-
-	return response, nil
-}
-
 // GetStatus returns the module health status
 func (s *Service) GetStatus(ctx context.Context) *dto.StatusResponse {
 	// Check database connection
@@ -679,27 +518,4 @@ func (s *Service) GetStatus(ctx context.Context) *dto.StatusResponse {
 		Status:  "healthy",
 		Message: fmt.Sprintf("Managing %d routes", count),
 	}
-}
-
-// getUserPermissions gets all permissions for a character by checking against available permissions
-func (s *Service) getUserPermissions(ctx context.Context, characterID int64) ([]string, error) {
-	// Get all available permissions
-	allPermissions := s.permissionManager.GetAllPermissions()
-
-	var userPermissions []string
-
-	// Check each permission to see if user has it
-	for permissionID := range allPermissions {
-		hasPermission, err := s.permissionManager.HasPermission(ctx, characterID, permissionID)
-		if err != nil {
-			// Log error but continue with other permissions
-			continue
-		}
-
-		if hasPermission {
-			userPermissions = append(userPermissions, permissionID)
-		}
-	}
-
-	return userPermissions, nil
 }

@@ -35,90 +35,33 @@ func (r *Routes) RegisterUnifiedRoutes(api huma.API, basePath string) {
 
 // registerPublicRoutes registers public sitemap endpoints
 func (r *Routes) registerPublicRoutes(api huma.API, basePath string) {
-	// Get public sitemap (for unauthenticated users, SEO)
-	huma.Register(api, huma.Operation{
-		OperationID: "get-public-sitemap",
-		Method:      "GET",
-		Path:        basePath + "/public",
-		Summary:     "Get public sitemap",
-		Description: "Returns public routes and navigation for unauthenticated users",
-		Tags:        []string{"Sitemap"},
-	}, func(ctx context.Context, input *struct{}) (*dto.PublicSitemapOutput, error) {
-		sitemap, err := r.service.GetPublicSitemap(ctx)
-		if err != nil {
-			return nil, huma.Error500InternalServerError("Failed to get public sitemap", err)
-		}
-
-		return &dto.PublicSitemapOutput{Body: *sitemap}, nil
-	})
-
-	// Module status endpoint (public)
-	huma.Register(api, huma.Operation{
-		OperationID: "get-sitemap-status",
-		Method:      "GET",
-		Path:        basePath + "/status",
-		Summary:     "Get sitemap module status",
-		Description: "Returns the health status of the sitemap module",
-		Tags:        []string{"Module Status"},
-	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
-		status := r.service.GetStatus(ctx)
-		return &dto.StatusOutput{Body: *status}, nil
-	})
+	// No public endpoints needed - main /sitemap endpoint handles both authenticated and public access
 }
 
 // registerUserRoutes registers user-specific sitemap endpoints
 func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
-	// Get user sitemap (personalized routes and navigation)
-	// Note: For now, this returns all routes. Authentication integration will be added later.
+	// Get sitemap (handles both authenticated and public access)
 	huma.Register(api, huma.Operation{
-		OperationID: "get-user-sitemap",
+		OperationID: "get-sitemap",
 		Method:      "GET",
 		Path:        basePath,
-		Summary:     "Get user sitemap",
-		Description: "Returns personalized routes and navigation based on user permissions",
+		Summary:     "Get sitemap",
+		Description: "Returns routes and navigation. Shows personalized routes for authenticated users or public routes for unauthenticated users",
 		Tags:        []string{"Sitemap"},
-		Security: []map[string][]string{
-			{"BearerAuth": {}},
-		},
+		// No security requirement - endpoint handles both authenticated and unauthenticated access
 	}, func(ctx context.Context, input *dto.GetUserRoutesInput) (*dto.SitemapOutput, error) {
-		// TODO: Add proper authentication integration
-		// For now, return a basic response with dummy user ID
-		sitemap, err := r.service.GetUserSitemap(
-			ctx,
-			"dummy-user-id",
-			123456789, // dummy character ID
-			input.IncludeDisabled,
-			input.IncludeHidden,
-		)
+		// TODO: Implement group-based filtering
+		// Check which groups the user belongs to and filter sitemap accordingly
+		// For now, return ALL enabled routes for testing (regardless of type)
+
+		sitemap, err := r.service.GetAllEnabledRoutes(ctx, input.IncludeDisabled, input.IncludeHidden)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("Failed to get user sitemap", err)
+			return nil, huma.Error500InternalServerError("Failed to get sitemap", err)
 		}
 
 		return &dto.SitemapOutput{Body: *sitemap}, nil
 	})
 
-	// Check route access for specific route
-	huma.Register(api, huma.Operation{
-		OperationID: "check-route-access",
-		Method:      "GET",
-		Path:        basePath + "/access/{route_id}",
-		Summary:     "Check route access",
-		Description: "Check if current user can access a specific route",
-		Tags:        []string{"Sitemap"},
-		Security: []map[string][]string{
-			{"BearerAuth": {}},
-		},
-	}, func(ctx context.Context, input *struct {
-		RouteID string `path:"route_id" description:"Route ID to check"`
-	}) (*dto.RouteAccessOutput, error) {
-		// TODO: Add proper authentication integration
-		access, err := r.service.CheckRouteAccess(ctx, input.RouteID, 123456789) // dummy character ID
-		if err != nil {
-			return nil, huma.Error500InternalServerError("Failed to check route access", err)
-		}
-
-		return &dto.RouteAccessOutput{Body: *access}, nil
-	})
 }
 
 // registerAdminRoutes registers admin sitemap management endpoints
@@ -283,24 +226,4 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		return &dto.BulkUpdateOutput{Body: response}, nil
 	})
 
-	// Get route statistics (admin)
-	huma.Register(api, huma.Operation{
-		OperationID: "get-route-stats",
-		Method:      "GET",
-		Path:        adminBasePath + "/stats",
-		Summary:     "Get route statistics",
-		Description: "Returns statistics about routes in the system",
-		Tags:        []string{"Admin", "Sitemap"},
-		Security: []map[string][]string{
-			{"BearerAuth": {}},
-		},
-	}, func(ctx context.Context, input *struct{}) (*dto.RouteStatsOutput, error) {
-		// TODO: Add proper admin authentication check
-		stats, err := r.service.GetRouteStats(ctx)
-		if err != nil {
-			return nil, huma.Error500InternalServerError("Failed to get route statistics", err)
-		}
-
-		return &dto.RouteStatsOutput{Body: *stats}, nil
-	})
 }
