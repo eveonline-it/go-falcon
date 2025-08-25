@@ -54,9 +54,14 @@ func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
 		// Check which groups the user belongs to and filter sitemap accordingly
 		// For now, return ALL enabled routes for testing (regardless of type)
 
-		sitemap, err := r.service.GetAllEnabledRoutes(ctx, input.IncludeDisabled, input.IncludeHidden)
+		// Get routes with folder support
+		sitemap, err := r.service.GetUserRoutesWithFolders(ctx, input)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("Failed to get sitemap", err)
+			// Fallback to old method if new method not available yet
+			sitemap, err = r.service.GetAllEnabledRoutes(ctx, input.IncludeDisabled, input.IncludeHidden)
+			if err != nil {
+				return nil, huma.Error500InternalServerError("Failed to get sitemap", err)
+			}
 		}
 
 		return &dto.SitemapOutput{Body: *sitemap}, nil
@@ -226,4 +231,164 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		return &dto.BulkUpdateOutput{Body: response}, nil
 	})
 
+	// Status endpoint (public, no auth required)
+	huma.Register(api, huma.Operation{
+		OperationID: "get-sitemap-status",
+		Method:      "GET",
+		Path:        basePath + "/status",
+		Summary:     "Get sitemap module status",
+		Description: "Returns the health status of the sitemap module",
+		Tags:        []string{"Module Status"},
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
+		status := r.service.GetStatus(ctx)
+		return &dto.StatusOutput{Body: *status}, nil
+	})
+
+	// Folder management endpoints
+	r.registerFolderRoutes(api, adminBasePath)
+}
+
+// registerFolderRoutes registers folder-specific endpoints
+func (r *Routes) registerFolderRoutes(api huma.API, basePath string) {
+	// Create folder
+	huma.Register(api, huma.Operation{
+		OperationID: "create-folder",
+		Method:      "POST",
+		Path:        basePath + "/folders",
+		Summary:     "Create new folder",
+		Description: "Creates a new folder container for organizing routes",
+		Tags:        []string{"Admin", "Folders"},
+		Security: []map[string][]string{
+			{"BearerAuth": {}},
+		},
+	}, func(ctx context.Context, input *dto.CreateFolderInput) (*dto.CreateFolderOutput, error) {
+		// TODO: Add proper admin authentication check
+		folder, err := r.service.CreateFolder(ctx, input)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to create folder", err)
+		}
+
+		response := dto.CreateFolderResponse{
+			Folder:  *folder,
+			Message: "Folder created successfully",
+		}
+
+		return &dto.CreateFolderOutput{Body: response}, nil
+	})
+
+	// Update folder
+	huma.Register(api, huma.Operation{
+		OperationID: "update-folder",
+		Method:      "PUT",
+		Path:        basePath + "/folders/{folder_id}",
+		Summary:     "Update folder",
+		Description: "Updates an existing folder configuration",
+		Tags:        []string{"Admin", "Folders"},
+		Security: []map[string][]string{
+			{"BearerAuth": {}},
+		},
+	}, func(ctx context.Context, input *struct {
+		FolderID string                `path:"folder_id" description:"Folder ID"`
+		Body     dto.UpdateFolderInput `json:"body"`
+	}) (*dto.UpdateFolderOutput, error) {
+		// TODO: Add proper admin authentication check
+		folder, err := r.service.UpdateFolder(ctx, input.FolderID, &input.Body)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to update folder", err)
+		}
+
+		response := dto.UpdateFolderResponse{
+			Folder:  *folder,
+			Message: "Folder updated successfully",
+		}
+
+		return &dto.UpdateFolderOutput{Body: response}, nil
+	})
+
+	// Move item to folder
+	huma.Register(api, huma.Operation{
+		OperationID: "move-to-folder",
+		Method:      "POST",
+		Path:        basePath + "/move/{item_id}",
+		Summary:     "Move item to folder",
+		Description: "Moves a route or folder to a different parent folder",
+		Tags:        []string{"Admin", "Folders"},
+		Security: []map[string][]string{
+			{"BearerAuth": {}},
+		},
+	}, func(ctx context.Context, input *struct {
+		ItemID string              `path:"item_id" description:"Route or folder ID to move"`
+		Body   dto.MoveFolderInput `json:"body"`
+	}) (*dto.MoveFolderOutput, error) {
+		// TODO: Add proper admin authentication check
+		result, err := r.service.MoveToFolder(ctx, input.ItemID, &input.Body)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to move item", err)
+		}
+
+		return &dto.MoveFolderOutput{Body: *result}, nil
+	})
+
+	// Get folder children
+	huma.Register(api, huma.Operation{
+		OperationID: "get-folder-children",
+		Method:      "GET",
+		Path:        basePath + "/folders/{folder_id}/children",
+		Summary:     "Get folder children",
+		Description: "Returns the children of a specific folder",
+		Tags:        []string{"Admin", "Folders"},
+		Security: []map[string][]string{
+			{"BearerAuth": {}},
+		},
+	}, func(ctx context.Context, input *dto.FolderChildrenInput) (*dto.FolderChildrenOutput, error) {
+		// TODO: Add proper admin authentication check
+		children, err := r.service.GetFolderChildren(ctx, input)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to get folder children", err)
+		}
+
+		return &dto.FolderChildrenOutput{Body: *children}, nil
+	})
+
+	// Bulk move items
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-move-items",
+		Method:      "POST",
+		Path:        basePath + "/bulk-move",
+		Summary:     "Bulk move items",
+		Description: "Moves multiple routes/folders to a target folder",
+		Tags:        []string{"Admin", "Folders"},
+		Security: []map[string][]string{
+			{"BearerAuth": {}},
+		},
+	}, func(ctx context.Context, input *dto.BulkMoveInput) (*dto.BulkMoveOutput, error) {
+		// TODO: Add proper admin authentication check
+		result, err := r.service.BulkMove(ctx, input)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to bulk move items", err)
+		}
+
+		return &dto.BulkMoveOutput{Body: *result}, nil
+	})
+
+	// Get folder statistics
+	huma.Register(api, huma.Operation{
+		OperationID: "get-folder-stats",
+		Method:      "GET",
+		Path:        basePath + "/folders/stats",
+		Summary:     "Get folder statistics",
+		Description: "Returns folder usage statistics and metrics",
+		Tags:        []string{"Admin", "Folders"},
+		Security: []map[string][]string{
+			{"BearerAuth": {}},
+		},
+	}, func(ctx context.Context, input *struct{}) (*dto.FolderStatsOutput, error) {
+		// TODO: Add proper admin authentication check
+		stats, err := r.service.GetFolderStats(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get folder stats", err)
+		}
+
+		return &dto.FolderStatsOutput{Body: *stats}, nil
+	})
 }

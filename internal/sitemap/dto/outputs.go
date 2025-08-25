@@ -83,3 +83,81 @@ type DeleteRouteResponse struct {
 	Message string `json:"message" description:"Success message"`
 	Deleted int    `json:"deleted" description:"Number of routes deleted (including children)"`
 }
+
+// FolderOutput represents the output for a single folder
+type FolderOutput struct {
+	Body models.Route `json:"body" description:"Folder details"`
+}
+
+// CreateFolderOutput represents the response for folder creation
+type CreateFolderOutput struct {
+	Body CreateFolderResponse `json:"body" description:"Created folder details"`
+}
+
+// CreateFolderResponse contains the created folder
+type CreateFolderResponse struct {
+	Folder  models.Route `json:"folder" description:"Created folder"`
+	Message string       `json:"message" description:"Success message"`
+}
+
+// UpdateFolderOutput represents the response for folder update
+type UpdateFolderOutput struct {
+	Body UpdateFolderResponse `json:"body" description:"Updated folder details"`
+}
+
+// UpdateFolderResponse contains the updated folder
+type UpdateFolderResponse struct {
+	Folder  models.Route `json:"folder" description:"Updated folder"`
+	Message string       `json:"message" description:"Success message"`
+}
+
+// FolderChildrenOutput represents the output for folder children
+type FolderChildrenOutput struct {
+	Body FolderChildrenResponse `json:"body" description:"Folder children"`
+}
+
+// FolderChildrenResponse contains folder children with metadata
+type FolderChildrenResponse struct {
+	FolderID      string         `json:"folder_id" description:"Parent folder ID"`
+	FolderName    string         `json:"folder_name" description:"Parent folder name"`
+	FolderPath    string         `json:"folder_path" description:"Full folder path"`
+	Children      []models.Route `json:"children" description:"Direct children"`
+	TotalChildren int            `json:"total_children" description:"Total number of children"`
+	Depth         int            `json:"depth" description:"Folder depth level"`
+	HasSubfolders bool           `json:"has_subfolders" description:"Contains subfolders"`
+}
+
+// FolderStatsOutput represents the output for folder statistics
+type FolderStatsOutput struct {
+	Body models.FolderStats `json:"body" description:"Folder statistics"`
+}
+
+// MoveFolderOutput represents the response for folder move operations
+type MoveFolderOutput struct {
+	Body MoveFolderResponse `json:"body" description:"Move operation result"`
+}
+
+// MoveFolderResponse contains move operation results
+type MoveFolderResponse struct {
+	Message   string `json:"message" description:"Success message"`
+	ItemMoved string `json:"item_moved" description:"Moved item ID"`
+	OldParent string `json:"old_parent,omitempty" description:"Previous parent ID"`
+	NewParent string `json:"new_parent,omitempty" description:"New parent ID"`
+	NewPath   string `json:"new_path" description:"New folder path"`
+}
+
+// BulkMoveOutput represents the response for bulk move operations
+type BulkMoveOutput struct {
+	Body BulkMoveResponse `json:"body" description:"Bulk move results"`
+}
+
+// BulkMoveResponse contains bulk move operation results
+type BulkMoveResponse struct {
+	TargetFolder string   `json:"target_folder,omitempty" description:"Target folder ID"`
+	ItemsMoved   []string `json:"items_moved" description:"Successfully moved item IDs"`
+	ItemsFailed  []string `json:"items_failed,omitempty" description:"Failed item IDs"`
+	TotalMoved   int      `json:"total_moved" description:"Number of items moved"`
+	TotalFailed  int      `json:"total_failed" description:"Number of items failed"`
+	Errors       []string `json:"errors,omitempty" description:"Error messages"`
+	Message      string   `json:"message" description:"Operation summary"`
+}

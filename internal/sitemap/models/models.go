@@ -14,6 +14,7 @@ const (
 	RouteTypeAuth      RouteType = "auth"      // Authentication required
 	RouteTypeProtected RouteType = "protected" // Specific permissions required
 	RouteTypeAdmin     RouteType = "admin"     // Admin-only routes
+	RouteTypeFolder    RouteType = "folder"    // Folder containers for organization
 )
 
 // NavigationPosition represents where the route appears in navigation
@@ -67,6 +68,13 @@ type Route struct {
 	BadgeType *string `bson:"badge_type,omitempty" json:"badge_type,omitempty"` // Badge type (success, warning, etc.)
 	BadgeText *string `bson:"badge_text,omitempty" json:"badge_text,omitempty"` // Badge text
 
+	// Folder-specific fields
+	IsFolder      bool   `bson:"is_folder" json:"is_folder"`                         // Is this a folder container
+	FolderPath    string `bson:"folder_path,omitempty" json:"folder_path,omitempty"` // Computed path like "/dashboard/analytics"
+	Depth         int    `bson:"depth" json:"depth"`                                 // Nesting depth (0 = root)
+	ChildrenCount int    `bson:"children_count" json:"children_count"`               // Number of direct children
+	IsExpanded    *bool  `bson:"is_expanded,omitempty" json:"is_expanded,omitempty"` // Default folder expanded state
+
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
@@ -90,6 +98,12 @@ type NavItem struct {
 	NewTab   bool        `json:"newtab,omitempty"`
 	Badge    *Badge      `json:"badge,omitempty"`
 	Children []NavItem   `json:"children,omitempty"`
+
+	// Folder-specific fields
+	IsFolder    bool `json:"isFolder,omitempty"`    // Is this item a folder
+	IsOpen      bool `json:"isOpen,omitempty"`      // Folder expanded state
+	Depth       int  `json:"depth,omitempty"`       // Nesting level (0 = root)
+	HasChildren bool `json:"hasChildren,omitempty"` // Has child items
 }
 
 // Badge represents a badge on a navigation item
@@ -135,6 +149,48 @@ type RouteMeta struct {
 const (
 	RoutesCollection = "routes"
 )
+
+// Folder operation constants
+const (
+	MaxFolderDepth        = 5   // Maximum nesting levels
+	MaxChildrenPerFolder  = 50  // Items per folder limit
+	MaxFolderNameLength   = 100 // Folder name validation
+	DefaultFolderIcon     = "folder"
+	DefaultOpenFolderIcon = "folder-open"
+	PathSeparator         = "/"
+)
+
+// FolderOperation represents folder management operations
+type FolderOperation struct {
+	Type     string                 `json:"type"`      // create, move, delete, rename
+	TargetID string                 `json:"target_id"` // Route or folder ID
+	ParentID *string                `json:"parent_id,omitempty"`
+	NewName  *string                `json:"new_name,omitempty"`
+	NavOrder *int                   `json:"nav_order,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// FolderStats represents folder statistics
+type FolderStats struct {
+	TotalFolders      int            `json:"total_folders"`
+	TotalRoutes       int            `json:"total_routes"`
+	MaxDepthUsed      int            `json:"max_depth_used"`
+	FoldersByDepth    map[int]int    `json:"folders_by_depth"`
+	LargestFolder     *FolderInfo    `json:"largest_folder,omitempty"`
+	EmptyFolders      []string       `json:"empty_folders,omitempty"`
+	DepthDistribution map[string]int `json:"depth_distribution"`
+}
+
+// FolderInfo represents folder information
+type FolderInfo struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Path         string `json:"path"`
+	Depth        int    `json:"depth"`
+	ChildCount   int    `json:"child_count"`
+	DirectRoutes int    `json:"direct_routes"`
+	TotalRoutes  int    `json:"total_routes"`
+}
 
 // Default route groups for organization
 var RouteGroups = []string{
