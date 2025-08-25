@@ -58,7 +58,7 @@ func (r *Repository) GetRouteByRouteID(ctx context.Context, routeID string) (*mo
 
 // GetRoutes gets routes with a filter
 func (r *Repository) GetRoutes(ctx context.Context, filter bson.M) ([]models.Route, error) {
-	cursor, err := r.collection.Find(ctx, filter, options.Find().SetSort(bson.M{"nav_order": 1}))
+	cursor, err := r.collection.Find(ctx, filter, options.Find().SetSort(bson.D{{"nav_order", 1}}))
 	if err != nil {
 		return nil, err
 	}

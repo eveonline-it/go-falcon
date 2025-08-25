@@ -535,7 +535,7 @@ func (s *Service) GetRoutes(ctx context.Context, input *dto.ListRoutesInput) ([]
 	opts := options.Find().
 		SetSkip(int64((input.Page - 1) * input.Limit)).
 		SetLimit(int64(input.Limit)).
-		SetSort(bson.M{"nav_order": 1, "created_at": -1})
+		SetSort(bson.D{{"nav_order", 1}, {"created_at", -1}})
 
 	routes, err := s.repository.GetRoutesWithOptions(ctx, filter, opts)
 	if err != nil {
