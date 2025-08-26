@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"go-falcon/internal/users/dto"
-	"go-falcon/internal/users/middleware"
 	"go-falcon/internal/users/services"
+	"go-falcon/pkg/middleware"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -40,7 +40,7 @@ func NewRoutes(service *services.Service, router chi.Router) *Routes {
 }
 
 // RegisterUsersRoutes registers users routes on a shared Huma API
-func RegisterUsersRoutes(api huma.API, basePath string, service *services.Service, authMiddleware *middleware.AuthMiddleware) {
+func RegisterUsersRoutes(api huma.API, basePath string, service *services.Service, usersAdapter *middleware.UsersAdapter) {
 	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
 		OperationID: "users-get-status",
@@ -65,7 +65,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserStatsInput) (*dto.UserStatsOutput, error) {
 		// Validate authentication and user management access
-		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		_, err := usersAdapter.RequireUserManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +87,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserListInput) (*dto.UserListOutput, error) {
 		// Validate authentication and user management access
-		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		_, err := usersAdapter.RequireUserManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +109,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserGetInput) (*dto.UserGetOutput, error) {
 		// Validate authentication and user management access
-		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		_, err := usersAdapter.RequireUserManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +136,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserUpdateInput) (*dto.UserUpdateOutput, error) {
 		// Validate authentication and user management access
-		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		_, err := usersAdapter.RequireUserManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +164,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserCharactersInput) (*dto.EnrichedUserCharactersOutput, error) {
 		// Validate authentication and user access (self or admin)
-		_, err := authMiddleware.RequireUserAccess(ctx, input.Authorization, input.Cookie, input.UserID)
+		_, err := usersAdapter.RequireUserAccess(ctx, input.Authorization, input.Cookie, input.UserID)
 		if err != nil {
 			return nil, err
 		}
@@ -195,7 +195,7 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.UserDeleteInput) (*dto.UserDeleteOutput, error) {
 		// Validate authentication and user management access
-		_, err := authMiddleware.RequireUserManagement(ctx, input.Authorization, input.Cookie)
+		_, err := usersAdapter.RequireUserManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}

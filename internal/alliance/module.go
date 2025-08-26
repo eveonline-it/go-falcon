@@ -3,12 +3,12 @@ package alliance
 import (
 	"log/slog"
 
-	"go-falcon/internal/alliance/middleware"
 	"go-falcon/internal/alliance/routes"
 	"go-falcon/internal/alliance/services"
 	authServices "go-falcon/internal/auth/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 
@@ -19,9 +19,9 @@ import (
 // Module represents the alliance module
 type Module struct {
 	*module.BaseModule
-	service    *services.Service
-	routes     *routes.Module
-	middleware *middleware.AuthMiddleware
+	service         *services.Service
+	routes          *routes.Module
+	allianceAdapter *middleware.AllianceAdapter
 }
 
 // NewModule creates a new alliance module instance
@@ -30,21 +30,28 @@ func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *eveg
 	repository := services.NewRepository(mongodb)
 	service := services.NewService(repository, eveClient)
 
-	// Initialize middleware
-	authMiddleware := middleware.NewAuthMiddleware(authService, permissionManager)
+	// Initialize centralized permission middleware with debug logging for migration
+	permissionMiddleware := middleware.NewPermissionMiddleware(
+		authService,
+		permissionManager,
+		middleware.WithDebugLogging(),
+	)
+
+	// Create alliance-specific adapter
+	allianceAdapter := middleware.NewAllianceAdapter(permissionMiddleware)
 
 	// Initialize routes
-	routesModule := routes.NewModule(service, authMiddleware)
+	routesModule := routes.NewModule(service, allianceAdapter)
 
 	// Create the module
 	m := &Module{
-		BaseModule: module.NewBaseModule("alliance", mongodb, redis),
-		service:    service,
-		routes:     routesModule,
-		middleware: authMiddleware,
+		BaseModule:      module.NewBaseModule("alliance", mongodb, redis),
+		service:         service,
+		routes:          routesModule,
+		allianceAdapter: allianceAdapter,
 	}
 
-	slog.Info("Alliance module initialized", "name", m.Name())
+	slog.Info("Alliance module initialized with centralized middleware", "name", m.Name())
 
 	return m
 }

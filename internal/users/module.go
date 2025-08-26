@@ -7,11 +7,11 @@ import (
 
 	"go-falcon/internal/auth"
 	"go-falcon/internal/groups/services"
-	usersMiddleware "go-falcon/internal/users/middleware"
 	"go-falcon/internal/users/routes"
 	usersServices "go-falcon/internal/users/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 
@@ -26,6 +26,7 @@ type Module struct {
 	routes       *routes.Routes
 	authModule   *auth.Module
 	groupService *services.Service
+	usersAdapter *middleware.UsersAdapter
 }
 
 // New creates a new users module instance
@@ -62,9 +63,8 @@ func (m *Module) RegisterHumaRoutes(r chi.Router) {
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	// Create auth middleware if auth module is available
-	var authMiddleware *usersMiddleware.AuthMiddleware
-	if m.authModule != nil {
+	// Create centralized middleware if auth module is available
+	if m.authModule != nil && m.usersAdapter == nil {
 		authService := m.authModule.GetAuthService()
 		if authService != nil {
 			// Get permission manager from groups service if available
@@ -73,11 +73,19 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 				permissionManager = m.groupService.GetPermissionManager()
 			}
 
-			authMiddleware = usersMiddleware.NewAuthMiddleware(authService, permissionManager)
+			// Initialize centralized permission middleware with debug logging for migration
+			permissionMiddleware := middleware.NewPermissionMiddleware(
+				authService,
+				permissionManager,
+				middleware.WithDebugLogging(),
+			)
+
+			// Create users-specific adapter
+			m.usersAdapter = middleware.NewUsersAdapter(permissionMiddleware)
 		}
 	}
 
-	routes.RegisterUsersRoutes(api, basePath, m.service, authMiddleware)
+	routes.RegisterUsersRoutes(api, basePath, m.service, m.usersAdapter)
 	log.Printf("Users module unified routes registered at %s", basePath)
 }
 

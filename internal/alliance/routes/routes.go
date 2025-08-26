@@ -5,23 +5,23 @@ import (
 	"fmt"
 
 	"go-falcon/internal/alliance/dto"
-	"go-falcon/internal/alliance/middleware"
 	"go-falcon/internal/alliance/services"
+	"go-falcon/pkg/middleware"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 // Module represents the alliance routes module
 type Module struct {
-	service    *services.Service
-	middleware *middleware.AuthMiddleware
+	service         *services.Service
+	allianceAdapter *middleware.AllianceAdapter
 }
 
 // NewModule creates a new alliance routes module
-func NewModule(service *services.Service, authMiddleware *middleware.AuthMiddleware) *Module {
+func NewModule(service *services.Service, allianceAdapter *middleware.AllianceAdapter) *Module {
 	return &Module{
-		service:    service,
-		middleware: authMiddleware,
+		service:         service,
+		allianceAdapter: allianceAdapter,
 	}
 }
 
@@ -172,11 +172,11 @@ func (m *Module) searchAlliancesByName(ctx context.Context, input *dto.SearchAll
 
 // bulkImportAlliances handles the bulk alliance import request
 func (m *Module) bulkImportAlliances(ctx context.Context, input *dto.BulkImportAlliancesInput) (*dto.BulkImportAlliancesOutput, error) {
-	// Require admin authentication
-	if m.middleware == nil {
+	// Require admin authentication using centralized middleware
+	if m.allianceAdapter == nil {
 		return nil, huma.Error500InternalServerError("Authentication system not available")
 	}
-	_, err := m.middleware.RequireAdminAccess(ctx, input.Authorization, input.Cookie)
+	_, err := m.allianceAdapter.RequireAllianceAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}

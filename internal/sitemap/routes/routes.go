@@ -3,26 +3,24 @@ package routes
 import (
 	"context"
 
-	authServices "go-falcon/internal/auth/services"
 	"go-falcon/internal/sitemap/dto"
-	"go-falcon/internal/sitemap/middleware"
 	"go-falcon/internal/sitemap/services"
-	"go-falcon/pkg/permissions"
+	"go-falcon/pkg/middleware"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 // Routes handles sitemap route definitions
 type Routes struct {
-	service    *services.Service
-	middleware *middleware.AuthMiddleware
+	service        *services.Service
+	sitemapAdapter *middleware.SitemapAdapter
 }
 
 // NewRoutes creates a new routes instance
-func NewRoutes(service *services.Service, authService *authServices.AuthService, permissionManager *permissions.PermissionManager) *Routes {
+func NewRoutes(service *services.Service, sitemapAdapter *middleware.SitemapAdapter) *Routes {
 	return &Routes{
-		service:    service,
-		middleware: middleware.NewAuthMiddleware(authService, permissionManager),
+		service:        service,
+		sitemapAdapter: sitemapAdapter,
 	}
 }
 
@@ -62,7 +60,7 @@ func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
 		// Try to authenticate user (optional) - for future personalization
 		if input.Authorization != "" || input.Cookie != "" {
 			// Only attempt authentication if auth headers are provided
-			_, err := r.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+			_, err := r.sitemapAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 			if err == nil {
 				// User is authenticated - in future this can be used for personalization
 				// For now, just continue with normal processing
@@ -106,7 +104,7 @@ func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
 			RouteID       string `path:"route_id" description:"Route ID to check access for"`
 		}) (*dto.RouteAccessOutput, error) {
 			// Require authentication for this endpoint
-			_, err := r.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+			_, err := r.sitemapAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 			if err != nil {
 				return nil, err
 			}
@@ -141,7 +139,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		},
 	}, func(ctx context.Context, input *dto.ListRoutesInput) (*dto.RoutesOutput, error) {
 		// Check permission for viewing routes
-		_, err := r.middleware.RequireSitemapView(ctx, input.Authorization, input.Cookie)
+		_, err := r.sitemapAdapter.RequireSitemapView(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -172,7 +170,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		},
 	}, func(ctx context.Context, input *dto.GetRouteInput) (*dto.RouteOutput, error) {
 		// Check permission for viewing routes
-		_, err := r.middleware.RequireSitemapView(ctx, input.Authorization, input.Cookie)
+		_, err := r.sitemapAdapter.RequireSitemapView(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +197,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		},
 	}, func(ctx context.Context, input *dto.CreateRouteInput) (*dto.CreateRouteOutput, error) {
 		// Check permission for managing routes
-		_, err := r.middleware.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
+		_, err := r.sitemapAdapter.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +229,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		},
 	}, func(ctx context.Context, input *dto.UpdateRouteInput) (*dto.UpdateRouteOutput, error) {
 		// Check permission for managing routes
-		_, err := r.middleware.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
+		_, err := r.sitemapAdapter.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -263,7 +261,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		},
 	}, func(ctx context.Context, input *dto.DeleteRouteInput) (*dto.DeleteRouteOutput, error) {
 		// Check permission for managing routes
-		_, err := r.middleware.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
+		_, err := r.sitemapAdapter.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -295,7 +293,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		},
 	}, func(ctx context.Context, input *dto.BulkUpdateOrderInput) (*dto.BulkUpdateOutput, error) {
 		// Check permission for customizing navigation
-		_, err := r.middleware.RequireSitemapNavigation(ctx, input.Authorization, input.Cookie)
+		_, err := r.sitemapAdapter.RequireSitemapNavigation(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -338,7 +336,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		},
 	}, func(ctx context.Context, input *dto.GetStatsInput) (*dto.FolderStatsOutput, error) {
 		// Check permission for viewing routes
-		_, err := r.middleware.RequireSitemapView(ctx, input.Authorization, input.Cookie)
+		_, err := r.sitemapAdapter.RequireSitemapView(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}

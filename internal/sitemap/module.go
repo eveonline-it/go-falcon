@@ -10,6 +10,7 @@ import (
 	"go-falcon/internal/sitemap/routes"
 	sitemapServices "go-falcon/internal/sitemap/services"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 
@@ -24,8 +25,9 @@ type GroupServiceInterface interface{}
 // Module represents the sitemap module
 type Module struct {
 	*module.BaseModule
-	service *sitemapServices.Service
-	routes  *routes.Routes
+	service        *sitemapServices.Service
+	routes         *routes.Routes
+	sitemapAdapter *middleware.SitemapAdapter
 }
 
 // NewModule creates a new sitemap module
@@ -33,8 +35,18 @@ func NewModule(mongodb *database.MongoDB, redis *database.Redis, authService *se
 	// Create service with dependencies
 	service := sitemapServices.NewService(mongodb.Database, permissionManager, groupService)
 
-	// Create routes with auth service and permission manager
-	moduleRoutes := routes.NewRoutes(service, authService, permissionManager)
+	// Initialize centralized permission middleware with debug logging for migration
+	permissionMiddleware := middleware.NewPermissionMiddleware(
+		authService,
+		permissionManager,
+		middleware.WithDebugLogging(),
+	)
+
+	// Create sitemap-specific adapter
+	sitemapAdapter := middleware.NewSitemapAdapter(permissionMiddleware)
+
+	// Create routes with sitemap adapter
+	moduleRoutes := routes.NewRoutes(service, sitemapAdapter)
 
 	// Create database indexes
 	repository := sitemapServices.NewRepository(mongodb.Database)
@@ -44,9 +56,10 @@ func NewModule(mongodb *database.MongoDB, redis *database.Redis, authService *se
 	}
 
 	return &Module{
-		BaseModule: module.NewBaseModule("sitemap", mongodb, redis),
-		service:    service,
-		routes:     moduleRoutes,
+		BaseModule:     module.NewBaseModule("sitemap", mongodb, redis),
+		service:        service,
+		routes:         moduleRoutes,
+		sitemapAdapter: sitemapAdapter,
 	}, nil
 }
 
