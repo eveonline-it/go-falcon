@@ -2,116 +2,127 @@ package middleware
 
 import (
 	"context"
-	"net/http"
+	"fmt"
+	"strings"
 
-	"go-falcon/pkg/handlers"
+	"go-falcon/internal/auth/models"
+	authServices "go-falcon/internal/auth/services"
+	"go-falcon/pkg/permissions"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
-// AuthMiddleware provides authentication middleware for sitemap routes
-type AuthMiddleware struct{}
-
-// NewAuthMiddleware creates a new auth middleware instance
-func NewAuthMiddleware() *AuthMiddleware {
-	return &AuthMiddleware{}
+// AuthMiddleware provides authentication and authorization for sitemap routes
+type AuthMiddleware struct {
+	authService       *authServices.AuthService
+	permissionManager *permissions.PermissionManager
 }
 
-// RequireAuth middleware ensures the user is authenticated
-func (m *AuthMiddleware) RequireAuth(ctx context.Context, req *http.Request) error {
-	user := handlers.GetAuthenticatedUser(ctx)
-	if user == nil {
-		return huma.Error401Unauthorized("Authentication required")
+// NewAuthMiddleware creates a new authentication middleware
+func NewAuthMiddleware(authService *authServices.AuthService, permissionManager ...*permissions.PermissionManager) *AuthMiddleware {
+	// Handle optional permission manager
+	var pm *permissions.PermissionManager
+	if len(permissionManager) > 0 {
+		pm = permissionManager[0]
 	}
-	return nil
+
+	return &AuthMiddleware{
+		authService:       authService,
+		permissionManager: pm,
+	}
 }
 
-// RequireAdmin middleware ensures the user is a super administrator
-func (m *AuthMiddleware) RequireAdmin(ctx context.Context, req *http.Request) error {
-	user := handlers.GetAuthenticatedUser(ctx)
-	if user == nil {
-		return huma.Error401Unauthorized("Authentication required")
+// RequireAuth ensures the user is authenticated and returns user context
+func (m *AuthMiddleware) RequireAuth(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	if m.authService == nil {
+		return nil, huma.Error500InternalServerError("Auth service not available")
 	}
 
-	if !user.IsSuperAdmin {
-		return huma.Error403Forbidden("Admin access required")
-	}
-
-	return nil
-}
-
-// RequirePermission middleware ensures the user has a specific permission
-func (m *AuthMiddleware) RequirePermission(permission string) func(context.Context, *http.Request) error {
-	return func(ctx context.Context, req *http.Request) error {
-		user := handlers.GetAuthenticatedUser(ctx)
-		if user == nil {
-			return huma.Error401Unauthorized("Authentication required")
-		}
-
-		// Super admin bypasses permission checks
-		if user.IsSuperAdmin {
-			return nil
-		}
-
-		// Check if user has the required permission
-		// Note: This would integrate with the permission manager
-		// For now, we'll use a placeholder check
-		hasPermission := false
-		for _, perm := range user.Permissions {
-			if perm == permission {
-				hasPermission = true
+	// Extract JWT token from header or cookie
+	var jwtToken string
+	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		jwtToken = authHeader[7:]
+	} else if cookieHeader != "" {
+		// Parse cookie header to find falcon_auth_token
+		cookies := strings.Split(cookieHeader, ";")
+		for _, cookie := range cookies {
+			cookie = strings.TrimSpace(cookie)
+			if strings.HasPrefix(cookie, "falcon_auth_token=") {
+				jwtToken = strings.TrimPrefix(cookie, "falcon_auth_token=")
 				break
 			}
+		}
+	}
+
+	if jwtToken == "" {
+		return nil, huma.Error401Unauthorized("Authentication required")
+	}
+
+	user, err := m.authService.ValidateJWT(jwtToken)
+	if err != nil {
+		return nil, huma.Error401Unauthorized("Invalid authentication token", err)
+	}
+
+	return user, nil
+}
+
+// RequirePermission checks if the authenticated user has a specific permission
+func (m *AuthMiddleware) RequirePermission(ctx context.Context, authHeader, cookieHeader, permissionID string) (*models.AuthenticatedUser, error) {
+	user, err := m.RequireAuth(ctx, authHeader, cookieHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check permission via permission manager
+	if m.permissionManager != nil {
+		hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), permissionID)
+		if err != nil {
+			return nil, fmt.Errorf("permission check failed: %w", err)
 		}
 
 		if !hasPermission {
-			return huma.Error403Forbidden("Insufficient permissions")
+			return nil, huma.Error403Forbidden(fmt.Sprintf("Permission denied: %s required", permissionID))
 		}
 
-		return nil
+		return user, nil
 	}
+
+	return nil, huma.Error500InternalServerError("Permission system not available")
 }
 
-// RequireAnyPermission middleware ensures the user has at least one of the specified permissions
-func (m *AuthMiddleware) RequireAnyPermission(permissions []string) func(context.Context, *http.Request) error {
-	return func(ctx context.Context, req *http.Request) error {
-		user := handlers.GetAuthenticatedUser(ctx)
-		if user == nil {
-			return huma.Error401Unauthorized("Authentication required")
-		}
+// RequireAnyPermission checks if the authenticated user has any of the specified permissions
+func (m *AuthMiddleware) RequireAnyPermission(ctx context.Context, authHeader, cookieHeader string, permissionIDs []string) (*models.AuthenticatedUser, error) {
+	user, err := m.RequireAuth(ctx, authHeader, cookieHeader)
+	if err != nil {
+		return nil, err
+	}
 
-		// Super admin bypasses permission checks
-		if user.IsSuperAdmin {
-			return nil
-		}
-
-		// Check if user has any of the required permissions
-		hasAnyPermission := false
-		for _, userPerm := range user.Permissions {
-			for _, reqPerm := range permissions {
-				if userPerm == reqPerm {
-					hasAnyPermission = true
-					break
-				}
-			}
-			if hasAnyPermission {
-				break
+	// Check permissions via permission manager
+	if m.permissionManager != nil {
+		for _, permissionID := range permissionIDs {
+			hasPermission, err := m.permissionManager.HasPermission(ctx, int64(user.CharacterID), permissionID)
+			if err == nil && hasPermission {
+				return user, nil
 			}
 		}
 
-		if !hasAnyPermission {
-			return huma.Error403Forbidden("Insufficient permissions")
-		}
-
-		return nil
+		return nil, huma.Error403Forbidden(fmt.Sprintf("Permission denied: one of %v required", permissionIDs))
 	}
+
+	return nil, huma.Error500InternalServerError("Permission system not available")
 }
 
-// CacheControl middleware adds cache headers for sitemap responses
-func (m *AuthMiddleware) CacheControl(maxAge int) func(context.Context, *http.Request) error {
-	return func(ctx context.Context, req *http.Request) error {
-		// This would be implemented in a response middleware
-		// For now, it's a placeholder
-		return nil
-	}
+// RequireSitemapView ensures the user can view sitemap routes
+func (m *AuthMiddleware) RequireSitemapView(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return m.RequirePermission(ctx, authHeader, cookieHeader, "sitemap:routes:view")
+}
+
+// RequireSitemapAdmin ensures the user can manage sitemap routes
+func (m *AuthMiddleware) RequireSitemapAdmin(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return m.RequirePermission(ctx, authHeader, cookieHeader, "sitemap:admin:manage")
+}
+
+// RequireSitemapNavigation ensures the user can customize navigation
+func (m *AuthMiddleware) RequireSitemapNavigation(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return m.RequirePermission(ctx, authHeader, cookieHeader, "sitemap:navigation:customize")
 }

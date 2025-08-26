@@ -158,3 +158,17 @@ type BulkMoveResponse struct {
 	Errors       []string `json:"errors,omitempty" description:"Error messages"`
 	Message      string   `json:"message" description:"Operation summary"`
 }
+
+// RouteAccessResponse represents route access check results
+type RouteAccessResponse struct {
+	RouteID    string   `json:"route_id" description:"Route ID"`
+	Path       string   `json:"path" description:"Route path"`
+	Accessible bool     `json:"accessible" description:"Whether route is accessible"`
+	Reason     string   `json:"reason,omitempty" description:"Access denial reason"`
+	Missing    []string `json:"missing,omitempty" description:"Missing permissions or groups"`
+}
+
+// RouteAccessOutput is the Huma output wrapper for route access check
+type RouteAccessOutput struct {
+	Body RouteAccessResponse `json:"body"`
+}

@@ -6,6 +6,9 @@ import (
 
 // CreateRouteInput represents the input for creating a new route
 type CreateRouteInput struct {
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
+
 	RouteID   string           `json:"route_id" required:"true" minLength:"3" maxLength:"100" description:"Unique route identifier"`
 	Path      string           `json:"path" required:"true" minLength:"1" maxLength:"200" description:"Frontend path"`
 	Component string           `json:"component" required:"true" minLength:"1" maxLength:"100" description:"React component name"`
@@ -46,6 +49,10 @@ type CreateRouteInput struct {
 
 // UpdateRouteInput represents the input for updating a route
 type UpdateRouteInput struct {
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
+	ID            string `path:"id" description:"Route ID or MongoDB ObjectID"`
+
 	Path      *string           `json:"path,omitempty" minLength:"1" maxLength:"200" description:"Frontend path"`
 	Component *string           `json:"component,omitempty" minLength:"1" maxLength:"100" description:"React component name"`
 	Name      *string           `json:"name,omitempty" minLength:"1" maxLength:"100" description:"Display name"`
@@ -85,16 +92,21 @@ type UpdateRouteInput struct {
 
 // ListRoutesInput represents the input for listing routes
 type ListRoutesInput struct {
-	Type        string `query:"type" enum:"public,auth,protected,admin,folder,all" default:"all" description:"Filter by route type"`
-	Group       string `query:"group" description:"Filter by group"`
-	IsEnabled   string `query:"is_enabled" enum:"true,false,all" default:"all" description:"Filter by enabled status"`
-	ShowInNav   string `query:"show_in_nav" enum:"true,false,all" default:"all" description:"Filter by navigation visibility"`
-	NavPosition string `query:"nav_position" enum:"main,user,admin,footer,hidden,all" default:"all" description:"Filter by navigation position"`
-	Sort        string `query:"sort" enum:"hierarchical,flat,nav_order,created_at" default:"hierarchical" description:"Sort order for admin display"`
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
+	Type          string `query:"type" enum:"public,auth,protected,admin,folder,all" default:"all" description:"Filter by route type"`
+	Group         string `query:"group" description:"Filter by group"`
+	IsEnabled     string `query:"is_enabled" enum:"true,false,all" default:"all" description:"Filter by enabled status"`
+	ShowInNav     string `query:"show_in_nav" enum:"true,false,all" default:"all" description:"Filter by navigation visibility"`
+	NavPosition   string `query:"nav_position" enum:"main,user,admin,footer,hidden,all" default:"all" description:"Filter by navigation position"`
+	Sort          string `query:"sort" enum:"hierarchical,flat,nav_order,created_at" default:"hierarchical" description:"Sort order for admin display"`
 }
 
 // BulkUpdateOrderInput represents the input for updating navigation order
 type BulkUpdateOrderInput struct {
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
+
 	Body struct {
 		Updates []OrderUpdate `json:"updates" description:"Order updates"`
 	} `json:"body"`
@@ -108,10 +120,12 @@ type OrderUpdate struct {
 
 // GetUserRoutesInput represents the input for getting user-specific routes
 type GetUserRoutesInput struct {
-	IncludeDisabled bool `query:"include_disabled" default:"false" description:"Include disabled routes"`
-	IncludeHidden   bool `query:"include_hidden" default:"false" description:"Include hidden navigation items"`
-	MaxDepth        int  `query:"max_depth" minimum:"1" maximum:"10" default:"5" description:"Maximum folder depth"`
-	ExpandFolders   bool `query:"expand_folders" default:"false" description:"Auto-expand all folders"`
+	Authorization   string `header:"Authorization" doc:"Bearer token for authentication (optional)"`
+	Cookie          string `header:"Cookie" doc:"falcon_auth_token cookie for authentication (optional)"`
+	IncludeDisabled bool   `query:"include_disabled" default:"false" description:"Include disabled routes"`
+	IncludeHidden   bool   `query:"include_hidden" default:"false" description:"Include hidden navigation items"`
+	MaxDepth        int    `query:"max_depth" minimum:"1" maximum:"10" default:"5" description:"Maximum folder depth"`
+	ExpandFolders   bool   `query:"expand_folders" default:"false" description:"Auto-expand all folders"`
 }
 
 // CreateFolderInput represents the input for creating a new folder
@@ -167,4 +181,24 @@ type FolderChildrenInput struct {
 	IncludeDisabled bool   `query:"include_disabled" default:"false" description:"Include disabled items"`
 	Recursive       bool   `query:"recursive" default:"false" description:"Include all descendants"`
 	MaxDepth        int    `query:"max_depth" minimum:"1" maximum:"10" default:"1" description:"Maximum recursion depth"`
+}
+
+// GetRouteInput represents the input for getting a single route
+type GetRouteInput struct {
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
+	ID            string `path:"id" description:"Route ID or MongoDB ObjectID"`
+}
+
+// DeleteRouteInput represents the input for deleting a route
+type DeleteRouteInput struct {
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
+	ID            string `path:"id" description:"Route ID or MongoDB ObjectID"`
+}
+
+// GetStatsInput represents the input for getting sitemap stats
+type GetStatsInput struct {
+	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
 }

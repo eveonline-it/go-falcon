@@ -5,9 +5,10 @@ import (
 	"log"
 	"log/slog"
 
+	"go-falcon/internal/auth/services"
 	"go-falcon/internal/sitemap/dto"
 	"go-falcon/internal/sitemap/routes"
-	"go-falcon/internal/sitemap/services"
+	sitemapServices "go-falcon/internal/sitemap/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
@@ -23,20 +24,20 @@ type GroupServiceInterface interface{}
 // Module represents the sitemap module
 type Module struct {
 	*module.BaseModule
-	service *services.Service
+	service *sitemapServices.Service
 	routes  *routes.Routes
 }
 
 // NewModule creates a new sitemap module
-func NewModule(mongodb *database.MongoDB, redis *database.Redis, permissionManager *permissions.PermissionManager, groupService GroupServiceInterface) (*Module, error) {
+func NewModule(mongodb *database.MongoDB, redis *database.Redis, authService *services.AuthService, permissionManager *permissions.PermissionManager, groupService GroupServiceInterface) (*Module, error) {
 	// Create service with dependencies
-	service := services.NewService(mongodb.Database, permissionManager, groupService)
+	service := sitemapServices.NewService(mongodb.Database, permissionManager, groupService)
 
-	// Create routes
-	moduleRoutes := routes.NewRoutes(service)
+	// Create routes with auth service and permission manager
+	moduleRoutes := routes.NewRoutes(service, authService, permissionManager)
 
 	// Create database indexes
-	repository := services.NewRepository(mongodb.Database)
+	repository := sitemapServices.NewRepository(mongodb.Database)
 	ctx := context.Background()
 	if err := repository.CreateIndexes(ctx); err != nil {
 		log.Printf("Warning: Failed to create sitemap indexes: %v", err)
@@ -108,7 +109,7 @@ func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *per
 }
 
 // GetService returns the sitemap service for external use
-func (m *Module) GetService() *services.Service {
+func (m *Module) GetService() *sitemapServices.Service {
 	return m.service
 }
 

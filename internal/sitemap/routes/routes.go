@@ -3,21 +3,26 @@ package routes
 import (
 	"context"
 
+	authServices "go-falcon/internal/auth/services"
 	"go-falcon/internal/sitemap/dto"
+	"go-falcon/internal/sitemap/middleware"
 	"go-falcon/internal/sitemap/services"
+	"go-falcon/pkg/permissions"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 // Routes handles sitemap route definitions
 type Routes struct {
-	service *services.Service
+	service    *services.Service
+	middleware *middleware.AuthMiddleware
 }
 
 // NewRoutes creates a new routes instance
-func NewRoutes(service *services.Service) *Routes {
+func NewRoutes(service *services.Service, authService *authServices.AuthService, permissionManager *permissions.PermissionManager) *Routes {
 	return &Routes{
-		service: service,
+		service:    service,
+		middleware: middleware.NewAuthMiddleware(authService, permissionManager),
 	}
 }
 
@@ -48,11 +53,22 @@ func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
 		Summary:     "Get sitemap",
 		Description: "Returns routes and navigation. Shows personalized routes for authenticated users or public routes for unauthenticated users",
 		Tags:        []string{"Sitemap / User"},
-		// No security requirement - endpoint handles both authenticated and unauthenticated access
+		// Optional security - endpoint handles both authenticated and unauthenticated access
+		Security: []map[string][]string{
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
+		},
 	}, func(ctx context.Context, input *dto.GetUserRoutesInput) (*dto.SitemapOutput, error) {
-		// TODO: Implement group-based filtering
-		// Check which groups the user belongs to and filter sitemap accordingly
-		// For now, return ALL enabled routes for testing (regardless of type)
+		// Try to authenticate user (optional) - for future personalization
+		if input.Authorization != "" || input.Cookie != "" {
+			// Only attempt authentication if auth headers are provided
+			_, err := r.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+			if err == nil {
+				// User is authenticated - in future this can be used for personalization
+				// For now, just continue with normal processing
+			}
+			// If authentication fails, continue as unauthenticated user (don't return error)
+		}
 
 		// Get routes with folder support
 		sitemap, err := r.service.GetUserRoutesWithFolders(ctx, input)
@@ -64,8 +80,46 @@ func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
 			}
 		}
 
+		// TODO: Filter routes based on user permissions and groups if authenticated
+		// For now, return all enabled routes
+
 		return &dto.SitemapOutput{Body: *sitemap}, nil
 	})
+
+	// TODO: Implement route access check endpoint when CheckRouteAccess service method is available
+	/*
+		// Check route access for specific route (authenticated users only)
+		huma.Register(api, huma.Operation{
+			OperationID: "check-route-access",
+			Method:      "GET",
+			Path:        basePath + "/access/{route_id}",
+			Summary:     "Check route access",
+			Description: "Check if current user can access a specific route. Requires authentication.",
+			Tags:        []string{"Sitemap / User"},
+			Security: []map[string][]string{
+				{"bearerAuth": {}},
+				{"cookieAuth": {}},
+			},
+		}, func(ctx context.Context, input *struct {
+			Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
+			Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
+			RouteID       string `path:"route_id" description:"Route ID to check access for"`
+		}) (*dto.RouteAccessOutput, error) {
+			// Require authentication for this endpoint
+			_, err := r.middleware.RequireAuth(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+
+			// Check route access
+			access, err := r.service.CheckRouteAccess(ctx, input.RouteID)
+			if err != nil {
+				return nil, huma.Error404NotFound("Route not found", err)
+			}
+
+			return &dto.RouteAccessOutput{Body: *access}, nil
+		})
+	*/
 
 }
 
@@ -73,19 +127,25 @@ func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
 func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 	adminBasePath := "/admin" + basePath
 
-	// List all routes (admin)
+	// List all routes (admin) - requires sitemap:routes:view permission
 	huma.Register(api, huma.Operation{
 		OperationID: "list-routes",
 		Method:      "GET",
 		Path:        adminBasePath,
 		Summary:     "List all routes",
-		Description: "Returns list of all routes with filtering options",
+		Description: "Returns list of all routes with filtering options. Requires sitemap:routes:view permission.",
 		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
-			{"BearerAuth": {}},
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
 		},
 	}, func(ctx context.Context, input *dto.ListRoutesInput) (*dto.RoutesOutput, error) {
-		// TODO: Add proper admin authentication check
+		// Check permission for viewing routes
+		_, err := r.middleware.RequireSitemapView(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		routes, err := r.service.GetRoutes(ctx, input)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get routes", err)
@@ -98,21 +158,25 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		return &dto.RoutesOutput{Body: response}, nil
 	})
 
-	// Get single route (admin)
+	// Get single route (admin) - requires sitemap:routes:view permission
 	huma.Register(api, huma.Operation{
 		OperationID: "get-route",
 		Method:      "GET",
 		Path:        adminBasePath + "/{id}",
 		Summary:     "Get single route",
-		Description: "Returns details of a specific route",
+		Description: "Returns details of a specific route. Requires sitemap:routes:view permission.",
 		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
-			{"BearerAuth": {}},
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
 		},
-	}, func(ctx context.Context, input *struct {
-		ID string `path:"id" description:"Route ID or MongoDB ObjectID"`
-	}) (*dto.RouteOutput, error) {
-		// TODO: Add proper admin authentication check
+	}, func(ctx context.Context, input *dto.GetRouteInput) (*dto.RouteOutput, error) {
+		// Check permission for viewing routes
+		_, err := r.middleware.RequireSitemapView(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		route, err := r.service.GetRouteByID(ctx, input.ID)
 		if err != nil {
 			return nil, huma.Error404NotFound("Route not found", err)
@@ -121,19 +185,25 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		return &dto.RouteOutput{Body: *route}, nil
 	})
 
-	// Create new route (admin)
+	// Create new route (admin) - requires sitemap:admin:manage permission
 	huma.Register(api, huma.Operation{
 		OperationID: "create-route",
 		Method:      "POST",
 		Path:        adminBasePath,
 		Summary:     "Create new route",
-		Description: "Creates a new route configuration",
+		Description: "Creates a new route configuration. Requires sitemap:admin:manage permission.",
 		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
-			{"BearerAuth": {}},
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
 		},
 	}, func(ctx context.Context, input *dto.CreateRouteInput) (*dto.CreateRouteOutput, error) {
-		// TODO: Add proper admin authentication check
+		// Check permission for managing routes
+		_, err := r.middleware.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		route, err := r.service.CreateRoute(ctx, input)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Failed to create route", err)
@@ -147,23 +217,26 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		return &dto.CreateRouteOutput{Body: response}, nil
 	})
 
-	// Update route (admin)
+	// Update route (admin) - requires sitemap:admin:manage permission
 	huma.Register(api, huma.Operation{
 		OperationID: "update-route",
 		Method:      "PUT",
 		Path:        adminBasePath + "/{id}",
 		Summary:     "Update route",
-		Description: "Updates an existing route configuration",
+		Description: "Updates an existing route configuration. Requires sitemap:admin:manage permission.",
 		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
-			{"BearerAuth": {}},
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
 		},
-	}, func(ctx context.Context, input *struct {
-		ID   string               `path:"id" description:"Route ID"`
-		Body dto.UpdateRouteInput `json:"body"`
-	}) (*dto.UpdateRouteOutput, error) {
-		// TODO: Add proper admin authentication check
-		route, err := r.service.UpdateRoute(ctx, input.ID, &input.Body)
+	}, func(ctx context.Context, input *dto.UpdateRouteInput) (*dto.UpdateRouteOutput, error) {
+		// Check permission for managing routes
+		_, err := r.middleware.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		route, err := r.service.UpdateRoute(ctx, input.ID, input)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Failed to update route", err)
 		}
@@ -176,21 +249,25 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		return &dto.UpdateRouteOutput{Body: response}, nil
 	})
 
-	// Delete route (admin)
+	// Delete route (admin) - requires sitemap:admin:manage permission
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-route",
 		Method:      "DELETE",
 		Path:        adminBasePath + "/{id}",
 		Summary:     "Delete route",
-		Description: "Deletes a route and all its children",
+		Description: "Deletes a route and all its children. Requires sitemap:admin:manage permission.",
 		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
-			{"BearerAuth": {}},
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
 		},
-	}, func(ctx context.Context, input *struct {
-		ID string `path:"id" description:"Route ID"`
-	}) (*dto.DeleteRouteOutput, error) {
-		// TODO: Add proper admin authentication check
+	}, func(ctx context.Context, input *dto.DeleteRouteInput) (*dto.DeleteRouteOutput, error) {
+		// Check permission for managing routes
+		_, err := r.middleware.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		deleted, err := r.service.DeleteRoute(ctx, input.ID)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Failed to delete route", err)
@@ -204,19 +281,25 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		return &dto.DeleteRouteOutput{Body: response}, nil
 	})
 
-	// Bulk update navigation order (admin)
+	// Bulk update navigation order (admin) - requires sitemap:navigation:customize permission
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-update-order",
 		Method:      "POST",
 		Path:        adminBasePath + "/reorder",
 		Summary:     "Bulk update navigation order",
-		Description: "Updates navigation order for multiple routes",
+		Description: "Updates navigation order for multiple routes. Requires sitemap:navigation:customize permission.",
 		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
-			{"BearerAuth": {}},
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
 		},
 	}, func(ctx context.Context, input *dto.BulkUpdateOrderInput) (*dto.BulkUpdateOutput, error) {
-		// TODO: Add proper admin authentication check
+		// Check permission for customizing navigation
+		_, err := r.middleware.RequireSitemapNavigation(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
 		updated, failed, errors := r.service.BulkUpdateOrder(ctx, input.Body.Updates)
 
 		response := dto.BulkUpdateResponse{
@@ -239,6 +322,33 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
 		status := r.service.GetStatus(ctx)
 		return &dto.StatusOutput{Body: *status}, nil
+	})
+
+	// Get sitemap statistics (admin) - requires sitemap:routes:view permission
+	huma.Register(api, huma.Operation{
+		OperationID: "get-sitemap-stats",
+		Method:      "GET",
+		Path:        adminBasePath + "/stats",
+		Summary:     "Get sitemap statistics",
+		Description: "Returns comprehensive sitemap usage statistics. Requires sitemap:routes:view permission.",
+		Tags:        []string{"Sitemap / Admin"},
+		Security: []map[string][]string{
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
+		},
+	}, func(ctx context.Context, input *dto.GetStatsInput) (*dto.FolderStatsOutput, error) {
+		// Check permission for viewing routes
+		_, err := r.middleware.RequireSitemapView(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		stats, err := r.service.GetFolderStats(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get stats", err)
+		}
+
+		return &dto.FolderStatsOutput{Body: *stats}, nil
 	})
 
 	// Folder management endpoints

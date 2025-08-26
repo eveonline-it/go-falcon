@@ -194,8 +194,8 @@ func main() {
 	// Update groups service with permission manager
 	groupsModule.GetService().SetPermissionManager(permissionManager)
 
-	// 6.5. Initialize sitemap module with permission manager and groups service
-	sitemapModule, err := sitemap.NewModule(appCtx.MongoDB, appCtx.Redis, permissionManager, groupsModule.GetService())
+	// 6.5. Initialize sitemap module with auth service, permission manager and groups service
+	sitemapModule, err := sitemap.NewModule(appCtx.MongoDB, appCtx.Redis, authModule.GetAuthService(), permissionManager, groupsModule.GetService())
 	if err != nil {
 		log.Fatalf("Failed to initialize sitemap module: %v", err)
 	}
