@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	"go-falcon/internal/site_settings/middleware"
 	"go-falcon/internal/site_settings/routes"
 	"go-falcon/internal/site_settings/services"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 
 	authServices "go-falcon/internal/auth/services"
 	groupsServices "go-falcon/internal/groups/services"
@@ -20,9 +21,9 @@ import (
 
 // Module represents the site settings module
 type Module struct {
-	service    *services.Service
-	middleware *middleware.AuthMiddleware
-	routes     *routes.Module
+	service              *services.Service
+	permissionMiddleware *middleware.PermissionMiddleware
+	routes               *routes.Module
 }
 
 // NewModule creates a new site settings module
@@ -34,24 +35,25 @@ func NewModule(db *database.MongoDB, authService *authServices.AuthService, grou
 	// Create service layer
 	service := services.NewService(db.Database)
 
-	var authMiddleware *middleware.AuthMiddleware
+	var permissionMiddleware *middleware.PermissionMiddleware
 	var routesModule *routes.Module
 
 	if authService != nil && groupsService != nil {
-		// Create middleware with dependencies
-		authMiddleware = middleware.NewAuthMiddleware(authService, groupsService)
-		slog.Info("Site settings module initialized with auth and groups dependencies")
+		// Create permission middleware with centralized system
+		permissionManager := permissions.NewPermissionManager(db.Database)
+		permissionMiddleware = middleware.NewPermissionMiddleware(authService, permissionManager)
+		slog.Info("Site settings module initialized with centralized middleware")
 	} else {
 		slog.Info("Site settings module initialized without dependencies (will be set later)")
 	}
 
 	// Create routes (middleware might be nil initially)
-	routesModule = routes.NewModule(service, authMiddleware)
+	routesModule = routes.NewModule(service, permissionMiddleware)
 
 	return &Module{
-		service:    service,
-		middleware: authMiddleware,
-		routes:     routesModule,
+		service:              service,
+		permissionMiddleware: permissionMiddleware,
+		routes:               routesModule,
 	}, nil
 }
 
@@ -107,11 +109,13 @@ func (m *Module) SetDependencies(authService *authServices.AuthService, groupsSe
 		return
 	}
 
-	// Create the middleware with both dependencies
-	m.middleware = middleware.NewAuthMiddleware(authService, groupsService)
+	// For now, use auth-only mode since we don't have direct database access here
+	// In a proper refactor, we'd pass the permission manager from main.go
+	m.permissionMiddleware = middleware.NewPermissionMiddleware(authService, nil)
+
 	// Recreate routes with the new middleware
-	m.routes = routes.NewModule(m.service, m.middleware)
-	slog.Info("Site settings middleware and routes updated with auth and groups dependencies")
+	m.routes = routes.NewModule(m.service, m.permissionMiddleware)
+	slog.Info("Site settings middleware and routes updated with centralized system (auth-only mode)")
 }
 
 // SetAuthService sets the auth service dependency after module initialization

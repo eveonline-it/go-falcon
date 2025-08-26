@@ -51,20 +51,9 @@ func (pm *PermissionManager) InitializeSystemGroupPermissions(ctx context.Contex
 	slog.Info("[Permissions] Initializing system group permissions")
 
 	// Define static permission assignments for system groups
+	// Note: Super Administrator and Administrator groups bypass all permission checks
+	// Only assign permissions to groups that actually need them
 	systemGroupPermissions := map[string][]string{
-		"Super Administrator": {
-			// System administration permissions
-			"system:admin:full",
-			"system:config:manage",
-			"users:management:full",
-			"users:profiles:view",
-			"auth:tokens:manage",
-			"groups:management:full",
-			"groups:memberships:manage",
-			"groups:permissions:manage",
-			"groups:view:all",
-			"scheduler:tasks:full",
-		},
 		"Authenticated Users": {
 			// Basic permissions for authenticated users
 			"groups:view:all",
@@ -236,16 +225,17 @@ func (pm *PermissionManager) RegisterServicePermissions(ctx context.Context, ser
 	return nil
 }
 
-// HasPermission checks if a character has a specific permission through group membership
+// HasPermission checks if a character has a specific permission
+// Super Administrator and Administrator groups bypass all permission checks
 func (pm *PermissionManager) HasPermission(ctx context.Context, characterID int64, permissionID string) (bool, error) {
-	// Check if permission exists
-	if !pm.permissionExists(permissionID) {
-		return false, fmt.Errorf("permission not found: %s", permissionID)
+	// Super admin and admin have all permissions (bypass all checks including existence check)
+	if pm.isAdminUser(ctx, characterID) {
+		return true, nil
 	}
 
-	// Super admin has all permissions (except for specific restrictions)
-	if pm.isSuperAdmin(ctx, characterID) {
-		return true, nil
+	// Check if permission exists (only for non-admin users)
+	if !pm.permissionExists(permissionID) {
+		return false, fmt.Errorf("permission not found: %s", permissionID)
 	}
 
 	// Check group permissions via aggregation pipeline
@@ -296,6 +286,7 @@ func (pm *PermissionManager) HasPermission(ctx context.Context, characterID int6
 }
 
 // CheckPermission returns detailed permission check result
+// Super Administrator and Administrator groups bypass all permission checks
 func (pm *PermissionManager) CheckPermission(ctx context.Context, characterID int64, permissionID string) (*PermissionCheck, error) {
 	result := &PermissionCheck{
 		CharacterID:  characterID,
@@ -303,16 +294,16 @@ func (pm *PermissionManager) CheckPermission(ctx context.Context, characterID in
 		Granted:      false,
 	}
 
-	// Check if permission exists
-	if !pm.permissionExists(permissionID) {
-		return result, fmt.Errorf("permission not found: %s", permissionID)
+	// Super admin and admin check (bypass all checks including existence check)
+	if adminGroup := pm.getAdminGroup(ctx, characterID); adminGroup != "" {
+		result.Granted = true
+		result.GrantedVia = adminGroup
+		return result, nil
 	}
 
-	// Super admin check
-	if pm.isSuperAdmin(ctx, characterID) {
-		result.Granted = true
-		result.GrantedVia = "Super Administrator"
-		return result, nil
+	// Check if permission exists (only for non-admin users)
+	if !pm.permissionExists(permissionID) {
+		return result, fmt.Errorf("permission not found: %s", permissionID)
 	}
 
 	// Check group permissions with group name resolution
@@ -586,16 +577,20 @@ func (pm *PermissionManager) isRestrictedStaticPermission(permissionID string) b
 	return restrictedPermissions[permissionID]
 }
 
-func (pm *PermissionManager) isSuperAdmin(ctx context.Context, characterID int64) bool {
+func (pm *PermissionManager) isAdminUser(ctx context.Context, characterID int64) bool {
+	return pm.getAdminGroup(ctx, characterID) != ""
+}
+
+func (pm *PermissionManager) getAdminGroup(ctx context.Context, characterID int64) string {
 	// Get user_id for this character
 	userID, err := pm.getUserIDFromCharacterID(ctx, characterID)
 	if err != nil {
 		slog.Error("[Permissions] Failed to get user_id for character", "error", err, "character_id", characterID)
-		return false
+		return ""
 	}
 
-	// Check if ANY character belonging to this user is in Super Administrator group
-	return pm.isUserSuperAdmin(ctx, userID)
+	// Check if ANY character belonging to this user is in admin groups
+	return pm.getUserAdminGroup(ctx, userID)
 }
 
 // getUserIDFromCharacterID gets the user_id for a given character_id
@@ -615,20 +610,20 @@ func (pm *PermissionManager) getUserIDFromCharacterID(ctx context.Context, chara
 	return userProfile.UserID, nil
 }
 
-// isUserSuperAdmin checks if ANY character belonging to a user_id is in Super Administrator group
-func (pm *PermissionManager) isUserSuperAdmin(ctx context.Context, userID string) bool {
+// getUserAdminGroup checks if ANY character belonging to a user_id is in admin groups, returns group name if found
+func (pm *PermissionManager) getUserAdminGroup(ctx context.Context, userID string) string {
 	// Get all character IDs for this user
 	characterIDs, err := pm.getCharacterIDsByUserID(ctx, userID)
 	if err != nil {
 		slog.Error("[Permissions] Failed to get character IDs for user", "error", err, "user_id", userID)
-		return false
+		return ""
 	}
 
 	if len(characterIDs) == 0 {
-		return false
+		return ""
 	}
 
-	// Check if ANY character is in Super Administrator group
+	// Check if ANY character is in Super Administrator or Administrator groups
 	pipeline := []bson.M{
 		{
 			"$match": bson.M{
@@ -649,29 +644,40 @@ func (pm *PermissionManager) isUserSuperAdmin(ctx context.Context, userID string
 		},
 		{
 			"$match": bson.M{
-				"group.name":      "Super Administrator",
+				"group.name":      bson.M{"$in": []string{"Super Administrator", "Administrator"}},
 				"group.is_active": true,
 			},
 		},
 		{
 			"$limit": 1,
 		},
+		{
+			"$project": bson.M{
+				"group_name": "$group.name",
+			},
+		},
 	}
 
 	cursor, err := pm.db.Collection("group_memberships").Aggregate(ctx, pipeline)
 	if err != nil {
-		slog.Error("[Permissions] Failed to check user super admin status", "error", err, "user_id", userID, "character_ids", characterIDs)
-		return false
+		slog.Error("[Permissions] Failed to check user admin status", "error", err, "user_id", userID, "character_ids", characterIDs)
+		return ""
 	}
 	defer cursor.Close(ctx)
 
-	hasResult := cursor.Next(ctx)
-	if hasResult {
-		slog.Debug("[Permissions] User has super admin access via multi-character permissions",
-			"user_id", userID,
-			"character_ids", characterIDs)
+	if cursor.Next(ctx) {
+		var doc struct {
+			GroupName string `bson:"group_name"`
+		}
+		if err := cursor.Decode(&doc); err == nil {
+			slog.Debug("[Permissions] User has admin access via multi-character permissions",
+				"user_id", userID,
+				"character_ids", characterIDs,
+				"admin_group", doc.GroupName)
+			return doc.GroupName
+		}
 	}
-	return hasResult
+	return ""
 }
 
 // getCharacterIDsByUserID gets all character IDs for a given user_id

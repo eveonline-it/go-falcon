@@ -115,6 +115,39 @@ func (pm *PermissionMiddleware) RequireAuth(ctx context.Context, authHeader, coo
 	return user, nil
 }
 
+// RequireSuperAdmin ensures the user is authenticated and is a super admin
+func (pm *PermissionMiddleware) RequireSuperAdmin(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	// First, authenticate the user
+	user, err := pm.RequireAuth(ctx, authHeader, cookieHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if user is admin (super admin or administrator) using the permission manager
+	if pm.permissionChecker != nil {
+		// Use the permission manager's isAdminUser method via interface
+		// Since we can't cast the interface directly, we'll check using a dummy permission
+		// that only admins would have access to - but since admins bypass all checks anyway,
+		// we can use any permission and rely on the bypass logic
+		hasAdminAccess, err := pm.permissionChecker.HasPermission(ctx, int64(user.CharacterID), "system:admin:full")
+		if err == nil && hasAdminAccess {
+			// User has admin access (either real permission or admin bypass)
+			return user, nil
+		}
+
+		// If not admin, deny access
+		return nil, huma.Error403Forbidden("Super admin access required")
+	} else {
+		// Fallback: if no permission checker, allow authenticated users (development mode)
+		if pm.options.FallbackToAuth {
+			slog.Warn("[Permission Middleware] Permission system not available, falling back to auth-only mode for super admin check")
+			return user, nil
+		} else {
+			return nil, huma.Error500InternalServerError("Permission system not available")
+		}
+	}
+}
+
 // RequirePermission checks if the authenticated user has a specific permission
 func (pm *PermissionMiddleware) RequirePermission(ctx context.Context, authHeader, cookieHeader, permissionID string) (*models.AuthenticatedUser, error) {
 	// First, authenticate the user
@@ -216,7 +249,7 @@ func (pm *PermissionMiddleware) checkUserPermission(ctx context.Context, user *m
 			"error", err,
 			"character_id", user.CharacterID,
 			"permission", permissionID)
-		return nil, fmt.Errorf("permission check failed: %w", err)
+		return nil, huma.Error403Forbidden(fmt.Sprintf("Access denied: %s", err.Error()))
 	}
 
 	if !permCheck.Granted {
@@ -295,7 +328,7 @@ func (pm *PermissionMiddleware) checkUserAllPermissions(ctx context.Context, use
 				"error", err,
 				"character_id", user.CharacterID,
 				"permission", permissionID)
-			return nil, fmt.Errorf("permission check failed for %s: %w", permissionID, err)
+			return nil, huma.Error403Forbidden(fmt.Sprintf("Access denied: %s", err.Error()))
 		}
 
 		if !hasPermission {

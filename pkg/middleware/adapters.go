@@ -37,7 +37,7 @@ func (sa *SitemapAdapter) RequireSitemapView(ctx context.Context, authHeader, co
 
 // RequireSitemapAdmin checks for sitemap admin permissions
 func (sa *SitemapAdapter) RequireSitemapAdmin(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
-	return sa.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, "sitemap:admin:manage")
+	return sa.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, "sitemap:admin:full")
 }
 
 // RequireSitemapNavigation checks for sitemap navigation customization permissions

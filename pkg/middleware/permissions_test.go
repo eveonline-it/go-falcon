@@ -199,7 +199,7 @@ func TestPermissionMiddleware_RequirePermission(t *testing.T) {
 		user, err := pm.RequirePermission(ctx, "Bearer valid-token", "", permissionID)
 		assert.Error(t, err)
 		assert.Nil(t, user)
-		assert.Contains(t, err.Error(), "permission check failed")
+		assert.Contains(t, err.Error(), "Access denied")
 
 		mockValidator.AssertExpectations(t)
 		mockPermissionManager.AssertExpectations(t)
@@ -410,10 +410,10 @@ func TestSitemapAdapter(t *testing.T) {
 
 	t.Run("RequireSitemapAdmin", func(t *testing.T) {
 		mockValidator.On("ValidateJWT", "valid-token").Return(testUser, nil)
-		mockPermissionManager.On("CheckPermission", ctx, int64(12345), "sitemap:admin:manage").Return(
+		mockPermissionManager.On("CheckPermission", ctx, int64(12345), "sitemap:admin:full").Return(
 			&permissions.PermissionCheck{
 				CharacterID:  12345,
-				PermissionID: "sitemap:admin:manage",
+				PermissionID: "sitemap:admin:full",
 				Granted:      true,
 				GrantedVia:   "Test Group",
 			}, nil)

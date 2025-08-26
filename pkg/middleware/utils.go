@@ -194,7 +194,7 @@ func GetSitemapMigrationGuide() *ModuleMigrationGuide {
 			{
 				Description: "Replace RequireSitemapAdmin calls",
 				Before:      `r.middleware.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)`,
-				After:       `r.permissionMiddleware.RequirePermission(ctx, input.Authorization, input.Cookie, "sitemap:admin:manage")`,
+				After:       `r.permissionMiddleware.RequirePermission(ctx, input.Authorization, input.Cookie, "sitemap:admin:full")`,
 			},
 			{
 				Description: "Replace RequireSitemapNavigation calls",
