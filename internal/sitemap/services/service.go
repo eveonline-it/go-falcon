@@ -233,31 +233,14 @@ func (s *Service) buildHierarchicalNavItems(routes []models.Route, maxDepth int)
 	return buildNavItems(rootRoutes, 0)
 }
 
-// sortRoutesByPositionAndOrder sorts routes by navigation position first, then by nav order
+// sortRoutesByPositionAndOrder sorts routes by nav_order globally (not grouped by position)
 func (s *Service) sortRoutesByPositionAndOrder(routes []models.Route) []models.Route {
-	// Define position priority order
-	positionPriority := map[models.NavigationPosition]int{
-		models.NavMain:   1,
-		models.NavUser:   2,
-		models.NavAdmin:  3,
-		models.NavFooter: 4,
-		models.NavHidden: 5,
-	}
-
-	// Sort by position first, then nav order
+	// Sort by nav_order globally across all positions
+	// This ensures the navigation respects the intended order regardless of nav_position
 	for i := 0; i < len(routes); i++ {
 		for j := i + 1; j < len(routes); j++ {
-			iPriority := positionPriority[routes[i].NavPosition]
-			jPriority := positionPriority[routes[j].NavPosition]
-
-			// First sort by position
-			if iPriority > jPriority {
+			if routes[i].NavOrder > routes[j].NavOrder {
 				routes[i], routes[j] = routes[j], routes[i]
-			} else if iPriority == jPriority {
-				// Same position, sort by nav order
-				if routes[i].NavOrder > routes[j].NavOrder {
-					routes[i], routes[j] = routes[j], routes[i]
-				}
 			}
 		}
 	}
