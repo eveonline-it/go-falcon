@@ -65,55 +65,41 @@ func (s *Service) GetAllEnabledRoutes(ctx context.Context, includeDisabled, incl
 	}, nil
 }
 
-// buildRouteConfigs converts routes to frontend-consumable format
+// buildRouteConfigs converts routes to frontend-consumable format (flat array)
 func (s *Service) buildRouteConfigs(routes []models.Route) []models.RouteConfig {
-	// Build parent-child map
-	childMap := make(map[string][]models.Route)
-	rootRoutes := []models.Route{}
+	// Build flat array of routes without children
+	configs := make([]models.RouteConfig, 0, len(routes))
 
 	for _, route := range routes {
-		if route.ParentID != nil && *route.ParentID != "" {
-			childMap[*route.ParentID] = append(childMap[*route.ParentID], route)
-		} else {
-			rootRoutes = append(rootRoutes, route)
+		// Skip folders as they're not actual routes
+		if route.Type == models.RouteTypeFolder {
+			continue
 		}
-	}
 
-	// Build hierarchical structure
-	var buildConfigs func([]models.Route) []models.RouteConfig
-	buildConfigs = func(routeList []models.Route) []models.RouteConfig {
-		configs := make([]models.RouteConfig, 0, len(routeList))
-		for _, route := range routeList {
-			config := models.RouteConfig{
-				ID:          route.RouteID,
-				Path:        route.Path,
-				Component:   route.Component,
-				Name:        route.Name,
-				Icon:        route.Icon,
+		config := models.RouteConfig{
+			ID:          route.RouteID,
+			Path:        route.Path,
+			Component:   route.Component,
+			Name:        route.Name,
+			Icon:        route.Icon,
+			Title:       route.Title,
+			Permissions: route.RequiredPermissions,
+			Props:       route.Props,
+			LazyLoad:    route.LazyLoad,
+			Accessible:  true, // Already filtered
+			Meta: &models.RouteMeta{
 				Title:       route.Title,
-				Permissions: route.RequiredPermissions,
-				Props:       route.Props,
-				LazyLoad:    route.LazyLoad,
-				Accessible:  true, // Already filtered
-				Meta: &models.RouteMeta{
-					Title:       route.Title,
-					Icon:        route.Icon,
-					Group:       route.Group,
-					Description: route.Description,
-				},
-			}
-
-			// Add children if any
-			if children, exists := childMap[route.RouteID]; exists {
-				config.Children = buildConfigs(children)
-			}
-
-			configs = append(configs, config)
+				Icon:        route.Icon,
+				Group:       route.Group,
+				Description: route.Description,
+			},
 		}
-		return configs
+
+		// Don't include children - keep it flat
+		configs = append(configs, config)
 	}
 
-	return buildConfigs(rootRoutes)
+	return configs
 }
 
 // buildNavigation creates navigation structure from routes with folder support
@@ -123,9 +109,8 @@ func (s *Service) buildNavigation(routes []models.Route, includeHidden bool) []m
 
 // buildHierarchicalNavigation creates hierarchical navigation structure with folders
 func (s *Service) buildHierarchicalNavigation(routes []models.Route, includeHidden bool, maxDepth int) []models.NavigationGroup {
-	// Group routes by navigation position
-	navGroups := make(map[models.NavigationPosition][]models.Route)
-
+	// Filter routes for navigation
+	var navRoutes []models.Route
 	for _, route := range routes {
 		if !route.ShowInNav && !includeHidden {
 			continue
@@ -137,31 +122,17 @@ func (s *Service) buildHierarchicalNavigation(routes []models.Route, includeHidd
 		if route.Depth > maxDepth {
 			continue
 		}
-		navGroups[route.NavPosition] = append(navGroups[route.NavPosition], route)
+		navRoutes = append(navRoutes, route)
 	}
 
-	// Build navigation groups
-	var navigation []models.NavigationGroup
+	// Sort all routes by navigation position first, then by nav order
+	sortedRoutes := s.sortRoutesByPositionAndOrder(navRoutes)
 
-	// Process each navigation position in order
-	positions := []models.NavigationPosition{models.NavMain, models.NavUser, models.NavAdmin, models.NavFooter}
+	// Build hierarchical navigation items directly from the folder structure
+	hierarchicalItems := s.buildHierarchicalNavItems(sortedRoutes, maxDepth)
 
-	for _, pos := range positions {
-		if positionRoutes, exists := navGroups[pos]; exists && len(positionRoutes) > 0 {
-			// Sort routes by NavOrder first
-			sortedRoutes := s.sortRoutesByOrder(positionRoutes)
-
-			// Build hierarchical navigation items
-			hierarchicalItems := s.buildHierarchicalNavItems(sortedRoutes, maxDepth)
-
-			// Group by route.Group if specified (for backward compatibility)
-			groupedNavigation := s.groupHierarchicalItems(hierarchicalItems, string(pos))
-
-			navigation = append(navigation, groupedNavigation...)
-		}
-	}
-
-	return navigation
+	// Convert nav items directly to navigation groups based on folder structure
+	return s.convertNavItemsToGroups(hierarchicalItems)
 }
 
 // sortRoutesByOrder sorts routes by their navigation order
@@ -175,90 +146,6 @@ func (s *Service) sortRoutesByOrder(routes []models.Route) []models.Route {
 		}
 	}
 	return routes
-}
-
-// groupNavigationItems groups navigation items by their group field
-func (s *Service) groupNavigationItems(routes []models.Route) []models.NavigationGroup {
-	// Map to store grouped items and track minimum nav_order for each group
-	groupMap := make(map[string][]models.NavItem)
-	groupOrder := make(map[string]int) // Track minimum nav_order for each group
-	var ungrouped []models.NavItem
-
-	for _, route := range routes {
-		navItem := models.NavItem{
-			RouteID: route.RouteID,
-			Name:    route.Name,
-			To:      route.Path,
-			Icon:    route.Icon,
-			Active:  route.IsEnabled,
-			Exact:   route.Exact,
-			NewTab:  route.NewTab,
-		}
-
-		// Add badge if specified
-		if route.BadgeType != nil && route.BadgeText != nil {
-			navItem.Badge = &models.Badge{
-				Type: *route.BadgeType,
-				Text: *route.BadgeText,
-			}
-		}
-
-		// Group items
-		if route.Group != nil && *route.Group != "" {
-			groupName := *route.Group
-			groupMap[groupName] = append(groupMap[groupName], navItem)
-
-			// Track the minimum nav_order for this group
-			if existingOrder, exists := groupOrder[groupName]; !exists || route.NavOrder < existingOrder {
-				groupOrder[groupName] = route.NavOrder
-			}
-		} else {
-			ungrouped = append(ungrouped, navItem)
-		}
-	}
-
-	// Build navigation groups sorted by group order
-	var navGroups []models.NavigationGroup
-
-	// Create a sorted list of group names by their nav_order
-	type GroupInfo struct {
-		Name  string
-		Order int
-	}
-	var sortedGroups []GroupInfo
-	for groupName, order := range groupOrder {
-		sortedGroups = append(sortedGroups, GroupInfo{Name: groupName, Order: order})
-	}
-
-	// Sort groups by their minimum nav_order
-	for i := 0; i < len(sortedGroups); i++ {
-		for j := i + 1; j < len(sortedGroups); j++ {
-			if sortedGroups[i].Order > sortedGroups[j].Order {
-				sortedGroups[i], sortedGroups[j] = sortedGroups[j], sortedGroups[i]
-			}
-		}
-	}
-
-	// Add grouped items in correct order
-	for _, group := range sortedGroups {
-		if items, exists := groupMap[group.Name]; exists {
-			navGroups = append(navGroups, models.NavigationGroup{
-				Label: group.Name,
-				Items: items,
-			})
-		}
-	}
-
-	// Add ungrouped items
-	if len(ungrouped) > 0 {
-		navGroups = append(navGroups, models.NavigationGroup{
-			Label:        "General",
-			LabelDisable: true,
-			Items:        ungrouped,
-		})
-	}
-
-	return navGroups
 }
 
 // buildHierarchicalNavItems creates hierarchical navigation items with folder support
@@ -346,21 +233,61 @@ func (s *Service) buildHierarchicalNavItems(routes []models.Route, maxDepth int)
 	return buildNavItems(rootRoutes, 0)
 }
 
-// groupHierarchicalItems groups hierarchical navigation items (for backward compatibility)
-func (s *Service) groupHierarchicalItems(items []models.NavItem, positionLabel string) []models.NavigationGroup {
-	if len(items) == 0 {
-		return []models.NavigationGroup{}
+// sortRoutesByPositionAndOrder sorts routes by navigation position first, then by nav order
+func (s *Service) sortRoutesByPositionAndOrder(routes []models.Route) []models.Route {
+	// Define position priority order
+	positionPriority := map[models.NavigationPosition]int{
+		models.NavMain:   1,
+		models.NavUser:   2,
+		models.NavAdmin:  3,
+		models.NavFooter: 4,
+		models.NavHidden: 5,
 	}
 
-	// For now, just create a single group per position
-	// This maintains backward compatibility while supporting hierarchy
-	return []models.NavigationGroup{
-		{
-			Label:        positionLabel,
-			LabelDisable: true, // Don't show position labels by default
-			Items:        items,
-		},
+	// Sort by position first, then nav order
+	for i := 0; i < len(routes); i++ {
+		for j := i + 1; j < len(routes); j++ {
+			iPriority := positionPriority[routes[i].NavPosition]
+			jPriority := positionPriority[routes[j].NavPosition]
+
+			// First sort by position
+			if iPriority > jPriority {
+				routes[i], routes[j] = routes[j], routes[i]
+			} else if iPriority == jPriority {
+				// Same position, sort by nav order
+				if routes[i].NavOrder > routes[j].NavOrder {
+					routes[i], routes[j] = routes[j], routes[i]
+				}
+			}
+		}
 	}
+	return routes
+}
+
+// convertNavItemsToGroups converts hierarchical nav items directly to navigation groups
+func (s *Service) convertNavItemsToGroups(items []models.NavItem) []models.NavigationGroup {
+	// Each top-level item becomes a navigation group
+	var groups []models.NavigationGroup
+
+	for _, item := range items {
+		// Only create groups for folders (top-level containers)
+		if item.IsFolder {
+			groups = append(groups, models.NavigationGroup{
+				Label:        item.Name,
+				LabelDisable: false,         // Show folder names
+				Items:        item.Children, // Direct children
+			})
+		} else {
+			// Non-folder top-level items go into a general group
+			groups = append(groups, models.NavigationGroup{
+				Label:        "Navigation",
+				LabelDisable: true,
+				Items:        []models.NavItem{item},
+			})
+		}
+	}
+
+	return groups
 }
 
 // GetUserRoutesWithFolders returns user-specific sitemap with folder support

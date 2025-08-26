@@ -47,7 +47,7 @@ func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
 		Path:        basePath,
 		Summary:     "Get sitemap",
 		Description: "Returns routes and navigation. Shows personalized routes for authenticated users or public routes for unauthenticated users",
-		Tags:        []string{"Sitemap"},
+		Tags:        []string{"Sitemap / User"},
 		// No security requirement - endpoint handles both authenticated and unauthenticated access
 	}, func(ctx context.Context, input *dto.GetUserRoutesInput) (*dto.SitemapOutput, error) {
 		// TODO: Implement group-based filtering
@@ -80,7 +80,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		Path:        adminBasePath,
 		Summary:     "List all routes",
 		Description: "Returns paginated list of all routes with filtering options",
-		Tags:        []string{"Admin", "Sitemap"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -108,7 +108,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		Path:        adminBasePath + "/{id}",
 		Summary:     "Get single route",
 		Description: "Returns details of a specific route",
-		Tags:        []string{"Admin", "Sitemap"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -131,7 +131,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		Path:        adminBasePath,
 		Summary:     "Create new route",
 		Description: "Creates a new route configuration",
-		Tags:        []string{"Admin", "Sitemap"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -157,7 +157,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		Path:        adminBasePath + "/{id}",
 		Summary:     "Update route",
 		Description: "Updates an existing route configuration",
-		Tags:        []string{"Admin", "Sitemap"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -186,7 +186,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		Path:        adminBasePath + "/{id}",
 		Summary:     "Delete route",
 		Description: "Deletes a route and all its children",
-		Tags:        []string{"Admin", "Sitemap"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -214,7 +214,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		Path:        adminBasePath + "/reorder",
 		Summary:     "Bulk update navigation order",
 		Description: "Updates navigation order for multiple routes",
-		Tags:        []string{"Admin", "Sitemap"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -257,7 +257,7 @@ func (r *Routes) registerFolderRoutes(api huma.API, basePath string) {
 		Path:        basePath + "/folders",
 		Summary:     "Create new folder",
 		Description: "Creates a new folder container for organizing routes",
-		Tags:        []string{"Admin", "Folders"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -283,7 +283,7 @@ func (r *Routes) registerFolderRoutes(api huma.API, basePath string) {
 		Path:        basePath + "/folders/{folder_id}",
 		Summary:     "Update folder",
 		Description: "Updates an existing folder configuration",
-		Tags:        []string{"Admin", "Folders"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -312,7 +312,7 @@ func (r *Routes) registerFolderRoutes(api huma.API, basePath string) {
 		Path:        basePath + "/move/{item_id}",
 		Summary:     "Move item to folder",
 		Description: "Moves a route or folder to a different parent folder",
-		Tags:        []string{"Admin", "Folders"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -336,7 +336,7 @@ func (r *Routes) registerFolderRoutes(api huma.API, basePath string) {
 		Path:        basePath + "/folders/{folder_id}/children",
 		Summary:     "Get folder children",
 		Description: "Returns the children of a specific folder",
-		Tags:        []string{"Admin", "Folders"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -357,7 +357,7 @@ func (r *Routes) registerFolderRoutes(api huma.API, basePath string) {
 		Path:        basePath + "/bulk-move",
 		Summary:     "Bulk move items",
 		Description: "Moves multiple routes/folders to a target folder",
-		Tags:        []string{"Admin", "Folders"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
@@ -378,7 +378,7 @@ func (r *Routes) registerFolderRoutes(api huma.API, basePath string) {
 		Path:        basePath + "/folders/stats",
 		Summary:     "Get folder statistics",
 		Description: "Returns folder usage statistics and metrics",
-		Tags:        []string{"Admin", "Folders"},
+		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},

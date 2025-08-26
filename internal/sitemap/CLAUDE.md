@@ -4,6 +4,11 @@
 
 The sitemap module provides **backend-managed dynamic routing and navigation** for the go-falcon EVE Online API gateway. This system gives the backend complete control over which routes users can access in the frontend, based on their permissions and group memberships. The module integrates seamlessly with the existing groups and permissions systems to provide secure, role-based access to frontend routes.
 
+**Key Architecture**:
+- **Flat Routes Array**: A simple list of all available routes for React Router configuration (no nesting/children)
+- **Hierarchical Navigation**: A nested tree structure with folders for rendering the vertical navigation menu
+- **Separation of Concerns**: Routes define what's available, Navigation defines how it's organized visually
+
 **Frontend Location**: The React 19 frontend is located at `~/react-falcon` (`/home/tore/react-falcon`)
 
 **Status**: Production Ready - Complete Backend Implementation
@@ -20,6 +25,17 @@ The sitemap module implements a **backend-first routing system** where:
 - **Dynamic navigation**: Navigation menus are generated based on accessible routes
 - **React consumption**: Frontend consumes route configurations via REST APIs
 - **Real-time updates**: Route access can change without frontend deployments
+
+### Response Structure Design
+
+The module provides two distinct data structures in its response:
+1. **Routes Array**: A flat list of all available routes (no nesting) that React Router uses to configure routing
+2. **Navigation Tree**: A hierarchical structure with folders that the UI uses to render the vertical menu
+
+This separation allows the frontend to:
+- Configure routing simply with the flat routes array
+- Build complex nested navigation menus using the hierarchical navigation tree
+- Keep routing logic separate from menu presentation
 
 ### Files Structure
 
@@ -108,7 +124,7 @@ type Route struct {
 
 #### Get User Sitemap
 ```http
-GET /api/sitemap
+GET /sitemap
 Authorization: Bearer <token>
 ```
 
@@ -141,15 +157,24 @@ Authorization: Bearer <token>
     ],
     "navigation": [
       {
-        "label": "Dashboard",
-        "labelDisable": false,
+        "label": "main",
+        "labelDisable": true,
         "children": [
           {
-            "routeId": "dashboard-analytics",
-            "name": "Analytics",
-            "to": "/dashboard/analytics",
-            "icon": "chart-pie",
-            "active": true
+            "routeId": "folder-dashboard",
+            "name": "Dashboard",
+            "icon": "folder",
+            "isFolder": true,
+            "hasChildren": true,
+            "children": [
+              {
+                "routeId": "dashboard-analytics",
+                "name": "Analytics",
+                "to": "/dashboard/analytics",
+                "icon": "chart-pie",
+                "active": true
+              }
+            ]
           }
         ]
       }
@@ -164,9 +189,13 @@ Authorization: Bearer <token>
 }
 ```
 
+**Key Response Structure**:
+- **`routes`**: Flat array of available routes (no children/nesting) for React Router configuration
+- **`navigation`**: Hierarchical tree structure with folders for rendering the vertical navigation menu
+
 #### Check Route Access
 ```http
-GET /api/sitemap/access/{route_id}
+GET /sitemap/access/{route_id}
 Authorization: Bearer <token>
 ```
 
@@ -189,7 +218,7 @@ Authorization: Bearer <token>
 
 #### Get Public Sitemap
 ```http
-GET /api/sitemap/public
+GET /sitemap/public
 ```
 
 **Description**: Returns only public routes for unauthenticated users and SEO
@@ -206,7 +235,7 @@ GET /api/sitemap/public
 
 #### Module Status
 ```http
-GET /api/sitemap/status
+GET /sitemap/status
 ```
 
 **Description**: Health check for the sitemap module
@@ -215,7 +244,7 @@ GET /api/sitemap/status
 
 #### List All Routes
 ```http
-GET /api/admin/sitemap
+GET /admin/sitemap
 Authorization: Bearer <token>
 ```
 
@@ -230,7 +259,7 @@ Authorization: Bearer <token>
 
 #### Create Route
 ```http
-POST /api/admin/sitemap
+POST /admin/sitemap
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -254,7 +283,7 @@ Content-Type: application/json
 
 #### Update Route
 ```http
-PUT /api/admin/sitemap/{id}
+PUT /admin/sitemap/{id}
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -266,7 +295,7 @@ Content-Type: application/json
 
 #### Delete Route
 ```http
-DELETE /api/admin/sitemap/{id}
+DELETE /admin/sitemap/{id}
 Authorization: Bearer <token>
 ```
 
@@ -274,7 +303,7 @@ Authorization: Bearer <token>
 
 #### Bulk Reorder Navigation
 ```http
-POST /api/admin/sitemap/reorder
+POST /admin/sitemap/reorder
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -288,7 +317,7 @@ Content-Type: application/json
 
 #### Get Route Statistics
 ```http
-GET /api/admin/sitemap/stats
+GET /admin/sitemap/stats
 Authorization: Bearer <token>
 ```
 
@@ -354,23 +383,41 @@ The system supports multi-character users by:
 
 ## Frontend Integration (~/react-falcon)
 
+### Understanding the Response Structure
+
+The sitemap API returns two separate data structures:
+
+1. **`routes`** - Flat array for React Router configuration
+   - No nested children
+   - Each route is independent
+   - Used to configure React Router paths
+
+2. **`navigation`** - Hierarchical tree for menu rendering
+   - Contains folders and nested items
+   - Used to build the vertical navigation menu
+   - Supports multiple levels of nesting
+
 ### React Router Integration
 
 The frontend at `~/react-falcon` consumes the sitemap API to:
 
-1. **Generate Routes Dynamically**:
+1. **Generate Routes Dynamically** (using flat routes array):
    ```typescript
    // hooks/useSitemap.ts
    export function useSitemap() {
      return useQuery({
        queryKey: ['sitemap'],
-       queryFn: () => api.get<SitemapResponse>('/api/sitemap'),
+       queryFn: () => api.get<SitemapResponse>('/sitemap'),
        staleTime: 5 * 60 * 1000,
      });
    }
+   
+   // App.tsx - Use flat routes array for React Router
+   const { data: sitemap } = useSitemap();
+   const routes = sitemap?.routes || []; // Flat array, no children
    ```
 
-2. **Build Navigation Structure**:
+2. **Build Navigation Structure** (using hierarchical navigation):
    ```typescript
    // components/Navigation.tsx
    const { data: sitemap } = useSitemap();
@@ -386,8 +433,8 @@ The frontend at `~/react-falcon` consumes the sitemap API to:
 
 3. **Protect Routes**:
    ```typescript
-   // App.tsx - Dynamic route generation
-   const router = createDynamicRouter(sitemap.routes);
+   // App.tsx - Dynamic route generation from flat array
+   const router = createDynamicRouter(sitemap.routes); // No nested children
    return <RouterProvider router={router} />;
    ```
 
@@ -576,7 +623,7 @@ type CacheStrategy struct {
 ## Monitoring and Observability
 
 ### Health Checks
-- **Module Status**: `/api/sitemap/status` endpoint
+- **Module Status**: `/sitemap/status` endpoint
 - **Database Connectivity**: MongoDB connection testing
 - **Route Statistics**: Usage and performance metrics
 - **Permission Integration**: Groups/permissions service health
@@ -602,7 +649,7 @@ slog.Info("[Sitemap] Route created",
 
 1. **Backend Route Creation**:
    ```bash
-   POST /api/admin/sitemap
+   POST /admin/sitemap
    {
      "route_id": "new-feature",
      "path": "/features/new",
@@ -629,11 +676,11 @@ slog.Info("[Sitemap] Route created",
 ```bash
 # Test user route access
 curl -H "Authorization: Bearer $TOKEN" \
-     "localhost:3000/api/sitemap/access/new-feature"
+     "localhost:3000/sitemap/access/new-feature"
 
 # Test admin route management  
 curl -H "Authorization: Bearer $ADMIN_TOKEN" \
-     "localhost:3000/api/admin/sitemap"
+     "localhost:3000/admin/sitemap"
 ```
 
 ## Migration from Static Routes
@@ -656,7 +703,7 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" \
 ### Migration Helper
 ```bash
 # Seed existing routes from frontend
-POST /api/admin/sitemap/seed-from-frontend
+POST /admin/sitemap/seed-from-frontend
 # Analyzes ~/react-falcon/src/routes/siteMaps.ts and creates routes
 ```
 
@@ -665,7 +712,7 @@ POST /api/admin/sitemap/seed-from-frontend
 ### Common Issues
 
 **Routes Not Appearing**:
-- Check user permissions with `/api/sitemap/access/{route_id}`
+- Check user permissions with `/sitemap/access/{route_id}`
 - Verify route is enabled: `is_enabled: true`
 - Ensure user is authenticated
 
@@ -682,13 +729,13 @@ POST /api/admin/sitemap/seed-from-frontend
 ### Debug Commands
 ```bash
 # Check route statistics
-GET /api/admin/sitemap/stats
+GET /admin/sitemap/stats
 
 # Verify user permissions
-GET /api/sitemap (with user token)
+GET /sitemap (with user token)
 
 # Test specific route access
-GET /api/sitemap/access/{route_id}
+GET /sitemap/access/{route_id}
 ```
 
 ## Future Enhancements
@@ -751,15 +798,22 @@ GET /api/sitemap/access/{route_id}
 
 ### Common Questions
 1. **Q: How do I add a new protected route?**
-   A: Use POST /api/admin/sitemap with required_permissions array
+   A: Use POST /admin/sitemap with required_permissions array
 
 2. **Q: Why isn't my route showing in navigation?**
    A: Check show_in_nav: true and nav_position is not "hidden"
 
 3. **Q: How do I update navigation order?**
-   A: Use POST /api/admin/sitemap/reorder with nav_order updates
+   A: Use POST /admin/sitemap/reorder with nav_order updates
 
 4. **Q: Can I have nested routes?**  
    A: Yes, use parent_id field to create hierarchical routes
 
 This sitemap module provides complete backend control over frontend routing, enabling secure, permission-based access to application features while maintaining excellent performance and user experience. The integration with `~/react-falcon` creates a seamless dynamic routing system that scales with your application's security requirements.
+
+## Important Implementation Notes
+
+- **Routes are flat**: The `routes` array in the response contains no nested children - it's a simple flat list
+- **Navigation is hierarchical**: The `navigation` array contains folders and nested items for menu rendering  
+- **Folders are navigation-only**: Folder entries exist only in navigation, not in the routes array
+- **Separation of concerns**: Routes define what's accessible, navigation defines how it's organized visually
