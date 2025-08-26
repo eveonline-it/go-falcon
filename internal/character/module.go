@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"go-falcon/internal/auth"
-	"go-falcon/internal/character/middleware"
 	"go-falcon/internal/character/routes"
 	"go-falcon/internal/character/services"
 	groupsServices "go-falcon/internal/groups/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 
@@ -89,8 +89,8 @@ func (m *Module) RegisterHumaRoutes(r chi.Router) {
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	// Create auth middleware if auth module is available
-	var authMiddleware *middleware.AuthMiddleware
+	// Create character adapter using centralized middleware if auth module is available
+	var characterAdapter *middleware.CharacterAdapter
 	if m.authModule != nil {
 		authService := m.authModule.GetAuthService()
 		if authService != nil {
@@ -100,11 +100,14 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 				permissionManager = m.groupService.GetPermissionManager()
 			}
 
-			authMiddleware = middleware.NewAuthMiddleware(authService, permissionManager)
+			// Create centralized permission middleware
+			permissionMiddleware := middleware.NewPermissionMiddleware(authService, permissionManager)
+			// Create character adapter
+			characterAdapter = middleware.NewCharacterAdapter(permissionMiddleware)
 		}
 	}
 
-	routes.RegisterCharacterRoutes(api, basePath, m.service, authMiddleware)
+	routes.RegisterCharacterRoutes(api, basePath, m.service, characterAdapter)
 	log.Printf("Character module unified routes registered at %s", basePath)
 }
 

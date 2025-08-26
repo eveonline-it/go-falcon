@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"go-falcon/internal/scheduler/dto"
-	"go-falcon/internal/scheduler/middleware"
 	"go-falcon/internal/scheduler/services"
+	"go-falcon/pkg/middleware"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -14,13 +14,13 @@ import (
 
 // Routes handles Huma-based HTTP routing for the Scheduler module
 type Routes struct {
-	service    *services.SchedulerService
-	middleware *middleware.Middleware
-	api        huma.API
+	service          *services.SchedulerService
+	schedulerAdapter *middleware.SchedulerAdapter
+	api              huma.API
 }
 
 // NewRoutes creates a new Huma Scheduler routes handler
-func NewRoutes(service *services.SchedulerService, middleware *middleware.Middleware, router chi.Router) *Routes {
+func NewRoutes(service *services.SchedulerService, schedulerAdapter *middleware.SchedulerAdapter, router chi.Router) *Routes {
 	// Create Huma API with Chi adapter
 	config := huma.DefaultConfig("Go Falcon Scheduler Module", "1.0.0")
 	config.Info.Description = "Task scheduling and management system with cron support and distributed execution"
@@ -28,9 +28,9 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 	api := humachi.New(router, config)
 
 	hr := &Routes{
-		service:    service,
-		middleware: middleware,
-		api:        api,
+		service:          service,
+		schedulerAdapter: schedulerAdapter,
+		api:              api,
 	}
 
 	// Note: registerRoutes() call removed for security - it registered endpoints without authentication
@@ -41,7 +41,7 @@ func NewRoutes(service *services.SchedulerService, middleware *middleware.Middle
 }
 
 // RegisterSchedulerRoutes registers scheduler routes on a shared Huma API
-func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, middleware *middleware.Middleware) {
+func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.SchedulerService, schedulerAdapter *middleware.SchedulerAdapter) {
 	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
 		OperationID: "scheduler-get-status",
@@ -78,10 +78,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.SchedulerStatsInput) (*dto.SchedulerStatsOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -104,10 +104,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskListInput) (*dto.TaskListOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -146,10 +146,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskCreateInput) (*dto.TaskCreateOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -171,10 +171,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskGetInput) (*dto.TaskGetOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -199,10 +199,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskUpdateInput) (*dto.TaskUpdateOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -230,10 +230,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskDeleteInput) (*dto.TaskDeleteOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -267,10 +267,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskExecuteInput) (*dto.TaskExecuteOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -318,10 +318,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskPauseInput) (*dto.TaskPauseOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -349,10 +349,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskResumeInput) (*dto.TaskResumeOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -380,10 +380,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskStopInput) (*dto.TaskStopOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -411,10 +411,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.TaskExecutionHistoryInput) (*dto.TaskExecutionHistoryOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -449,10 +449,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.ExecutionListInput) (*dto.ExecutionListOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
@@ -474,10 +474,10 @@ func RegisterSchedulerRoutes(api huma.API, basePath string, service *services.Sc
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, func(ctx context.Context, input *dto.ExecutionGetInput) (*dto.ExecutionGetOutput, error) {
 		// Validate authentication and task management permission
-		if middleware == nil || middleware.GetAuthMiddleware() == nil {
+		if schedulerAdapter == nil {
 			return nil, huma.Error500InternalServerError("Authentication system not available")
 		}
-		_, err := middleware.GetAuthMiddleware().RequireTaskManagement(ctx, input.Authorization, input.Cookie)
+		_, err := schedulerAdapter.RequireTaskManagement(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}

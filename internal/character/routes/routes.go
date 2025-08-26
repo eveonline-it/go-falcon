@@ -4,14 +4,14 @@ import (
 	"context"
 
 	"go-falcon/internal/character/dto"
-	"go-falcon/internal/character/middleware"
 	"go-falcon/internal/character/services"
+	"go-falcon/pkg/middleware"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 // RegisterCharacterRoutes registers character routes on a shared Huma API
-func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Service, authMiddleware *middleware.AuthMiddleware) {
+func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Service, characterAdapter *middleware.CharacterAdapter) {
 	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
 		OperationID: "character-get-status",
@@ -35,8 +35,8 @@ func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Se
 		Tags:        []string{"Character"},
 	}, func(ctx context.Context, input *dto.GetCharacterProfileAuthInput) (*dto.CharacterProfileOutput, error) {
 		// Require authentication
-		if authMiddleware != nil {
-			_, err := authMiddleware.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
+		if characterAdapter != nil {
+			_, err := characterAdapter.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
 			if err != nil {
 				return nil, err
 			}
@@ -62,8 +62,8 @@ func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Se
 		Tags:        []string{"Character"},
 	}, func(ctx context.Context, input *dto.SearchCharactersByNameAuthInput) (*dto.SearchCharactersByNameOutput, error) {
 		// Require authentication
-		if authMiddleware != nil {
-			_, err := authMiddleware.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
+		if characterAdapter != nil {
+			_, err := characterAdapter.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
 			if err != nil {
 				return nil, err
 			}

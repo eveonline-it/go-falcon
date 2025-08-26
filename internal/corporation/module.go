@@ -5,12 +5,12 @@ import (
 	"log/slog"
 
 	"go-falcon/internal/auth"
-	"go-falcon/internal/corporation/middleware"
 	"go-falcon/internal/corporation/routes"
 	"go-falcon/internal/corporation/services"
 	groupsServices "go-falcon/internal/groups/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 
@@ -59,8 +59,8 @@ func (m *Module) SetGroupService(groupService *groupsServices.Service) {
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 	slog.Info("Registering corporation unified routes", "basePath", basePath)
 
-	// Create auth middleware if auth module is available
-	var authMiddleware *middleware.AuthMiddleware
+	// Create corporation adapter using centralized middleware if auth module is available
+	var corporationAdapter *middleware.CorporationAdapter
 	if m.authModule != nil {
 		authService := m.authModule.GetAuthService()
 		if authService != nil {
@@ -70,12 +70,15 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 				permissionManager = m.groupService.GetPermissionManager()
 			}
 
-			authMiddleware = middleware.NewAuthMiddleware(authService, permissionManager)
+			// Create centralized permission middleware
+			permissionMiddleware := middleware.NewPermissionMiddleware(authService, permissionManager)
+			// Create corporation adapter
+			corporationAdapter = middleware.NewCorporationAdapter(permissionMiddleware)
 		}
 	}
 
-	// Register all routes through the routes module with basePath and auth middleware
-	m.routes.RegisterUnifiedRoutes(api, basePath, authMiddleware)
+	// Register all routes through the routes module with basePath and corporation adapter
+	m.routes.RegisterUnifiedRoutes(api, basePath, corporationAdapter)
 
 	slog.Info("Corporation unified routes registered successfully", "basePath", basePath)
 }

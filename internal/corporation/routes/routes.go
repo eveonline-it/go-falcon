@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"go-falcon/internal/corporation/dto"
-	"go-falcon/internal/corporation/middleware"
 	"go-falcon/internal/corporation/services"
+	"go-falcon/pkg/middleware"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -24,7 +24,7 @@ func NewModule(service *services.Service) *Module {
 }
 
 // RegisterUnifiedRoutes registers all corporation routes with the provided Huma API
-func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, authMiddleware *middleware.AuthMiddleware) {
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, corporationAdapter *middleware.CorporationAdapter) {
 	// Search corporations by name endpoint (authenticated)
 	huma.Register(api, huma.Operation{
 		OperationID: "corporation-search-by-name",
@@ -35,8 +35,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, authMiddle
 		Tags:        []string{"Corporations"},
 	}, func(ctx context.Context, input *dto.SearchCorporationsByNameAuthInput) (*dto.SearchCorporationsByNameOutput, error) {
 		// Require authentication
-		if authMiddleware != nil {
-			_, err := authMiddleware.RequireCorporationAccess(ctx, input.Authorization, input.Cookie)
+		if corporationAdapter != nil {
+			_, err := corporationAdapter.RequireCorporationAccess(ctx, input.Authorization, input.Cookie)
 			if err != nil {
 				return nil, err
 			}
@@ -55,8 +55,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, authMiddle
 		Tags:        []string{"Corporations"},
 	}, func(ctx context.Context, input *dto.GetCorporationAuthInput) (*dto.CorporationInfoOutput, error) {
 		// Require authentication
-		if authMiddleware != nil {
-			_, err := authMiddleware.RequireCorporationAccess(ctx, input.Authorization, input.Cookie)
+		if corporationAdapter != nil {
+			_, err := corporationAdapter.RequireCorporationAccess(ctx, input.Authorization, input.Cookie)
 			if err != nil {
 				return nil, err
 			}

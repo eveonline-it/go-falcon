@@ -218,3 +218,106 @@ func (mh *MigrationHelper) CreateUsersAdapter() *UsersAdapter {
 func (mh *MigrationHelper) CreateAllianceAdapter() *AllianceAdapter {
 	return NewAllianceAdapter(mh.permissionMiddleware)
 }
+
+// CreateCharacterAdapter creates a character adapter for migration
+func (mh *MigrationHelper) CreateCharacterAdapter() *CharacterAdapter {
+	return NewCharacterAdapter(mh.permissionMiddleware)
+}
+
+// CreateCorporationAdapter creates a corporation adapter for migration
+func (mh *MigrationHelper) CreateCorporationAdapter() *CorporationAdapter {
+	return NewCorporationAdapter(mh.permissionMiddleware)
+}
+
+// CreateSiteSettingsAdapter creates a site settings adapter for migration
+func (mh *MigrationHelper) CreateSiteSettingsAdapter() *SiteSettingsAdapter {
+	return NewSiteSettingsAdapter(mh.permissionMiddleware)
+}
+
+// CharacterAdapter provides character-specific permission methods
+type CharacterAdapter struct {
+	*ModuleAdapter
+}
+
+// NewCharacterAdapter creates a new character adapter
+func NewCharacterAdapter(permissionMiddleware *PermissionMiddleware) *CharacterAdapter {
+	return &CharacterAdapter{
+		ModuleAdapter: NewModuleAdapter(permissionMiddleware),
+	}
+}
+
+// RequireAuth ensures the user is authenticated
+func (ca *CharacterAdapter) RequireAuth(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ca.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// RequireCharacterAccess ensures the user has access to character data
+func (ca *CharacterAdapter) RequireCharacterAccess(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	// For now, any authenticated user can access character data
+	return ca.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// RequirePermission checks if the authenticated user has a specific permission
+func (ca *CharacterAdapter) RequirePermission(ctx context.Context, authHeader, cookieHeader, permissionID string) (*models.AuthenticatedUser, error) {
+	return ca.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, permissionID)
+}
+
+// CorporationAdapter provides corporation-specific permission methods
+type CorporationAdapter struct {
+	*ModuleAdapter
+}
+
+// NewCorporationAdapter creates a new corporation adapter
+func NewCorporationAdapter(permissionMiddleware *PermissionMiddleware) *CorporationAdapter {
+	return &CorporationAdapter{
+		ModuleAdapter: NewModuleAdapter(permissionMiddleware),
+	}
+}
+
+// RequireAuth ensures the user is authenticated
+func (ca *CorporationAdapter) RequireAuth(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ca.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// RequireCorporationAccess ensures the user has access to corporation data
+func (ca *CorporationAdapter) RequireCorporationAccess(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	// For now, any authenticated user can access corporation data
+	return ca.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// RequirePermission checks if the authenticated user has a specific permission
+func (ca *CorporationAdapter) RequirePermission(ctx context.Context, authHeader, cookieHeader, permissionID string) (*models.AuthenticatedUser, error) {
+	return ca.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, permissionID)
+}
+
+// SiteSettingsAdapter provides site settings-specific permission methods
+type SiteSettingsAdapter struct {
+	*ModuleAdapter
+}
+
+// NewSiteSettingsAdapter creates a new site settings adapter
+func NewSiteSettingsAdapter(permissionMiddleware *PermissionMiddleware) *SiteSettingsAdapter {
+	return &SiteSettingsAdapter{
+		ModuleAdapter: NewModuleAdapter(permissionMiddleware),
+	}
+}
+
+// RequireAuth ensures the user is authenticated
+func (ssa *SiteSettingsAdapter) RequireAuth(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ssa.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// RequireSiteSettingsView checks for site settings view permissions
+func (ssa *SiteSettingsAdapter) RequireSiteSettingsView(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ssa.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, "site_settings:settings:view")
+}
+
+// RequireSiteSettingsAdmin checks for site settings admin permissions
+func (ssa *SiteSettingsAdapter) RequireSiteSettingsAdmin(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ssa.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, "site_settings:settings:manage")
+}
+
+// RequirePermission checks if the authenticated user has a specific permission
+func (ssa *SiteSettingsAdapter) RequirePermission(ctx context.Context, authHeader, cookieHeader, permissionID string) (*models.AuthenticatedUser, error) {
+	return ssa.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, permissionID)
+}

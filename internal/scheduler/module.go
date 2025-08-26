@@ -9,10 +9,10 @@ import (
 	"go-falcon/internal/alliance/dto"
 	"go-falcon/internal/auth"
 	groupsServices "go-falcon/internal/groups/services"
-	"go-falcon/internal/scheduler/middleware"
 	"go-falcon/internal/scheduler/routes"
 	"go-falcon/internal/scheduler/services"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 
@@ -24,7 +24,7 @@ import (
 type Module struct {
 	*module.BaseModule
 	schedulerService *services.SchedulerService
-	middleware       *middleware.Middleware
+	schedulerAdapter *middleware.SchedulerAdapter
 	routes           *routes.Routes
 
 	// Dependencies
@@ -62,22 +62,13 @@ func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Modu
 	// Create services
 	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule, corporationModule)
 
-	// Create auth middleware if auth module is available
-	var authMiddleware *middleware.AuthMiddleware
-	if authModule != nil {
-		authService := authModule.GetAuthService()
-		if authService != nil {
-			authMiddleware = middleware.NewAuthMiddleware(authService)
-		}
-	}
-
-	// Create middleware
-	middlewareLayer := middleware.New(authMiddleware)
+	// Note: SchedulerAdapter will be created in SetGroupService when PermissionManager becomes available
+	var schedulerAdapter *middleware.SchedulerAdapter
 
 	return &Module{
 		BaseModule:        baseModule,
 		schedulerService:  schedulerService,
-		middleware:        middlewareLayer,
+		schedulerAdapter:  schedulerAdapter,
 		routes:            nil, // Will be created when needed
 		authModule:        authModule,
 		characterModule:   characterModule,
@@ -91,22 +82,26 @@ func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Modu
 func (m *Module) SetGroupService(groupService *groupsServices.Service) {
 	m.groupService = groupService
 
-	// Update auth middleware with permission manager
+	// Create scheduler adapter with permission manager
 	if m.authModule != nil && groupService != nil {
 		authService := m.authModule.GetAuthService()
 		if authService != nil {
 			permissionManager := groupService.GetPermissionManager()
-			authMiddleware := middleware.NewAuthMiddleware(authService, permissionManager)
-			m.middleware = middleware.New(authMiddleware)
+			// Create permission middleware with both auth service and permission manager
+			permissionMiddleware := middleware.NewPermissionMiddleware(
+				authService,
+				permissionManager,
+				middleware.WithDebugLogging(), // Enable debug logging for migration
+			)
+			m.schedulerAdapter = middleware.NewSchedulerAdapter(permissionMiddleware)
 		}
 	}
 }
 
 // Routes registers all scheduler routes (traditional Chi)
 func (m *Module) Routes(r chi.Router) {
-	// Apply middleware first
-	r.Use(m.middleware.RequestLogging)
-	r.Use(m.middleware.SecurityHeaders)
+	// Apply centralized middleware
+	r.Use(middleware.TracingMiddleware)
 
 	// Register health check route using base module
 	m.RegisterHealthRoute(r)
@@ -119,7 +114,7 @@ func (m *Module) Routes(r chi.Router) {
 // RegisterHumaRoutes registers the Huma v2 routes
 func (m *Module) RegisterHumaRoutes(r chi.Router) {
 	if m.routes == nil {
-		m.routes = routes.NewRoutes(m.schedulerService, m.middleware, r)
+		m.routes = routes.NewRoutes(m.schedulerService, m.schedulerAdapter, r)
 	}
 }
 
@@ -148,9 +143,9 @@ func (m *Module) GetSchedulerService() *services.SchedulerService {
 	return m.schedulerService
 }
 
-// GetMiddleware returns the middleware for other modules
-func (m *Module) GetMiddleware() *middleware.Middleware {
-	return m.middleware
+// GetSchedulerAdapter returns the scheduler adapter for other modules
+func (m *Module) GetSchedulerAdapter() *middleware.SchedulerAdapter {
+	return m.schedulerAdapter
 }
 
 // RegisterPermissions registers scheduler-specific permissions
@@ -344,6 +339,6 @@ func (m *Module) Shutdown() error {
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterSchedulerRoutes(api, basePath, m.schedulerService, m.middleware)
+	routes.RegisterSchedulerRoutes(api, basePath, m.schedulerService, m.schedulerAdapter)
 	log.Printf("Scheduler module unified routes registered at %s", basePath)
 }
