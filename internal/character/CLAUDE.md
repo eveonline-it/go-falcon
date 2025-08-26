@@ -16,7 +16,6 @@ internal/character/
 │   ├── inputs.go          # Request input DTOs with Huma validation
 │   ├── outputs.go         # Response output DTOs with proper JSON structure
 │   └── affiliation.go     # Affiliation-specific DTOs for background updates
-├── middleware/            # Module-specific middleware (currently empty)
 ├── models/                # Database models
 │   └── models.go         # MongoDB schemas and collection definitions
 ├── routes/               # Route definitions  
@@ -27,6 +26,8 @@ internal/character/
 │   └── update_service.go # Background affiliation update service with parallel processing
 ├── module.go             # Module initialization and interface implementation
 └── CLAUDE.md             # This documentation file
+
+**Note**: Authentication and permission middleware now centralized in `pkg/middleware/` system.
 ```
 
 ## Key Features

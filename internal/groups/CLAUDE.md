@@ -446,13 +446,13 @@ The module automatically creates three system groups on initialization:
 - Corp/alliance membership updates via background tasks
 
 ### Cross-Module Security Integration (✅ COMPLETED)
-The groups module now provides authentication middleware and permission checking services to other modules:
+The groups module now integrates with the centralized middleware system (`pkg/middleware`) to provide permission checking services:
 
-#### Users Module Security
-- **Permission Manager Integration**: Users module middleware uses groups service permission manager
-- **Strict Access Control**: User management operations require `"users:management:full"` permission or super admin access
-- **Self-Access Protection**: Users can only access their own data unless they have administrative permissions
-- **Statistics Endpoint Security**: User stats endpoint now requires authentication (previously public)
+#### Centralized Middleware Integration
+- **Permission Manager Integration**: Centralized middleware uses groups service permission manager
+- **Module Adapters**: Specialized adapters (UsersAdapter, SitemapAdapter, AllianceAdapter) handle module-specific permissions
+- **Consistent Access Control**: All modules use the same permission checking logic through centralized system
+- **Enhanced Security**: Debug logging, circuit breaker patterns, and graceful fallback capabilities
 
 #### Scheduler Module Security  
 - **Mandatory Authentication**: All scheduler endpoints require valid JWT authentication
@@ -467,9 +467,10 @@ The groups module now provides authentication middleware and permission checking
 
 **Security Architecture:**
 - **Permission Manager**: Central permission checking via `pkg/permissions.PermissionManager`
-- **Module Dependency**: Other modules inject groups service for permission validation
-- **Strict Fallback**: Authentication middleware denies access unless explicit permissions granted
-- **Consistent Standards**: All modules follow identical security patterns based on groups module
+- **Centralized Middleware**: All modules use `pkg/middleware` system with groups service integration  
+- **Module Adapters**: Each module has specialized adapters that maintain existing API compatibility
+- **Code Elimination**: Removed 382+ lines of duplicated middleware code across modules
+- **Consistent Standards**: All modules follow identical security patterns through centralized middleware
 
 ## Performance Considerations
 

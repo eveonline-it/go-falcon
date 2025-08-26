@@ -44,8 +44,6 @@ internal/sitemap/
 ├── dto/
 │   ├── inputs.go          # Request input DTOs with Huma v2 validation
 │   └── outputs.go         # Response output DTOs for all endpoints
-├── middleware/
-│   └── auth.go           # Authentication middleware for sitemap routes
 ├── models/
 │   └── models.go         # MongoDB schemas and response structures
 ├── routes/
@@ -55,6 +53,8 @@ internal/sitemap/
 │   └── repository.go     # Database operations and MongoDB queries
 ├── module.go             # Module initialization and route seeding
 └── CLAUDE.md             # This documentation
+
+**Note**: Authentication and permission middleware now centralized in `pkg/middleware/` with `SitemapAdapter` for module-specific methods.
 ```
 
 ## Data Models

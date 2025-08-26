@@ -15,7 +15,6 @@ internal/corporation/
 ├── dto/                    # Data Transfer Objects
 │   ├── inputs.go          # Request input DTOs with Huma validation
 │   └── outputs.go         # Response output DTOs with proper JSON structure
-├── middleware/            # Module-specific middleware (currently empty)
 ├── models/                # Database models
 │   └── models.go         # MongoDB schemas and collection definitions
 ├── routes/               # Route definitions  
@@ -25,6 +24,8 @@ internal/corporation/
 │   └── service.go        # Business logic and ESI integration
 ├── module.go             # Module initialization and interface implementation
 └── CLAUDE.md             # This documentation file
+
+**Note**: Authentication and permission middleware now centralized in `pkg/middleware/` system.
 ```
 
 ## Key Features

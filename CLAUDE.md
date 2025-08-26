@@ -71,7 +71,7 @@ Go Falcon is a monolithic API gateway built with Go that provides:
 go-falcon/
 ├── cmd/           # Executables (falcon, backup, restore)
 ├── internal/      # Private modules (auth, scheduler, sitemap, users, etc.)
-│   └── [module]/  # Each module: dto/, middleware/, routes/, services/, models/, CLAUDE.md
+│   └── [module]/  # Each module: dto/, routes/, services/, models/, CLAUDE.md
 ├── pkg/           # Shared libraries (app, config, database, handlers, etc.)
 ├── docs/          # Documentation
 ├── builders/      # Docker configurations
@@ -164,7 +164,7 @@ Each module in `internal/` is self-contained with:
 - Dedicated routes and handlers
 - Service-specific business logic
 - Independent database collections
-- Module-specific middleware
+- Centralized authentication and permission middleware (pkg/middleware)
 - Comprehensive documentation (CLAUDE.md)
 
 ### 2. Unified OpenAPI Architecture
@@ -214,6 +214,15 @@ In-memory SDE (Static Data Export) service:
 - **Granular Permissions**: Fine-grained access control
 - **CSRF Protection**: State validation
 
+### 6. Dynamic Routing System (Sitemap Module)
+
+The sitemap module provides backend-controlled frontend routing with a dual-structure response:
+- **Flat Routes Array**: Simple list of available routes for React Router configuration (no nested children)
+- **Hierarchical Navigation**: Tree structure with folders for rendering vertical navigation menus
+- **Permission-Based Access**: Routes filtered based on user permissions and group memberships
+- **Separation of Concerns**: Routes define what's accessible, navigation defines how it's organized
+- **Real-time Updates**: Route access can change without frontend deployments
+
 ## 📚 Module Documentation
 
 ### Core Modules with Detailed Documentation
@@ -224,7 +233,7 @@ In-memory SDE (Static Data Export) service:
 | **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution, character/corporation/alliance automated updates |
 | **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User management and profile operations |
 | **Groups** | [`internal/groups/CLAUDE.md`](internal/groups/CLAUDE.md) | Group and role-based access control, character name resolution |
-| **Sitemap** | [`internal/sitemap/CLAUDE.md`](internal/sitemap/CLAUDE.md) | Backend-managed dynamic routing, permission-based navigation, React integration |
+| **Sitemap** | [`internal/sitemap/CLAUDE.md`](internal/sitemap/CLAUDE.md) | Backend-managed dynamic routing with flat routes array and hierarchical navigation tree |
 | **Character** | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md) | Character information, portraits, background affiliation updates |
 | **Corporation** | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management, automated ESI updates |
 | **Alliance** | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md) | Alliance information, member corporations, relationship data |
@@ -239,7 +248,7 @@ In-memory SDE (Static Data Export) service:
 | **EVE Gateway** | ESI client library | Rate limiting, caching, OAuth |
 | **Handlers** | HTTP response utilities | StandardResponse, JSON utilities, health checks |
 | **Logging** | OpenTelemetry integration | Conditional telemetry (ENABLE_TELEMETRY), trace correlation |
-| **Middleware** | Request processing | Tracing middleware, context propagation |
+| **Middleware** | Request processing | Centralized authentication, permission checking, tracing middleware |
 | **Module** | Module system base | BaseModule interface, shared dependencies |
 | **SDE Service** | In-memory data service | EVE static data, O(1) lookups, thread-safe |
 
@@ -278,12 +287,13 @@ Each module in `internal/` **MUST** follow this standardized structure:
 ```
 internal/modulename/
 ├── dto/           # Data Transfer Objects (inputs.go, outputs.go, validators.go)
-├── middleware/    # Module-specific middleware (auth.go, validation.go, ratelimit.go)
-├── routes/        # Route definitions (routes.go, health.go, api.go)
+├── routes/        # Route definitions (routes.go, health.go, api.go)  
 ├── services/      # Business logic (service.go, repository.go)
 ├── models/        # Database models (models.go)
 ├── module.go      # Module initialization
 └── CLAUDE.md      # Module documentation
+
+Note: Authentication and permission middleware now centralized in pkg/middleware/
 ```
 
 See individual module CLAUDE.md files for detailed implementation examples and patterns.
@@ -291,8 +301,8 @@ See individual module CLAUDE.md files for detailed implementation examples and p
 ### Code Standards
 
 - **DTOs**: Use `dto/` package with Huma v2 struct tags and OpenAPI documentation
-- **Routes**: Define in `routes/` package with proper middleware composition
-- **Middleware**: Module-specific in `middleware/`, reuse shared from `pkg/middleware`
+- **Routes**: Define in `routes/` package with centralized middleware adapters
+- **Middleware**: Use centralized system from `pkg/middleware` with module-specific adapters
 - **Services**: Business logic separation with testable design
 
 ### Module Status Endpoint Standard
@@ -313,12 +323,12 @@ Every module **MUST** implement `GET /{module}/status` endpoint:
 
 ### Best Practices
 
-- ✅ Follow the standardized module structure (dto/, routes/, middleware/, services/)
+- ✅ Follow the standardized module structure (dto/, routes/, services/, models/)
 - ✅ Use DTOs for all input/output handling with Huma v2 patterns
 - ✅ Implement validation at the DTO level
 - ✅ Keep routes clean - delegate to services
 - ✅ Use shared libraries for common functionality
-- ✅ Implement middleware for cross-cutting concerns
+- ✅ Use centralized middleware (pkg/middleware) for authentication and permissions
 - ✅ Keep modules loosely coupled
 - ✅ Document all API endpoints
 - ✅ Use conventional commits
