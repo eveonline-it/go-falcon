@@ -530,7 +530,7 @@ func (s *Service) DeleteRoute(ctx context.Context, routeID string) (int, error) 
 }
 
 // GetRoutes lists routes with filtering
-func (s *Service) GetRoutes(ctx context.Context, input *dto.ListRoutesInput) ([]models.Route, int64, error) {
+func (s *Service) GetRoutes(ctx context.Context, input *dto.ListRoutesInput) ([]models.Route, error) {
 	filter := bson.M{}
 
 	// Handle string-based filters with "all" as no filter
@@ -575,14 +575,11 @@ func (s *Service) GetRoutes(ctx context.Context, input *dto.ListRoutesInput) ([]
 		sortFields = bson.D{{"depth", 1}, {"nav_order", 1}, {"created_at", -1}}
 	}
 
-	opts := options.Find().
-		SetSkip(int64((input.Page - 1) * input.Limit)).
-		SetLimit(int64(input.Limit)).
-		SetSort(sortFields)
+	opts := options.Find().SetSort(sortFields)
 
 	routes, err := s.repository.GetRoutesWithOptions(ctx, filter, opts)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get routes: %w", err)
+		return nil, fmt.Errorf("failed to get routes: %w", err)
 	}
 
 	// Apply hierarchical sorting only if requested (default)
@@ -590,12 +587,7 @@ func (s *Service) GetRoutes(ctx context.Context, input *dto.ListRoutesInput) ([]
 		routes = s.sortRoutesHierarchicallyForAdmin(routes)
 	}
 
-	count, err := s.repository.CountRoutes(ctx, filter)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count routes: %w", err)
-	}
-
-	return routes, count, nil
+	return routes, nil
 }
 
 // GetRouteByID gets a single route by ID

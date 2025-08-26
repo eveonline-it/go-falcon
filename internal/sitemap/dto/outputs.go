@@ -11,15 +11,12 @@ type RouteOutput struct {
 
 // RoutesOutput represents the output for multiple routes
 type RoutesOutput struct {
-	Body RoutesResponse `json:"body" description:"Routes list with pagination"`
+	Body RoutesResponse `json:"body" description:"Routes list"`
 }
 
-// RoutesResponse contains the paginated routes response
+// RoutesResponse contains the routes response
 type RoutesResponse struct {
 	Routes []models.Route `json:"routes" description:"List of routes"`
-	Total  int64          `json:"total" description:"Total number of routes"`
-	Page   int            `json:"page" description:"Current page"`
-	Limit  int            `json:"limit" description:"Items per page"`
 }
 
 // SitemapOutput represents the user-specific sitemap response

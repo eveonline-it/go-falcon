@@ -91,8 +91,6 @@ type ListRoutesInput struct {
 	ShowInNav   string `query:"show_in_nav" enum:"true,false,all" default:"all" description:"Filter by navigation visibility"`
 	NavPosition string `query:"nav_position" enum:"main,user,admin,footer,hidden,all" default:"all" description:"Filter by navigation position"`
 	Sort        string `query:"sort" enum:"hierarchical,flat,nav_order,created_at" default:"hierarchical" description:"Sort order for admin display"`
-	Page        int    `query:"page" minimum:"1" default:"1" description:"Page number"`
-	Limit       int    `query:"limit" minimum:"1" maximum:"100" default:"20" description:"Items per page"`
 }
 
 // BulkUpdateOrderInput represents the input for updating navigation order

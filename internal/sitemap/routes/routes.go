@@ -79,23 +79,20 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 		Method:      "GET",
 		Path:        adminBasePath,
 		Summary:     "List all routes",
-		Description: "Returns paginated list of all routes with filtering options",
+		Description: "Returns list of all routes with filtering options",
 		Tags:        []string{"Sitemap / Admin"},
 		Security: []map[string][]string{
 			{"BearerAuth": {}},
 		},
 	}, func(ctx context.Context, input *dto.ListRoutesInput) (*dto.RoutesOutput, error) {
 		// TODO: Add proper admin authentication check
-		routes, total, err := r.service.GetRoutes(ctx, input)
+		routes, err := r.service.GetRoutes(ctx, input)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get routes", err)
 		}
 
 		response := dto.RoutesResponse{
 			Routes: routes,
-			Total:  total,
-			Page:   input.Page,
-			Limit:  input.Limit,
 		}
 
 		return &dto.RoutesOutput{Body: response}, nil
