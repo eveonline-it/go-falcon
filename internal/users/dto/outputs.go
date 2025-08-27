@@ -192,3 +192,15 @@ type UsersStatusResponse struct {
 	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
 	Message string `json:"message,omitempty" description:"Optional status message or error details"`
 }
+
+// UserReorderCharactersResponse represents the response after reordering user characters
+type UserReorderCharactersResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Count   int    `json:"count"` // Number of characters reordered
+}
+
+// UserReorderCharactersOutput represents the output for reordering user characters
+type UserReorderCharactersOutput struct {
+	Body UserReorderCharactersResponse `json:"body"`
+}

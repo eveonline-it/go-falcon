@@ -21,6 +21,7 @@ type UserProfile struct {
 	LastLogin          time.Time         `bson:"last_login" json:"last_login"`
 	ProfileUpdated     time.Time         `bson:"profile_updated" json:"profile_updated"`
 	Valid              bool              `bson:"valid" json:"valid"`
+	Position           int               `bson:"position" json:"position"` // User position/rank for character ordering
 	Metadata           map[string]string `bson:"metadata" json:"metadata,omitempty"`
 	CreatedAt          time.Time         `bson:"created_at" json:"created_at"`
 	UpdatedAt          time.Time         `bson:"updated_at" json:"updated_at"`

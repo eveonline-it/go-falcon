@@ -219,6 +219,30 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 			},
 		}, nil
 	})
+
+	// Character reordering
+	huma.Register(api, huma.Operation{
+		OperationID: "users-reorder-user-characters",
+		Method:      "PUT",
+		Path:        basePath + "/{user_id}/characters/reorder",
+		Summary:     "Reorder user characters",
+		Description: "Reorder characters for a user by updating their positions",
+		Tags:        []string{"Users / Characters"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, func(ctx context.Context, input *dto.UserReorderCharactersInput) (*dto.UserReorderCharactersOutput, error) {
+		// Validate authentication and user access (self or admin)
+		_, err := usersAdapter.RequireUserAccess(ctx, input.Authorization, input.Cookie, input.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := service.ReorderUserCharacters(ctx, input.UserID, input.Body)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to reorder characters", err)
+		}
+
+		return &dto.UserReorderCharactersOutput{Body: *response}, nil
+	})
 }
 
 // registerRoutes registers all Users module routes with Huma

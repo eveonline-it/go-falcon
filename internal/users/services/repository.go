@@ -400,6 +400,67 @@ func (r *Repository) DeleteUser(ctx context.Context, characterID int) error {
 	return nil
 }
 
+// UpdateCharacterPositions updates positions for multiple characters
+func (r *Repository) UpdateCharacterPositions(ctx context.Context, characters []dto.CharacterReorderRequest) error {
+	collection := r.mongodb.Collection(models.User{}.CollectionName())
+
+	for _, char := range characters {
+		filter := bson.M{"character_id": char.CharacterID}
+		update := bson.M{
+			"$set": bson.M{
+				"position":   char.Position,
+				"updated_at": time.Now(),
+			},
+		}
+
+		_, err := collection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			return fmt.Errorf("failed to update position for character %d: %w", char.CharacterID, err)
+		}
+	}
+
+	return nil
+}
+
+// RecalculatePositions recalculates positions for all characters of a user to be consecutive
+func (r *Repository) RecalculatePositions(ctx context.Context, userID string) error {
+	collection := r.mongodb.Collection(models.User{}.CollectionName())
+
+	// Get all characters for the user, sorted by current position
+	filter := bson.M{"user_id": userID}
+	findOptions := options.Find().SetSort(bson.D{{"position", 1}})
+
+	cursor, err := collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return fmt.Errorf("failed to find user characters: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var characters []models.User
+	if err := cursor.All(ctx, &characters); err != nil {
+		return fmt.Errorf("failed to decode user characters: %w", err)
+	}
+
+	// Update each character with consecutive positions starting from 0
+	for i, char := range characters {
+		newPosition := i
+		filter := bson.M{"character_id": char.CharacterID}
+		update := bson.M{
+			"$set": bson.M{
+				"position":   newPosition,
+				"updated_at": time.Now(),
+			},
+		}
+
+		_, err := collection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			return fmt.Errorf("failed to update position for character %d: %w", char.CharacterID, err)
+		}
+	}
+
+	return nil
+}
+
 // CheckHealth verifies database connectivity
 func (r *Repository) CheckHealth(ctx context.Context) error {
 	// Perform a simple ping to check database connectivity

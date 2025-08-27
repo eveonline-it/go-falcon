@@ -73,3 +73,28 @@ type UserListInput struct {
 	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
 	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
+
+// CharacterReorderRequest represents a character position change request
+type CharacterReorderRequest struct {
+	CharacterID int `json:"character_id" validate:"required,min=90000000" doc:"Character ID to reorder"`
+	Position    int `json:"position" validate:"min=0" doc:"New position for the character"`
+}
+
+// UserReorderCharactersRequest represents the request body for reordering user characters
+type UserReorderCharactersRequest struct {
+	Characters []CharacterReorderRequest `json:"characters" validate:"required,dive" doc:"Array of character position updates"`
+}
+
+// ValidateUserReorderCharactersRequest validates the reorder request
+func ValidateUserReorderCharactersRequest(req *UserReorderCharactersRequest) error {
+	validate := validator.New()
+	return validate.Struct(req)
+}
+
+// UserReorderCharactersInput represents the input for reordering user characters
+type UserReorderCharactersInput struct {
+	UserID        string                       `path:"user_id" validate:"required" doc:"User UUID"`
+	Body          UserReorderCharactersRequest `json:"body"`
+	Authorization string                       `header:"Authorization" doc:"Bearer token for authentication"`
+	Cookie        string                       `header:"Cookie" doc:"Authentication cookie"`
+}

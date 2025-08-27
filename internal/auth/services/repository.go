@@ -43,11 +43,24 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 	now := time.Now()
 	profile.UpdatedAt = now
 
-	// Use upsert to create or update based on character_id
+	// Check if this is a new character or an existing one
 	filter := bson.M{"character_id": profile.CharacterID}
+	var existingProfile models.UserProfile
+	err := collection.FindOne(ctx, filter).Decode(&existingProfile)
+	isNewCharacter := err == mongo.ErrNoDocuments
 
-	// First user super admin logic is now handled by the groups service
-	// This field will be removed in subsequent steps
+	// If this is a new character, assign position
+	if isNewCharacter {
+		position, err := r.assignPositionForNewCharacter(ctx, profile.UserID)
+		if err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
+		profile.Position = position
+	} else {
+		// For existing characters, keep the existing position
+		profile.Position = existingProfile.Position
+	}
 
 	// Prepare update document - exclude created_at from $set to avoid conflict
 	updateFields := bson.M{
@@ -68,9 +81,9 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 		"last_login":           profile.LastLogin,
 		"profile_updated":      profile.ProfileUpdated,
 		"valid":                profile.Valid,
-		// is_super_admin field removed - now handled by groups module
-		"metadata":   profile.Metadata,
-		"updated_at": profile.UpdatedAt,
+		"position":             profile.Position,
+		"metadata":             profile.Metadata,
+		"updated_at":           profile.UpdatedAt,
 	}
 
 	update := bson.M{
@@ -81,7 +94,7 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 	}
 
 	opts := options.Update().SetUpsert(true)
-	_, err := collection.UpdateOne(ctx, filter, update, opts)
+	_, err = collection.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
@@ -96,6 +109,28 @@ func (r *Repository) CreateOrUpdateUserProfile(ctx context.Context, profile *mod
 	}
 
 	return &updatedProfile, nil
+}
+
+// assignPositionForNewCharacter assigns the correct position for a new character
+func (r *Repository) assignPositionForNewCharacter(ctx context.Context, userID string) (int, error) {
+	collection := r.mongodb.Collection("user_profiles")
+
+	// Find the highest position for this user
+	filter := bson.M{"user_id": userID}
+	opts := options.FindOne().SetSort(bson.M{"position": -1})
+
+	var highestProfile models.UserProfile
+	err := collection.FindOne(ctx, filter, opts).Decode(&highestProfile)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// This is the first character for this user, position should be 0
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	// This is an additional character, position should be last position + 1
+	return highestProfile.Position + 1, nil
 }
 
 // GetUserProfileByCharacterID retrieves a user profile by character ID

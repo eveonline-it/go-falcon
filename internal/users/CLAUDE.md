@@ -11,7 +11,8 @@ Each user has his own refresh and access token
 ### Core Components
 
 - **User Management**: User management
-- **Character Management**: List all characters
+- **Character Management**: List all characters with position-based ordering
+- **Character Positioning**: Automatic position assignment and user-controlled reordering
 - **User State Control**: Enable/disable, ban/unban, and validation status management
 - **Administrative Tools**: User search, filtering, and bulk operations
 
@@ -216,6 +217,53 @@ Users can always view their own characters. Admin users (super_admin) can view a
 }
 ```
 
+#### Reorder User Characters
+```
+PUT /users/{user_id}/characters/reorder
+```
+**Authentication:** Required  
+**Permission:** Self-access or Authentication required
+
+Reorder characters for a user by updating their positions. Users can reorder their own characters, or admins can reorder any user's characters.
+
+**Request Body:**
+```json
+{
+  "characters": [
+    {
+      "character_id": 123456789,
+      "position": 0
+    },
+    {
+      "character_id": 987654321,
+      "position": 1
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Characters reordered successfully",
+  "count": 2
+}
+```
+
+## Character Position Management
+
+### Automatic Position Assignment
+- **First Character**: New users get position `0` for their first character
+- **Additional Characters**: Subsequent characters get `last_position + 1`
+- **Deletion Cleanup**: When a character is deleted, remaining positions are automatically recalculated to be consecutive (0, 1, 2...)
+
+### Position Rules
+- Positions start at `0` and increment sequentially
+- Positions are automatically maintained when characters are added or removed
+- Users can manually reorder their characters using the reorder endpoint
+- Position changes are immediately reflected in character listings
+
 ## Authentication and Authorization
 
 The Users module integrates with the authentication and authorization system using JWT tokens and group-based permissions.
@@ -240,6 +288,7 @@ The following permissions should be configured in the Groups module:
 | `/users/mgt/{character_id}` | PUT | Yes | Authentication required | Update user status and settings |
 | `/users/mgt/{character_id}` | DELETE | Yes | Authentication required | Delete user character with group cleanup |
 | `/users/{user_id}/characters` | GET | Yes | Self or Authentication required | List characters for a user |
+| `/users/{user_id}/characters/reorder` | PUT | Yes | Self or Authentication required | Reorder user characters by position |
 
 ### Authorization Logic
 

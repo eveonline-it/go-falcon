@@ -205,6 +205,45 @@ func (s *Service) UserToResponse(user *models.User) *dto.UserResponse {
 	}
 }
 
+// ReorderUserCharacters reorders characters for a user
+func (s *Service) ReorderUserCharacters(ctx context.Context, userID string, req dto.UserReorderCharactersRequest) (*dto.UserReorderCharactersResponse, error) {
+	// Validate the request
+	if err := dto.ValidateUserReorderCharactersRequest(&req); err != nil {
+		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+
+	// Get all characters for the user to validate they belong to the user
+	userCharacters, err := s.repository.ListCharacters(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user characters: %w", err)
+	}
+
+	// Create a map of user's character IDs for validation
+	userCharacterMap := make(map[int]bool)
+	for _, char := range userCharacters {
+		userCharacterMap[char.CharacterID] = true
+	}
+
+	// Validate that all characters in request belong to the user
+	for _, charReq := range req.Characters {
+		if !userCharacterMap[charReq.CharacterID] {
+			return nil, fmt.Errorf("character %d does not belong to user %s", charReq.CharacterID, userID)
+		}
+	}
+
+	// Update positions in repository
+	err = s.repository.UpdateCharacterPositions(ctx, req.Characters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update character positions: %w", err)
+	}
+
+	return &dto.UserReorderCharactersResponse{
+		Success: true,
+		Message: "Characters reordered successfully",
+		Count:   len(req.Characters),
+	}, nil
+}
+
 // DeleteUser deletes a user character with super admin protection
 func (s *Service) DeleteUser(ctx context.Context, characterID int) error {
 	// Check if user exists before deletion
@@ -240,8 +279,23 @@ func (s *Service) DeleteUser(ctx context.Context, characterID int) error {
 		}
 	}
 
+	// Store userID for position recalculation after deletion
+	userID := user.UserID
+
 	// Delete the user
-	return s.repository.DeleteUser(ctx, characterID)
+	err = s.repository.DeleteUser(ctx, characterID)
+	if err != nil {
+		return err
+	}
+
+	// Recalculate positions for remaining characters of this user
+	err = s.repository.RecalculatePositions(ctx, userID)
+	if err != nil {
+		// Log the error but don't fail the deletion - this is cleanup
+		fmt.Printf("Warning: Failed to recalculate positions for user %s after deleting character %d: %v\n", userID, characterID, err)
+	}
+
+	return nil
 }
 
 // GetStatus returns the health status of the users module
