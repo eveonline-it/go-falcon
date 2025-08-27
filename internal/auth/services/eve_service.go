@@ -189,6 +189,49 @@ func (s *EVEService) ValidateJWT(tokenString string) (*models.AuthenticatedUser,
 	}, nil
 }
 
+// VerifyJWT validates a JWT token and returns user information with expiration time
+func (s *EVEService) VerifyJWT(tokenString string) (*models.AuthenticatedUser, time.Time, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return s.jwtSecret, nil
+	})
+
+	if err != nil {
+		return nil, time.Time{}, fmt.Errorf("failed to parse JWT: %w", err)
+	}
+
+	if !token.Valid {
+		return nil, time.Time{}, errors.New("invalid JWT token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, time.Time{}, errors.New("invalid JWT claims")
+	}
+
+	// Extract user information from claims
+	userID, _ := claims["user_id"].(string)
+	characterIDFloat, _ := claims["character_id"].(float64)
+	characterID := int(characterIDFloat)
+	characterName, _ := claims["character_name"].(string)
+	scopes, _ := claims["scopes"].(string)
+
+	// Extract expiration time from claims
+	var expiresAt time.Time
+	if exp, ok := claims["exp"].(float64); ok {
+		expiresAt = time.Unix(int64(exp), 0)
+	}
+
+	return &models.AuthenticatedUser{
+		UserID:        userID,
+		CharacterID:   characterID,
+		CharacterName: characterName,
+		Scopes:        scopes,
+	}, expiresAt, nil
+}
+
 // GenerateJWT creates a JWT token for the authenticated user
 func (s *EVEService) GenerateJWT(userID string, characterID int, characterName, scopes string) (string, time.Time, error) {
 	expiresAt := time.Now().Add(config.GetCookieDuration())

@@ -599,3 +599,13 @@ func (s *AuthService) GetStatus(ctx context.Context) *dto.AuthModuleStatusRespon
 		Status: "healthy",
 	}
 }
+
+// RefreshAccessToken refreshes an EVE access token using a refresh token
+func (s *AuthService) RefreshAccessToken(ctx context.Context, refreshToken string) (*models.EVETokenResponse, error) {
+	return s.eveService.RefreshAccessToken(ctx, refreshToken)
+}
+
+// VerifyJWT verifies a JWT token and returns user information with expiration time
+func (s *AuthService) VerifyJWT(token string) (*models.AuthenticatedUser, time.Time, error) {
+	return s.eveService.VerifyJWT(token)
+}

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"time"
 
 	"go-falcon/internal/auth/dto"
 	"go-falcon/internal/auth/middleware"
@@ -169,8 +170,23 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		Description: "Refresh an expired EVE access token using refresh token",
 		Tags:        []string{"Auth / EVE"},
 	}, func(ctx context.Context, input *dto.RefreshTokenInput) (*dto.RefreshTokenOutput, error) {
-		// TODO: Implement token refresh
-		return nil, huma.Error501NotImplemented("Token refresh not yet implemented")
+		// Refresh the access token using the EVE service
+		tokenResp, err := authService.RefreshAccessToken(ctx, input.Body.RefreshToken)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Failed to refresh token", err)
+		}
+
+		// Calculate expiration time from expires_in seconds
+		expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+		return &dto.RefreshTokenOutput{
+			Body: dto.RefreshTokenResponse{
+				AccessToken:  tokenResp.AccessToken,
+				RefreshToken: tokenResp.RefreshToken,
+				ExpiresIn:    tokenResp.ExpiresIn,
+				ExpiresAt:    expiresAt,
+			},
+		}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -181,8 +197,24 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 		Description: "Verify the validity of a JWT token",
 		Tags:        []string{"Auth / EVE"},
 	}, func(ctx context.Context, input *dto.VerifyTokenInput) (*dto.VerifyTokenOutput, error) {
-		// TODO: Implement token verification
-		return nil, huma.Error501NotImplemented("Token verification not yet implemented")
+		// Verify the JWT token using the auth service
+		user, expiresAt, err := authService.VerifyJWT(input.Token)
+		if err != nil {
+			return &dto.VerifyTokenOutput{
+				Body: dto.VerifyResponse{
+					Valid: false,
+				},
+			}, nil
+		}
+
+		return &dto.VerifyTokenOutput{
+			Body: dto.VerifyResponse{
+				Valid:         true,
+				CharacterID:   user.CharacterID,
+				CharacterName: user.CharacterName,
+				ExpiresAt:     expiresAt,
+			},
+		}, nil
 	})
 
 	// Status endpoint (public, no auth required)
