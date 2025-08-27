@@ -41,8 +41,8 @@ func NewRoutes(authService *services.AuthService, middleware *middleware.Middlew
 		api:            api,
 	}
 
-	// Register all routes
-	hr.registerRoutes()
+	// Note: Routes are registered via RegisterAuthRoutes() for the shared API
+	// The old registerRoutes() method has been removed to avoid conflicts
 
 	return hr
 }
@@ -422,33 +422,8 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 }
 
 // registerRoutes registers all Auth module routes with Huma
-func (hr *Routes) registerRoutes() {
-	// EVE Online SSO endpoints (public)
-	huma.Get(hr.api, "/eve/login", hr.eveLogin)
-	huma.Get(hr.api, "/eve/register", hr.eveRegister)
-	huma.Get(hr.api, "/eve/callback", hr.eveCallback)
-	huma.Post(hr.api, "/eve/token", hr.eveTokenExchange)
-	huma.Post(hr.api, "/eve/refresh", hr.eveRefresh)
-	huma.Get(hr.api, "/eve/verify", hr.eveVerify)
-
-	// Status endpoint (public, no auth required)
-	huma.Get(hr.api, "/status", hr.moduleStatus)
-
-	// Authentication status and user info (public with optional auth)
-	huma.Get(hr.api, "/auth-status", hr.authStatus)
-	huma.Get(hr.api, "/user", hr.userInfo)
-
-	// Profile endpoints (require authentication)
-	huma.Get(hr.api, "/profile", hr.profile)
-	huma.Post(hr.api, "/profile/refresh", hr.profileRefresh)
-	huma.Get(hr.api, "/token", hr.token)
-
-	// Public profile endpoint (no auth required)
-	huma.Get(hr.api, "/profile/public", hr.publicProfile)
-
-	// Logout endpoint (public)
-	huma.Post(hr.api, "/logout", hr.logout)
-}
+// Removed registerRoutes() - all routes are now registered via RegisterAuthRoutes()
+// This prevents duplicate route registration and placeholder implementations
 
 // EVE SSO endpoint handlers
 
@@ -533,15 +508,9 @@ func (hr *Routes) eveTokenExchange(ctx context.Context, input *dto.EVETokenExcha
 	return &dto.EVETokenExchangeOutput{Body: *tokenResp}, nil
 }
 
-func (hr *Routes) eveRefresh(ctx context.Context, input *dto.RefreshTokenInput) (*dto.RefreshTokenOutput, error) {
-	// TODO: Implement token refresh
-	return nil, huma.Error501NotImplemented("Token refresh not yet implemented")
-}
+// Removed placeholder eveRefresh() - actual implementation is in RegisterAuthRoutes()
 
-func (hr *Routes) eveVerify(ctx context.Context, input *dto.VerifyTokenInput) (*dto.VerifyTokenOutput, error) {
-	// TODO: Implement token verification
-	return nil, huma.Error501NotImplemented("Token verification not yet implemented")
-}
+// Removed placeholder eveVerify() - actual implementation is in RegisterAuthRoutes()
 
 // Module status handler
 

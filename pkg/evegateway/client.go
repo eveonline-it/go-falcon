@@ -2,11 +2,14 @@ package evegateway
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -383,12 +386,67 @@ func (c *Client) GetAllianceInfo(ctx context.Context, allianceID int) (map[strin
 	return c.Alliance.GetAllianceInfo(ctx, int64(allianceID))
 }
 
-// RefreshToken refreshes an EVE SSO access token
+// RefreshToken refreshes an EVE SSO access token using OAuth2 refresh token flow
 func (c *Client) RefreshToken(ctx context.Context, refreshToken string) (map[string]any, error) {
 	slog.Info("Refreshing EVE SSO token")
 
-	// TODO: Implement actual token refresh
-	return map[string]any{"access_token": "placeholder", "expires_in": 1200}, nil
+	// Get EVE OAuth configuration from environment
+	clientID := config.GetEnv("EVE_CLIENT_ID", "")
+	clientSecret := config.GetEnv("EVE_CLIENT_SECRET", "")
+
+	if clientID == "" || clientSecret == "" {
+		return nil, fmt.Errorf("EVE_CLIENT_ID and EVE_CLIENT_SECRET must be configured")
+	}
+
+	// Prepare OAuth2 refresh token request
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("refresh_token", refreshToken)
+
+	// Create the request to EVE SSO token endpoint
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://login.eveonline.com/v2/oauth/token", strings.NewReader(data.Encode()))
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to create token refresh request", "error", err)
+		return nil, fmt.Errorf("failed to create refresh request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(clientID+":"+clientSecret)))
+	req.Header.Set("User-Agent", c.userAgent)
+
+	// Execute the request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to execute token refresh request", "error", err)
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to read token refresh response", "error", err)
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Handle non-200 responses
+	if resp.StatusCode != http.StatusOK {
+		slog.ErrorContext(ctx, "EVE SSO token refresh failed",
+			"status_code", resp.StatusCode,
+			"response", string(body))
+		return nil, fmt.Errorf("token refresh failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse the response
+	var tokenResponse map[string]any
+	if err := json.Unmarshal(body, &tokenResponse); err != nil {
+		slog.ErrorContext(ctx, "Failed to parse token refresh response", "error", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	slog.InfoContext(ctx, "Successfully refreshed EVE SSO token")
+	return tokenResponse, nil
 }
 
 // Implementation structs for category clients
