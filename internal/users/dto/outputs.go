@@ -36,7 +36,6 @@ type UserResponse struct {
 	UserID        string    `json:"user_id"`
 	Enabled       bool      `json:"enabled"`
 	Banned        bool      `json:"banned"`
-	Invalid       bool      `json:"invalid"`
 	Scopes        string    `json:"scopes"`
 	Position      int       `json:"position"`
 	Notes         string    `json:"notes"`
@@ -103,7 +102,6 @@ type UserStatsResponse struct {
 	EnabledUsers  int `json:"enabled_users"`
 	DisabledUsers int `json:"disabled_users"`
 	BannedUsers   int `json:"banned_users"`
-	InvalidUsers  int `json:"invalid_users"`
 }
 
 // UserUpdateResponse represents the response after updating a user

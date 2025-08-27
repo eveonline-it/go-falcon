@@ -12,7 +12,6 @@ import (
 type UserUpdateRequest struct {
 	Enabled  *bool   `json:"enabled,omitempty"`                             // Enable/disable user
 	Banned   *bool   `json:"banned,omitempty"`                              // Ban/unban user
-	Invalid  *bool   `json:"invalid,omitempty"`                             // Set validity status
 	Position *int    `json:"position,omitempty" validate:"omitempty,min=0"` // Update position/rank
 	Notes    *string `json:"notes,omitempty" validate:"omitempty,max=1000"` // Update administrative notes
 }
@@ -66,7 +65,6 @@ type UserListInput struct {
 	Query         string `query:"query" doc:"Search by character name or ID"`
 	Enabled       string `query:"enabled" doc:"Filter by enabled status (true/false)"`
 	Banned        string `query:"banned" doc:"Filter by banned status (true/false)"`
-	Invalid       string `query:"invalid" doc:"Filter by invalid status (true/false)"`
 	Position      int    `query:"position" doc:"Filter by position value (0 means no filter)"`
 	SortBy        string `query:"sort_by" enum:"character_name,created_at,last_login,position" default:"created_at" doc:"Sort field"`
 	SortOrder     string `query:"sort_order" enum:"asc,desc" default:"desc" doc:"Sort order"`

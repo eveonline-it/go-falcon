@@ -285,6 +285,7 @@ func (r *Repository) UpdateProfileTokens(ctx context.Context, characterID int, a
 			"access_token":  accessToken,
 			"refresh_token": refreshToken,
 			"token_expiry":  expiresAt,
+			"valid":         true,
 			"updated_at":    time.Now(),
 		},
 	}

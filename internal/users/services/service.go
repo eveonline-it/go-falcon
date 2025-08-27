@@ -193,7 +193,6 @@ func (s *Service) UserToResponse(user *models.User) *dto.UserResponse {
 		UserID:        user.UserID,
 		Enabled:       user.Enabled,
 		Banned:        user.Banned,
-		Invalid:       user.Invalid,
 		Scopes:        user.Scopes,
 		Position:      user.Position,
 		Notes:         user.Notes,

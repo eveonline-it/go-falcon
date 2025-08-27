@@ -13,7 +13,6 @@ type User struct {
 	RefreshToken  string    `json:"-" bson:"refresh_token"`               // EVE SSO refresh token (hidden from JSON)
 	Enabled       bool      `json:"enabled" bson:"enabled"`               // User account status
 	Banned        bool      `json:"banned" bson:"banned"`                 // Ban status
-	Invalid       bool      `json:"invalid" bson:"invalid"`               // Token/account validity
 	Scopes        string    `json:"scopes" bson:"scopes"`                 // EVE Online permissions
 	Position      int       `json:"position" bson:"position"`             // User position/rank
 	Notes         string    `json:"notes" bson:"notes"`                   // Administrative notes

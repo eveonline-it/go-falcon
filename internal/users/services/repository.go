@@ -74,9 +74,6 @@ func (r *Repository) UpdateUser(ctx context.Context, characterID int, req dto.Us
 	if req.Banned != nil {
 		update["banned"] = *req.Banned
 	}
-	if req.Invalid != nil {
-		update["invalid"] = *req.Invalid
-	}
 	if req.Position != nil {
 		update["position"] = *req.Position
 	}
@@ -141,15 +138,6 @@ func (r *Repository) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, 
 						},
 					},
 				},
-				"invalid_users": bson.M{
-					"$sum": bson.M{
-						"$cond": []interface{}{
-							bson.M{"$eq": []interface{}{"$invalid", true}},
-							1,
-							0,
-						},
-					},
-				},
 			},
 		},
 	}
@@ -186,11 +174,6 @@ func (r *Repository) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, 
 		if val, ok := result["banned_users"]; ok {
 			if count, ok := val.(int32); ok {
 				stats.BannedUsers = int(count)
-			}
-		}
-		if val, ok := result["invalid_users"]; ok {
-			if count, ok := val.(int32); ok {
-				stats.InvalidUsers = int(count)
 			}
 		}
 	}
@@ -282,12 +265,6 @@ func (r *Repository) ListUsers(ctx context.Context, input dto.UserListInput) (*d
 		filter["banned"] = false
 	}
 
-	if input.Invalid == "true" {
-		filter["invalid"] = true
-	} else if input.Invalid == "false" {
-		filter["invalid"] = false
-	}
-
 	if input.Position > 0 {
 		filter["position"] = input.Position
 	}
@@ -339,7 +316,6 @@ func (r *Repository) ListUsers(ctx context.Context, input dto.UserListInput) (*d
 			UserID:        user.UserID,
 			Enabled:       user.Enabled,
 			Banned:        user.Banned,
-			Invalid:       user.Invalid,
 			Scopes:        user.Scopes,
 			Position:      user.Position,
 			Notes:         user.Notes,
