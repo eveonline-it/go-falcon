@@ -4,6 +4,32 @@ import (
 	"time"
 )
 
+// EnrichedCorporationInfo represents corporation information for enriched character responses
+type EnrichedCorporationInfo struct {
+	CorporationID  int       `json:"corporation_id"`
+	Name           string    `json:"name"`
+	Ticker         string    `json:"ticker"`
+	MemberCount    int       `json:"member_count"`
+	AllianceID     *int      `json:"alliance_id,omitempty"`
+	CEOCharacterID int       `json:"ceo_character_id"`
+	DateFounded    time.Time `json:"date_founded"`
+	Description    string    `json:"description"`
+	TaxRate        float64   `json:"tax_rate"`
+	WarEligible    *bool     `json:"war_eligible,omitempty"`
+}
+
+// EnrichedAllianceInfo represents alliance information for enriched character responses
+type EnrichedAllianceInfo struct {
+	AllianceID            int       `json:"alliance_id"`
+	Name                  string    `json:"name"`
+	Ticker                string    `json:"ticker"`
+	DateFounded           time.Time `json:"date_founded"`
+	CreatorID             int       `json:"creator_id"`
+	CreatorCorporationID  int       `json:"creator_corporation_id"`
+	ExecutorCorporationID *int      `json:"executor_corporation_id,omitempty"`
+	FactionID             *int      `json:"faction_id,omitempty"`
+}
+
 // UserResponse represents a user in API responses
 type UserResponse struct {
 	CharacterID   int       `json:"character_id"`
@@ -54,6 +80,10 @@ type EnrichedCharacterSummaryResponse struct {
 	AncestryID     *int       `json:"ancestry_id,omitempty"`
 	FactionID      *int       `json:"faction_id,omitempty"`
 	Description    *string    `json:"description,omitempty"`
+
+	// Full corporation and alliance information (optional)
+	Corporation *EnrichedCorporationInfo `json:"corporation,omitempty"`
+	Alliance    *EnrichedAllianceInfo    `json:"alliance,omitempty"`
 
 	// Portrait URLs (optional)
 	Portraits *CharacterPortraits `json:"portraits,omitempty"`

@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	allianceServices "go-falcon/internal/alliance/services"
 	characterServices "go-falcon/internal/character/services"
+	corporationServices "go-falcon/internal/corporation/services"
 	"go-falcon/internal/groups/services"
 	"go-falcon/internal/users/dto"
 	"go-falcon/internal/users/models"
@@ -14,17 +16,29 @@ import (
 
 // Service provides business logic for user operations
 type Service struct {
-	repository       *Repository
-	groupService     *services.Service
-	characterService *characterServices.Service
+	repository         *Repository
+	groupService       *services.Service
+	characterService   *characterServices.Service
+	corporationService *corporationServices.Service
+	allianceService    *allianceServices.Service
 }
 
 // NewService creates a new service instance
 func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client) *Service {
+	// Create corporation repository and service
+	corporationRepo := corporationServices.NewRepository(mongodb)
+	corporationSvc := corporationServices.NewService(corporationRepo, eveGateway)
+
+	// Create alliance repository and service
+	allianceRepo := allianceServices.NewRepository(mongodb)
+	allianceSvc := allianceServices.NewService(allianceRepo, eveGateway)
+
 	return &Service{
-		repository:       NewRepository(mongodb),
-		groupService:     nil, // Will be set after initialization
-		characterService: characterServices.NewService(mongodb, eveGateway),
+		repository:         NewRepository(mongodb),
+		groupService:       nil, // Will be set after initialization
+		characterService:   characterServices.NewService(mongodb, eveGateway),
+		corporationService: corporationSvc,
+		allianceService:    allianceSvc,
 	}
 }
 
@@ -109,6 +123,44 @@ func (s *Service) ListEnrichedCharacters(ctx context.Context, userID string) ([]
 				}
 				if profile.Description != "" {
 					enriched.Description = &profile.Description
+				}
+
+				// Fetch full corporation information if available
+				if s.corporationService != nil && profile.CorporationID != 0 {
+					corpOutput, corpErr := s.corporationService.GetCorporationInfo(ctx, profile.CorporationID)
+					if corpErr == nil && corpOutput != nil {
+						corp := corpOutput.Body
+						enriched.Corporation = &dto.EnrichedCorporationInfo{
+							CorporationID:  profile.CorporationID,
+							Name:           corp.Name,
+							Ticker:         corp.Ticker,
+							MemberCount:    corp.MemberCount,
+							AllianceID:     corp.AllianceID,
+							CEOCharacterID: corp.CEOCharacterID,
+							DateFounded:    corp.DateFounded,
+							Description:    corp.Description,
+							TaxRate:        corp.TaxRate,
+							WarEligible:    corp.WarEligible,
+						}
+					}
+				}
+
+				// Fetch full alliance information if available
+				if s.allianceService != nil && profile.AllianceID != 0 {
+					allianceOutput, allianceErr := s.allianceService.GetAllianceInfo(ctx, profile.AllianceID)
+					if allianceErr == nil && allianceOutput != nil {
+						alliance := allianceOutput.Body
+						enriched.Alliance = &dto.EnrichedAllianceInfo{
+							AllianceID:            profile.AllianceID,
+							Name:                  alliance.Name,
+							Ticker:                alliance.Ticker,
+							DateFounded:           alliance.DateFounded,
+							CreatorID:             alliance.CreatorID,
+							CreatorCorporationID:  alliance.CreatorCorporationID,
+							ExecutorCorporationID: alliance.ExecutorCorporationID,
+							FactionID:             alliance.FactionID,
+						}
+					}
 				}
 			}
 			// Note: Portrait fetching is commented out to avoid potential rate limiting issues
