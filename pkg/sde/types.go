@@ -507,9 +507,9 @@ type InvPosition struct {
 
 // InvUniqueName represents a unique name mapping with group information
 type InvUniqueName struct {
-	ItemID   int    `json:"itemID"`
-	ItemName string `json:"itemName"`
-	GroupID  int    `json:"groupID"`
+	ItemID   int         `json:"itemID"`
+	ItemName interface{} `json:"itemName"`
+	GroupID  int         `json:"groupID"`
 }
 
 // PlanetResource represents power and workforce requirements for planet resources
