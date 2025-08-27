@@ -349,10 +349,10 @@ curl -X POST http://localhost:8080/auth/login \
   -d '{"email":"test@example.com","password":"password"}'
 
 # Test users module
-curl http://localhost:8080/api/users/
+curl http://localhost:8080/users/
 
 # Test notifications module
-curl http://localhost:8080/api/notifications/
+curl http://localhost:8080/notifications/
 ```
 
 ### Adding New Modules

@@ -78,6 +78,42 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// rawRequestDebugMiddleware captures raw HTTP requests before Huma processing
+func rawRequestDebugMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Only debug sitemap PUT requests to reduce noise
+		if r.Method == "PUT" && strings.Contains(r.URL.Path, "/admin/sitemap/") {
+			log.Printf("🚀 RAW HTTP REQUEST (BEFORE HUMA) 🚀")
+			log.Printf("Method: %s", r.Method)
+			log.Printf("URL: %s", r.URL.String())
+			log.Printf("Content-Type: %s", r.Header.Get("Content-Type"))
+			log.Printf("Content-Length: %s", r.Header.Get("Content-Length"))
+			log.Printf("User-Agent: %s", r.Header.Get("User-Agent"))
+
+			// Read and log the raw body
+			if r.Body != nil {
+				bodyBytes, err := io.ReadAll(r.Body)
+				if err == nil {
+					log.Printf("Raw Body Length: %d bytes", len(bodyBytes))
+					log.Printf("Raw Body Content: %s", string(bodyBytes))
+					log.Printf("Raw Body Hex: %x", bodyBytes)
+
+					// Restore the body for further processing
+					r.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
+				} else {
+					log.Printf("❌ Failed to read raw body: %v", err)
+				}
+			} else {
+				log.Printf("❌ No request body found")
+			}
+			log.Printf("🚀 END RAW HTTP DEBUG 🚀")
+		}
+
+		// Continue with normal processing
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// Display startup banner
 	displayBanner()

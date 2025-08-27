@@ -84,8 +84,8 @@ func GetAPIPrefix() string {
 		}
 		return prefix
 	}
-	// Default to /api if not set at all
-	return "/api"
+	// Default to nothing if not set at all
+	return ""
 }
 
 // EVE Online SSO Configuration

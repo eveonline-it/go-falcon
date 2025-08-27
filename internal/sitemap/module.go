@@ -35,11 +35,10 @@ func NewModule(mongodb *database.MongoDB, redis *database.Redis, authService *se
 	// Create service with dependencies
 	service := sitemapServices.NewService(mongodb.Database, permissionManager, groupService)
 
-	// Initialize centralized permission middleware with debug logging for migration
+	// Initialize centralized permission middleware
 	permissionMiddleware := middleware.NewPermissionMiddleware(
 		authService,
 		permissionManager,
-		middleware.WithDebugLogging(),
 	)
 
 	// Create sitemap-specific adapter
@@ -72,9 +71,8 @@ func (m *Module) Routes(r chi.Router) {
 
 // RegisterUnifiedRoutes registers all module routes with the Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API) {
-	basePath := "/sitemap"
-	m.routes.RegisterUnifiedRoutes(api, basePath)
-	log.Printf("🗺️  Sitemap module routes registered at %s", basePath)
+	m.routes.RegisterUnifiedRoutes(api)
+	log.Printf("🗺️  Sitemap module routes registered")
 }
 
 // RegisterPermissions registers sitemap-specific permissions

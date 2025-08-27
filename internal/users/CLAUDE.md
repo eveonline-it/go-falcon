@@ -67,7 +67,7 @@ type User struct {
 
 #### Get User Statistics
 ```
-GET /api/users/stats
+GET /users/stats
 ```
 Returns aggregate statistics about users in the system.
 
@@ -88,7 +88,7 @@ All administrative endpoints require JWT authentication and appropriate permissi
 
 #### List Users
 ```
-GET /api/users?page=1&page_size=20&query=search&enabled=true&banned=false
+GET /users?page=1&page_size=20&query=search&enabled=true&banned=false
 ```
 **Authentication:** Required  
 **Permission:** Authentication required
@@ -119,7 +119,7 @@ GET /api/users?page=1&page_size=20&query=search&enabled=true&banned=false
 
 #### Get User Details
 ```
-GET /api/users/mgt/{character_id}
+GET /users/mgt/{character_id}
 ```
 **Authentication:** Required  
 **Permission:** Authentication required
@@ -128,7 +128,7 @@ GET /api/users/mgt/{character_id}
 
 #### Update User
 ```
-PUT /api/users/mgt/{character_id}
+PUT /users/mgt/{character_id}
 ```
 **Authentication:** Required  
 **Permission:** Authentication required
@@ -155,7 +155,7 @@ PUT /api/users/mgt/{character_id}
 
 #### Delete User Character
 ```
-DELETE /api/users/mgt/{character_id}
+DELETE /users/mgt/{character_id}
 ```
 **Authentication:** Required  
 **Permission:** Authentication required
@@ -190,7 +190,7 @@ DELETE /api/users/mgt/{character_id}
 
 #### List User Characters
 ```
-GET /api/users/{user_id}/characters
+GET /users/{user_id}/characters
 ```
 **Authentication:** Required  
 **Permission:** Self-access or Authentication required
@@ -234,12 +234,12 @@ The following permissions should be configured in the Groups module:
 
 | Endpoint | Method | Authentication | Permission Required | Description |
 |----------|--------|---------------|-------------------|-------------|
-| `/api/users/stats` | GET | No | Public | Get user statistics |
-| `/api/users` | GET | Yes | Authentication required | List and search users |
-| `/api/users/mgt/{character_id}` | GET | Yes | Authentication required | Get specific user details |
-| `/api/users/mgt/{character_id}` | PUT | Yes | Authentication required | Update user status and settings |
-| `/api/users/mgt/{character_id}` | DELETE | Yes | Authentication required | Delete user character with group cleanup |
-| `/api/users/{user_id}/characters` | GET | Yes | Self or Authentication required | List characters for a user |
+| `/users/stats` | GET | No | Public | Get user statistics |
+| `/users` | GET | Yes | Authentication required | List and search users |
+| `/users/mgt/{character_id}` | GET | Yes | Authentication required | Get specific user details |
+| `/users/mgt/{character_id}` | PUT | Yes | Authentication required | Update user status and settings |
+| `/users/mgt/{character_id}` | DELETE | Yes | Authentication required | Delete user character with group cleanup |
+| `/users/{user_id}/characters` | GET | Yes | Self or Authentication required | List characters for a user |
 
 ### Authorization Logic
 

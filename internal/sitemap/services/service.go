@@ -423,7 +423,7 @@ func (s *Service) CreateRoute(ctx context.Context, input *dto.CreateRouteInput) 
 }
 
 // UpdateRoute updates an existing route
-func (s *Service) UpdateRoute(ctx context.Context, routeID string, input *dto.UpdateRouteInput) (*models.Route, error) {
+func (s *Service) UpdateRoute(ctx context.Context, routeID string, body *dto.UpdateRouteBody) (*models.Route, error) {
 	// Get existing route (handles both ObjectID and route_id)
 	route, err := s.GetRouteByID(ctx, routeID)
 	if err != nil {
@@ -433,79 +433,112 @@ func (s *Service) UpdateRoute(ctx context.Context, routeID string, input *dto.Up
 	// Update fields if provided
 	updateDoc := bson.M{"updated_at": time.Now()}
 
-	if input.Path != nil {
-		updateDoc["path"] = *input.Path
+	// Core fields
+	if body.Name != nil {
+		updateDoc["name"] = *body.Name
 	}
-	if input.Component != nil {
-		updateDoc["component"] = *input.Component
+	if body.Path != nil {
+		updateDoc["path"] = *body.Path
 	}
-	if input.Name != nil {
-		updateDoc["name"] = *input.Name
+	if body.Component != nil {
+		updateDoc["component"] = *body.Component
 	}
-	if input.Icon != nil {
-		updateDoc["icon"] = *input.Icon
+	if body.Icon != nil {
+		updateDoc["icon"] = *body.Icon
 	}
-	if input.Type != nil {
-		updateDoc["type"] = *input.Type
+	if body.Type != nil {
+		updateDoc["type"] = *body.Type
 	}
-	if input.ParentID != nil {
-		updateDoc["parent_id"] = *input.ParentID
+	if body.ParentID != nil {
+		updateDoc["parent_id"] = *body.ParentID
+		// Rebuild folder path when parent changes
+		if isFolder := route.Type == models.RouteTypeFolder; isFolder || *body.ParentID != "" {
+			route.ParentID = body.ParentID
+			folderPath, err := s.buildFolderPathForRoute(ctx, route)
+			if err == nil {
+				updateDoc["folder_path"] = folderPath
+			}
+		}
 	}
-	if input.NavPosition != nil {
-		updateDoc["nav_position"] = *input.NavPosition
+
+	// Navigation fields
+	if body.NavPosition != nil {
+		updateDoc["nav_position"] = *body.NavPosition
 	}
-	if input.NavOrder != nil {
-		updateDoc["nav_order"] = *input.NavOrder
+	if body.NavOrder != nil {
+		updateDoc["nav_order"] = *body.NavOrder
 	}
-	if input.ShowInNav != nil {
-		updateDoc["show_in_nav"] = *input.ShowInNav
+	if body.ShowInNav != nil {
+		updateDoc["show_in_nav"] = *body.ShowInNav
 	}
-	if len(input.RequiredPermissions) > 0 {
-		updateDoc["required_permissions"] = input.RequiredPermissions
+
+	// Permissions
+	if body.RequiredPermissions != nil {
+		updateDoc["required_permissions"] = body.RequiredPermissions
 	}
-	if len(input.RequiredGroups) > 0 {
-		updateDoc["required_groups"] = input.RequiredGroups
+	if body.RequiredGroups != nil {
+		updateDoc["required_groups"] = body.RequiredGroups
 	}
-	if input.Title != nil {
-		updateDoc["title"] = *input.Title
+
+	// Metadata
+	if body.Title != nil {
+		updateDoc["title"] = *body.Title
 	}
-	if input.Description != nil {
-		updateDoc["description"] = *input.Description
+	if body.Description != nil {
+		updateDoc["description"] = *body.Description
 	}
-	if len(input.Keywords) > 0 {
-		updateDoc["keywords"] = input.Keywords
+	if body.Keywords != nil {
+		updateDoc["keywords"] = body.Keywords
 	}
-	if input.Group != nil {
-		updateDoc["group"] = *input.Group
+	if body.Group != nil {
+		updateDoc["group"] = *body.Group
 	}
-	if len(input.FeatureFlags) > 0 {
-		updateDoc["feature_flags"] = input.FeatureFlags
+
+	// Feature flags
+	if body.FeatureFlags != nil {
+		updateDoc["feature_flags"] = body.FeatureFlags
 	}
-	if input.IsEnabled != nil {
-		updateDoc["is_enabled"] = *input.IsEnabled
+	if body.IsEnabled != nil {
+		updateDoc["is_enabled"] = *body.IsEnabled
 	}
-	if input.Props != nil {
-		updateDoc["props"] = input.Props
+
+	// React-specific
+	if body.Props != nil {
+		updateDoc["props"] = body.Props
 	}
-	if input.LazyLoad != nil {
-		updateDoc["lazy_load"] = *input.LazyLoad
+	if body.LazyLoad != nil {
+		updateDoc["lazy_load"] = *body.LazyLoad
 	}
-	if input.Exact != nil {
-		updateDoc["exact"] = *input.Exact
+	if body.Exact != nil {
+		updateDoc["exact"] = *body.Exact
 	}
-	if input.NewTab != nil {
-		updateDoc["newtab"] = *input.NewTab
+	if body.NewTab != nil {
+		updateDoc["newtab"] = *body.NewTab
 	}
-	if input.BadgeType != nil {
-		updateDoc["badge_type"] = *input.BadgeType
+
+	// Badge
+	if body.BadgeType != nil {
+		updateDoc["badge_type"] = *body.BadgeType
 	}
-	if input.BadgeText != nil {
-		updateDoc["badge_text"] = *input.BadgeText
+	if body.BadgeText != nil {
+		updateDoc["badge_text"] = *body.BadgeText
 	}
 
 	err = s.repository.UpdateRoute(ctx, route.ID, updateDoc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update route: %w", err)
+	}
+
+	// Update parent's children count if parent changed
+	if body.ParentID != nil && route.ParentID != nil && *route.ParentID != *body.ParentID {
+		// Update old parent
+		if *route.ParentID != "" {
+			s.repository.UpdateChildrenCount(ctx, *route.ParentID)
+		}
+		// Update new parent
+		if *body.ParentID != "" {
+			s.repository.UpdateChildrenCount(ctx, *body.ParentID)
+		}
 	}
 
 	// Get updated route

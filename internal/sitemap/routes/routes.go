@@ -25,7 +25,9 @@ func NewRoutes(service *services.Service, sitemapAdapter *middleware.SitemapAdap
 }
 
 // RegisterUnifiedRoutes registers all sitemap routes with Huma v2
-func (r *Routes) RegisterUnifiedRoutes(api huma.API, basePath string) {
+func (r *Routes) RegisterUnifiedRoutes(api huma.API) {
+	basePath := "/sitemap"
+
 	// Public endpoints (no authentication required)
 	r.registerPublicRoutes(api, basePath)
 
@@ -227,25 +229,7 @@ func (r *Routes) registerAdminRoutes(api huma.API, basePath string) {
 			{"bearerAuth": {}},
 			{"cookieAuth": {}},
 		},
-	}, func(ctx context.Context, input *dto.UpdateRouteInput) (*dto.UpdateRouteOutput, error) {
-		// Check permission for managing routes
-		_, err := r.sitemapAdapter.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
-		if err != nil {
-			return nil, err
-		}
-
-		route, err := r.service.UpdateRoute(ctx, input.ID, input)
-		if err != nil {
-			return nil, huma.Error400BadRequest("Failed to update route", err)
-		}
-
-		response := dto.UpdateRouteResponse{
-			Route:   *route,
-			Message: "Route updated successfully",
-		}
-
-		return &dto.UpdateRouteOutput{Body: response}, nil
-	})
+	}, r.updateRouteHandler)
 
 	// Delete route (admin) - requires sitemap:admin:manage permission
 	huma.Register(api, huma.Operation{
@@ -496,4 +480,26 @@ func (r *Routes) registerFolderRoutes(api huma.API, basePath string) {
 
 		return &dto.FolderStatsOutput{Body: *stats}, nil
 	})
+}
+
+// updateRouteHandler handles route updates
+func (r *Routes) updateRouteHandler(ctx context.Context, input *dto.UpdateRouteInput) (*dto.UpdateRouteOutput, error) {
+	// Require admin permissions
+	_, err := r.sitemapAdapter.RequireSitemapAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update route
+	route, err := r.service.UpdateRoute(ctx, input.ID, &input.Body)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Failed to update route", err)
+	}
+
+	response := dto.UpdateRouteResponse{
+		Route:   *route,
+		Message: "Route updated successfully",
+	}
+
+	return &dto.UpdateRouteOutput{Body: response}, nil
 }

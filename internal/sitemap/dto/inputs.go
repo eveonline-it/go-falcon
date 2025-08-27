@@ -53,21 +53,27 @@ type UpdateRouteInput struct {
 	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
 	ID            string `path:"id" description:"Route ID or MongoDB ObjectID"`
 
+	Body UpdateRouteBody
+}
+
+// UpdateRouteBody represents the JSON body for updating a route
+type UpdateRouteBody struct {
+	// Core fields
+	Name      *string           `json:"name,omitempty" minLength:"1" maxLength:"100" description:"Display name"`
 	Path      *string           `json:"path,omitempty" minLength:"1" maxLength:"200" description:"Frontend path"`
 	Component *string           `json:"component,omitempty" minLength:"1" maxLength:"100" description:"React component name"`
-	Name      *string           `json:"name,omitempty" minLength:"1" maxLength:"100" description:"Display name"`
 	Icon      *string           `json:"icon,omitempty" maxLength:"50" description:"Icon identifier"`
 	Type      *models.RouteType `json:"type,omitempty" enum:"public,auth,protected,admin,folder" description:"Route type"`
-	ParentID  *string           `json:"parent_id,omitempty" description:"Parent route ID"`
+	ParentID  *string           `json:"parent_id,omitempty" description:"Parent route ID for nested routes"`
 
 	// Navigation
 	NavPosition *models.NavigationPosition `json:"nav_position,omitempty" enum:"main,user,admin,footer,hidden" description:"Navigation position"`
-	NavOrder    *int                       `json:"nav_order,omitempty" minimum:"0" maximum:"999" description:"Sort order"`
+	NavOrder    *int                       `json:"nav_order,omitempty" minimum:"0" maximum:"999" description:"Sort order in navigation"`
 	ShowInNav   *bool                      `json:"show_in_nav,omitempty" description:"Show in navigation"`
 
 	// Permissions
-	RequiredPermissions []string `json:"required_permissions,omitempty" description:"Required permissions"`
-	RequiredGroups      []string `json:"required_groups,omitempty" description:"Required groups"`
+	RequiredPermissions []string `json:"required_permissions,omitempty" description:"Required permissions (AND logic)"`
+	RequiredGroups      []string `json:"required_groups,omitempty" description:"Required groups (OR logic)"`
 
 	// Metadata
 	Title       *string  `json:"title,omitempty" minLength:"1" maxLength:"100" description:"Page title"`
@@ -80,9 +86,9 @@ type UpdateRouteInput struct {
 	IsEnabled    *bool    `json:"is_enabled,omitempty" description:"Route enabled status"`
 
 	// React-specific
-	Props    map[string]interface{} `json:"props,omitempty" description:"Default props"`
-	LazyLoad *bool                  `json:"lazy_load,omitempty" description:"Code splitting"`
-	Exact    *bool                  `json:"exact,omitempty" description:"Exact matching"`
+	Props    map[string]interface{} `json:"props,omitempty" description:"Default props for component"`
+	LazyLoad *bool                  `json:"lazy_load,omitempty" description:"Enable code splitting"`
+	Exact    *bool                  `json:"exact,omitempty" description:"Exact path matching"`
 	NewTab   *bool                  `json:"newtab,omitempty" description:"Open in new tab"`
 
 	// Badge
