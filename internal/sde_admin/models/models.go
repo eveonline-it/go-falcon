@@ -35,15 +35,49 @@ type DataTypeStatus struct {
 type SDEDataType string
 
 const (
-	DataTypeAgents          SDEDataType = "agents"
-	DataTypeCategories      SDEDataType = "categories"
-	DataTypeBlueprints      SDEDataType = "blueprints"
-	DataTypeMarketGroups    SDEDataType = "marketGroups"
-	DataTypeMetaGroups      SDEDataType = "metaGroups"
-	DataTypeNPCCorporations SDEDataType = "npcCorporations"
-	DataTypeTypeIDs         SDEDataType = "typeIDs"
-	DataTypeTypes           SDEDataType = "types"
-	DataTypeTypeMaterials   SDEDataType = "typeMaterials"
+	DataTypeAgents                   SDEDataType = "agents"
+	DataTypeCategories               SDEDataType = "categories"
+	DataTypeBlueprints               SDEDataType = "blueprints"
+	DataTypeMarketGroups             SDEDataType = "marketGroups"
+	DataTypeMetaGroups               SDEDataType = "metaGroups"
+	DataTypeNPCCorporations          SDEDataType = "npcCorporations"
+	DataTypeTypeIDs                  SDEDataType = "typeIDs"
+	DataTypeTypes                    SDEDataType = "types"
+	DataTypeTypeMaterials            SDEDataType = "typeMaterials"
+	DataTypeRaces                    SDEDataType = "races"
+	DataTypeFactions                 SDEDataType = "factions"
+	DataTypeBloodlines               SDEDataType = "bloodlines"
+	DataTypeGroups                   SDEDataType = "groups"
+	DataTypeDogmaAttributes          SDEDataType = "dogmaAttributes"
+	DataTypeAncestries               SDEDataType = "ancestries"
+	DataTypeCertificates             SDEDataType = "certificates"
+	DataTypeCharacterAttributes      SDEDataType = "characterAttributes"
+	DataTypeSkins                    SDEDataType = "skins"
+	DataTypeStaStations              SDEDataType = "staStations"
+	DataTypeDogmaEffects             SDEDataType = "dogmaEffects"
+	DataTypeIconIDs                  SDEDataType = "iconIDs"
+	DataTypeGraphicIDs               SDEDataType = "graphicIDs"
+	DataTypeTypeDogma                SDEDataType = "typeDogma"
+	DataTypeInvFlags                 SDEDataType = "invFlags"
+	DataTypeStationServices          SDEDataType = "stationServices"
+	DataTypeStationOperations        SDEDataType = "stationOperations"
+	DataTypeResearchAgents           SDEDataType = "researchAgents"
+	DataTypeAgentsInSpace            SDEDataType = "agentsInSpace"
+	DataTypeContrabandTypes          SDEDataType = "contrabandTypes"
+	DataTypeCorporationActivities    SDEDataType = "corporationActivities"
+	DataTypeInvItems                 SDEDataType = "invItems"
+	DataTypeNPCCorporationDivisions  SDEDataType = "npcCorporationDivisions"
+	DataTypeControlTowerResources    SDEDataType = "controlTowerResources"
+	DataTypeDogmaAttributeCategories SDEDataType = "dogmaAttributeCategories"
+	DataTypeInvNames                 SDEDataType = "invNames"
+	DataTypeInvPositions             SDEDataType = "invPositions"
+	DataTypeInvUniqueNames           SDEDataType = "invUniqueNames"
+	DataTypePlanetResources          SDEDataType = "planetResources"
+	DataTypePlanetSchematics         SDEDataType = "planetSchematics"
+	DataTypeSkinLicenses             SDEDataType = "skinLicenses"
+	DataTypeSkinMaterials            SDEDataType = "skinMaterials"
+	DataTypeSovereigntyUpgrades      SDEDataType = "sovereigntyUpgrades"
+	DataTypeTranslationLanguages     SDEDataType = "translationLanguages"
 )
 
 // GetAllDataTypes returns all available SDE data types
@@ -58,5 +92,39 @@ func GetAllDataTypes() []SDEDataType {
 		DataTypeTypeIDs,
 		DataTypeTypes,
 		DataTypeTypeMaterials,
+		DataTypeRaces,
+		DataTypeFactions,
+		DataTypeBloodlines,
+		DataTypeGroups,
+		DataTypeDogmaAttributes,
+		DataTypeAncestries,
+		DataTypeCertificates,
+		DataTypeCharacterAttributes,
+		DataTypeSkins,
+		DataTypeStaStations,
+		DataTypeDogmaEffects,
+		DataTypeIconIDs,
+		DataTypeGraphicIDs,
+		DataTypeTypeDogma,
+		DataTypeInvFlags,
+		DataTypeStationServices,
+		DataTypeStationOperations,
+		DataTypeResearchAgents,
+		DataTypeAgentsInSpace,
+		DataTypeContrabandTypes,
+		DataTypeCorporationActivities,
+		DataTypeInvItems,
+		DataTypeNPCCorporationDivisions,
+		DataTypeControlTowerResources,
+		DataTypeDogmaAttributeCategories,
+		DataTypeInvNames,
+		DataTypeInvPositions,
+		DataTypeInvUniqueNames,
+		DataTypePlanetResources,
+		DataTypePlanetSchematics,
+		DataTypeSkinLicenses,
+		DataTypeSkinMaterials,
+		DataTypeSovereigntyUpgrades,
+		DataTypeTranslationLanguages,
 	}
 }

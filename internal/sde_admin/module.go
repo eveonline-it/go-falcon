@@ -11,6 +11,7 @@ import (
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/permissions"
 	"go-falcon/pkg/sde"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -20,21 +21,23 @@ import (
 // Module represents the SDE admin module
 type Module struct {
 	*module.BaseModule
-	service         *services.Service
-	routes          *routes.Routes
-	authModule      *auth.Module
-	sdeAdminAdapter *middleware.SDEAdminAdapter
+	service           *services.Service
+	routes            *routes.Routes
+	authModule        *auth.Module
+	permissionManager *permissions.PermissionManager
+	sdeAdminAdapter   *middleware.SDEAdminAdapter
 }
 
 // New creates a new SDE admin module instance
-func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, sdeService sde.SDEService) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, permissionManager *permissions.PermissionManager, sdeService sde.SDEService) *Module {
 	service := services.NewService(mongodb, redis, sdeService)
 
 	return &Module{
-		BaseModule: module.NewBaseModule("sde_admin", mongodb, redis),
-		service:    service,
-		routes:     routes.NewRoutes(service),
-		authModule: authModule,
+		BaseModule:        module.NewBaseModule("sde_admin", mongodb, redis),
+		service:           service,
+		routes:            routes.NewRoutes(service),
+		authModule:        authModule,
+		permissionManager: permissionManager,
 	}
 }
 
@@ -59,7 +62,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 			// Initialize centralized permission middleware
 			permissionMiddleware := middleware.NewPermissionMiddleware(
 				authService,
-				nil, // No specific permission manager needed for SDE admin
+				m.permissionManager,
 				middleware.WithDebugLogging(),
 			)
 

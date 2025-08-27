@@ -34,7 +34,7 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID: "getSDEAdminStatus",
 		Method:      http.MethodGet,
-		Path:        fmt.Sprintf("%s/sde_admin/status", basePath),
+		Path:        fmt.Sprintf("%s/status", basePath),
 		Summary:     "Get SDE Admin Module Status",
 		Description: "Returns the health and status of the SDE admin module",
 		Tags:        []string{"Module Status"},
@@ -52,7 +52,7 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID: "importSDEData",
 		Method:      http.MethodPost,
-		Path:        fmt.Sprintf("%s/sde_admin/import", basePath),
+		Path:        fmt.Sprintf("%s/import", basePath),
 		Summary:     "Import SDE Data to Redis",
 		Description: "Start an import operation to load SDE data from files into Redis for fast access",
 		Tags:        []string{"SDE Admin"},
@@ -82,7 +82,7 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID: "getSDEImportStatus",
 		Method:      http.MethodGet,
-		Path:        fmt.Sprintf("%s/sde_admin/import/{import_id}/status", basePath),
+		Path:        fmt.Sprintf("%s/import/{import_id}/status", basePath),
 		Summary:     "Get SDE Import Status",
 		Description: "Get the current status and progress of an SDE import operation",
 		Tags:        []string{"SDE Admin"},
@@ -115,7 +115,7 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID: "getSDEStats",
 		Method:      http.MethodGet,
-		Path:        fmt.Sprintf("%s/sde_admin/stats", basePath),
+		Path:        fmt.Sprintf("%s/stats", basePath),
 		Summary:     "Get SDE Statistics",
 		Description: "Get statistics about SDE data currently stored in Redis",
 		Tags:        []string{"SDE Admin"},
@@ -144,7 +144,7 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID: "clearSDEData",
 		Method:      http.MethodDelete,
-		Path:        fmt.Sprintf("%s/sde_admin/clear", basePath),
+		Path:        fmt.Sprintf("%s/clear", basePath),
 		Summary:     "Clear SDE Data from Redis",
 		Description: "Remove all SDE data from Redis. Use with caution - this cannot be undone.",
 		Tags:        []string{"SDE Admin"},

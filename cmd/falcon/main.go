@@ -296,7 +296,7 @@ func main() {
 	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	schedulerModule.SetGroupService(groupsModule.GetService())
-	sdeAdminModule := sde_admin.New(appCtx.MongoDB, appCtx.Redis, authModule, appCtx.SDEService)
+	sdeAdminModule := sde_admin.New(appCtx.MongoDB, appCtx.Redis, authModule, permissionManager, appCtx.SDEService)
 
 	// 8. Register service permissions
 	log.Printf("📝 Registering service permissions")
@@ -538,8 +538,8 @@ func main() {
 	siteSettingsModule.RegisterUnifiedRoutes(unifiedAPI)
 
 	// Register SDE admin module routes
-	log.Printf("   📊 SDE Admin module: /sde_admin/*")
-	sdeAdminModule.RegisterUnifiedRoutes(unifiedAPI, "/sde_admin")
+	log.Printf("   📊 SDE Admin module: /sde/*")
+	sdeAdminModule.RegisterUnifiedRoutes(unifiedAPI, "/sde")
 
 	log.Printf("✅ All modules registered on unified API")
 
