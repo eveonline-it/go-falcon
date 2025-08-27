@@ -9,6 +9,11 @@ type CreateRouteInput struct {
 	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
 	Cookie        string `header:"Cookie" doc:"falcon_auth_token cookie for authentication"`
 
+	Body CreateRouteBody
+}
+
+// CreateRouteBody represents the JSON body for creating a new route
+type CreateRouteBody struct {
 	RouteID   string           `json:"route_id" required:"true" minLength:"3" maxLength:"100" description:"Unique route identifier"`
 	Path      string           `json:"path" required:"true" minLength:"1" maxLength:"200" description:"Frontend path"`
 	Component string           `json:"component" required:"true" minLength:"1" maxLength:"100" description:"React component name"`
@@ -45,6 +50,9 @@ type CreateRouteInput struct {
 	// Badge
 	BadgeType *string `json:"badge_type,omitempty" enum:"success,warning,danger,info,primary,secondary" description:"Badge type"`
 	BadgeText *string `json:"badge_text,omitempty" maxLength:"20" description:"Badge text"`
+
+	// Folder status (computed from type if not provided)
+	IsFolder *bool `json:"is_folder,omitempty" description:"Whether this is a folder route (computed from type if not provided)"`
 }
 
 // UpdateRouteInput represents the input for updating a route

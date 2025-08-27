@@ -552,15 +552,15 @@ func (s *Service) checkRouteAccess(route models.Route, userPermissions, userGrou
 // CreateRoute creates a new route
 func (s *Service) CreateRoute(ctx context.Context, input *dto.CreateRouteInput) (*models.Route, error) {
 	// Check if route ID already exists
-	existing, _ := s.repository.GetRouteByRouteID(ctx, input.RouteID)
+	existing, _ := s.repository.GetRouteByRouteID(ctx, input.Body.RouteID)
 	if existing != nil {
-		return nil, fmt.Errorf("route with ID %s already exists", input.RouteID)
+		return nil, fmt.Errorf("route with ID %s already exists", input.Body.RouteID)
 	}
 
 	// Calculate depth based on parent
 	depth := 0
-	if input.ParentID != nil && *input.ParentID != "" {
-		parent, err := s.repository.GetRouteByRouteID(ctx, *input.ParentID)
+	if input.Body.ParentID != nil && *input.Body.ParentID != "" {
+		parent, err := s.repository.GetRouteByRouteID(ctx, *input.Body.ParentID)
 		if err != nil {
 			return nil, fmt.Errorf("parent route not found: %w", err)
 		}
@@ -573,33 +573,40 @@ func (s *Service) CreateRoute(ctx context.Context, input *dto.CreateRouteInput) 
 	}
 
 	// Determine if this is a folder
-	isFolder := input.Type == models.RouteTypeFolder
+	isFolder := input.Body.Type == models.RouteTypeFolder
+
+	// Validate is_folder if provided by client
+	if input.Body.IsFolder != nil {
+		if *input.Body.IsFolder != isFolder {
+			return nil, fmt.Errorf("is_folder value (%v) doesn't match route type (%s). Folder routes must have type='folder'", *input.Body.IsFolder, input.Body.Type)
+		}
+	}
 
 	route := &models.Route{
-		RouteID:             input.RouteID,
-		Path:                input.Path,
-		Component:           input.Component,
-		Name:                input.Name,
-		Icon:                input.Icon,
-		Type:                input.Type,
-		ParentID:            input.ParentID,
-		NavPosition:         input.NavPosition,
-		NavOrder:            input.NavOrder,
-		ShowInNav:           input.ShowInNav,
-		RequiredPermissions: input.RequiredPermissions,
-		RequiredGroups:      input.RequiredGroups,
-		Title:               input.Title,
-		Description:         input.Description,
-		Keywords:            input.Keywords,
-		Group:               input.Group,
-		FeatureFlags:        input.FeatureFlags,
-		IsEnabled:           input.IsEnabled,
-		Props:               input.Props,
-		LazyLoad:            input.LazyLoad,
-		Exact:               input.Exact,
-		NewTab:              input.NewTab,
-		BadgeType:           input.BadgeType,
-		BadgeText:           input.BadgeText,
+		RouteID:             input.Body.RouteID,
+		Path:                input.Body.Path,
+		Component:           input.Body.Component,
+		Name:                input.Body.Name,
+		Icon:                input.Body.Icon,
+		Type:                input.Body.Type,
+		ParentID:            input.Body.ParentID,
+		NavPosition:         input.Body.NavPosition,
+		NavOrder:            input.Body.NavOrder,
+		ShowInNav:           input.Body.ShowInNav,
+		RequiredPermissions: input.Body.RequiredPermissions,
+		RequiredGroups:      input.Body.RequiredGroups,
+		Title:               input.Body.Title,
+		Description:         input.Body.Description,
+		Keywords:            input.Body.Keywords,
+		Group:               input.Body.Group,
+		FeatureFlags:        input.Body.FeatureFlags,
+		IsEnabled:           input.Body.IsEnabled,
+		Props:               input.Body.Props,
+		LazyLoad:            input.Body.LazyLoad,
+		Exact:               input.Body.Exact,
+		NewTab:              input.Body.NewTab,
+		BadgeType:           input.Body.BadgeType,
+		BadgeText:           input.Body.BadgeText,
 
 		// Folder-specific fields
 		IsFolder:      isFolder,
@@ -611,7 +618,7 @@ func (s *Service) CreateRoute(ctx context.Context, input *dto.CreateRouteInput) 
 	}
 
 	// Build folder path
-	if isFolder || input.ParentID != nil {
+	if isFolder || input.Body.ParentID != nil {
 		folderPath, err := s.buildFolderPathForRoute(ctx, route)
 		if err == nil {
 			route.FolderPath = folderPath
@@ -626,8 +633,8 @@ func (s *Service) CreateRoute(ctx context.Context, input *dto.CreateRouteInput) 
 	route.ID = id
 
 	// Update parent's children count if applicable
-	if input.ParentID != nil && *input.ParentID != "" {
-		s.repository.UpdateChildrenCount(ctx, *input.ParentID)
+	if input.Body.ParentID != nil && *input.Body.ParentID != "" {
+		s.repository.UpdateChildrenCount(ctx, *input.Body.ParentID)
 	}
 
 	return route, nil
