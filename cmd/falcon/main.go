@@ -22,6 +22,7 @@ import (
 	"go-falcon/internal/groups"
 	groupsDto "go-falcon/internal/groups/dto"
 	"go-falcon/internal/scheduler"
+	"go-falcon/internal/sde_admin"
 	"go-falcon/internal/site_settings"
 	"go-falcon/internal/sitemap"
 	sitemapServices "go-falcon/internal/sitemap/services"
@@ -295,6 +296,7 @@ func main() {
 	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	schedulerModule.SetGroupService(groupsModule.GetService())
+	sdeAdminModule := sde_admin.New(appCtx.MongoDB, appCtx.Redis, authModule, appCtx.SDEService)
 
 	// 8. Register service permissions
 	log.Printf("📝 Registering service permissions")
@@ -366,7 +368,7 @@ func main() {
 	// Update site settings with auth, groups services, and permission manager
 	siteSettingsModule.SetDependenciesWithPermissions(authModule.GetAuthService(), groupsModule.GetService(), permissionManager)
 
-	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, sitemapModule, siteSettingsModule)
+	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule)
 
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
@@ -447,6 +449,7 @@ func main() {
 		{Name: "Site Settings", Description: "Application configuration and site settings management"},
 		{Name: "Site Settings / Public", Description: "Public site settings accessible without authentication"},
 		{Name: "Site Settings / Management", Description: "Administrative site settings management operations"},
+		{Name: "SDE Admin", Description: "EVE Online Static Data Export administration and Redis import management"},
 	}
 
 	// Add servers based on environment configuration or defaults
@@ -533,6 +536,10 @@ func main() {
 	// Register site settings module routes
 	log.Printf("   ⚙️  Site Settings module: /site-settings/*")
 	siteSettingsModule.RegisterUnifiedRoutes(unifiedAPI)
+
+	// Register SDE admin module routes
+	log.Printf("   📊 SDE Admin module: /sde_admin/*")
+	sdeAdminModule.RegisterUnifiedRoutes(unifiedAPI, "/sde_admin")
 
 	log.Printf("✅ All modules registered on unified API")
 

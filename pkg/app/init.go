@@ -8,6 +8,7 @@ import (
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/logging"
+	"go-falcon/pkg/sde"
 
 	"github.com/joho/godotenv"
 )
@@ -16,6 +17,7 @@ import (
 type AppContext struct {
 	MongoDB          *database.MongoDB
 	Redis            *database.Redis
+	SDEService       sde.SDEService
 	TelemetryManager *logging.TelemetryManager
 	ServiceName      string
 	shutdownFuncs    []func(context.Context) error
@@ -54,9 +56,14 @@ func InitializeApp(serviceName string) (*AppContext, error) {
 		slog.Info("Connected to Redis")
 	}
 
+	// Initialize SDE service
+	sdeService := sde.NewService("data/sde")
+	slog.Info("SDE service initialized", "data_dir", "data/sde")
+
 	appCtx := &AppContext{
 		MongoDB:          mongodb,
 		Redis:            redis,
+		SDEService:       sdeService,
 		TelemetryManager: telemetryManager,
 		ServiceName:      serviceName,
 	}

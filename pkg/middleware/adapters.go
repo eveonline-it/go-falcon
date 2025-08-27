@@ -234,6 +234,11 @@ func (mh *MigrationHelper) CreateSiteSettingsAdapter() *SiteSettingsAdapter {
 	return NewSiteSettingsAdapter(mh.permissionMiddleware)
 }
 
+// CreateSDEAdminAdapter creates a SDE admin adapter for migration
+func (mh *MigrationHelper) CreateSDEAdminAdapter() *SDEAdminAdapter {
+	return NewSDEAdminAdapter(mh.permissionMiddleware)
+}
+
 // CharacterAdapter provides character-specific permission methods
 type CharacterAdapter struct {
 	*ModuleAdapter
@@ -320,4 +325,26 @@ func (ssa *SiteSettingsAdapter) RequireSiteSettingsAdmin(ctx context.Context, au
 // RequirePermission checks if the authenticated user has a specific permission
 func (ssa *SiteSettingsAdapter) RequirePermission(ctx context.Context, authHeader, cookieHeader, permissionID string) (*models.AuthenticatedUser, error) {
 	return ssa.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, permissionID)
+}
+
+// SDEAdminAdapter provides SDE admin-specific permission methods
+type SDEAdminAdapter struct {
+	*ModuleAdapter
+}
+
+// NewSDEAdminAdapter creates a new SDE admin adapter
+func NewSDEAdminAdapter(permissionMiddleware *PermissionMiddleware) *SDEAdminAdapter {
+	return &SDEAdminAdapter{
+		ModuleAdapter: NewModuleAdapter(permissionMiddleware),
+	}
+}
+
+// RequireSuperAdmin requires super administrator access for all SDE admin operations
+func (saa *SDEAdminAdapter) RequireSuperAdmin(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return saa.permissionMiddleware.RequireSuperAdmin(ctx, authHeader, cookieHeader)
+}
+
+// RequireAuth ensures the user is authenticated (for status endpoints)
+func (saa *SDEAdminAdapter) RequireAuth(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return saa.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
 }
