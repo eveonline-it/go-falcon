@@ -18,10 +18,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// GroupServiceInterface defines the interface for group service operations
-// For now, use interface{} to avoid interface mismatch - can be refined later
-type GroupServiceInterface interface{}
-
 // Module represents the sitemap module
 type Module struct {
 	*module.BaseModule
@@ -31,7 +27,7 @@ type Module struct {
 }
 
 // NewModule creates a new sitemap module
-func NewModule(mongodb *database.MongoDB, redis *database.Redis, authService *services.AuthService, permissionManager *permissions.PermissionManager, groupService GroupServiceInterface) (*Module, error) {
+func NewModule(mongodb *database.MongoDB, redis *database.Redis, authService *services.AuthService, permissionManager *permissions.PermissionManager, groupService sitemapServices.GroupServiceInterface) (*Module, error) {
 	// Create service with dependencies
 	service := sitemapServices.NewService(mongodb.Database, permissionManager, groupService)
 

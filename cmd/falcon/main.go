@@ -20,9 +20,11 @@ import (
 	"go-falcon/internal/character"
 	"go-falcon/internal/corporation"
 	"go-falcon/internal/groups"
+	groupsDto "go-falcon/internal/groups/dto"
 	"go-falcon/internal/scheduler"
 	"go-falcon/internal/site_settings"
 	"go-falcon/internal/sitemap"
+	sitemapServices "go-falcon/internal/sitemap/services"
 	"go-falcon/internal/users"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
@@ -231,7 +233,58 @@ func main() {
 	groupsModule.GetService().SetPermissionManager(permissionManager)
 
 	// 6.5. Initialize sitemap module with auth service, permission manager and groups service
-	sitemapModule, err := sitemap.NewModule(appCtx.MongoDB, appCtx.Redis, authModule.GetAuthService(), permissionManager, groupsModule.GetService())
+	// Create adapter functions to bridge groups service to sitemap interface
+	groupsService := groupsModule.GetService()
+	groupsAdapter := sitemapServices.NewGroupsServiceAdapter(
+		// getUserGroupsFunc
+		func(ctx context.Context, userID string) ([]sitemapServices.GroupInfo, error) {
+			output, err := groupsService.GetUserGroups(ctx, &groupsDto.GetUserGroupsInput{
+				UserID: userID,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// Convert groups service output to our interface format
+			groups := make([]sitemapServices.GroupInfo, len(output.Body.Groups))
+			for i, group := range output.Body.Groups {
+				groups[i] = sitemapServices.GroupInfo{
+					ID:          group.ID,
+					Name:        group.Name,
+					Type:        group.Type,
+					SystemName:  group.SystemName,
+					EVEEntityID: group.EVEEntityID,
+					IsActive:    group.IsActive,
+				}
+			}
+			return groups, nil
+		},
+		// getCharacterGroupsFunc
+		func(ctx context.Context, characterID int64) ([]sitemapServices.GroupInfo, error) {
+			output, err := groupsService.GetCharacterGroups(ctx, &groupsDto.GetCharacterGroupsInput{
+				CharacterID: fmt.Sprintf("%d", characterID),
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// Convert groups service output to our interface format
+			groups := make([]sitemapServices.GroupInfo, len(output.Body.Groups))
+			for i, group := range output.Body.Groups {
+				groups[i] = sitemapServices.GroupInfo{
+					ID:          group.ID,
+					Name:        group.Name,
+					Type:        group.Type,
+					SystemName:  group.SystemName,
+					EVEEntityID: group.EVEEntityID,
+					IsActive:    group.IsActive,
+				}
+			}
+			return groups, nil
+		},
+	)
+
+	sitemapModule, err := sitemap.NewModule(appCtx.MongoDB, appCtx.Redis, authModule.GetAuthService(), permissionManager, groupsAdapter)
 	if err != nil {
 		log.Fatalf("Failed to initialize sitemap module: %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"go-falcon/internal/sitemap/dto"
+	"go-falcon/internal/sitemap/models"
 	"go-falcon/internal/sitemap/services"
 	"go-falcon/pkg/middleware"
 
@@ -59,29 +60,33 @@ func (r *Routes) registerUserRoutes(api huma.API, basePath string) {
 			{"cookieAuth": {}},
 		},
 	}, func(ctx context.Context, input *dto.GetUserRoutesInput) (*dto.SitemapOutput, error) {
-		// Try to authenticate user (optional) - for future personalization
+		// Try to authenticate user (optional)
+		var sitemap *models.SitemapResponse
+		var err error
+
 		if input.Authorization != "" || input.Cookie != "" {
-			// Only attempt authentication if auth headers are provided
-			_, err := r.sitemapAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
-			if err == nil {
-				// User is authenticated - in future this can be used for personalization
-				// For now, just continue with normal processing
+			// Attempt authentication
+			user, authErr := r.sitemapAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+			if authErr == nil {
+				// User is authenticated - use permission-aware filtering
+				sitemap, err = r.service.GetUserRoutesWithAuth(ctx, input, user.UserID, int64(user.CharacterID))
+				if err != nil {
+					return nil, huma.Error500InternalServerError("Failed to get personalized sitemap", err)
+				}
+			} else {
+				// Authentication failed, fall back to public routes
+				sitemap, err = r.service.GetUserRoutesWithFolders(ctx, input)
+				if err != nil {
+					return nil, huma.Error500InternalServerError("Failed to get public sitemap", err)
+				}
 			}
-			// If authentication fails, continue as unauthenticated user (don't return error)
-		}
-
-		// Get routes with folder support
-		sitemap, err := r.service.GetUserRoutesWithFolders(ctx, input)
-		if err != nil {
-			// Fallback to old method if new method not available yet
-			sitemap, err = r.service.GetAllEnabledRoutes(ctx, input.IncludeDisabled, input.IncludeHidden)
+		} else {
+			// No authentication headers provided - return public routes
+			sitemap, err = r.service.GetUserRoutesWithFolders(ctx, input)
 			if err != nil {
-				return nil, huma.Error500InternalServerError("Failed to get sitemap", err)
+				return nil, huma.Error500InternalServerError("Failed to get public sitemap", err)
 			}
 		}
-
-		// TODO: Filter routes based on user permissions and groups if authenticated
-		// For now, return all enabled routes
 
 		return &dto.SitemapOutput{Body: *sitemap}, nil
 	})

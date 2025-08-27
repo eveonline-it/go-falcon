@@ -16,8 +16,56 @@ import (
 )
 
 // GroupServiceInterface defines the interface for group service operations
-// For now, use interface{} to avoid interface mismatch - can be refined later
-type GroupServiceInterface interface{}
+type GroupServiceInterface interface {
+	// GetUserGroups gets all unique groups that any character belonging to a user_id belongs to
+	GetUserGroups(ctx context.Context, userID string) ([]GroupInfo, error)
+	// GetCharacterGroups gets all groups a character belongs to
+	GetCharacterGroups(ctx context.Context, characterID int64) ([]GroupInfo, error)
+}
+
+// GroupInfo represents group information returned by the groups service
+type GroupInfo struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Type        string  `json:"type"`
+	SystemName  *string `json:"system_name,omitempty"`
+	EVEEntityID *int64  `json:"eve_entity_id,omitempty"`
+	IsActive    bool    `json:"is_active"`
+}
+
+// GroupsServiceAdapter adapts the real groups service to our interface
+type GroupsServiceAdapter struct {
+	// We'll store a function interface instead of a concrete service to avoid import cycles
+	getUserGroupsFunc      func(ctx context.Context, userID string) ([]GroupInfo, error)
+	getCharacterGroupsFunc func(ctx context.Context, characterID int64) ([]GroupInfo, error)
+}
+
+// NewGroupsServiceAdapter creates an adapter that bridges the groups service
+func NewGroupsServiceAdapter(
+	getUserGroupsFunc func(ctx context.Context, userID string) ([]GroupInfo, error),
+	getCharacterGroupsFunc func(ctx context.Context, characterID int64) ([]GroupInfo, error),
+) GroupServiceInterface {
+	return &GroupsServiceAdapter{
+		getUserGroupsFunc:      getUserGroupsFunc,
+		getCharacterGroupsFunc: getCharacterGroupsFunc,
+	}
+}
+
+// GetUserGroups implements GroupServiceInterface
+func (a *GroupsServiceAdapter) GetUserGroups(ctx context.Context, userID string) ([]GroupInfo, error) {
+	if a.getUserGroupsFunc == nil {
+		return []GroupInfo{}, nil // Gracefully handle nil function
+	}
+	return a.getUserGroupsFunc(ctx, userID)
+}
+
+// GetCharacterGroups implements GroupServiceInterface
+func (a *GroupsServiceAdapter) GetCharacterGroups(ctx context.Context, characterID int64) ([]GroupInfo, error) {
+	if a.getCharacterGroupsFunc == nil {
+		return []GroupInfo{}, nil // Gracefully handle nil function
+	}
+	return a.getCharacterGroupsFunc(ctx, characterID)
+}
 
 // Service handles sitemap business logic
 type Service struct {
@@ -297,12 +345,75 @@ func (s *Service) GetUserRoutesWithFolders(ctx context.Context, input *dto.GetUs
 		s.expandAllFolders(navigation)
 	}
 
+	// Extract user permissions and groups if we have a user context
+	userPermissions := []string{}
+	userGroups := []string{}
+
+	// For authenticated requests, we need to pass user information to extract permissions/groups
+	// This will be updated when we add user context to the method signature
+
 	return &models.SitemapResponse{
 		Routes:          routeConfigs,
 		Navigation:      navigation,
-		UserPermissions: []string{}, // TODO: Implement permission extraction
-		UserGroups:      []string{}, // TODO: Implement group extraction
+		UserPermissions: userPermissions,
+		UserGroups:      userGroups,
 		Features:        make(map[string]bool),
+	}, nil
+}
+
+// GetUserRoutesWithAuth returns user-specific sitemap with permission and group filtering
+func (s *Service) GetUserRoutesWithAuth(ctx context.Context, input *dto.GetUserRoutesInput, userID string, characterID int64) (*models.SitemapResponse, error) {
+	// Build filter based on parameters
+	filter := bson.M{}
+	if !input.IncludeDisabled {
+		filter["is_enabled"] = true
+	}
+
+	routes, err := s.repository.GetRoutes(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get routes: %w", err)
+	}
+
+	// Extract user permissions and groups
+	userPermissions, userGroups, err := s.extractUserContext(ctx, userID, characterID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract user context: %w", err)
+	}
+
+	// Check if user is super admin
+	isSuperAdmin := false
+	for _, group := range userGroups {
+		if group == "Super Administrator" {
+			isSuperAdmin = true
+			break
+		}
+	}
+
+	// Filter routes based on user access
+	accessibleRoutes := []models.Route{}
+	for _, route := range routes {
+		if s.checkRouteAccess(route, userPermissions, userGroups, isSuperAdmin) {
+			accessibleRoutes = append(accessibleRoutes, route)
+		}
+	}
+
+	// Build route configs with hierarchy from filtered routes
+	routeConfigs := s.buildRouteConfigs(accessibleRoutes)
+
+	// Build navigation with folder support from filtered routes
+	navigation := s.buildHierarchicalNavigation(accessibleRoutes, input.IncludeHidden, input.MaxDepth)
+
+	// Apply folder expansion settings
+	if input.ExpandFolders {
+		s.expandAllFolders(navigation)
+	}
+
+	return &models.SitemapResponse{
+		Routes:          routeConfigs,
+		Navigation:      navigation,
+		UserPermissions: userPermissions,
+		UserGroups:      userGroups,
+		Features:        s.getUserFeatures(ctx, characterID),
 	}, nil
 }
 
@@ -336,6 +447,106 @@ func (s *Service) getUserFeatures(ctx context.Context, characterID int64) map[st
 	features["betaFeatures"] = false
 
 	return features
+}
+
+// extractUserContext extracts user permissions and groups from authentication context
+func (s *Service) extractUserContext(ctx context.Context, userID string, characterID int64) ([]string, []string, error) {
+	userPermissions := []string{}
+	userGroups := []string{}
+
+	// Extract user groups from groups service if available
+	if s.groupService != nil {
+		groups, err := s.groupService.GetUserGroups(ctx, userID)
+		if err != nil {
+			// Log error but don't fail - gracefully degrade to no group restrictions
+			fmt.Printf("Warning: Failed to get user groups for user %s: %v\n", userID, err)
+		} else {
+			// Convert groups to string array
+			for _, group := range groups {
+				if group.IsActive {
+					userGroups = append(userGroups, group.Name)
+				}
+			}
+		}
+	}
+
+	// Extract user permissions from permission manager if available
+	if s.permissionManager != nil {
+		// Get all available permissions and check which ones the user has
+		// Note: This could be expensive - consider caching in production
+		allPermissions := s.permissionManager.GetAllPermissions()
+		for permissionID := range allPermissions {
+			hasPermission, err := s.permissionManager.HasPermission(ctx, characterID, permissionID)
+			if err != nil {
+				// Log error but continue checking other permissions
+				fmt.Printf("Warning: Failed to check permission %s for character %d: %v\n", permissionID, characterID, err)
+				continue
+			}
+			if hasPermission {
+				userPermissions = append(userPermissions, permissionID)
+			}
+		}
+	}
+
+	return userPermissions, userGroups, nil
+}
+
+// checkRouteAccess checks if user has access to a route based on permissions and groups
+func (s *Service) checkRouteAccess(route models.Route, userPermissions, userGroups []string, isSuperAdmin bool) bool {
+	// Super admins have access to everything
+	if isSuperAdmin {
+		return true
+	}
+
+	// Check if route has any restrictions first
+	hasPermissionRestrictions := len(route.RequiredPermissions) > 0
+	hasGroupRestrictions := len(route.RequiredGroups) > 0
+
+	// Public routes are accessible to everyone ONLY if they have no group/permission restrictions
+	if route.Type == models.RouteTypePublic && !hasPermissionRestrictions && !hasGroupRestrictions {
+		return true
+	}
+
+	// If route has no restrictions, it's accessible to authenticated users
+	if !hasPermissionRestrictions && !hasGroupRestrictions {
+		return true // No restrictions
+	}
+
+	// Check group restrictions (OR logic - user needs ANY of the required groups)
+	if hasGroupRestrictions {
+		for _, requiredGroup := range route.RequiredGroups {
+			for _, userGroup := range userGroups {
+				if userGroup == requiredGroup {
+					return true // User has a required group
+				}
+			}
+		}
+	}
+
+	// Check permission restrictions (AND logic - user needs ALL required permissions)
+	if hasPermissionRestrictions {
+		for _, requiredPerm := range route.RequiredPermissions {
+			hasPermission := false
+			for _, userPerm := range userPermissions {
+				if userPerm == requiredPerm {
+					hasPermission = true
+					break
+				}
+			}
+			if !hasPermission {
+				return false // User lacks a required permission
+			}
+		}
+		// If we get here, user has all required permissions
+		return true
+	}
+
+	// If only group restrictions and user has no matching groups, deny access
+	if hasGroupRestrictions && !hasPermissionRestrictions {
+		return false
+	}
+
+	return false
 }
 
 // CreateRoute creates a new route
