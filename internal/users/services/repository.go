@@ -164,6 +164,7 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 		"banned":         1,
 		"position":       1,
 		"last_login":     1,
+		"valid":          1,
 	}
 
 	findOptions := options.Find().
@@ -190,6 +191,7 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 			Banned:        char.Banned,
 			Position:      char.Position,
 			LastLogin:     char.LastLogin,
+			Valid:         char.Valid,
 		})
 	}
 

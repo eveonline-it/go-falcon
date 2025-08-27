@@ -97,6 +97,7 @@ func (s *Service) ListEnrichedCharacters(ctx context.Context, userID string) ([]
 			Banned:        basicChar.Banned,
 			Position:      basicChar.Position,
 			LastLogin:     basicChar.LastLogin,
+			Valid:         basicChar.Valid,
 		}
 
 		// Try to fetch additional character profile data (optional enhancement)

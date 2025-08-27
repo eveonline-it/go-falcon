@@ -53,6 +53,7 @@ type CharacterSummaryResponse struct {
 	Banned        bool       `json:"banned"`
 	Position      int        `json:"position"`
 	LastLogin     *time.Time `json:"last_login,omitempty"`
+	Valid         bool       `json:"valid"`
 }
 
 // EnrichedCharacterSummaryResponse represents character information enriched with profile data
@@ -64,6 +65,7 @@ type EnrichedCharacterSummaryResponse struct {
 	Banned        bool       `json:"banned"`
 	Position      int        `json:"position"`
 	LastLogin     *time.Time `json:"last_login,omitempty"`
+	Valid         bool       `json:"valid"`
 
 	// Rich character profile data (optional, may not be available for all characters)
 	CorporationID  *int       `json:"corporation_id,omitempty"`

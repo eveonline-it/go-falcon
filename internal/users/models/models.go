@@ -30,6 +30,7 @@ type CharacterSummary struct {
 	Banned        bool       `json:"banned" bson:"banned"`
 	Position      int        `json:"position" bson:"position"`
 	LastLogin     *time.Time `json:"last_login,omitempty" bson:"last_login,omitempty"`
+	Valid         bool       `json:"valid" bson:"valid"`
 }
 
 // CollectionName returns the MongoDB collection name for users
