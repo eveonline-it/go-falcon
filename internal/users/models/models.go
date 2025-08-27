@@ -11,7 +11,6 @@ type User struct {
 	UserID        string    `json:"user_id" bson:"user_id"`               // UUID for internal identification
 	AccessToken   string    `json:"-" bson:"access_token"`                // EVE SSO access token (hidden from JSON)
 	RefreshToken  string    `json:"-" bson:"refresh_token"`               // EVE SSO refresh token (hidden from JSON)
-	Enabled       bool      `json:"enabled" bson:"enabled"`               // User account status
 	Banned        bool      `json:"banned" bson:"banned"`                 // Ban status
 	Scopes        string    `json:"scopes" bson:"scopes"`                 // EVE Online permissions
 	Position      int       `json:"position" bson:"position"`             // User position/rank
@@ -28,7 +27,6 @@ type CharacterSummary struct {
 	CharacterID   int        `json:"character_id" bson:"character_id"`
 	CharacterName string     `json:"character_name" bson:"character_name"`
 	UserID        string     `json:"user_id" bson:"user_id"`
-	Enabled       bool       `json:"enabled" bson:"enabled"`
 	Banned        bool       `json:"banned" bson:"banned"`
 	Position      int        `json:"position" bson:"position"`
 	LastLogin     *time.Time `json:"last_login,omitempty" bson:"last_login,omitempty"`

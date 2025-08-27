@@ -68,9 +68,6 @@ func (r *Repository) UpdateUser(ctx context.Context, characterID int, req dto.Us
 
 	// Build update document
 	update := bson.M{}
-	if req.Enabled != nil {
-		update["enabled"] = *req.Enabled
-	}
 	if req.Banned != nil {
 		update["banned"] = *req.Banned
 	}
@@ -111,24 +108,6 @@ func (r *Repository) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, 
 			"$group": bson.M{
 				"_id":         nil,
 				"total_users": bson.M{"$sum": 1},
-				"enabled_users": bson.M{
-					"$sum": bson.M{
-						"$cond": []interface{}{
-							bson.M{"$eq": []interface{}{"$enabled", true}},
-							1,
-							0,
-						},
-					},
-				},
-				"disabled_users": bson.M{
-					"$sum": bson.M{
-						"$cond": []interface{}{
-							bson.M{"$eq": []interface{}{"$enabled", false}},
-							1,
-							0,
-						},
-					},
-				},
 				"banned_users": bson.M{
 					"$sum": bson.M{
 						"$cond": []interface{}{
@@ -161,16 +140,6 @@ func (r *Repository) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, 
 				stats.TotalUsers = int(count)
 			}
 		}
-		if val, ok := result["enabled_users"]; ok {
-			if count, ok := val.(int32); ok {
-				stats.EnabledUsers = int(count)
-			}
-		}
-		if val, ok := result["disabled_users"]; ok {
-			if count, ok := val.(int32); ok {
-				stats.DisabledUsers = int(count)
-			}
-		}
 		if val, ok := result["banned_users"]; ok {
 			if count, ok := val.(int32); ok {
 				stats.BannedUsers = int(count)
@@ -192,7 +161,6 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 		"character_id":   1,
 		"character_name": 1,
 		"user_id":        1,
-		"enabled":        1,
 		"banned":         1,
 		"position":       1,
 		"last_login":     1,
@@ -219,7 +187,6 @@ func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.C
 			CharacterID:   char.CharacterID,
 			CharacterName: char.CharacterName,
 			UserID:        char.UserID,
-			Enabled:       char.Enabled,
 			Banned:        char.Banned,
 			Position:      char.Position,
 			LastLogin:     char.LastLogin,
@@ -251,12 +218,6 @@ func (r *Repository) ListUsers(ctx context.Context, input dto.UserListInput) (*d
 		if characterID := parseInt(query); characterID > 0 {
 			filter["$or"] = append(filter["$or"].([]bson.M), bson.M{"character_id": characterID})
 		}
-	}
-
-	if input.Enabled == "true" {
-		filter["enabled"] = true
-	} else if input.Enabled == "false" {
-		filter["enabled"] = false
 	}
 
 	if input.Banned == "true" {
@@ -314,7 +275,6 @@ func (r *Repository) ListUsers(ctx context.Context, input dto.UserListInput) (*d
 		users = append(users, dto.UserResponse{
 			CharacterID:   user.CharacterID,
 			UserID:        user.UserID,
-			Enabled:       user.Enabled,
 			Banned:        user.Banned,
 			Scopes:        user.Scopes,
 			Position:      user.Position,

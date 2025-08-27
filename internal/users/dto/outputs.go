@@ -34,7 +34,6 @@ type EnrichedAllianceInfo struct {
 type UserResponse struct {
 	CharacterID   int       `json:"character_id"`
 	UserID        string    `json:"user_id"`
-	Enabled       bool      `json:"enabled"`
 	Banned        bool      `json:"banned"`
 	Scopes        string    `json:"scopes"`
 	Position      int       `json:"position"`
@@ -51,7 +50,6 @@ type CharacterSummaryResponse struct {
 	CharacterID   int        `json:"character_id"`
 	CharacterName string     `json:"character_name"`
 	UserID        string     `json:"user_id"`
-	Enabled       bool       `json:"enabled"`
 	Banned        bool       `json:"banned"`
 	Position      int        `json:"position"`
 	LastLogin     *time.Time `json:"last_login,omitempty"`
@@ -63,7 +61,6 @@ type EnrichedCharacterSummaryResponse struct {
 	CharacterID   int        `json:"character_id"`
 	CharacterName string     `json:"character_name"`
 	UserID        string     `json:"user_id"`
-	Enabled       bool       `json:"enabled"`
 	Banned        bool       `json:"banned"`
 	Position      int        `json:"position"`
 	LastLogin     *time.Time `json:"last_login,omitempty"`
@@ -99,7 +96,6 @@ type CharacterPortraits struct {
 // UserStatsResponse represents user statistics
 type UserStatsResponse struct {
 	TotalUsers    int `json:"total_users"`
-	EnabledUsers  int `json:"enabled_users"`
 	DisabledUsers int `json:"disabled_users"`
 	BannedUsers   int `json:"banned_users"`
 }

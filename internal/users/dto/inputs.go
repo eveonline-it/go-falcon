@@ -10,7 +10,6 @@ import (
 
 // UserUpdateRequest represents user status update request
 type UserUpdateRequest struct {
-	Enabled  *bool   `json:"enabled,omitempty"`                             // Enable/disable user
 	Banned   *bool   `json:"banned,omitempty"`                              // Ban/unban user
 	Position *int    `json:"position,omitempty" validate:"omitempty,min=0"` // Update position/rank
 	Notes    *string `json:"notes,omitempty" validate:"omitempty,max=1000"` // Update administrative notes
@@ -63,7 +62,6 @@ type UserListInput struct {
 	Page          int    `query:"page" minimum:"1" default:"1" doc:"Page number"`
 	PageSize      int    `query:"page_size" minimum:"1" maximum:"100" default:"20" doc:"Items per page"`
 	Query         string `query:"query" doc:"Search by character name or ID"`
-	Enabled       string `query:"enabled" doc:"Filter by enabled status (true/false)"`
 	Banned        string `query:"banned" doc:"Filter by banned status (true/false)"`
 	Position      int    `query:"position" doc:"Filter by position value (0 means no filter)"`
 	SortBy        string `query:"sort_by" enum:"character_name,created_at,last_login,position" default:"created_at" doc:"Sort field"`

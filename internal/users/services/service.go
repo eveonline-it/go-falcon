@@ -94,7 +94,6 @@ func (s *Service) ListEnrichedCharacters(ctx context.Context, userID string) ([]
 			CharacterID:   basicChar.CharacterID,
 			CharacterName: basicChar.CharacterName,
 			UserID:        basicChar.UserID,
-			Enabled:       basicChar.Enabled,
 			Banned:        basicChar.Banned,
 			Position:      basicChar.Position,
 			LastLogin:     basicChar.LastLogin,
@@ -191,7 +190,6 @@ func (s *Service) UserToResponse(user *models.User) *dto.UserResponse {
 	return &dto.UserResponse{
 		CharacterID:   user.CharacterID,
 		UserID:        user.UserID,
-		Enabled:       user.Enabled,
 		Banned:        user.Banned,
 		Scopes:        user.Scopes,
 		Position:      user.Position,
