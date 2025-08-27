@@ -502,7 +502,7 @@ type InvPosition struct {
 	Yaw    *float64 `json:"yaw,omitempty"`
 	Pitch  *float64 `json:"pitch,omitempty"`
 	Roll   *float64 `json:"roll,omitempty"`
-	True   *int     `json:"true,omitempty"`
+	True   *float64 `json:"true,omitempty"`
 }
 
 // InvUniqueName represents a unique name mapping with group information
