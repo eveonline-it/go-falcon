@@ -225,8 +225,8 @@ func main() {
 	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule)
 	characterModule.SetGroupService(groupsModule.GetService())
 
-	// 8. Initialize corporation module with auth dependency
-	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule)
+	// 8. Initialize corporation module with auth and character dependencies
+	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule, characterModule.GetService())
 	corporationModule.SetGroupService(groupsModule.GetService())
 
 	// Update groups service with permission manager

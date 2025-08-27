@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go-falcon/internal/auth"
+	characterServices "go-falcon/internal/character/services"
 	"go-falcon/internal/corporation/routes"
 	"go-falcon/internal/corporation/services"
 	groupsServices "go-falcon/internal/groups/services"
@@ -29,10 +30,10 @@ type Module struct {
 }
 
 // NewModule creates a new corporation module instance
-func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client, authModule *auth.Module) *Module {
+func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client, authModule *auth.Module, characterService *characterServices.Service) *Module {
 	// Initialize repository and service
 	repository := services.NewRepository(mongodb)
-	service := services.NewService(repository, eveClient)
+	service := services.NewService(repository, eveClient, characterService)
 
 	// Initialize routes
 	routesModule := routes.NewModule(service)

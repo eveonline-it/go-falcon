@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	characterServices "go-falcon/internal/character/services"
 	"go-falcon/internal/corporation/dto"
 	"go-falcon/internal/corporation/models"
 	"go-falcon/pkg/evegateway"
@@ -15,15 +16,17 @@ import (
 
 // Service handles corporation business logic
 type Service struct {
-	repository *Repository
-	eveClient  *evegateway.Client
+	repository       *Repository
+	eveClient        *evegateway.Client
+	characterService *characterServices.Service
 }
 
 // NewService creates a new corporation service
-func NewService(repository *Repository, eveClient *evegateway.Client) *Service {
+func NewService(repository *Repository, eveClient *evegateway.Client, characterService *characterServices.Service) *Service {
 	return &Service{
-		repository: repository,
-		eveClient:  eveClient,
+		repository:       repository,
+		eveClient:        eveClient,
+		characterService: characterService,
 	}
 }
 
@@ -61,7 +64,7 @@ func (s *Service) GetCorporationInfo(ctx context.Context, corporationID int) (*d
 	}
 
 	// Convert model to output DTO
-	return s.convertModelToOutput(corporation), nil
+	return s.convertModelToOutput(ctx, corporation), nil
 }
 
 // convertESIDataToModel converts ESI response data to our corporation model
@@ -157,7 +160,7 @@ func getMapKeys(m map[string]any) []string {
 }
 
 // convertModelToOutput converts corporation model to output DTO
-func (s *Service) convertModelToOutput(corporation *models.Corporation) *dto.CorporationInfoOutput {
+func (s *Service) convertModelToOutput(ctx context.Context, corporation *models.Corporation) *dto.CorporationInfoOutput {
 	corporationInfo := dto.CorporationInfo{
 		AllianceID:     corporation.AllianceID,
 		CEOCharacterID: corporation.CEOCharacterID,
@@ -173,6 +176,32 @@ func (s *Service) convertModelToOutput(corporation *models.Corporation) *dto.Cor
 		Ticker:         corporation.Ticker,
 		URL:            corporation.URL,
 		WarEligible:    corporation.WarEligible,
+	}
+
+	// Fetch CEO character information
+	if corporation.CEOCharacterID > 0 {
+		ceoProfile, err := s.characterService.GetCharacterProfile(ctx, corporation.CEOCharacterID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to get CEO character info", "ceo_id", corporation.CEOCharacterID, "error", err)
+		} else if ceoProfile != nil && ceoProfile.Body.CharacterID > 0 {
+			corporationInfo.CEO = &dto.CharacterInfo{
+				CharacterID: ceoProfile.Body.CharacterID,
+				Name:        ceoProfile.Body.Name,
+			}
+		}
+	}
+
+	// Fetch Creator character information
+	if corporation.CreatorID > 0 {
+		creatorProfile, err := s.characterService.GetCharacterProfile(ctx, corporation.CreatorID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to get creator character info", "creator_id", corporation.CreatorID, "error", err)
+		} else if creatorProfile != nil && creatorProfile.Body.CharacterID > 0 {
+			corporationInfo.Creator = &dto.CharacterInfo{
+				CharacterID: creatorProfile.Body.CharacterID,
+				Name:        creatorProfile.Body.Name,
+			}
+		}
 	}
 
 	return &dto.CorporationInfoOutput{

@@ -25,9 +25,12 @@ type Service struct {
 
 // NewService creates a new service instance
 func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client) *Service {
+	// Create character service first (needed for corporation service)
+	characterSvc := characterServices.NewService(mongodb, eveGateway)
+
 	// Create corporation repository and service
 	corporationRepo := corporationServices.NewRepository(mongodb)
-	corporationSvc := corporationServices.NewService(corporationRepo, eveGateway)
+	corporationSvc := corporationServices.NewService(corporationRepo, eveGateway, characterSvc)
 
 	// Create alliance repository and service
 	allianceRepo := allianceServices.NewRepository(mongodb)
@@ -36,7 +39,7 @@ func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client) *Servi
 	return &Service{
 		repository:         NewRepository(mongodb),
 		groupService:       nil, // Will be set after initialization
-		characterService:   characterServices.NewService(mongodb, eveGateway),
+		characterService:   characterSvc,
 		corporationService: corporationSvc,
 		allianceService:    allianceSvc,
 	}

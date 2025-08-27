@@ -54,6 +54,11 @@ func (m *Module) GetUpdateService() *services.UpdateService {
 	return m.updateService
 }
 
+// GetService returns the character service for external access
+func (m *Module) GetService() *services.Service {
+	return m.service
+}
+
 // UpdateAllAffiliations implements the CharacterModule interface for scheduler integration
 func (m *Module) UpdateAllAffiliations(ctx context.Context) (updated, failed, skipped int, err error) {
 	stats, err := m.updateService.UpdateAllAffiliations(ctx)
