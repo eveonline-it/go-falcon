@@ -32,9 +32,9 @@ internal/sde_admin/
 
 ## SDE Data Import System
 
-### Supported Data Types
+### Fully Supported Data Types (43 total)
 
-The module can import all SDE data types supported by the `pkg/sde` service:
+The module can import all SDE data types supported by the `pkg/sde` service - complete coverage of all EVE Online SDE data files:
 
 - **agents**: Mission agents with location and corporation info
 - **categories**: Item categories with internationalized names
@@ -45,23 +45,93 @@ The module can import all SDE data types supported by the `pkg/sde` service:
 - **typeIDs**: Basic type information (lightweight)
 - **types**: Complete item type database with attributes
 - **typeMaterials**: Manufacturing material requirements per type
+- **races**: Character races with skills and ship information
+- **factions**: EVE factions with member races and corporation relationships
+- **bloodlines**: Character bloodlines with attributes and racial information
+- **groups**: Item groups with categorization and property flags
+- **dogmaAttributes**: Item attributes and properties for EVE mechanics
+- **ancestries**: Character ancestry information with bloodline relationships
+- **certificates**: Skill certificates with tiered requirements (basic → elite)
+- **characterAttributes**: Core character attributes (Intelligence, Charisma, etc.)
+- **skins**: Ship skins with visibility and material information
+- **staStations**: Station data with location and service information
+- **dogmaEffects**: Dogma effects with modifiers and attributes
+- **iconIDs**: Icon ID to file path mappings
+- **graphicIDs**: Graphic ID definitions with SOF data
+- **typeDogma**: Type dogma attributes and effects for items
+- **invFlags**: Inventory flag definitions with names and order
+- **stationServices**: Station service definitions with internationalized names
+- **stationOperations**: Station operations with manufacturing factors
+- **researchAgents**: Research agents with skill requirements
+- **agentsInSpace**: Agents located in space with dungeon and location information
+- **contrabandTypes**: Contraband types with faction-specific penalties and restrictions
+- **corporationActivities**: Corporation activities with internationalized names
+- **invItems**: Inventory items with location, ownership, and quantity information
+- **npcCorporationDivisions**: NPC corporation divisions with internationalized names
+- **controlTowerResources**: Control tower resource requirements with faction and security restrictions
+- **dogmaAttributeCategories**: Dogma attribute categories with names and descriptions
+- **invNames**: Inventory names mapping item IDs to readable names
+- **invPositions**: Inventory position and orientation data for items in space
+- **invUniqueNames**: Unique inventory names with group information
+- **planetResources**: Planet resource power and workforce requirements
+- **planetSchematics**: Planetary interaction schematics with cycle times and material flows
+- **skinLicenses**: Ship skin licenses with duration and type information
+- **skinMaterials**: Skin material definitions with display names and material sets
+- **sovereigntyUpgrades**: Sovereignty upgrade specifications with fuel and resource costs
+- **translationLanguages**: Language code to name mappings for internationalization
+
+**Complete Implementation**: All 43 SDE data files from the EVE Online Static Data Export are now fully implemented and available for import.
 
 ### Redis Storage Structure
 
 SDE data is stored in Redis using the following key patterns:
 
 ```
-sde:agents:{agent_id}           # Agent data as JSON
-sde:categories:{category_id}    # Category data as JSON
-sde:blueprints:{blueprint_id}   # Blueprint data as JSON
-sde:marketGroups:{group_id}     # Market group data as JSON
-sde:metaGroups:{group_id}       # Meta group data as JSON
-sde:npcCorporations:{corp_id}   # NPC corporation data as JSON
-sde:typeIDs:{type_id}           # Basic type info as JSON
-sde:types:{type_id}             # Full type data as JSON
-sde:typeMaterials:{type_id}     # Type materials as JSON array
+sde:agents:{agent_id}                    # Agent data as JSON
+sde:categories:{category_id}             # Category data as JSON
+sde:blueprints:{blueprint_id}            # Blueprint data as JSON
+sde:marketGroups:{group_id}              # Market group data as JSON
+sde:metaGroups:{group_id}                # Meta group data as JSON
+sde:npcCorporations:{corp_id}            # NPC corporation data as JSON
+sde:typeIDs:{type_id}                    # Basic type info as JSON
+sde:types:{type_id}                      # Full type data as JSON
+sde:typeMaterials:{type_id}              # Type materials as JSON array
+sde:races:{race_id}                      # Race data as JSON
+sde:factions:{faction_id}                # Faction data as JSON
+sde:bloodlines:{bloodline_id}            # Bloodline data as JSON
+sde:groups:{group_id}                    # Group data as JSON
+sde:dogmaAttributes:{attribute_id}       # Dogma attribute data as JSON
+sde:ancestries:{ancestry_id}             # Ancestry data as JSON
+sde:certificates:{certificate_id}        # Certificate data as JSON
+sde:characterAttributes:{attribute_id}   # Character attribute data as JSON
+sde:skins:{skin_id}                      # Skin data as JSON
+sde:staStations:{station_id}             # Station data as JSON
+sde:dogmaEffects:{effect_id}             # Dogma effect data as JSON
+sde:iconIDs:{icon_id}                    # Icon ID data as JSON
+sde:graphicIDs:{graphic_id}              # Graphic ID data as JSON
+sde:typeDogma:{type_id}                  # Type dogma data as JSON
+sde:invFlags:{flag_id}                   # Inventory flag data as JSON
+sde:stationServices:{service_id}         # Station service data as JSON
+sde:stationOperations:{operation_id}     # Station operation data as JSON
+sde:researchAgents:{agent_id}            # Research agent data as JSON
+sde:agentsInSpace:{agent_id}             # Agent in space data as JSON
+sde:contrabandTypes:{type_id}            # Contraband type data as JSON
+sde:corporationActivities:{activity_id} # Corporation activity data as JSON
+sde:invItems:{item_id}                   # Inventory item data as JSON
+sde:npcCorporationDivisions:{division_id} # NPC corporation division data as JSON
+sde:controlTowerResources:{tower_id}   # Control tower resources data as JSON
+sde:dogmaAttributeCategories:{category_id} # Dogma attribute category data as JSON
+sde:invNames:{item_id}                 # Inventory name data as JSON
+sde:invPositions:{item_id}             # Inventory position data as JSON
+sde:invUniqueNames:{item_id}           # Inventory unique name data as JSON
+sde:planetResources:{resource_id}      # Planet resource data as JSON
+sde:planetSchematics:{schematic_id}    # Planet schematic data as JSON
+sde:skinLicenses:{license_id}          # Skin license data as JSON
+sde:skinMaterials:{material_id}        # Skin material data as JSON
+sde:sovereigntyUpgrades:{upgrade_id}   # Sovereignty upgrade data as JSON
+sde:translationLanguages:{language_code} # Translation language data as JSON
 
-sde:metadata:last_import        # Timestamp of last successful import
+sde:metadata:last_import                 # Timestamp of last successful import
 ```
 
 ### Import Process

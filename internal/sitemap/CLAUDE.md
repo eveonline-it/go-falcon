@@ -852,4 +852,12 @@ type UpdateRouteBody struct {
 
 **Reference**: Solution discovered from [Huma GitHub Issue #886](https://github.com/danielgtaylor/huma/issues/886)
 
-**Status**: ✅ **RESOLVED** - All JSON body fields now parse correctly. The PUT `/admin/sitemap/{id}` endpoint now supports updating all route properties including name, path, title, navigation settings, permissions, metadata, and more.
+**Status**: ✅ **RESOLVED** - All JSON body fields now parse correctly for both PUT and POST operations.
+
+**Extended Fix (2025-08-27)**: Applied the same solution to `CreateRouteInput` and added `is_folder` field validation:
+- Fixed `CreateRouteInput` DTO to use proper `Body` pattern
+- Updated all 29 route seeding definitions to use new structure  
+- Added optional `is_folder` field with validation
+- Updated service layer to handle `input.Body.*` field access
+
+Both POST `/admin/sitemap` (create) and PUT `/admin/sitemap/{id}` (update) endpoints now support all route properties correctly.
