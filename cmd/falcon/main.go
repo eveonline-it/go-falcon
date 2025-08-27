@@ -304,8 +304,8 @@ func main() {
 
 	log.Printf("✅ Permission system initialized (background registration enabled)")
 
-	// Update site settings with auth and groups services
-	siteSettingsModule.SetDependencies(authModule.GetAuthService(), groupsModule.GetService())
+	// Update site settings with auth, groups services, and permission manager
+	siteSettingsModule.SetDependenciesWithPermissions(authModule.GetAuthService(), groupsModule.GetService(), permissionManager)
 
 	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, sitemapModule, siteSettingsModule)
 

@@ -138,13 +138,12 @@ func (pm *PermissionMiddleware) RequireSuperAdmin(ctx context.Context, authHeade
 		// If not admin, deny access
 		return nil, huma.Error403Forbidden("Super admin access required")
 	} else {
-		// Fallback: if no permission checker, allow authenticated users (development mode)
-		if pm.options.FallbackToAuth {
-			slog.Warn("[Permission Middleware] Permission system not available, falling back to auth-only mode for super admin check")
-			return user, nil
-		} else {
-			return nil, huma.Error500InternalServerError("Permission system not available")
-		}
+		// SECURITY: Super admin checks must ALWAYS deny by default
+		// Never fall back to allowing access when permission system is unavailable
+		slog.Error("[Permission Middleware] Permission system not available for super admin check - denying access",
+			"character_id", user.CharacterID,
+			"character_name", user.CharacterName)
+		return nil, huma.Error500InternalServerError("Permission system not available")
 	}
 }
 

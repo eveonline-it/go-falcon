@@ -261,7 +261,7 @@ func (m *Module) createSettingHandler(ctx context.Context, input *dto.CreateSite
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	setting, err := m.service.CreateSetting(ctx, input, int64(user.CharacterID))
@@ -282,7 +282,7 @@ func (m *Module) listSettingsHandler(ctx context.Context, input *dto.ListSiteSet
 	// Require super admin authentication
 	_, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	settings, total, err := m.service.ListSettings(ctx, input)
@@ -314,7 +314,7 @@ func (m *Module) getSettingHandler(ctx context.Context, input *dto.GetSiteSettin
 	// Require super admin authentication
 	_, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	setting, err := m.service.GetSetting(ctx, input.Key)
@@ -334,7 +334,7 @@ func (m *Module) updateSettingHandler(ctx context.Context, input *dto.UpdateSite
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	setting, err := m.service.UpdateSetting(ctx, input.Key, input, int64(user.CharacterID))
@@ -355,7 +355,7 @@ func (m *Module) deleteSettingHandler(ctx context.Context, input *dto.DeleteSite
 	// Require super admin authentication
 	_, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	err = m.service.DeleteSetting(ctx, input.Key)
@@ -394,7 +394,7 @@ func (m *Module) addCorporationHandler(ctx context.Context, input *dto.AddCorpor
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	corporation, err := m.service.AddManagedCorporation(ctx, input, int64(user.CharacterID))
@@ -418,7 +418,7 @@ func (m *Module) listCorporationsHandler(ctx context.Context, input *dto.ListMan
 	// Require super admin authentication
 	_, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	corporations, total, err := m.service.GetManagedCorporations(ctx, input.EnabledFilter, input.Page, input.Limit)
@@ -444,7 +444,7 @@ func (m *Module) getCorporationHandler(ctx context.Context, input *dto.GetManage
 	// Require super admin authentication
 	_, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	corporation, err := m.service.GetManagedCorporation(ctx, input.CorporationID)
@@ -467,7 +467,7 @@ func (m *Module) updateCorporationStatusHandler(ctx context.Context, input *dto.
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	corporation, err := m.service.UpdateCorporationStatus(ctx, input.CorporationID, input.Body.Enabled, int64(user.CharacterID))
@@ -496,7 +496,7 @@ func (m *Module) removeCorporationHandler(ctx context.Context, input *dto.Remove
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	// Get corporation details before removing for the response message
@@ -525,7 +525,7 @@ func (m *Module) bulkUpdateCorporationsHandler(ctx context.Context, input *dto.B
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	corporations, updated, added, err := m.service.BulkUpdateCorporations(ctx, input, int64(user.CharacterID))
@@ -548,7 +548,7 @@ func (m *Module) reorderCorporationsHandler(ctx context.Context, input *dto.Reor
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	corporations, err := m.service.ReorderCorporations(ctx, input, int64(user.CharacterID))
@@ -577,7 +577,7 @@ func (m *Module) addAllianceHandler(ctx context.Context, input *dto.AddAllianceI
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	alliance, err := m.service.AddManagedAlliance(ctx, input, int64(user.CharacterID))
@@ -601,7 +601,7 @@ func (m *Module) listAlliancesHandler(ctx context.Context, input *dto.ListManage
 	// Require super admin authentication
 	_, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	alliances, total, err := m.service.GetManagedAlliances(ctx, input.EnabledFilter, input.Page, input.Limit)
@@ -627,7 +627,7 @@ func (m *Module) getAllianceHandler(ctx context.Context, input *dto.GetManagedAl
 	// Require super admin authentication
 	_, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	alliance, err := m.service.GetManagedAlliance(ctx, input.AllianceID)
@@ -650,7 +650,7 @@ func (m *Module) updateAllianceStatusHandler(ctx context.Context, input *dto.Upd
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	alliance, err := m.service.UpdateAllianceStatus(ctx, input.AllianceID, input.Body.Enabled, int64(user.CharacterID))
@@ -679,7 +679,7 @@ func (m *Module) removeAllianceHandler(ctx context.Context, input *dto.RemoveAll
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	// Get alliance details before removing for the response message
@@ -708,7 +708,7 @@ func (m *Module) bulkUpdateAlliancesHandler(ctx context.Context, input *dto.Bulk
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	alliances, updated, added, err := m.service.BulkUpdateAlliances(ctx, input, int64(user.CharacterID))
@@ -731,7 +731,7 @@ func (m *Module) reorderAlliancesHandler(ctx context.Context, input *dto.Reorder
 	// Require super admin authentication
 	user, err := m.permissionMiddleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized(err.Error())
+		return nil, err
 	}
 
 	alliances, err := m.service.ReorderAlliances(ctx, input, int64(user.CharacterID))

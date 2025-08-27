@@ -783,8 +783,8 @@ The module creates optimized database indexes for efficient queries:
 - **200 OK**: Successful operations
 - **201 Created**: Setting created successfully
 - **400 Bad Request**: Invalid input or validation errors
-- **401 Unauthorized**: Authentication required
-- **403 Forbidden**: Insufficient permissions (not super admin)
+- **401 Unauthorized**: Authentication required (no token or invalid token)
+- **403 Forbidden**: Insufficient permissions (authenticated but not super admin)
 - **404 Not Found**: Setting not found
 - **409 Conflict**: Setting key already exists
 - **500 Internal Server Error**: Database or server errors

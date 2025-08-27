@@ -817,3 +817,39 @@ This sitemap module provides complete backend control over frontend routing, ena
 - **Navigation is hierarchical**: The `navigation` array contains folders and nested items for menu rendering  
 - **Folders are navigation-only**: Folder entries exist only in navigation, not in the routes array
 - **Separation of concerns**: Routes define what's accessible, navigation defines how it's organized visually
+
+## Resolved Issues
+
+### JSON Body Parsing Issue - RESOLVED (2025-08-27)
+
+**Issue**: JSON request body parsing was failing for sitemap routes while working correctly for site_settings routes.
+
+**Root Cause**: Incorrect Huma v2 request body structure. The sitemap module was using JSON fields directly on the input struct instead of using the required `Body` pattern.
+
+**Solution**: Updated all input DTOs to use the proper Huma v2 pattern:
+
+**❌ Wrong Pattern (was causing parsing failure):**
+```go
+type UpdateRouteInput struct {
+    Authorization string `header:"Authorization"`
+    ID            string `path:"id"`
+    Name          *string `json:"name,omitempty"`  // Direct on struct - doesn't work!
+}
+```
+
+**✅ Correct Pattern (now working):**
+```go
+type UpdateRouteInput struct {
+    Authorization string `header:"Authorization"`
+    ID            string `path:"id"`
+    Body          UpdateRouteBody  // JSON fields in separate Body struct
+}
+
+type UpdateRouteBody struct {
+    Name *string `json:"name,omitempty"`  // Now works correctly!
+}
+```
+
+**Reference**: Solution discovered from [Huma GitHub Issue #886](https://github.com/danielgtaylor/huma/issues/886)
+
+**Status**: ✅ **RESOLVED** - All JSON body fields now parse correctly. The PUT `/admin/sitemap/{id}` endpoint now supports updating all route properties including name, path, title, navigation settings, permissions, metadata, and more.

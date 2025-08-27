@@ -276,8 +276,10 @@ This background registration approach is particularly useful when:
 Static permissions are automatically assigned to system groups:
 
 - **Super Administrator**: All permissions (hardcoded)
-- **Authenticated Users**: Basic view permissions
+- **Authenticated Users**: User profile view only (`users:profiles:view`)
 - **Guest Users**: Public endpoint access only
+
+Note: Group view permissions (`groups:view:all`) must be explicitly granted to non-admin users who need them.
 
 ## Usage Examples
 
@@ -417,9 +419,9 @@ Permissions are organized into categories for admin interface:
 
 ### Permission Check Errors
 
+- **401**: Authentication required (invalid/missing token)
+- **403**: Permission denied (authenticated but insufficient permissions)
 - **404**: Permission not found
-- **403**: Permission denied
-- **401**: Authentication required
 - **500**: Permission system error
 
 ### Graceful Degradation

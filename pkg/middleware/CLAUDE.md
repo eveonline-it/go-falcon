@@ -192,13 +192,15 @@ When enabled with `WithDebugLogging()`, provides detailed logging:
 ```
 
 ### Graceful Fallback
-With `FallbackToAuth: true` (default), system continues operating if permission system is unavailable:
+With `FallbackToAuth: true` (default), system continues operating if permission system is unavailable for regular permissions:
 
 ```go
-// Permission manager unavailable - falls back to auth-only mode
+// Permission manager unavailable - falls back to auth-only mode for regular permissions
 user, err := pm.RequirePermission(ctx, authHeader, cookieHeader, "some:permission")
 // Returns authenticated user instead of error
 ```
+
+**Important Security Note**: Super admin checks (`RequireSuperAdmin`) NEVER fall back to auth-only mode. They always deny access when the permission system is unavailable to prevent privilege escalation.
 
 ### Error Types
 - **401 Unauthorized**: Invalid or missing authentication token

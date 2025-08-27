@@ -396,8 +396,8 @@ func (m *Module) getCharacterGroups(ctx context.Context, input *dto.GetCharacter
 }
 
 func (m *Module) getMyGroups(ctx context.Context, input *dto.GetMyGroupsInput) (*dto.CharacterGroupsOutput, error) {
-	// Validate authentication and get character ID
-	user, err := m.requireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and check permissions
+	user, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:view:all")
 	if err != nil {
 		return nil, err
 	}
@@ -406,8 +406,8 @@ func (m *Module) getMyGroups(ctx context.Context, input *dto.GetMyGroupsInput) (
 }
 
 func (m *Module) getUserGroups(ctx context.Context, input *dto.GetUserGroupsInput) (*dto.UserGroupsOutput, error) {
-	// Validate authentication
-	_, err := m.requireAuth(ctx, input.Authorization, input.Cookie)
+	// Validate authentication and check permissions
+	_, err := m.middleware.RequirePermission(ctx, input.Authorization, input.Cookie, "groups:view:all")
 	if err != nil {
 		return nil, err
 	}

@@ -118,6 +118,26 @@ func (m *Module) SetDependencies(authService *authServices.AuthService, groupsSe
 	slog.Info("Site settings middleware and routes updated with centralized system (auth-only mode)")
 }
 
+// SetDependenciesWithPermissions sets auth, groups service, and permission manager dependencies
+func (m *Module) SetDependenciesWithPermissions(authService *authServices.AuthService, groupsService *groupsServices.Service, permissionManager *permissions.PermissionManager) {
+	if authService == nil || groupsService == nil {
+		slog.Error("Cannot set site settings dependencies - auth or groups service is nil")
+		return
+	}
+
+	if permissionManager == nil {
+		slog.Error("Cannot set site settings dependencies - permission manager is nil")
+		return
+	}
+
+	// Create permission middleware with the shared permission manager
+	m.permissionMiddleware = middleware.NewPermissionMiddleware(authService, permissionManager)
+
+	// Recreate routes with the new middleware
+	m.routes = routes.NewModule(m.service, m.permissionMiddleware)
+	slog.Info("Site settings middleware and routes updated with centralized permission system")
+}
+
 // SetAuthService sets the auth service dependency after module initialization
 func (m *Module) SetAuthService(authService *authServices.AuthService) {
 	// This method is kept for backward compatibility but doesn't do anything

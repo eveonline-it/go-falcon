@@ -56,7 +56,6 @@ func (pm *PermissionManager) InitializeSystemGroupPermissions(ctx context.Contex
 	systemGroupPermissions := map[string][]string{
 		"Authenticated Users": {
 			// Basic permissions for authenticated users
-			"groups:view:all",
 			"users:profiles:view",
 		},
 		"Guest Users": {

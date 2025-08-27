@@ -264,6 +264,7 @@ GET /groups/me?type=custom
 Authorization: Bearer <token> | Cookie: falcon_auth_token
 ```
 Get all groups the current authenticated user belongs to. Automatically uses the authenticated user's character ID.
+**Requires**: `groups:view:all` permission
 
 ### User-Centric Endpoints
 
@@ -273,6 +274,7 @@ GET /users/{user_id}/groups?type=corporation
 Authorization: Bearer <token> | Cookie: falcon_auth_token
 ```
 Get all unique groups that any character belonging to a specific user_id belongs to. Provides multi-character group aggregation with deduplication.
+**Requires**: `groups:view:all` permission
 
 **Response:**
 ```json
@@ -327,7 +329,7 @@ Searches the `characters` collection for character names containing the query st
 
 - **200 OK**: Successful operation
 - **401 Unauthorized**: Authentication required (no token or invalid token)
-- **403 Forbidden**: Insufficient permissions (valid token but no required permissions)
+- **403 Forbidden**: Insufficient permissions (authenticated but missing required permissions like `groups:view:all`)
 - **404 Not Found**: Group, membership, or character not found
 - **409 Conflict**: Group name already exists or membership already active
 - **500 Internal Server Error**: Database or server error
