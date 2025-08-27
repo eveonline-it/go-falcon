@@ -21,13 +21,6 @@ func ValidateUserUpdateRequest(req *UserUpdateRequest) error {
 	return validate.Struct(req)
 }
 
-// UserStatsInput represents the input for getting user statistics (no body needed)
-type UserStatsInput struct {
-	// No parameters needed
-	Authorization string `header:"Authorization" doc:"Bearer token for authentication"`
-	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
-}
-
 // UserGetInput represents the input for getting a specific user
 type UserGetInput struct {
 	CharacterID   int    `path:"character_id" validate:"required" minimum:"90000000" maximum:"2147483647" doc:"EVE Online character ID"`

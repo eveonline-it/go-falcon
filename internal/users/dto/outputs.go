@@ -95,13 +95,6 @@ type CharacterPortraits struct {
 	Px512x512 string `json:"px512x512"`
 }
 
-// UserStatsResponse represents user statistics
-type UserStatsResponse struct {
-	TotalUsers    int `json:"total_users"`
-	DisabledUsers int `json:"disabled_users"`
-	BannedUsers   int `json:"banned_users"`
-}
-
 // UserUpdateResponse represents the response after updating a user
 type UserUpdateResponse struct {
 	Success bool         `json:"success"`
@@ -135,11 +128,6 @@ type UserListResponse struct {
 // =============================================================================
 // HUMA OUTPUT DTOs (consolidated from huma_requests.go)
 // =============================================================================
-
-// UserStatsOutput represents the output for getting user statistics
-type UserStatsOutput struct {
-	Body UserStatsResponse `json:"body"`
-}
 
 // UserGetOutput represents the output for getting a specific user
 type UserGetOutput struct {

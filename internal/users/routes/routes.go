@@ -55,27 +55,6 @@ func RegisterUsersRoutes(api huma.API, basePath string, service *services.Servic
 	})
 
 	// Administrative endpoints require authentication and permissions
-	huma.Register(api, huma.Operation{
-		OperationID: "users-get-stats",
-		Method:      "GET",
-		Path:        basePath + "/stats",
-		Summary:     "Get user statistics",
-		Description: "Get aggregate statistics about users in the system",
-		Tags:        []string{"Users / Management"},
-		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
-	}, func(ctx context.Context, input *dto.UserStatsInput) (*dto.UserStatsOutput, error) {
-		// Validate authentication and user management access
-		_, err := usersAdapter.RequireUserManagement(ctx, input.Authorization, input.Cookie)
-		if err != nil {
-			return nil, err
-		}
-
-		stats, err := service.GetUserStats(ctx)
-		if err != nil {
-			return nil, huma.Error500InternalServerError("Failed to get user statistics", err)
-		}
-		return &dto.UserStatsOutput{Body: *stats}, nil
-	})
 
 	huma.Register(api, huma.Operation{
 		OperationID: "users-list-users",
@@ -251,7 +230,6 @@ func (hr *Routes) registerRoutes() {
 	huma.Get(hr.api, "/status", hr.getStatus)
 
 	// Public endpoints
-	huma.Get(hr.api, "/stats", hr.getUserStats)
 
 	// Administrative endpoints (require authentication and permissions)
 	huma.Get(hr.api, "", hr.listUsers)
@@ -268,14 +246,6 @@ func (hr *Routes) registerRoutes() {
 func (hr *Routes) getStatus(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
 	status := hr.service.GetStatus(ctx)
 	return &dto.StatusOutput{Body: *status}, nil
-}
-
-func (hr *Routes) getUserStats(ctx context.Context, input *dto.UserStatsInput) (*dto.UserStatsOutput, error) {
-	stats, err := hr.service.GetUserStats(ctx)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("Failed to get user statistics", err)
-	}
-	return &dto.UserStatsOutput{Body: *stats}, nil
 }
 
 // Administrative endpoint handlers

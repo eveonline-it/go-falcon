@@ -67,11 +67,6 @@ func (s *Service) UpdateUser(ctx context.Context, characterID int, req dto.UserU
 	return s.repository.UpdateUser(ctx, characterID, req)
 }
 
-// GetUserStats returns user statistics
-func (s *Service) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, error) {
-	return s.repository.GetUserStats(ctx)
-}
-
 // ListCharacters retrieves character summaries for a specific user ID
 func (s *Service) ListCharacters(ctx context.Context, userID string) ([]dto.CharacterSummaryResponse, error) {
 	return s.repository.ListCharacters(ctx, userID)

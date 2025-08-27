@@ -98,58 +98,6 @@ func (r *Repository) UpdateUser(ctx context.Context, characterID int, req dto.Us
 	return r.GetUser(ctx, characterID)
 }
 
-// GetUserStats returns user statistics
-func (r *Repository) GetUserStats(ctx context.Context) (*dto.UserStatsResponse, error) {
-	collection := r.mongodb.Collection(models.User{}.CollectionName())
-
-	// Use aggregation pipeline to get counts
-	pipeline := []bson.M{
-		{
-			"$group": bson.M{
-				"_id":         nil,
-				"total_users": bson.M{"$sum": 1},
-				"banned_users": bson.M{
-					"$sum": bson.M{
-						"$cond": []interface{}{
-							bson.M{"$eq": []interface{}{"$banned", true}},
-							1,
-							0,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	cursor, err := collection.Aggregate(ctx, pipeline)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user statistics: %w", err)
-	}
-	defer cursor.Close(ctx)
-
-	var results []bson.M
-	if err := cursor.All(ctx, &results); err != nil {
-		return nil, fmt.Errorf("failed to decode user statistics: %w", err)
-	}
-
-	stats := &dto.UserStatsResponse{}
-	if len(results) > 0 {
-		result := results[0]
-		if val, ok := result["total_users"]; ok {
-			if count, ok := val.(int32); ok {
-				stats.TotalUsers = int(count)
-			}
-		}
-		if val, ok := result["banned_users"]; ok {
-			if count, ok := val.(int32); ok {
-				stats.BannedUsers = int(count)
-			}
-		}
-	}
-
-	return stats, nil
-}
-
 // ListCharacters retrieves character summaries for a specific user ID
 func (r *Repository) ListCharacters(ctx context.Context, userID string) ([]dto.CharacterSummaryResponse, error) {
 	collection := r.mongodb.Collection(models.CharacterSummary{}.CollectionName())
