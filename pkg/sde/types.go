@@ -286,7 +286,7 @@ type Skin struct {
 	InternalName       string `json:"internalName"`
 	SkinID             int    `json:"skinID"`
 	SkinMaterialID     int    `json:"skinMaterialID"`
-	SkinDescription    int    `json:"skinDescription,omitempty"`
+	SkinDescription    interface{} `json:"skinDescription,omitempty"`
 	Types              []int  `json:"types"`
 	VisibleSerenity    bool   `json:"visibleSerenity"`
 	VisibleTranquility bool   `json:"visibleTranquility"`
@@ -489,8 +489,8 @@ type DogmaAttributeCategory struct {
 
 // InvName represents an inventory name mapping
 type InvName struct {
-	ItemID   int    `json:"itemID"`
-	ItemName string `json:"itemName"`
+	ItemID   int         `json:"itemID"`
+	ItemName interface{} `json:"itemName"`
 }
 
 // InvPosition represents position and orientation data for an item
