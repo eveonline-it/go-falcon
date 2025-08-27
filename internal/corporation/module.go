@@ -3,6 +3,7 @@ package corporation
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"go-falcon/internal/auth"
 	"go-falcon/internal/corporation/routes"
@@ -111,4 +112,45 @@ func (m *Module) GetService() *services.Service {
 // UpdateAllCorporations implements the scheduler's CorporationModule interface
 func (m *Module) UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error {
 	return m.service.UpdateAllCorporations(ctx, concurrentWorkers)
+}
+
+// RegisterPermissions registers corporation-specific permissions
+func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *permissions.PermissionManager) error {
+	corporationPermissions := []permissions.Permission{
+		{
+			ID:          "corporation:info:view",
+			Service:     "corporation",
+			Resource:    "info",
+			Action:      "view",
+			IsStatic:    false,
+			Name:        "View Corporation Information",
+			Description: "View detailed EVE corporation profiles and information",
+			Category:    "Content Management",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "corporation:search:access",
+			Service:     "corporation",
+			Resource:    "search",
+			Action:      "access",
+			IsStatic:    false,
+			Name:        "Search Corporations",
+			Description: "Search for corporations by name or ticker and access corporation listings",
+			Category:    "Content Management",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "corporation:data:manage",
+			Service:     "corporation",
+			Resource:    "data",
+			Action:      "manage",
+			IsStatic:    false,
+			Name:        "Manage Corporation Data",
+			Description: "Trigger corporation data updates and manage corporation information",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+	}
+
+	return permissionManager.RegisterServicePermissions(ctx, corporationPermissions)
 }

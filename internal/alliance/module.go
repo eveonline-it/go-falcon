@@ -1,7 +1,9 @@
 package alliance
 
 import (
+	"context"
 	"log/slog"
+	"time"
 
 	"go-falcon/internal/alliance/routes"
 	"go-falcon/internal/alliance/services"
@@ -89,4 +91,56 @@ func (m *Module) Routes(r chi.Router) {
 // GetService returns the alliance service for testing or external access
 func (m *Module) GetService() *services.Service {
 	return m.service
+}
+
+// RegisterPermissions registers alliance-specific permissions
+func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *permissions.PermissionManager) error {
+	alliancePermissions := []permissions.Permission{
+		{
+			ID:          "alliance:info:view",
+			Service:     "alliance",
+			Resource:    "info",
+			Action:      "view",
+			IsStatic:    false,
+			Name:        "View Alliance Information",
+			Description: "View detailed EVE alliance profiles and information",
+			Category:    "Content Management",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "alliance:list:access",
+			Service:     "alliance",
+			Resource:    "list",
+			Action:      "access",
+			IsStatic:    false,
+			Name:        "List Alliances",
+			Description: "Access the list of all active EVE alliances",
+			Category:    "Content Management",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "alliance:corporations:view",
+			Service:     "alliance",
+			Resource:    "corporations",
+			Action:      "view",
+			IsStatic:    false,
+			Name:        "View Alliance Corporations",
+			Description: "View the list of corporations that belong to an alliance",
+			Category:    "Content Management",
+			CreatedAt:   time.Now(),
+		},
+		{
+			ID:          "alliance:data:manage",
+			Service:     "alliance",
+			Resource:    "data",
+			Action:      "manage",
+			IsStatic:    false,
+			Name:        "Manage Alliance Data",
+			Description: "Import and manage alliance data from EVE ESI",
+			Category:    "System Administration",
+			CreatedAt:   time.Now(),
+		},
+	}
+
+	return permissionManager.RegisterServicePermissions(ctx, alliancePermissions)
 }

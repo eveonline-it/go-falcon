@@ -329,16 +329,22 @@ func main() {
 			log.Printf("❌ Failed to seed default routes: %v", err)
 		}
 
+		// Register corporation permissions
+		if err := corporationModule.RegisterPermissions(ctx, permissionManager); err != nil {
+			log.Printf("❌ Failed to register corporation permissions: %v", err)
+		} else {
+			log.Printf("   🏢 Corporation permissions registered successfully")
+		}
+
+		// Register alliance permissions
+		if err := allianceModule.RegisterPermissions(ctx, permissionManager); err != nil {
+			log.Printf("❌ Failed to register alliance permissions: %v", err)
+		} else {
+			log.Printf("   🌟 Alliance permissions registered successfully")
+		}
+
 		log.Printf("✅ Background permission registration completed")
 	}()
-
-	// TODO: Register other service permissions as they implement the RegisterPermissions method
-	// if err := corporationModule.RegisterPermissions(ctx, permissionManager); err != nil {
-	//     log.Fatalf("Failed to register corporation permissions: %v", err)
-	// }
-	// if err := allianceModule.RegisterPermissions(ctx, permissionManager); err != nil {
-	//     log.Fatalf("Failed to register alliance permissions: %v", err)
-	// }
 
 	// 9. Initialize system group permissions (must be after service permissions are registered)
 	log.Printf("🔐 Initializing system group permissions")
