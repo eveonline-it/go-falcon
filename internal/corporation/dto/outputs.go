@@ -8,6 +8,21 @@ type CharacterInfo struct {
 	Name        string `json:"name" description:"Character name"`
 }
 
+// StationInfo represents station information from SDE
+type StationInfo struct {
+	StationID                int     `json:"station_id" description:"Station ID"`
+	ConstellationID          int     `json:"constellation_id" description:"Constellation ID where the station is located"`
+	SolarSystemID            int     `json:"solar_system_id" description:"Solar system ID where the station is located"`
+	RegionID                 int     `json:"region_id" description:"Region ID where the station is located"`
+	CorporationID            int     `json:"corporation_id" description:"Corporation that owns the station"`
+	DockingCostPerVolume     float64 `json:"docking_cost_per_volume" description:"Docking cost per volume"`
+	MaxShipVolumeDockable    float64 `json:"max_ship_volume_dockable" description:"Maximum ship volume that can dock"`
+	OfficeRentalCost         int     `json:"office_rental_cost" description:"Cost to rent an office"`
+	ReprocessingEfficiency   float64 `json:"reprocessing_efficiency" description:"Reprocessing efficiency"`
+	ReprocessingStationsTake float64 `json:"reprocessing_stations_take" description:"Station's take from reprocessing"`
+	Security                 float64 `json:"security" description:"Security status"`
+}
+
 // CorporationInfo represents corporation information from EVE ESI
 type CorporationInfo struct {
 	AllianceID     *int           `json:"alliance_id,omitempty" description:"Alliance ID if corporation is in an alliance"`
@@ -19,6 +34,7 @@ type CorporationInfo struct {
 	Description    string         `json:"description" description:"Corporation description"`
 	FactionID      *int           `json:"faction_id,omitempty" description:"Faction ID if corporation belongs to a faction"`
 	HomeStationID  *int           `json:"home_station_id,omitempty" description:"Home station ID"`
+	HomeStation    *StationInfo   `json:"home_station,omitempty" description:"Home station information from SDE"`
 	MemberCount    int            `json:"member_count" description:"Number of members in the corporation" example:"158"`
 	Name           string         `json:"name" description:"Corporation name" example:"DO.IT"`
 	Shares         *int64         `json:"shares,omitempty" description:"Number of shares the corporation has"`

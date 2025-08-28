@@ -15,6 +15,7 @@ import (
 	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
+	"go-falcon/pkg/sde"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -30,10 +31,10 @@ type Module struct {
 }
 
 // NewModule creates a new corporation module instance
-func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client, authModule *auth.Module, characterService *characterServices.Service) *Module {
+func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client, authModule *auth.Module, characterService *characterServices.Service, sdeService sde.SDEService) *Module {
 	// Initialize repository and service
 	repository := services.NewRepository(mongodb)
-	service := services.NewService(repository, eveClient, characterService)
+	service := services.NewService(repository, eveClient, characterService, sdeService)
 
 	// Initialize routes
 	routesModule := routes.NewModule(service)

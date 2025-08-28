@@ -709,5 +709,5 @@ type StarStatistics struct {
 	Luminosity    float64 `json:"luminosity"`
 	Radius        float64 `json:"radius"`
 	SpectralClass string  `json:"spectralClass"`
-	Temperature   int     `json:"temperature"`
+	Temperature   float64 `json:"temperature"`
 }

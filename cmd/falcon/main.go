@@ -226,8 +226,8 @@ func main() {
 	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule)
 	characterModule.SetGroupService(groupsModule.GetService())
 
-	// 8. Initialize corporation module with auth and character dependencies
-	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule, characterModule.GetService())
+	// 8. Initialize corporation module with auth, character and SDE dependencies
+	corporationModule := corporation.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule, characterModule.GetService(), appCtx.SDEService)
 	corporationModule.SetGroupService(groupsModule.GetService())
 
 	// Update groups service with permission manager
@@ -292,7 +292,7 @@ func main() {
 
 	// 7. Initialize remaining modules that depend on auth
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule.GetAuthService(), permissionManager)
-	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule, evegateClient)
+	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule, evegateClient, appCtx.SDEService)
 	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	schedulerModule.SetGroupService(groupsModule.GetService())

@@ -12,6 +12,7 @@ import (
 	"go-falcon/internal/users/models"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
+	"go-falcon/pkg/sde"
 )
 
 // Service provides business logic for user operations
@@ -24,13 +25,13 @@ type Service struct {
 }
 
 // NewService creates a new service instance
-func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client) *Service {
+func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client, sdeService sde.SDEService) *Service {
 	// Create character service first (needed for corporation service)
 	characterSvc := characterServices.NewService(mongodb, eveGateway)
 
 	// Create corporation repository and service
 	corporationRepo := corporationServices.NewRepository(mongodb)
-	corporationSvc := corporationServices.NewService(corporationRepo, eveGateway, characterSvc)
+	corporationSvc := corporationServices.NewService(corporationRepo, eveGateway, characterSvc, sdeService)
 
 	// Create alliance repository and service
 	allianceRepo := allianceServices.NewRepository(mongodb)

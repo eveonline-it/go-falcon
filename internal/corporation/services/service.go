@@ -10,6 +10,7 @@ import (
 	"go-falcon/internal/corporation/dto"
 	"go-falcon/internal/corporation/models"
 	"go-falcon/pkg/evegateway"
+	"go-falcon/pkg/sde"
 
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -19,14 +20,16 @@ type Service struct {
 	repository       *Repository
 	eveClient        *evegateway.Client
 	characterService *characterServices.Service
+	sdeService       sde.SDEService
 }
 
 // NewService creates a new corporation service
-func NewService(repository *Repository, eveClient *evegateway.Client, characterService *characterServices.Service) *Service {
+func NewService(repository *Repository, eveClient *evegateway.Client, characterService *characterServices.Service, sdeService sde.SDEService) *Service {
 	return &Service{
 		repository:       repository,
 		eveClient:        eveClient,
 		characterService: characterService,
+		sdeService:       sdeService,
 	}
 }
 
@@ -200,6 +203,28 @@ func (s *Service) convertModelToOutput(ctx context.Context, corporation *models.
 			corporationInfo.Creator = &dto.CharacterInfo{
 				CharacterID: creatorProfile.Body.CharacterID,
 				Name:        creatorProfile.Body.Name,
+			}
+		}
+	}
+
+	// Fetch home station information from SDE
+	if corporation.HomeStationID != nil && *corporation.HomeStationID > 0 {
+		station, err := s.sdeService.GetStaStation(*corporation.HomeStationID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to get home station info from SDE", "station_id", *corporation.HomeStationID, "error", err)
+		} else if station != nil {
+			corporationInfo.HomeStation = &dto.StationInfo{
+				StationID:                station.StationID,
+				ConstellationID:          station.ConstellationID,
+				SolarSystemID:            station.SolarSystemID,
+				RegionID:                 station.RegionID,
+				CorporationID:            station.CorporationID,
+				DockingCostPerVolume:     station.DockingCostPerVolume,
+				MaxShipVolumeDockable:    station.MaxShipVolumeDockable,
+				OfficeRentalCost:         station.OfficeRentalCost,
+				ReprocessingEfficiency:   station.ReprocessingEfficiency,
+				ReprocessingStationsTake: station.ReprocessingStationsTake,
+				Security:                 station.Security,
 			}
 		}
 	}

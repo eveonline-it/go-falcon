@@ -348,26 +348,24 @@ func (u *UpdateService) UpdateSDEWithCallback(ctx context.Context, req *dto.Upda
 		Success:   true,
 	})
 
-	// Get the official hash from CCP's checksum file
+	// Get the official hash from CCP's checksum file (non-blocking)
 	checksumURL := config.GetSDEChecksumsURL()
 	officialHash, err := u.getSDEHashFromChecksum(ctx, checksumURL)
 	if err != nil {
-		slog.Warn("Failed to get official SDE hash from checksum", "error", err)
-		response.Success = false
-		errorMsg := fmt.Sprintf("failed to get official SDE hash: %v", err)
-		response.Error = &errorMsg
-		response.Message = errorMsg
-		return response, nil
-	}
-
-	response.NewVersion = officialHash
-
-	// Save the official hash from CCP's checksum file for future update checks
-	if err := u.saveSDEZipHash(officialHash); err != nil {
-		slog.Warn("Failed to save official SDE zip hash", "error", err, "hash", officialHash)
-		// Don't fail the entire update for this - it's just for optimization
+		slog.Warn("Failed to get official SDE hash from checksum, continuing without version tracking", "error", err)
+		// Use a timestamp-based fallback version instead of failing
+		officialHash = fmt.Sprintf("sde-update-%d", time.Now().Unix())
+		response.NewVersion = officialHash
 	} else {
-		slog.Info("Saved official SDE zip hash for update tracking", "hash", officialHash[:16]) // Log first 16 chars
+		response.NewVersion = officialHash
+
+		// Save the official hash from CCP's checksum file for future update checks
+		if err := u.saveSDEZipHash(officialHash); err != nil {
+			slog.Warn("Failed to save official SDE zip hash", "error", err, "hash", officialHash)
+			// Don't fail the entire update for this - it's just for optimization
+		} else {
+			slog.Info("Saved official SDE zip hash for update tracking", "hash", officialHash[:16]) // Log first 16 chars
+		}
 	}
 
 	// Clean up temp files
@@ -525,10 +523,13 @@ func (u *UpdateService) isSDEDataFile(filename string) bool {
 	isFSDFile := strings.Contains(cleanPath, "fsd/")
 	isBSDFile := strings.Contains(cleanPath, "bsd/")
 
+	// Check for universe structure
+	isUniverseFile := strings.HasPrefix(cleanPath, "universe/")
+
 	// If not in expected SDE subdirectories, check for direct files (GitHub archives, etc.)
 	isDirectFile := !strings.Contains(cleanPath, "/") || strings.Contains(cleanPath, "eve-sde-")
 
-	if !isFSDFile && !isBSDFile && !isDirectFile {
+	if !isFSDFile && !isBSDFile && !isDirectFile && !isUniverseFile {
 		return false
 	}
 
@@ -579,13 +580,74 @@ func (u *UpdateService) isSDEDataFile(filename string) bool {
 	}
 
 	// Check for universe data files (regions, constellations, solar systems)
+	// Handle both flat naming patterns and CCP's hierarchical structure
 	if strings.Contains(basename, "_region.yaml") || strings.Contains(basename, "_region.json") ||
 		strings.Contains(basename, "_constellation.yaml") || strings.Contains(basename, "_constellation.json") ||
 		strings.Contains(basename, "_solarsystem.json") {
 		return true
 	}
 
+	// Check for CCP's hierarchical universe structure (universe/eve/...)
+	if strings.HasPrefix(cleanPath, "universe/") {
+		if basename == "region.yaml" || basename == "constellation.yaml" || basename == "solarsystem.yaml" {
+			return true
+		}
+	}
+
 	return slices.Contains(knownFiles, basename)
+}
+
+// generateUniverseFilename converts hierarchical universe paths to flat naming pattern
+// Example: universe/eve/The_Forge/region.yaml -> universe_The_Forge_region.yaml_region.yaml
+func (u *UpdateService) generateUniverseFilename(originalPath string) string {
+	cleanPath := filepath.Clean(originalPath)
+	basename := filepath.Base(originalPath)
+
+	// Check if this is a universe file
+	if !strings.HasPrefix(cleanPath, "universe/") {
+		// Not a universe file, return original basename
+		return basename
+	}
+
+	// Parse the universe path structure
+	// Expected: universe/eve/{region_name}/region.yaml
+	//           universe/eve/{region_name}/{constellation_name}/constellation.yaml
+	//           universe/eve/{region_name}/{constellation_name}/{system_name}/solarsystem.yaml
+	pathParts := strings.Split(cleanPath, "/")
+
+	if len(pathParts) < 3 {
+		// Not enough path components, return original basename
+		return basename
+	}
+
+	// Skip "universe" and "eve" parts
+	if pathParts[0] != "universe" {
+		return basename
+	}
+
+	switch basename {
+	case "region.yaml":
+		// universe/eve/{region_name}/region.yaml -> universe_{region_name}_region.yaml_region.yaml
+		if len(pathParts) >= 4 {
+			regionName := pathParts[2] // Skip "universe" and "eve"
+			return fmt.Sprintf("universe_%s_region.yaml_region.yaml", regionName)
+		}
+	case "constellation.yaml":
+		// universe/eve/{region}/{constellation}/constellation.yaml -> universe_{constellation}_constellation.yaml_constellation.yaml
+		if len(pathParts) >= 5 {
+			constellationName := pathParts[3] // Skip "universe", "eve", and region
+			return fmt.Sprintf("universe_%s_constellation.yaml_constellation.yaml", constellationName)
+		}
+	case "solarsystem.yaml":
+		// universe/eve/{region}/{constellation}/{system}/solarsystem.yaml -> universe_{system}_solarsystem.yaml
+		if len(pathParts) >= 6 {
+			systemName := pathParts[4] // Skip "universe", "eve", region, and constellation
+			return fmt.Sprintf("universe_%s_solarsystem.yaml", systemName)
+		}
+	}
+
+	// Fallback to original basename
+	return basename
 }
 
 // extractFile extracts a single file from archive
@@ -596,8 +658,8 @@ func (u *UpdateService) extractFile(file *zip.File, destDir string) error {
 	}
 	defer reader.Close()
 
-	// Get clean filename
-	filename := filepath.Base(file.Name)
+	// Handle universe files specially to generate expected naming pattern
+	filename := u.generateUniverseFilename(file.Name)
 	destPath := filepath.Join(destDir, filename)
 
 	outFile, err := os.Create(destPath)
@@ -613,6 +675,11 @@ func (u *UpdateService) extractFile(file *zip.File, destDir string) error {
 // processSDEFiles processes extracted SDE files, converting YAML to JSON if needed
 func (u *UpdateService) processSDEFiles(srcDir, destDir string, convertYAML bool) (int, error) {
 	slog.Info("Processing SDE files", "source", srcDir, "destination", destDir, "convert_yaml", convertYAML)
+
+	// Ensure destination directory exists
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return 0, fmt.Errorf("failed to create destination directory: %w", err)
+	}
 
 	files, err := os.ReadDir(srcDir)
 	if err != nil {
