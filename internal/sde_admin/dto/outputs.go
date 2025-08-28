@@ -156,6 +156,7 @@ type SystemInfoOutput struct {
 // SystemInfoResponse represents system information
 type SystemInfoResponse struct {
 	IsLoaded          bool    `json:"is_loaded" doc:"Whether SDE data is loaded"`
+	Status            string  `json:"status" doc:"Current SDE system status: loaded, downloading, extracting, converting, loading, error"`
 	LoadedDataTypes   int     `json:"loaded_data_types" doc:"Number of loaded data types"`
 	EstimatedMemoryMB float64 `json:"estimated_memory_mb" doc:"Estimated memory usage in MB"`
 	SystemMemoryMB    float64 `json:"system_memory_mb" doc:"Current system memory usage in MB"`

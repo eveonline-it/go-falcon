@@ -5,16 +5,29 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
+	"sync"
 	"time"
 
 	"go-falcon/internal/sde_admin/dto"
 	"go-falcon/pkg/sde"
 )
 
+// Status constants
+const (
+	StatusLoaded      = "loaded"      // SDE has been loaded correctly
+	StatusDownloading = "downloading" // Downloading a new SDE
+	StatusExtracting  = "extracting"  // Extracting the zip
+	StatusConverting  = "converting"  // Converting to JSON
+	StatusLoading     = "loading"     // Loading into memory
+	StatusError       = "error"       // Some sort of error
+)
+
 // Service handles SDE admin operations for in-memory data management
 type Service struct {
 	sdeService    sde.SDEService
 	updateService *UpdateService
+	status        string
+	statusMutex   sync.RWMutex
 }
 
 // NewService creates a new SDE admin service
@@ -22,10 +35,33 @@ func NewService(sdeService sde.SDEService) *Service {
 	// Get data directory from SDE service (assuming it has a method to get this)
 	dataDir := "data/sde" // Default fallback
 
-	return &Service{
+	service := &Service{
 		sdeService:    sdeService,
 		updateService: NewUpdateService(dataDir),
+		status:        StatusLoaded, // Default to loaded status
 	}
+
+	// Set initial status based on SDE service state
+	if !sdeService.IsLoaded() {
+		service.status = StatusError
+	}
+
+	return service
+}
+
+// GetStatus returns the current SDE system status
+func (s *Service) GetStatus() string {
+	s.statusMutex.RLock()
+	defer s.statusMutex.RUnlock()
+	return s.status
+}
+
+// SetStatus updates the current SDE system status
+func (s *Service) SetStatus(status string) {
+	s.statusMutex.Lock()
+	defer s.statusMutex.Unlock()
+	s.status = status
+	slog.Debug("SDE status updated", "new_status", status)
 }
 
 // GetMemoryStatus returns the current status of in-memory SDE data
@@ -73,6 +109,9 @@ func (s *Service) GetStats(ctx context.Context) (*dto.SDEStatsResponse, error) {
 func (s *Service) ReloadSDE(ctx context.Context, req *dto.ReloadSDERequest) (*dto.ReloadSDEResponse, error) {
 	startTime := time.Now()
 
+	// Set status to loading
+	s.SetStatus(StatusLoading)
+
 	// Determine which data types to reload
 	dataTypes := req.DataTypes
 	var err error
@@ -84,6 +123,7 @@ func (s *Service) ReloadSDE(ctx context.Context, req *dto.ReloadSDERequest) (*dt
 		slog.Info("Reloading all SDE data types")
 		err = s.sdeService.ReloadAll()
 		if err != nil {
+			s.SetStatus(StatusError)
 			slog.Error("Failed to reload all SDE data", "error", err)
 			return &dto.ReloadSDEResponse{
 				Success:    false,
@@ -108,6 +148,7 @@ func (s *Service) ReloadSDE(ctx context.Context, req *dto.ReloadSDERequest) (*dt
 		}
 
 		if len(failedTypes) > 0 {
+			s.SetStatus(StatusError)
 			return &dto.ReloadSDEResponse{
 				Success:    false,
 				Message:    fmt.Sprintf("Failed to reload data types: %v", failedTypes),
@@ -118,6 +159,9 @@ func (s *Service) ReloadSDE(ctx context.Context, req *dto.ReloadSDERequest) (*dt
 	}
 
 	duration := time.Since(startTime)
+
+	// Set status to loaded on successful completion
+	s.SetStatus(StatusLoaded)
 
 	slog.Info("SDE reload completed", "duration", duration, "data_types_count", len(dataTypes))
 
@@ -193,6 +237,7 @@ func (s *Service) GetSystemInfo(ctx context.Context) (*dto.SystemInfoResponse, e
 
 	return &dto.SystemInfoResponse{
 		IsLoaded:          isLoaded,
+		Status:            s.GetStatus(),
 		LoadedDataTypes:   loadedTypes,
 		EstimatedMemoryMB: float64(totalMemory) / 1024 / 1024,
 		SystemMemoryMB:    float64(memStats.Alloc) / 1024 / 1024,
@@ -208,5 +253,27 @@ func (s *Service) CheckForUpdates(ctx context.Context, req *dto.CheckUpdatesRequ
 
 // UpdateSDE downloads and installs SDE updates
 func (s *Service) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest) (*dto.UpdateSDEResponse, error) {
-	return s.updateService.UpdateSDE(ctx, req)
+	// Set status to downloading at the beginning
+	s.SetStatus(StatusDownloading)
+
+	// Create a callback function to update status
+	statusCallback := func(status string) {
+		s.SetStatus(status)
+	}
+
+	// Call the update service with the callback
+	response, err := s.updateService.UpdateSDEWithCallback(ctx, req, statusCallback)
+
+	if err != nil {
+		s.SetStatus(StatusError)
+		return response, err
+	}
+
+	if response.Success {
+		s.SetStatus(StatusLoaded)
+	} else {
+		s.SetStatus(StatusError)
+	}
+
+	return response, nil
 }

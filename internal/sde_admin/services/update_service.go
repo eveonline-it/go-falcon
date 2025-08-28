@@ -104,7 +104,7 @@ func (u *UpdateService) CheckForUpdates(ctx context.Context, req *dto.CheckUpdat
 	}
 
 	// Check the CCP official source using checksum comparison
-	status = u.checkSourceViaChecksum(ctx, ccpSource, status)
+	status = u.checkSourceViaChecksum(ctx, status)
 
 	updatesAvailable := false
 	latestVersion := ""
@@ -125,73 +125,8 @@ func (u *UpdateService) CheckForUpdates(ctx context.Context, req *dto.CheckUpdat
 	}, nil
 }
 
-// checkDirectSource checks a direct URL for updates by downloading and hashing the SDE zip
-func (u *UpdateService) checkDirectSource(ctx context.Context, source SDESource, status dto.SDESourceStatus) dto.SDESourceStatus {
-	downloadURL := source.Metadata["download_url"]
-	if downloadURL == "" {
-		downloadURL = source.URL
-	}
-
-	// First check if URL is accessible with HEAD request
-	headReq, err := http.NewRequestWithContext(ctx, "HEAD", downloadURL, nil)
-	if err != nil {
-		errorMsg := fmt.Sprintf("failed to create HEAD request: %v", err)
-		status.Error = &errorMsg
-		return status
-	}
-
-	headReq.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
-
-	headResp, err := u.httpClient.Do(headReq)
-	if err != nil {
-		errorMsg := fmt.Sprintf("failed to check URL: %v", err)
-		status.Error = &errorMsg
-		return status
-	}
-	headResp.Body.Close()
-
-	if headResp.StatusCode != http.StatusOK {
-		errorMsg := fmt.Sprintf("URL returned status %d", headResp.StatusCode)
-		status.Error = &errorMsg
-		return status
-	}
-
-	// Get content length if available
-	if headResp.ContentLength > 0 {
-		status.LatestSize = headResp.ContentLength
-	}
-
-	// Now download the file to calculate its hash for proper version comparison
-	slog.Debug("Downloading SDE zip to calculate hash for version comparison", "url", downloadURL)
-
-	// Download to temporary file and calculate hash
-	tempFile, fileSize, zipHash, err := u.downloadFile(ctx, downloadURL)
-	if err != nil {
-		errorMsg := fmt.Sprintf("failed to download for hash calculation: %v", err)
-		status.Error = &errorMsg
-		return status
-	}
-
-	// Clean up temporary file immediately after hash calculation
-	defer func() {
-		if err := os.Remove(tempFile); err != nil {
-			slog.Warn("Failed to clean up temporary file", "file", tempFile, "error", err)
-		}
-	}()
-
-	// Set status with calculated hash as version
-	status.Available = true
-	status.URL = downloadURL
-	status.LatestVersion = zipHash // Use actual SDE zip hash for proper comparison
-	status.LatestSize = fileSize
-
-	slog.Debug("Calculated SDE zip hash for version comparison", "hash", zipHash[:16], "size", fileSize)
-
-	return status
-}
-
 // checkSourceViaChecksum checks for updates by fetching checksum file from SDE_CHECKSUMS_URL
-func (u *UpdateService) checkSourceViaChecksum(ctx context.Context, source SDESource, status dto.SDESourceStatus) dto.SDESourceStatus {
+func (u *UpdateService) checkSourceViaChecksum(ctx context.Context, status dto.SDESourceStatus) dto.SDESourceStatus {
 	// Get the checksum URL from config
 	checksumURL := config.GetSDEChecksumsURL()
 	slog.Debug("Fetching checksum file for comparison", "url", checksumURL)
@@ -314,6 +249,11 @@ func (u *UpdateService) getSDEHashFromChecksum(ctx context.Context, checksumURL 
 
 // UpdateSDE downloads and processes SDE data from CCP official source
 func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest) (*dto.UpdateSDEResponse, error) {
+	return u.UpdateSDEWithCallback(ctx, req, nil)
+}
+
+// UpdateSDEWithCallback downloads and processes SDE data from CCP official source with status callback
+func (u *UpdateService) UpdateSDEWithCallback(ctx context.Context, req *dto.UpdateSDERequest, statusCallback func(string)) (*dto.UpdateSDEResponse, error) {
 	slog.Info("Starting SDE update from CCP official source")
 
 	startTime := time.Now()
@@ -362,6 +302,11 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 		Success:   true,
 	})
 
+	// Update status to extracting
+	if statusCallback != nil {
+		statusCallback("extracting")
+	}
+
 	// Extract the archive
 	extractedFiles, err := u.extractArchive(downloadedFile, u.tempDir)
 	if err != nil {
@@ -380,28 +325,19 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 		Success:   true,
 	})
 
-	// Process and convert files (CCP provides YAML format)
-	convertedFiles := 0
-	if req.ConvertToJSON {
-		converted, err := u.processSDEFiles(u.tempDir, u.dataDir, true) // CCP official provides YAML
-		if err != nil {
-			response.Success = false
-			errorMsg := fmt.Sprintf("failed to process files: %v", err)
-			response.Error = &errorMsg
-			response.Message = errorMsg
-			return response, nil
-		}
-		convertedFiles = converted
-	} else {
-		// Just copy files
-		err := u.copySDEFiles(u.tempDir, u.dataDir)
-		if err != nil {
-			response.Success = false
-			errorMsg := fmt.Sprintf("failed to copy files: %v", err)
-			response.Error = &errorMsg
-			response.Message = errorMsg
-			return response, nil
-		}
+	// Update status to converting
+	if statusCallback != nil {
+		statusCallback("converting")
+	}
+
+	// Process and convert files (CCP provides YAML format, always convert to JSON)
+	convertedFiles, err := u.processSDEFiles(u.tempDir, u.dataDir, true) // CCP official provides YAML
+	if err != nil {
+		response.Success = false
+		errorMsg := fmt.Sprintf("failed to process files: %v", err)
+		response.Error = &errorMsg
+		response.Message = errorMsg
+		return response, nil
 	}
 
 	response.ConvertedFiles = convertedFiles
@@ -438,6 +374,11 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 	os.RemoveAll(u.tempDir)
 	os.MkdirAll(u.tempDir, 0755)
 
+	// Update status to loading (data is ready to be loaded into memory)
+	if statusCallback != nil {
+		statusCallback("loading")
+	}
+
 	response.Success = true
 	response.Duration = time.Since(startTime).String()
 	response.Message = "Successfully updated SDE from CCP official source"
@@ -445,52 +386,6 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 	slog.Info("SDE update completed", "source", "ccp-official", "duration", response.Duration, "files", convertedFiles, "official_hash", officialHash[:16])
 
 	return response, nil
-}
-
-// downloadFile downloads a file from URL and returns local path, size, and MD5 hash
-func (u *UpdateService) downloadFile(ctx context.Context, url string) (string, int64, string, error) {
-	slog.Info("Downloading SDE data", "url", url)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return "", 0, "", err
-	}
-
-	req.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
-
-	resp, err := u.httpClient.Do(req)
-	if err != nil {
-		return "", 0, "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", 0, "", fmt.Errorf("download failed with status %d", resp.StatusCode)
-	}
-
-	// Create temporary file
-	tmpFile, err := os.CreateTemp(u.tempDir, "sde-download-*.zip")
-	if err != nil {
-		return "", 0, "", err
-	}
-	defer tmpFile.Close()
-
-	// Copy with size tracking and hash calculation
-	hash := md5.New()
-	multiWriter := io.MultiWriter(tmpFile, hash)
-
-	written, err := io.Copy(multiWriter, resp.Body)
-	if err != nil {
-		os.Remove(tmpFile.Name())
-		return "", 0, "", err
-	}
-
-	// Calculate final hash
-	hashString := hex.EncodeToString(hash.Sum(nil))
-
-	slog.Debug("Downloaded file hash calculated", "hash", hashString, "size_bytes", written)
-
-	return tmpFile.Name(), written, hashString, nil
 }
 
 // downloadFileSimple downloads a file from URL without hash calculation
@@ -747,9 +642,18 @@ func (u *UpdateService) processSDEFiles(srcDir, destDir string, convertYAML bool
 		} else if strings.HasSuffix(filename, ".json") {
 			// Copy JSON files directly
 			destPath := filepath.Join(destDir, filename)
-			err := u.copyFile(srcPath, destPath)
+
+			// Read source file
+			data, err := os.ReadFile(srcPath)
 			if err != nil {
-				slog.Warn("Failed to copy JSON file", "file", filename, "error", err)
+				slog.Warn("Failed to read JSON file", "file", filename, "error", err)
+				continue
+			}
+
+			// Write to destination
+			err = os.WriteFile(destPath, data, 0644)
+			if err != nil {
+				slog.Warn("Failed to write JSON file", "file", filename, "error", err)
 				continue
 			}
 			processedCount++
@@ -825,43 +729,3 @@ func (u *UpdateService) convertToJSONCompatible(data any) any {
 }
 
 // copySDEFiles copies SDE files without conversion
-func (u *UpdateService) copySDEFiles(srcDir, destDir string) error {
-	files, err := os.ReadDir(srcDir)
-	if err != nil {
-		return err
-	}
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		srcPath := filepath.Join(srcDir, file.Name())
-		destPath := filepath.Join(destDir, file.Name())
-
-		err := u.copyFile(srcPath, destPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// copyFile copies a single file
-func (u *UpdateService) copyFile(src, dest string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	_, err = io.Copy(destFile, srcFile)
-	return err
-}

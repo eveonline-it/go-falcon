@@ -512,6 +512,12 @@ func (s *Service) ReloadDataType(dataType string) error {
 		return s.loadSovereigntyUpgrades()
 	case "translationLanguages":
 		return s.loadTranslationLanguages()
+	case "regions":
+		return s.loadRegions()
+	case "constellations":
+		return s.loadConstellations()
+	case "solarSystems":
+		return s.loadSolarSystems()
 	default:
 		return fmt.Errorf("unknown data type: %s", dataType)
 	}

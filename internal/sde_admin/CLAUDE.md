@@ -287,32 +287,30 @@ GET /sde_admin/system
 ```
 **Authentication:** Super Admin Required
 
-Get system information relevant to SDE data management including memory usage.
+Get system information relevant to SDE data management including memory usage and operational status.
 
 **Response:**
 ```json
 {
   "body": {
-    "go_runtime": {
-      "version": "go1.24.5",
-      "goroutines": 45,
-      "memory_mb": 312.5,
-      "gc_cycles": 1234
-    },
-    "system": {
-      "total_memory_mb": 16384,
-      "available_memory_mb": 8192,
-      "cpu_cores": 8
-    },
-    "sde_service": {
-      "memory_usage_mb": 245.7,
-      "loaded_data_types": 46,
-      "uptime_seconds": 3600,
-      "total_access_count": 45632
-    }
+    "is_loaded": true,
+    "status": "loaded",
+    "loaded_data_types": 46,
+    "estimated_memory_mb": 245.7,
+    "system_memory_mb": 312.5,
+    "go_routines": 45,
+    "timestamp": "2024-01-15T10:35:22Z"
   }
 }
 ```
+
+**Status Field Values:**
+- `loaded` - SDE has been loaded correctly and is ready for use
+- `downloading` - Currently downloading new SDE data from CCP
+- `extracting` - Extracting SDE zip archive  
+- `converting` - Converting YAML files to JSON format
+- `loading` - Loading data into memory
+- `error` - Error occurred during operations
 
 ## Memory Management System
 

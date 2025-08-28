@@ -15,12 +15,10 @@ type ReloadSDERequest struct {
 
 // CheckUpdatesRequest represents a request to check for SDE updates from CCP official source
 type CheckUpdatesRequest struct {
-	// Force bypasses cache and forces a fresh check
-	Force bool `json:"force,omitempty" doc:"Force check even if recently checked"`
+	// Placeholder for future options
 }
 
 // UpdateSDERequest represents a request to download and update SDE data from CCP official source
 type UpdateSDERequest struct {
-	// ConvertToJSON converts YAML files to JSON during processing
-	ConvertToJSON bool `json:"convert_to_json" example:"true" doc:"Convert YAML files to JSON format"`
+	// Placeholder for future options
 }
