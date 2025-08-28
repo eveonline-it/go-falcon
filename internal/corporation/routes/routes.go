@@ -65,6 +65,27 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, corporatio
 		return m.getCorporationInfo(ctx, input.CorporationID)
 	})
 
+	// Member tracking endpoint (authenticated, requires CEO ID)
+	huma.Register(api, huma.Operation{
+		OperationID: "corporation-member-tracking",
+		Method:      "GET",
+		Path:        basePath + "/{corporation_id}/membertracking",
+		Summary:     "Track Corporation Members",
+		Description: "Retrieves member tracking information for a corporation. Requires authentication and valid CEO ID that matches the corporation's CEO. Updates the tracking data in the database.",
+		Tags:        []string{"Corporations"},
+	}, func(ctx context.Context, input *dto.GetCorporationMemberTrackingInput) (*dto.CorporationMemberTrackingOutput, error) {
+		// Require authentication
+		if corporationAdapter != nil {
+			_, err := corporationAdapter.RequireCorporationAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Call the service with the CEO ID
+		return m.service.GetMemberTracking(ctx, input.CorporationID, input.CEOID)
+	})
+
 	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
 		OperationID: "corporation-get-status",

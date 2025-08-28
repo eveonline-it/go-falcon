@@ -34,7 +34,14 @@ type Module struct {
 func NewModule(mongodb *database.MongoDB, redis *database.Redis, eveClient *evegateway.Client, authModule *auth.Module, characterService *characterServices.Service, sdeService sde.SDEService) *Module {
 	// Initialize repository and service
 	repository := services.NewRepository(mongodb)
-	service := services.NewService(repository, eveClient, characterService, sdeService)
+
+	// Get auth service from auth module
+	var authService services.AuthService
+	if authModule != nil {
+		authService = authModule.GetAuthService()
+	}
+
+	service := services.NewService(repository, eveClient, characterService, sdeService, authService)
 
 	// Initialize routes
 	routesModule := routes.NewModule(service)

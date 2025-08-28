@@ -31,7 +31,7 @@ func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client, sdeSer
 
 	// Create corporation repository and service
 	corporationRepo := corporationServices.NewRepository(mongodb)
-	corporationSvc := corporationServices.NewService(corporationRepo, eveGateway, characterSvc, sdeService)
+	corporationSvc := corporationServices.NewService(corporationRepo, eveGateway, characterSvc, sdeService, nil)
 
 	// Create alliance repository and service
 	allianceRepo := allianceServices.NewRepository(mongodb)

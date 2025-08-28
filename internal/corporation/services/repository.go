@@ -15,15 +15,19 @@ import (
 
 // Repository handles database operations for corporations
 type Repository struct {
-	mongodb    *database.MongoDB
-	collection *mongo.Collection
+	mongodb                  *database.MongoDB
+	collection               *mongo.Collection
+	memberTrackingCollection *mongo.Collection
+	structuresCollection     *mongo.Collection
 }
 
 // NewRepository creates a new corporation repository
 func NewRepository(mongodb *database.MongoDB) *Repository {
 	return &Repository{
-		mongodb:    mongodb,
-		collection: mongodb.Database.Collection(models.CorporationCollection),
+		mongodb:                  mongodb,
+		collection:               mongodb.Database.Collection(models.CorporationCollection),
+		memberTrackingCollection: mongodb.Database.Collection(models.TrackCorporationMembersCollection),
+		structuresCollection:     mongodb.Database.Collection(models.StructuresCollection),
 	}
 }
 
@@ -215,6 +219,93 @@ func (r *Repository) GetCEOIDsFromEnabledCorporations(ctx context.Context) ([]in
 	}
 
 	return ceoIDs, nil
+}
+
+// UpdateMemberTracking updates member tracking data for a corporation
+func (r *Repository) UpdateMemberTracking(ctx context.Context, corporationID int, trackingData []*models.TrackCorporationMember) error {
+	// Start a transaction to ensure atomic updates
+	session, err := r.mongodb.Client.StartSession()
+	if err != nil {
+		return err
+	}
+	defer session.EndSession(ctx)
+
+	callback := func(sessionContext mongo.SessionContext) error {
+		// First, delete existing tracking data for this corporation
+		deleteFilter := bson.M{"corporation_id": corporationID}
+		_, err := r.memberTrackingCollection.DeleteMany(sessionContext, deleteFilter)
+		if err != nil {
+			return err
+		}
+
+		// If there's no new tracking data, we're done
+		if len(trackingData) == 0 {
+			return nil
+		}
+
+		// Convert tracking data to interface slice for bulk insert
+		documents := make([]interface{}, len(trackingData))
+		for i, tracking := range trackingData {
+			documents[i] = tracking
+		}
+
+		// Insert all new tracking data
+		_, err = r.memberTrackingCollection.InsertMany(sessionContext, documents)
+		return err
+	}
+
+	// Execute the transaction
+	return mongo.WithSession(ctx, session, callback)
+}
+
+// GetMemberTracking retrieves member tracking data for a corporation
+func (r *Repository) GetMemberTracking(ctx context.Context, corporationID int) ([]*models.TrackCorporationMember, error) {
+	filter := bson.M{"corporation_id": corporationID, "deleted_at": bson.M{"$exists": false}}
+
+	cursor, err := r.memberTrackingCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var trackingData []*models.TrackCorporationMember
+	for cursor.Next(ctx) {
+		var tracking models.TrackCorporationMember
+		if err := cursor.Decode(&tracking); err != nil {
+			continue // Skip invalid documents
+		}
+		trackingData = append(trackingData, &tracking)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return trackingData, nil
+}
+
+// GetStructureByID retrieves a structure by its ID from the database
+func (r *Repository) GetStructureByID(ctx context.Context, structureID int64) (*models.Structure, error) {
+	var structure models.Structure
+	filter := bson.M{"structure_id": structureID, "deleted_at": bson.M{"$exists": false}}
+
+	err := r.structuresCollection.FindOne(ctx, filter).Decode(&structure)
+	if err != nil {
+		return nil, err // mongo.ErrNoDocuments handled in service layer
+	}
+
+	return &structure, nil
+}
+
+// UpdateStructure updates or inserts a structure in the database
+func (r *Repository) UpdateStructure(ctx context.Context, structure *models.Structure) error {
+	structure.UpdatedAt = time.Now().UTC()
+
+	filter := bson.M{"structure_id": structure.StructureID, "deleted_at": bson.M{"$exists": false}}
+	update := bson.M{"$set": structure}
+
+	_, err := r.structuresCollection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
+	return err
 }
 
 // CheckHealth verifies database connectivity

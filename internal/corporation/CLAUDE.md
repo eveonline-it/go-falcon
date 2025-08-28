@@ -47,6 +47,15 @@ internal/corporation/
 - **Type-Safe Parsing**: Handles JSON unmarshaling with fallback type assertions
 - **Error Propagation**: Proper error handling from ESI client to HTTP responses
 
+### 4. Corporation Member Tracking
+- **ESI Member Tracking**: Real-time retrieval of corporation member activity via ESI `/corporations/{corporation_id}/membertracking` endpoint
+- **CEO Authentication**: Validates CEO ID matches corporation CEO and uses CEO's access token for ESI calls
+- **Location Name Resolution**: Intelligent location naming using dual-source lookup:
+  - **Stations** (60M-69M range): Retrieved from SDE in-memory service for instant access
+  - **Structures** (other IDs): Retrieved from local structures database with planned ESI fallback
+- **Database Persistence**: Member tracking data stored in `track_corporation_members` collection
+- **Structure Database**: Dedicated `structures` collection for player-owned structure name caching
+
 ## Implementation Pattern
 
 ### 1. Module Interface (`module.go`)
@@ -336,6 +345,58 @@ GET /search?name=Investment Bank  # Multi-word text search
 }
 ```
 
+### GET `/{corporation_id}/membertracking` - Track Corporation Members
+
+**Description**: Retrieves member tracking information for a corporation, including location names with intelligent lookup.
+
+**Authentication**: Required (JWT token)
+**Authorization**: CEO ID must match corporation's actual CEO
+
+**Parameters**:
+- `corporation_id` (path, required): EVE Online corporation ID (minimum: 1)
+- `ceo_id` (query, required): Character ID of the corporation CEO for authentication
+
+**Headers**:
+- `Authorization: Bearer <jwt_token>` or `Cookie: falcon_auth_token=<token>`
+
+**Implementation Flow**:
+1. Validate CEO ID matches corporation's actual CEO
+2. Retrieve CEO's access token from auth system
+3. Call EVE ESI `/corporations/{corporation_id}/membertracking` endpoint
+4. Enhance location data with intelligent name lookup:
+   - **Stations (60M-69M)**: Names from SDE in-memory service
+   - **Structures (other IDs)**: Names from structures database
+5. Store tracking data in MongoDB for caching
+6. Return enriched member tracking information
+
+**Response**: Member tracking data with location names
+```json
+{
+  "body": {
+    "corporation_id": 98000001,
+    "members": [
+      {
+        "character_id": 95465499,
+        "location_id": 60003760,
+        "location_name": "Jita IV - Moon 4 - Caldari Navy Assembly Plant",
+        "logoff_date": "2024-01-01T15:30:00Z",
+        "logon_date": "2024-01-01T12:00:00Z",
+        "ship_type_id": 670,
+        "start_date": "2023-06-15T10:00:00Z"
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+**Error Handling**:
+- `400`: Invalid corporation ID or CEO ID format
+- `401`: Missing or invalid authentication token  
+- `403`: CEO ID does not match corporation CEO or insufficient permissions
+- `404`: Corporation not found
+- `500`: ESI communication errors or database issues
+
 ### GET `/status` - Corporation Module Status
 
 **Description**: Returns the health status of the corporation module.
@@ -391,6 +452,59 @@ GET /search?name=Investment Bank  # Multi-word text search
 - **Unique Constraint**: `corporation_id` field has unique constraint preventing duplicate entries
 - **Import Validation**: Import scripts enforce proper field structure
 - **ESI Compliance**: Data structure matches EVE ESI specification
+
+### Track Corporation Members Collection
+
+```json
+{
+  "_id": ObjectId("..."),
+  "corporation_id": 98000001,
+  "base_id": 60003760,
+  "character_id": 95465499,
+  "location_id": 60003760,
+  "logoff_date": ISODate("2024-01-01T15:30:00Z"),
+  "logon_date": ISODate("2024-01-01T12:00:00Z"),
+  "ship_type_id": 670,
+  "start_date": ISODate("2023-06-15T10:00:00Z"),
+  "created_at": ISODate("2024-01-01T00:00:00Z"),
+  "updated_at": ISODate("2024-01-01T00:00:00Z"),
+  "deleted_at": null
+}
+```
+
+**Purpose**: Stores member tracking data from EVE ESI for corporation activity monitoring
+**Data Source**: EVE ESI `/corporations/{corporation_id}/membertracking` endpoint
+**Update Strategy**: Complete replacement on each refresh to maintain data consistency
+
+**Indexes**:
+- `corporation_id_1`: Fast corporation-based queries
+- `character_id_1`: Character-specific tracking lookups
+- `corporation_character_compound`: Compound index for efficient filtering
+
+### Structures Collection
+
+```json
+{
+  "_id": ObjectId("..."),
+  "structure_id": 1035466617946,
+  "name": "Player Fortizar XYZ",
+  "type_id": 35832,
+  "system_id": 30000142,
+  "owner_id": 98000001,
+  "created_at": ISODate("2024-01-01T00:00:00Z"),
+  "updated_at": ISODate("2024-01-01T00:00:00Z"),
+  "deleted_at": null
+}
+```
+
+**Purpose**: Caches player-owned structure names and metadata for location name resolution
+**Data Source**: EVE ESI `/universe/structures/{structure_id}/` endpoint (planned)
+**Location Range**: Structure IDs outside the NPC station range (60,000,000 - 69,999,999)
+
+**Indexes**:
+- `structure_id_1`: **Unique index** for fast structure lookups and data integrity
+- `system_id_1`: System-based structure queries
+- `owner_id_1`: Owner-based structure filtering
 
 ## ESI Integration
 

@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"time"
 
+	authModels "go-falcon/internal/auth/models"
 	characterServices "go-falcon/internal/character/services"
 	"go-falcon/internal/corporation/dto"
 	"go-falcon/internal/corporation/models"
 	"go-falcon/pkg/evegateway"
+	evegatewayTypes "go-falcon/pkg/evegateway/corporation"
 	"go-falcon/pkg/sde"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,15 +23,22 @@ type Service struct {
 	eveClient        *evegateway.Client
 	characterService *characterServices.Service
 	sdeService       sde.SDEService
+	authService      AuthService
+}
+
+// AuthService interface for auth operations we need
+type AuthService interface {
+	GetUserProfileByCharacterID(ctx context.Context, characterID int) (*authModels.UserProfile, error)
 }
 
 // NewService creates a new corporation service
-func NewService(repository *Repository, eveClient *evegateway.Client, characterService *characterServices.Service, sdeService sde.SDEService) *Service {
+func NewService(repository *Repository, eveClient *evegateway.Client, characterService *characterServices.Service, sdeService sde.SDEService, authService AuthService) *Service {
 	return &Service{
 		repository:       repository,
 		eveClient:        eveClient,
 		characterService: characterService,
 		sdeService:       sdeService,
+		authService:      authService,
 	}
 }
 
@@ -451,6 +460,218 @@ func (s *Service) ValidateCEOTokens(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// GetMemberTracking retrieves member tracking information for a corporation
+func (s *Service) GetMemberTracking(ctx context.Context, corporationID int, ceoID int) (*dto.CorporationMemberTrackingOutput, error) {
+	slog.InfoContext(ctx, "Getting member tracking", "corporation_id", corporationID, "ceo_id", ceoID)
+
+	// First verify that the CEO ID matches the corporation's CEO
+	corporation, err := s.repository.GetCorporationByID(ctx, corporationID)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("corporation not found: %d", corporationID)
+		}
+		slog.ErrorContext(ctx, "Failed to get corporation from database", "error", err)
+		return nil, fmt.Errorf("failed to get corporation: %w", err)
+	}
+
+	// Check if the provided CEO ID matches the corporation's CEO
+	if corporation.CEOCharacterID != ceoID {
+		slog.WarnContext(ctx, "CEO ID mismatch",
+			"provided_ceo_id", ceoID,
+			"actual_ceo_id", corporation.CEOCharacterID,
+			"corporation_id", corporationID)
+		return nil, fmt.Errorf("invalid CEO ID for corporation %d", corporationID)
+	}
+
+	// Get CEO's profile to get their access token
+	ceoProfile, err := s.authService.GetUserProfileByCharacterID(ctx, ceoID)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get CEO profile", "ceo_id", ceoID, "error", err)
+		return nil, fmt.Errorf("failed to get CEO profile: %w", err)
+	}
+	if ceoProfile == nil {
+		return nil, fmt.Errorf("CEO profile not found for character ID %d", ceoID)
+	}
+
+	// Check if the CEO's token is valid
+	if ceoProfile.AccessToken == "" {
+		return nil, fmt.Errorf("CEO does not have a valid access token")
+	}
+
+	// Get member tracking from EVE ESI using the CEO's token
+	trackingData, err := s.eveClient.Corporation.GetCorporationMemberTracking(ctx, corporationID, ceoProfile.AccessToken)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get member tracking from ESI", "error", err)
+		return nil, fmt.Errorf("failed to get member tracking: %w", err)
+	}
+
+	// Convert ESI data to our models and save to database
+	trackingModels := make([]*models.TrackCorporationMember, len(trackingData))
+	for i, member := range trackingData {
+		trackingModels[i] = s.convertESIMemberTrackingToModel(member, corporationID)
+	}
+
+	// Save all tracking data to database
+	if err := s.repository.UpdateMemberTracking(ctx, corporationID, trackingModels); err != nil {
+		slog.WarnContext(ctx, "Failed to save member tracking to database", "error", err)
+		// Don't fail the request if we can't save to DB
+	}
+
+	// Convert to output DTO
+	members := make([]dto.MemberTrackingInfo, len(trackingData))
+	for i, member := range trackingData {
+		// Look up location name based on location ID type
+		var locationName *string
+		if member.LocationID != 0 {
+			locationName = s.getLocationName(ctx, member.LocationID, member.CharacterID)
+		}
+
+		members[i] = dto.MemberTrackingInfo{
+			BaseID:       convertIntToPointer(member.BaseID),
+			CharacterID:  member.CharacterID,
+			LocationID:   convertInt64ToPointer(int64(member.LocationID)),
+			LocationName: locationName,
+			LogoffDate:   convertTimeToPointer(member.LogoffDate),
+			LogonDate:    convertTimeToPointer(member.LogonDate),
+			ShipTypeID:   convertIntToPointer(member.ShipTypeID),
+			StartDate:    convertTimeToPointer(member.StartDate),
+		}
+	}
+
+	result := &dto.CorporationMemberTrackingOutput{
+		Body: dto.MemberTrackingResult{
+			CorporationID: corporationID,
+			Members:       members,
+			Count:         len(members),
+		},
+	}
+
+	slog.InfoContext(ctx, "Member tracking completed", "corporation_id", corporationID, "member_count", len(members))
+	return result, nil
+}
+
+// convertESIMemberTrackingToModel converts ESI member tracking data to our model
+func (s *Service) convertESIMemberTrackingToModel(esiData evegatewayTypes.CorporationMemberTracking, corporationID int) *models.TrackCorporationMember {
+	now := time.Now().UTC()
+	tracking := &models.TrackCorporationMember{
+		CorporationID: corporationID,
+		CharacterID:   esiData.CharacterID,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	// Handle optional fields
+	if esiData.BaseID != 0 {
+		tracking.BaseID = &esiData.BaseID
+	}
+	if esiData.LocationID != 0 {
+		locationID := int64(esiData.LocationID)
+		tracking.LocationID = &locationID
+	}
+	if !esiData.LogoffDate.IsZero() {
+		tracking.LogoffDate = &esiData.LogoffDate
+	}
+	if !esiData.LogonDate.IsZero() {
+		tracking.LogonDate = &esiData.LogonDate
+	}
+	if esiData.ShipTypeID != 0 {
+		tracking.ShipTypeID = &esiData.ShipTypeID
+	}
+	if !esiData.StartDate.IsZero() {
+		tracking.StartDate = &esiData.StartDate
+	}
+
+	return tracking
+}
+
+// getLocationName retrieves the location name for a given location ID
+// Stations (60,000,000 - 69,999,999) are looked up from SDE
+// Structures (outside that range) are looked up from database
+func (s *Service) getLocationName(ctx context.Context, locationID int64, characterID int) *string {
+	// Check if it's a station (NPC station range: 60,000,000 - 69,999,999)
+	if locationID >= 60000000 && locationID <= 69999999 {
+		// It's a station - look up from SDE
+		if invName, err := s.sdeService.GetInvName(int(locationID)); err == nil && invName != nil {
+			// Handle the interface{} type for ItemName
+			if nameStr, ok := invName.ItemName.(string); ok && nameStr != "" {
+				return &nameStr
+			}
+		} else {
+			// Log the station lookup failure
+			slog.DebugContext(ctx, "Failed to lookup station name from SDE",
+				"location_id", locationID,
+				"character_id", characterID,
+				"location_type", "station",
+				"error", err)
+		}
+	} else {
+		// It's a structure - look up from database
+		if structure, err := s.repository.GetStructureByID(ctx, locationID); err == nil && structure != nil {
+			if structure.Name != "" {
+				return &structure.Name
+			}
+		} else if err != mongo.ErrNoDocuments {
+			// Log database errors (but not "not found" errors)
+			slog.DebugContext(ctx, "Failed to lookup structure from database",
+				"location_id", locationID,
+				"character_id", characterID,
+				"location_type", "structure",
+				"error", err)
+		} else {
+			// Structure not found in database - this is expected for many structures
+			slog.DebugContext(ctx, "Structure not found in database",
+				"location_id", locationID,
+				"character_id", characterID,
+				"location_type", "structure")
+		}
+	}
+
+	// Return null if no name could be found
+	return nil
+}
+
+// Helper functions to convert values to pointers
+func convertIntToPointer(val int) *int {
+	if val == 0 {
+		return nil
+	}
+	return &val
+}
+
+func convertInt64ToPointer(val int64) *int64 {
+	if val == 0 {
+		return nil
+	}
+	return &val
+}
+
+func convertTimeToPointer(val time.Time) *time.Time {
+	if val.IsZero() {
+		return nil
+	}
+	return &val
+}
+
+// fetchStructureFromESI fetches structure information from ESI and saves it to database
+// TODO: Implement when universe structure endpoint is added to EVE Gateway
+// ESI endpoint: GET /universe/structures/{structure_id}
+// Requires: esi-universe.read_structures.v1 scope
+func (s *Service) fetchStructureFromESI(ctx context.Context, structureID int64, token string) (*models.Structure, error) {
+	// TODO: Implement ESI structure lookup using:
+	// GET /universe/structures/{structure_id}
+	//
+	// Example implementation structure:
+	// 1. Call s.eveClient.Universe.GetStructure(ctx, structureID, token)
+	// 2. Convert ESI response to models.Structure
+	// 3. Save to database using s.repository.UpdateStructure(ctx, structure)
+	// 4. Return the structure
+
+	slog.DebugContext(ctx, "Structure ESI lookup not yet implemented",
+		"structure_id", structureID)
+
+	return nil, fmt.Errorf("structure ESI lookup not yet implemented")
 }
 
 // GetStatus returns the health status of the corporation module

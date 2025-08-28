@@ -524,6 +524,12 @@ func (s *AuthService) GetAllCharactersByUserID(ctx context.Context, userID strin
 	return s.repository.GetAllCharactersByUserID(ctx, userID)
 }
 
+// GetUserProfileByCharacterID retrieves a user profile by character ID
+// Used by other modules that need to access user profile data
+func (s *AuthService) GetUserProfileByCharacterID(ctx context.Context, characterID int) (*models.UserProfile, error) {
+	return s.repository.GetUserProfileByCharacterID(ctx, characterID)
+}
+
 // CleanupExpiredStates removes expired OAuth states
 func (s *AuthService) CleanupExpiredStates(ctx context.Context) error {
 	return s.eveService.CleanupExpiredStates(ctx)

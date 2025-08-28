@@ -87,3 +87,27 @@ type CorporationStatusResponse struct {
 	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
 	Message string `json:"message,omitempty" description:"Optional status message or error details"`
 }
+
+// MemberTrackingInfo represents member tracking information
+type MemberTrackingInfo struct {
+	BaseID       *int       `json:"base_id,omitempty" description:"Base ID where the member is located"`
+	CharacterID  int        `json:"character_id" description:"Character ID of the member"`
+	LocationID   *int64     `json:"location_id,omitempty" description:"Location ID where the member is"`
+	LocationName *string    `json:"location_name,omitempty" description:"Name of the location where the member is"`
+	LogoffDate   *time.Time `json:"logoff_date,omitempty" description:"Last logoff date"`
+	LogonDate    *time.Time `json:"logon_date,omitempty" description:"Last logon date"`
+	ShipTypeID   *int       `json:"ship_type_id,omitempty" description:"Type ID of the ship the member is flying"`
+	StartDate    *time.Time `json:"start_date,omitempty" description:"Date when the member joined the corporation"`
+}
+
+// MemberTrackingResult represents member tracking results
+type MemberTrackingResult struct {
+	CorporationID int                  `json:"corporation_id" description:"Corporation ID"`
+	Members       []MemberTrackingInfo `json:"members" description:"List of member tracking information"`
+	Count         int                  `json:"count" description:"Number of members tracked"`
+}
+
+// CorporationMemberTrackingOutput represents the member tracking response (Huma wrapper)
+type CorporationMemberTrackingOutput struct {
+	Body MemberTrackingResult `json:"body"`
+}
