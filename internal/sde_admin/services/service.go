@@ -13,13 +13,18 @@ import (
 
 // Service handles SDE admin operations for in-memory data management
 type Service struct {
-	sdeService sde.SDEService
+	sdeService    sde.SDEService
+	updateService *UpdateService
 }
 
 // NewService creates a new SDE admin service
 func NewService(sdeService sde.SDEService) *Service {
+	// Get data directory from SDE service (assuming it has a method to get this)
+	dataDir := "data/sde" // Default fallback
+
 	return &Service{
-		sdeService: sdeService,
+		sdeService:    sdeService,
+		updateService: NewUpdateService(dataDir),
 	}
 }
 
@@ -193,5 +198,48 @@ func (s *Service) GetSystemInfo(ctx context.Context) (*dto.SystemInfoResponse, e
 		SystemMemoryMB:    float64(memStats.Alloc) / 1024 / 1024,
 		GoRoutines:        runtime.NumGoroutine(),
 		Timestamp:         time.Now().Format(time.RFC3339),
+	}, nil
+}
+
+// CheckForUpdates checks for available SDE updates
+func (s *Service) CheckForUpdates(ctx context.Context, req *dto.CheckUpdatesRequest) (*dto.CheckUpdatesResponse, error) {
+	return s.updateService.CheckForUpdates(ctx, req)
+}
+
+// UpdateSDE downloads and installs SDE updates
+func (s *Service) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest) (*dto.UpdateSDEResponse, error) {
+	return s.updateService.UpdateSDE(ctx, req)
+}
+
+// ListBackups lists available SDE backups
+func (s *Service) ListBackups(ctx context.Context) (*dto.ListBackupsResponse, error) {
+	return s.updateService.ListBackups(ctx)
+}
+
+// RestoreBackup restores SDE data from a backup
+func (s *Service) RestoreBackup(ctx context.Context, req *dto.RestoreBackupRequest) (*dto.RestoreBackupResponse, error) {
+	return s.updateService.RestoreBackup(ctx, req)
+}
+
+// GetSources returns configured SDE sources
+func (s *Service) GetSources(ctx context.Context) (*dto.GetSourcesResponse, error) {
+	sources := s.updateService.GetSources()
+
+	sourceConfigs := make([]dto.SDESourceConfig, len(sources))
+	for i, source := range sources {
+		sourceConfigs[i] = dto.SDESourceConfig{
+			Name:        source.Name,
+			Type:        source.Type,
+			URL:         source.URL,
+			Format:      source.Format,
+			Description: source.Description,
+			Enabled:     source.Enabled,
+			Metadata:    source.Metadata,
+		}
+	}
+
+	return &dto.GetSourcesResponse{
+		Sources:    sourceConfigs,
+		TotalCount: len(sourceConfigs),
 	}, nil
 }

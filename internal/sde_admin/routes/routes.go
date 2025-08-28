@@ -168,5 +168,128 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 		return &dto.SystemInfoOutput{Body: *response}, nil
 	})
 
-	slog.Info("SDE admin routes registered successfully", "endpoints", 6)
+	// Check for SDE updates (Super Admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "checkSDEUpdates",
+		Method:      http.MethodPost,
+		Path:        fmt.Sprintf("%s/check-updates", basePath),
+		Summary:     "Check for SDE Updates",
+		Description: "Check configured sources for available SDE updates",
+		Tags:        []string{"SDE Admin"},
+	}, func(ctx context.Context, input *struct {
+		dto.AuthInput
+		Body dto.CheckUpdatesRequest `json:"body"`
+	}) (*dto.CheckUpdatesOutput, error) {
+		// Require super admin access
+		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := service.CheckForUpdates(ctx, &input.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.CheckUpdatesOutput{Body: *response}, nil
+	})
+
+	// Update SDE data (Super Admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "updateSDE",
+		Method:      http.MethodPost,
+		Path:        fmt.Sprintf("%s/update", basePath),
+		Summary:     "Update SDE Data",
+		Description: "Download and install SDE updates from configured sources",
+		Tags:        []string{"SDE Admin"},
+	}, func(ctx context.Context, input *struct {
+		dto.AuthInput
+		Body dto.UpdateSDERequest `json:"body"`
+	}) (*dto.UpdateSDEOutput, error) {
+		// Require super admin access
+		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := service.UpdateSDE(ctx, &input.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.UpdateSDEOutput{Body: *response}, nil
+	})
+
+	// List available backups (Super Admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "listSDEBackups",
+		Method:      http.MethodGet,
+		Path:        fmt.Sprintf("%s/backups", basePath),
+		Summary:     "List SDE Backups",
+		Description: "List all available SDE backups",
+		Tags:        []string{"SDE Admin"},
+	}, func(ctx context.Context, input *struct {
+		dto.AuthInput
+	}) (*dto.ListBackupsOutput, error) {
+		// Require super admin access
+		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := service.ListBackups(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.ListBackupsOutput{Body: *response}, nil
+	})
+
+	// Restore from backup (Super Admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "restoreSDEBackup",
+		Method:      http.MethodPost,
+		Path:        fmt.Sprintf("%s/restore", basePath),
+		Summary:     "Restore SDE Backup",
+		Description: "Restore SDE data from a backup",
+		Tags:        []string{"SDE Admin"},
+	}, func(ctx context.Context, input *struct {
+		dto.AuthInput
+		Body dto.RestoreBackupRequest `json:"body"`
+	}) (*dto.RestoreBackupOutput, error) {
+		// Require super admin access
+		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := service.RestoreBackup(ctx, &input.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.RestoreBackupOutput{Body: *response}, nil
+	})
+
+	// Get configured SDE sources (Super Admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "getSDESources",
+		Method:      http.MethodGet,
+		Path:        fmt.Sprintf("%s/sources", basePath),
+		Summary:     "Get SDE Sources",
+		Description: "List configured SDE data sources",
+		Tags:        []string{"SDE Admin"},
+	}, func(ctx context.Context, input *struct {
+		dto.AuthInput
+	}) (*dto.GetSourcesOutput, error) {
+		// Require super admin access
+		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := service.GetSources(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.GetSourcesOutput{Body: *response}, nil
+	})
+
+	slog.Info("SDE admin routes registered successfully", "endpoints", 12)
 }

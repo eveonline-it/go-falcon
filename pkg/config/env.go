@@ -221,6 +221,11 @@ func GetOpenAPIServers() []*OpenAPIServer {
 	return servers
 }
 
+// GetSDEPath returns the SDE download URL from environment
+func GetSDEPath() string {
+	return GetEnv("SDE_PATH", "https://eve-static-data-export.s3-eu-west-1.amazonaws.com/tranquility/sde.zip")
+}
+
 // OpenAPIServer represents an OpenAPI server configuration
 type OpenAPIServer struct {
 	URL         string
