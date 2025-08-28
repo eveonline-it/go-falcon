@@ -63,7 +63,7 @@ func NewUpdateService(dataDir string) *UpdateService {
 
 // getDefaultSDESources returns the default configured SDE sources
 func getDefaultSDESources() []SDESource {
-	sdeURL := config.GetSDEPath()
+	sdeURL := config.GetSDEURL()
 
 	return []SDESource{
 		{

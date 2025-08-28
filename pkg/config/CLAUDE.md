@@ -18,6 +18,8 @@ Centralized configuration management using environment variables with sensible d
 - `GetHumaSeparateServer()`: Get separate server flag (HUMA_SEPARATE_SERVER)
 - `GetHost()`: Get main server host interface (HOST, default: 0.0.0.0)
 - `GetHumaHost()`: Get HUMA server host interface (HUMA_HOST, defaults to HOST)
+- `GetSDEURL()`: Get SDE download URL (SDE_URL)
+- `GetSDEChecksumsURL()`: Get SDE checksums file URL (SDE_CHECKSUMS_URL)
 
 ## EVE Online Configuration
 ```go
@@ -38,6 +40,14 @@ GetFrontendURL()       // FRONTEND_URL
 - **API**: Prefix configuration for versioning
 - **HUMA Server**: Port configuration and server mode selection
 - **Security**: JWT secrets and token management
+- **SDE**: Static Data Export download URLs and checksums
+
+## SDE Configuration
+```go
+// SDE download configuration
+GetSDEURL()            // SDE_URL (default: AWS S3 EVE SDE ZIP)
+GetSDEChecksumsURL()   // SDE_CHECKSUMS_URL (default: AWS S3 checksum file)
+```
 
 ## Usage Pattern
 All modules use this package for consistent configuration access across the monolith.
