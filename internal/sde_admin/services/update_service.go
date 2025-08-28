@@ -36,7 +36,6 @@ type SDESource struct {
 // UpdateService handles SDE updates, downloads, and processing
 type UpdateService struct {
 	dataDir    string
-	backupDir  string
 	tempDir    string
 	sources    []SDESource
 	httpClient *http.Client
@@ -44,18 +43,15 @@ type UpdateService struct {
 
 // NewUpdateService creates a new SDE update service
 func NewUpdateService(dataDir string) *UpdateService {
-	backupDir := filepath.Join(dataDir, "..", "sde-backups")
 	tempDir := filepath.Join(dataDir, "..", "sde-temp")
 
 	// Ensure directories exist
-	os.MkdirAll(backupDir, 0755)
 	os.MkdirAll(tempDir, 0755)
 
 	return &UpdateService{
-		dataDir:   dataDir,
-		backupDir: backupDir,
-		tempDir:   tempDir,
-		sources:   getDefaultSDESources(),
+		dataDir: dataDir,
+		tempDir: tempDir,
+		sources: getDefaultSDESources(),
 		httpClient: &http.Client{
 			Timeout: 30 * time.Minute, // Long timeout for large downloads
 		},
@@ -211,34 +207,6 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 	// Get old version hash for comparison
 	oldZipHash, _ := u.loadSDEZipHash()
 	response.OldVersion = oldZipHash
-
-	// Create backup if requested
-	if req.BackupCurrent {
-		logEntry := dto.UpdateLogEntry{
-			Timestamp: time.Now().Format(time.RFC3339),
-			Step:      "backup",
-			Message:   "Creating backup of current SDE data",
-		}
-
-		backupIDResult, err := u.createBackup("pre-update-" + time.Now().Format("20060102-150405"))
-		if err != nil {
-			logEntry.Success = false
-			logEntry.Message = fmt.Sprintf("Failed to create backup: %v", err)
-			response.ProcessingLog = append(response.ProcessingLog, logEntry)
-
-			response.Success = false
-			errorMsg := fmt.Sprintf("failed to create backup: %v", err)
-			response.Error = &errorMsg
-			response.Message = errorMsg
-			return response, nil
-		}
-
-		logEntry.Success = true
-		logEntry.Message = fmt.Sprintf("Created backup: %s", backupIDResult)
-		response.ProcessingLog = append(response.ProcessingLog, logEntry)
-		response.BackupCreated = true
-		response.BackupID = &backupIDResult
-	}
 
 	// Download the data from CCP official source
 	downloadURL := source.Metadata["download_url"]
@@ -723,234 +691,4 @@ func (u *UpdateService) copyFile(src, dest string) error {
 
 	_, err = io.Copy(destFile, srcFile)
 	return err
-}
-
-// createBackup creates a backup of current SDE data
-func (u *UpdateService) createBackup(backupID string) (string, error) {
-	slog.Info("Creating SDE backup", "backup_id", backupID)
-
-	backupPath := filepath.Join(u.backupDir, backupID+".zip")
-
-	zipFile, err := os.Create(backupPath)
-	if err != nil {
-		return "", err
-	}
-	defer zipFile.Close()
-
-	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
-
-	files, err := filepath.Glob(filepath.Join(u.dataDir, "*.json"))
-	if err != nil {
-		return "", err
-	}
-
-	for _, file := range files {
-		err := u.addFileToZip(zipWriter, file, filepath.Base(file))
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return backupID, nil
-}
-
-// addFileToZip adds a file to a zip archive
-func (u *UpdateService) addFileToZip(zipWriter *zip.Writer, filePath, fileName string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	writer, err := zipWriter.Create(fileName)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(writer, file)
-	return err
-}
-
-// ListBackups returns a list of available SDE backups
-func (u *UpdateService) ListBackups(ctx context.Context) (*dto.ListBackupsResponse, error) {
-	slog.Debug("Listing SDE backups", "backup_dir", u.backupDir)
-
-	files, err := os.ReadDir(u.backupDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return &dto.ListBackupsResponse{
-				Backups:     []dto.BackupInfo{},
-				TotalCount:  0,
-				TotalSizeMB: 0,
-			}, nil
-		}
-		return nil, err
-	}
-
-	backups := make([]dto.BackupInfo, 0)
-	totalSize := int64(0)
-
-	for _, file := range files {
-		if file.IsDir() || !strings.HasSuffix(file.Name(), ".zip") {
-			continue
-		}
-
-		backupID := strings.TrimSuffix(file.Name(), ".zip")
-		filePath := filepath.Join(u.backupDir, file.Name())
-
-		info, err := file.Info()
-		if err != nil {
-			slog.Warn("Failed to get backup file info", "file", file.Name(), "error", err)
-			continue
-		}
-
-		backupInfo := dto.BackupInfo{
-			BackupID:    backupID,
-			CreatedAt:   info.ModTime().Format(time.RFC3339),
-			SizeMB:      float64(info.Size()) / 1024 / 1024,
-			FileCount:   u.countFilesInBackup(filePath),
-			Description: "SDE data backup",
-		}
-
-		backups = append(backups, backupInfo)
-		totalSize += info.Size()
-	}
-
-	return &dto.ListBackupsResponse{
-		Backups:     backups,
-		TotalCount:  len(backups),
-		TotalSizeMB: float64(totalSize) / 1024 / 1024,
-	}, nil
-}
-
-// countFilesInBackup counts files in a backup archive
-func (u *UpdateService) countFilesInBackup(backupPath string) int {
-	reader, err := zip.OpenReader(backupPath)
-	if err != nil {
-		return 0
-	}
-	defer reader.Close()
-
-	count := 0
-	for _, file := range reader.File {
-		if !file.FileInfo().IsDir() {
-			count++
-		}
-	}
-	return count
-}
-
-// RestoreBackup restores SDE data from a backup
-func (u *UpdateService) RestoreBackup(ctx context.Context, req *dto.RestoreBackupRequest) (*dto.RestoreBackupResponse, error) {
-	slog.Info("Restoring SDE backup", "backup_id", req.BackupID)
-
-	startTime := time.Now()
-	response := &dto.RestoreBackupResponse{
-		BackupID:   req.BackupID,
-		RestoredAt: time.Now().Format(time.RFC3339),
-	}
-
-	backupPath := filepath.Join(u.backupDir, req.BackupID+".zip")
-
-	// Check if backup exists
-	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
-		response.Success = false
-		errorMsg := fmt.Sprintf("backup not found: %s", req.BackupID)
-		response.Error = &errorMsg
-		response.Message = errorMsg
-		return response, nil
-	}
-
-	// Open backup archive
-	reader, err := zip.OpenReader(backupPath)
-	if err != nil {
-		response.Success = false
-		errorMsg := fmt.Sprintf("failed to open backup: %v", err)
-		response.Error = &errorMsg
-		response.Message = errorMsg
-		return response, nil
-	}
-	defer reader.Close()
-
-	// Create temporary restore directory
-	restoreDir := filepath.Join(u.tempDir, "restore-"+req.BackupID)
-	os.MkdirAll(restoreDir, 0755)
-	defer os.RemoveAll(restoreDir)
-
-	// Extract backup files to temp directory
-	restoredFiles := 0
-	for _, file := range reader.File {
-		if file.FileInfo().IsDir() {
-			continue
-		}
-
-		err := u.extractFile(file, restoreDir)
-		if err != nil {
-			slog.Warn("Failed to extract backup file", "file", file.Name, "error", err)
-			continue
-		}
-		restoredFiles++
-	}
-
-	if restoredFiles == 0 {
-		response.Success = false
-		errorMsg := "no files were restored from backup"
-		response.Error = &errorMsg
-		response.Message = errorMsg
-		return response, nil
-	}
-
-	// Backup current data before restore (safety measure)
-	currentBackupID := fmt.Sprintf("pre-restore-%s-%s", req.BackupID, time.Now().Format("20060102-150405"))
-	_, err = u.createBackup(currentBackupID)
-	if err != nil {
-		slog.Warn("Failed to create safety backup before restore", "error", err)
-		// Continue with restore anyway
-	}
-
-	// Move restored files to data directory
-	err = u.replaceDataFiles(restoreDir, u.dataDir)
-	if err != nil {
-		response.Success = false
-		errorMsg := fmt.Sprintf("failed to replace data files: %v", err)
-		response.Error = &errorMsg
-		response.Message = errorMsg
-		return response, nil
-	}
-
-	// Delete backup if requested
-	if req.DeleteBackup {
-		err = os.Remove(backupPath)
-		if err != nil {
-			slog.Warn("Failed to delete backup after restore", "backup_id", req.BackupID, "error", err)
-		} else {
-			response.BackupDeleted = true
-		}
-	}
-
-	response.Success = true
-	response.Duration = time.Since(startTime).String()
-	response.RestoredFiles = restoredFiles
-	response.Message = fmt.Sprintf("Successfully restored %d files from backup %s", restoredFiles, req.BackupID)
-
-	slog.Info("SDE backup restore completed", "backup_id", req.BackupID, "files", restoredFiles, "duration", response.Duration)
-
-	return response, nil
-}
-
-// replaceDataFiles replaces files in the data directory with restored files
-func (u *UpdateService) replaceDataFiles(srcDir, destDir string) error {
-	// Remove existing JSON files
-	existingFiles, err := filepath.Glob(filepath.Join(destDir, "*.json"))
-	if err != nil {
-		return err
-	}
-
-	for _, file := range existingFiles {
-		os.Remove(file)
-	}
-
-	// Copy restored files
-	return u.copySDEFiles(srcDir, destDir)
 }

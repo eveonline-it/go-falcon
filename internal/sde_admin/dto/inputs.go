@@ -21,16 +21,6 @@ type CheckUpdatesRequest struct {
 
 // UpdateSDERequest represents a request to download and update SDE data from CCP official source
 type UpdateSDERequest struct {
-	// BackupCurrent creates backup of current data before update
-	BackupCurrent bool `json:"backup_current,omitempty" doc:"Create backup of current SDE data before updating"`
 	// ConvertToJSON converts YAML files to JSON during processing
 	ConvertToJSON bool `json:"convert_to_json" example:"true" doc:"Convert YAML files to JSON format"`
-}
-
-// RestoreBackupRequest represents a request to restore from backup
-type RestoreBackupRequest struct {
-	// BackupID specifies which backup to restore
-	BackupID string `json:"backup_id" example:"backup_20241128_143022" doc:"Backup ID to restore from"`
-	// DeleteBackup removes the backup after successful restore
-	DeleteBackup bool `json:"delete_backup,omitempty" doc:"Delete backup after successful restore"`
 }

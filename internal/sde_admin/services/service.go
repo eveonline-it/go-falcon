@@ -210,13 +210,3 @@ func (s *Service) CheckForUpdates(ctx context.Context, req *dto.CheckUpdatesRequ
 func (s *Service) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest) (*dto.UpdateSDEResponse, error) {
 	return s.updateService.UpdateSDE(ctx, req)
 }
-
-// ListBackups lists available SDE backups
-func (s *Service) ListBackups(ctx context.Context) (*dto.ListBackupsResponse, error) {
-	return s.updateService.ListBackups(ctx)
-}
-
-// RestoreBackup restores SDE data from a backup
-func (s *Service) RestoreBackup(ctx context.Context, req *dto.RestoreBackupRequest) (*dto.RestoreBackupResponse, error) {
-	return s.updateService.RestoreBackup(ctx, req)
-}

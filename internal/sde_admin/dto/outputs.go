@@ -205,8 +205,6 @@ type UpdateSDEResponse struct {
 	DownloadedSize int64            `json:"downloaded_size,omitempty" doc:"Size of downloaded data in bytes"`
 	ExtractedFiles int              `json:"extracted_files,omitempty" doc:"Number of files extracted"`
 	ConvertedFiles int              `json:"converted_files,omitempty" doc:"Number of files converted from YAML to JSON"`
-	BackupCreated  bool             `json:"backup_created" doc:"Whether backup was created before update"`
-	BackupID       *string          `json:"backup_id,omitempty" doc:"ID of created backup"`
 	ProcessingLog  []UpdateLogEntry `json:"processing_log,omitempty" doc:"Detailed processing log"`
 	Error          *string          `json:"error,omitempty" doc:"Error message if update failed"`
 }
@@ -218,43 +216,4 @@ type UpdateLogEntry struct {
 	Message   string `json:"message" doc:"Step message"`
 	Duration  string `json:"duration,omitempty" doc:"Duration of this step"`
 	Success   bool   `json:"success" doc:"Whether this step succeeded"`
-}
-
-// ListBackupsOutput represents the output for listing SDE backups
-type ListBackupsOutput struct {
-	Body ListBackupsResponse `json:"body"`
-}
-
-// ListBackupsResponse represents the list of available SDE backups
-type ListBackupsResponse struct {
-	Backups     []BackupInfo `json:"backups" doc:"List of available backups"`
-	TotalCount  int          `json:"total_count" doc:"Total number of backups"`
-	TotalSizeMB float64      `json:"total_size_mb" doc:"Total size of all backups in MB"`
-}
-
-// BackupInfo represents information about a single backup
-type BackupInfo struct {
-	BackupID    string  `json:"backup_id" doc:"Backup identifier"`
-	CreatedAt   string  `json:"created_at" doc:"When backup was created"`
-	SizeMB      float64 `json:"size_mb" doc:"Backup size in MB"`
-	FileCount   int     `json:"file_count" doc:"Number of files in backup"`
-	SDEVersion  string  `json:"sde_version,omitempty" doc:"SDE version when backup was created"`
-	Description string  `json:"description,omitempty" doc:"Backup description"`
-}
-
-// RestoreBackupOutput represents the output for restoring from backup
-type RestoreBackupOutput struct {
-	Body RestoreBackupResponse `json:"body"`
-}
-
-// RestoreBackupResponse represents the result of a backup restore operation
-type RestoreBackupResponse struct {
-	Success       bool    `json:"success" doc:"Whether restore was successful"`
-	Message       string  `json:"message" doc:"Human-readable status message"`
-	BackupID      string  `json:"backup_id" doc:"ID of restored backup"`
-	RestoredAt    string  `json:"restored_at" doc:"Timestamp when restore was completed"`
-	Duration      string  `json:"duration,omitempty" doc:"Duration of restore operation"`
-	RestoredFiles int     `json:"restored_files,omitempty" doc:"Number of files restored"`
-	BackupDeleted bool    `json:"backup_deleted" doc:"Whether backup was deleted after restore"`
-	Error         *string `json:"error,omitempty" doc:"Error message if restore failed"`
 }

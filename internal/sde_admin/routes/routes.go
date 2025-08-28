@@ -218,54 +218,5 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 		return &dto.UpdateSDEOutput{Body: *response}, nil
 	})
 
-	// List available backups (Super Admin only)
-	huma.Register(api, huma.Operation{
-		OperationID: "listSDEBackups",
-		Method:      http.MethodGet,
-		Path:        fmt.Sprintf("%s/backups", basePath),
-		Summary:     "List SDE Backups",
-		Description: "List all available SDE backups",
-		Tags:        []string{"SDE Admin"},
-	}, func(ctx context.Context, input *struct {
-		dto.AuthInput
-	}) (*dto.ListBackupsOutput, error) {
-		// Require super admin access
-		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
-		if err != nil {
-			return nil, err
-		}
-
-		response, err := service.ListBackups(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return &dto.ListBackupsOutput{Body: *response}, nil
-	})
-
-	// Restore from backup (Super Admin only)
-	huma.Register(api, huma.Operation{
-		OperationID: "restoreSDEBackup",
-		Method:      http.MethodPost,
-		Path:        fmt.Sprintf("%s/restore", basePath),
-		Summary:     "Restore SDE Backup",
-		Description: "Restore SDE data from a backup",
-		Tags:        []string{"SDE Admin"},
-	}, func(ctx context.Context, input *struct {
-		dto.AuthInput
-		Body dto.RestoreBackupRequest `json:"body"`
-	}) (*dto.RestoreBackupOutput, error) {
-		// Require super admin access
-		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
-		if err != nil {
-			return nil, err
-		}
-
-		response, err := service.RestoreBackup(ctx, &input.Body)
-		if err != nil {
-			return nil, err
-		}
-		return &dto.RestoreBackupOutput{Body: *response}, nil
-	})
-
-	slog.Info("SDE admin routes registered successfully", "endpoints", 11)
+	slog.Info("SDE admin routes registered successfully", "endpoints", 9)
 }
