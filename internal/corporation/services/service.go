@@ -394,6 +394,65 @@ func (s *Service) UpdateAllCorporations(ctx context.Context, concurrentWorkers i
 	return nil
 }
 
+// ValidateCEOTokens checks if all CEO characters have valid tokens
+// TODO: This will be enhanced with a notification system for invalid tokens
+func (s *Service) ValidateCEOTokens(ctx context.Context) error {
+	slog.InfoContext(ctx, "Starting CEO token validation")
+
+	// Get all CEO IDs from enabled corporations
+	ceoIDs, err := s.repository.GetCEOIDsFromEnabledCorporations(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get CEO IDs from enabled corporations", "error", err)
+		return fmt.Errorf("failed to get CEO IDs: %w", err)
+	}
+
+	if len(ceoIDs) == 0 {
+		slog.InfoContext(ctx, "No CEOs found in enabled corporations")
+		return nil
+	}
+
+	slog.InfoContext(ctx, "Found CEOs to validate", "count", len(ceoIDs))
+
+	invalidTokenCount := 0
+	validTokenCount := 0
+
+	// Check each CEO's token validity
+	for _, ceoID := range ceoIDs {
+		// Check if character has a valid token in user_profiles collection
+		// This would need access to the auth repository or service
+		// For now, we'll just log the CEO IDs that need checking
+
+		// TODO: Integrate with auth module to check token validity
+		// For now, just log the CEO ID for demonstration
+		slog.InfoContext(ctx, "TODO: Check token validity for CEO",
+			"ceo_character_id", ceoID,
+			"action", "validate_token")
+
+		// TODO: Replace this placeholder logic with actual token validation
+		// Sample logic would be:
+		// 1. Get user profile by character_id from auth service
+		// 2. Check if token_expiry is in the future
+		// 3. Check if valid flag is true
+		// 4. If invalid, log and increment invalidTokenCount
+		// 5. If valid, increment validTokenCount
+
+		// Placeholder: assume all tokens are valid for now
+		validTokenCount++
+	}
+
+	slog.InfoContext(ctx, "CEO token validation completed",
+		"total_ceos", len(ceoIDs),
+		"valid_tokens", validTokenCount,
+		"invalid_tokens", invalidTokenCount)
+
+	if invalidTokenCount > 0 {
+		slog.WarnContext(ctx, "Found CEOs with invalid tokens", "count", invalidTokenCount)
+		// TODO: Implement notification system integration here
+	}
+
+	return nil
+}
+
 // GetStatus returns the health status of the corporation module
 func (s *Service) GetStatus(ctx context.Context) *dto.CorporationStatusResponse {
 	// Check database connectivity

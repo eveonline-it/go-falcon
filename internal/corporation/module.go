@@ -116,6 +116,11 @@ func (m *Module) UpdateAllCorporations(ctx context.Context, concurrentWorkers in
 	return m.service.UpdateAllCorporations(ctx, concurrentWorkers)
 }
 
+// ValidateCEOTokens implements the scheduler's CorporationModule interface for CEO token validation
+func (m *Module) ValidateCEOTokens(ctx context.Context) error {
+	return m.service.ValidateCEOTokens(ctx)
+}
+
 // RegisterPermissions registers corporation-specific permissions
 func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *permissions.PermissionManager) error {
 	corporationPermissions := []permissions.Permission{

@@ -53,6 +53,7 @@ type AllianceModule interface {
 // CorporationModule interface defines the methods needed from the corporation module
 type CorporationModule interface {
 	UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error
+	ValidateCEOTokens(ctx context.Context) error
 }
 
 // New creates a new scheduler module with standardized structure

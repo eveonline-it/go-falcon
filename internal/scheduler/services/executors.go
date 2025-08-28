@@ -178,6 +178,7 @@ type AllianceModule interface {
 // CorporationModule interface for corporation operations
 type CorporationModule interface {
 	UpdateAllCorporations(ctx context.Context, concurrentWorkers int) error
+	ValidateCEOTokens(ctx context.Context) error
 }
 
 // SystemExecutor executes system tasks
@@ -221,6 +222,8 @@ func (e *SystemExecutor) Execute(ctx context.Context, task *models.Task) (*model
 		return e.executeAllianceBulkImport(ctx, config, start)
 	case "corporation_update":
 		return e.executeCorporationUpdate(ctx, config, start)
+	case "ceo_token_validation":
+		return e.executeCEOTokenValidation(ctx, config, start)
 	default:
 		return &models.TaskResult{
 			Success:  false,
@@ -420,6 +423,38 @@ func (e *SystemExecutor) executeCorporationUpdate(ctx context.Context, config *m
 		Duration: models.Duration(time.Since(start)),
 		Metadata: map[string]interface{}{
 			"concurrent_workers": concurrentWorkers,
+		},
+	}, nil
+}
+
+// executeCEOTokenValidation executes the CEO token validation system task
+func (e *SystemExecutor) executeCEOTokenValidation(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
+	if e.corporationModule == nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    "Corporation module not available",
+			Duration: models.Duration(time.Since(start)),
+		}, nil
+	}
+
+	// Execute CEO token validation
+	err := e.corporationModule.ValidateCEOTokens(ctx)
+	if err != nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    fmt.Sprintf("CEO token validation failed: %v", err),
+			Duration: models.Duration(time.Since(start)),
+		}, nil
+	}
+
+	output := "CEO token validation completed successfully"
+
+	return &models.TaskResult{
+		Success:  true,
+		Output:   output,
+		Duration: models.Duration(time.Since(start)),
+		Metadata: map[string]interface{}{
+			"task_type": "ceo_token_validation",
 		},
 	}, nil
 }

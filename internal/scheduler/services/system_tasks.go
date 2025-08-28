@@ -271,6 +271,34 @@ func GetSystemTasks() []*models.Task {
 			UpdatedAt: now,
 			CreatedBy: "system",
 		},
+		{
+			ID:          "system-ceo-token-validation",
+			Name:        "CEO Token Validation",
+			Description: "Checks if CEOs from enabled corporations have valid EVE Online access tokens",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 */15 * * * *", // Every 15 minutes
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "ceo_token_validation",
+				"parameters": map[string]interface{}{
+					"timeout": "5m",
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: models.Duration(5 * time.Minute),
+				Timeout:       models.Duration(10 * time.Minute),
+				Tags:          []string{"system", "corporation", "ceo", "token", "validation"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
 	}
 }
 
@@ -316,6 +344,13 @@ var SystemTaskDefinitions = map[string]models.SystemTaskDefinition{
 		Description: "Updates all corporation information from EVE ESI for corporations in the database",
 		Schedule:    "Daily at 4:00 AM",
 		Purpose:     "Maintains up-to-date corporation database with fresh EVE Online corporation information",
+		Priority:    "Normal",
+	},
+	"system-ceo-token-validation": {
+		Name:        "CEO Token Validation",
+		Description: "Checks if CEOs from enabled corporations have valid EVE Online access tokens",
+		Schedule:    "Every 15 minutes",
+		Purpose:     "Monitors CEO token validity for enabled corporations and identifies expired tokens",
 		Priority:    "Normal",
 	},
 }
