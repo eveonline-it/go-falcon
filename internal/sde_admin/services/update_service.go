@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -80,223 +81,136 @@ func getDefaultSDESources() []SDESource {
 	}
 }
 
-// GetSources returns the list of configured SDE sources
-func (u *UpdateService) GetSources() []SDESource {
-	return u.sources
-}
-
-// CheckForUpdates checks all enabled sources for SDE updates
+// CheckForUpdates checks the CCP official SDE source for updates
 func (u *UpdateService) CheckForUpdates(ctx context.Context, req *dto.CheckUpdatesRequest) (*dto.CheckUpdatesResponse, error) {
-	slog.Info("Checking for SDE updates", "sources", req.Sources, "force", req.Force)
+	slog.Info("Checking CCP official SDE for updates")
 
-	currentHash, err := u.calculateCurrentHash()
+	// Load the saved SDE zip hash for comparison
+	currentZipHash, err := u.loadSDEZipHash()
 	if err != nil {
-		slog.Warn("Failed to calculate current SDE hash", "error", err)
+		slog.Warn("Failed to load saved SDE zip hash", "error", err)
 	}
-
-	var sourcesToCheck []SDESource
-	if len(req.Sources) == 0 {
-		// Check all enabled sources
-		for _, source := range u.sources {
-			if source.Enabled {
-				sourcesToCheck = append(sourcesToCheck, source)
-			}
-		}
+	if currentZipHash == "" {
+		slog.Debug("No saved SDE zip hash found - treating as no current version")
 	} else {
-		// Check specified sources
-		for _, sourceName := range req.Sources {
-			for _, source := range u.sources {
-				if source.Name == sourceName && source.Enabled {
-					sourcesToCheck = append(sourcesToCheck, source)
-					break
-				}
-			}
-		}
+		slog.Debug("Loaded current SDE zip hash", "hash", currentZipHash[:16]) // Log first 16 chars
 	}
 
-	sourceStatuses := make([]dto.SDESourceStatus, 0, len(sourcesToCheck))
+	// Get the CCP official source (there's only one)
+	ccpSource := u.sources[0] // CCP official is the only source
+
+	// Create initial status for CCP official source
+	status := dto.SDESourceStatus{
+		Name:        ccpSource.Name,
+		Available:   false,
+		URL:         ccpSource.URL,
+		LastChecked: time.Now().Format(time.RFC3339),
+	}
+
+	// Check the CCP official source
+	status = u.checkDirectSource(ctx, ccpSource, status)
+
 	updatesAvailable := false
 	latestVersion := ""
 
-	for _, source := range sourcesToCheck {
-		status := u.checkSourceForUpdates(ctx, source)
-		sourceStatuses = append(sourceStatuses, status)
-
-		if status.Available && status.LatestVersion != "" {
-			if currentHash == "" || status.LatestVersion != currentHash {
-				updatesAvailable = true
-				if latestVersion == "" {
-					latestVersion = status.LatestVersion
-				}
-			}
+	if status.Available && status.LatestVersion != "" {
+		if currentZipHash == "" || status.LatestVersion != currentZipHash {
+			updatesAvailable = true
+			latestVersion = status.LatestVersion
 		}
 	}
 
 	return &dto.CheckUpdatesResponse{
 		UpdatesAvailable: updatesAvailable,
-		CurrentVersion:   currentHash,
+		CurrentVersion:   currentZipHash,
 		LatestVersion:    latestVersion,
-		Sources:          sourceStatuses,
+		CCPOfficial:      status,
 		CheckedAt:        time.Now().Format(time.RFC3339),
 	}, nil
 }
 
-// checkSourceForUpdates checks a single source for updates
-func (u *UpdateService) checkSourceForUpdates(ctx context.Context, source SDESource) dto.SDESourceStatus {
-	slog.Debug("Checking source for updates", "source", source.Name, "url", source.URL)
-
-	status := dto.SDESourceStatus{
-		Name:        source.Name,
-		Available:   false,
-		URL:         source.URL,
-		LastChecked: time.Now().Format(time.RFC3339),
-	}
-
-	switch source.Type {
-	case "github":
-		return u.checkGitHubSource(ctx, source, status)
-	case "direct":
-		return u.checkDirectSource(ctx, source, status)
-	default:
-		errorMsg := fmt.Sprintf("unsupported source type: %s", source.Type)
-		status.Error = &errorMsg
-		return status
-	}
-}
-
-// checkGitHubSource checks GitHub API for latest commit/release
-func (u *UpdateService) checkGitHubSource(ctx context.Context, source SDESource, status dto.SDESourceStatus) dto.SDESourceStatus {
-	// Check latest commit on default branch
-	commitURL := fmt.Sprintf("%s/commits", source.URL)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", commitURL, nil)
-	if err != nil {
-		errorMsg := fmt.Sprintf("failed to create request: %v", err)
-		status.Error = &errorMsg
-		return status
-	}
-
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
-
-	resp, err := u.httpClient.Do(req)
-	if err != nil {
-		errorMsg := fmt.Sprintf("failed to check GitHub API: %v", err)
-		status.Error = &errorMsg
-		return status
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		errorMsg := fmt.Sprintf("GitHub API returned status %d", resp.StatusCode)
-		status.Error = &errorMsg
-		return status
-	}
-
-	var commits []struct {
-		SHA    string `json:"sha"`
-		Commit struct {
-			Author struct {
-				Date string `json:"date"`
-			} `json:"author"`
-		} `json:"commit"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&commits); err != nil {
-		errorMsg := fmt.Sprintf("failed to decode GitHub response: %v", err)
-		status.Error = &errorMsg
-		return status
-	}
-
-	if len(commits) > 0 {
-		status.Available = true
-		status.LatestVersion = commits[0].SHA[:12] // Short SHA
-		status.URL = source.Metadata["download_url"]
-	}
-
-	return status
-}
-
-// checkDirectSource checks a direct URL for updates (basic availability check)
+// checkDirectSource checks a direct URL for updates by downloading and hashing the SDE zip
 func (u *UpdateService) checkDirectSource(ctx context.Context, source SDESource, status dto.SDESourceStatus) dto.SDESourceStatus {
 	downloadURL := source.Metadata["download_url"]
 	if downloadURL == "" {
 		downloadURL = source.URL
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "HEAD", downloadURL, nil)
+	// First check if URL is accessible with HEAD request
+	headReq, err := http.NewRequestWithContext(ctx, "HEAD", downloadURL, nil)
 	if err != nil {
-		errorMsg := fmt.Sprintf("failed to create request: %v", err)
+		errorMsg := fmt.Sprintf("failed to create HEAD request: %v", err)
 		status.Error = &errorMsg
 		return status
 	}
 
-	req.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
+	headReq.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
 
-	resp, err := u.httpClient.Do(req)
+	headResp, err := u.httpClient.Do(headReq)
 	if err != nil {
 		errorMsg := fmt.Sprintf("failed to check URL: %v", err)
 		status.Error = &errorMsg
 		return status
 	}
-	resp.Body.Close()
+	headResp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		status.Available = true
-		status.URL = downloadURL
-
-		// Use Last-Modified or ETag as version if available
-		if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
-			if t, err := time.Parse(time.RFC1123, lastModified); err == nil {
-				status.LatestVersion = fmt.Sprintf("%d", t.Unix())
-			}
-		} else if etag := resp.Header.Get("ETag"); etag != "" {
-			status.LatestVersion = strings.Trim(etag, `"`)
-		}
-
-		// Get content length if available
-		if resp.ContentLength > 0 {
-			status.LatestSize = resp.ContentLength
-		}
-	} else {
-		errorMsg := fmt.Sprintf("URL returned status %d", resp.StatusCode)
+	if headResp.StatusCode != http.StatusOK {
+		errorMsg := fmt.Sprintf("URL returned status %d", headResp.StatusCode)
 		status.Error = &errorMsg
+		return status
 	}
+
+	// Get content length if available
+	if headResp.ContentLength > 0 {
+		status.LatestSize = headResp.ContentLength
+	}
+
+	// Now download the file to calculate its hash for proper version comparison
+	slog.Debug("Downloading SDE zip to calculate hash for version comparison", "url", downloadURL)
+
+	// Download to temporary file and calculate hash
+	tempFile, fileSize, zipHash, err := u.downloadFile(ctx, downloadURL)
+	if err != nil {
+		errorMsg := fmt.Sprintf("failed to download for hash calculation: %v", err)
+		status.Error = &errorMsg
+		return status
+	}
+
+	// Clean up temporary file immediately after hash calculation
+	defer func() {
+		if err := os.Remove(tempFile); err != nil {
+			slog.Warn("Failed to clean up temporary file", "file", tempFile, "error", err)
+		}
+	}()
+
+	// Set status with calculated hash as version
+	status.Available = true
+	status.URL = downloadURL
+	status.LatestVersion = zipHash // Use actual SDE zip hash for proper comparison
+	status.LatestSize = fileSize
+
+	slog.Debug("Calculated SDE zip hash for version comparison", "hash", zipHash[:16], "size", fileSize)
 
 	return status
 }
 
-// UpdateSDE downloads and processes SDE data from the specified source
+// UpdateSDE downloads and processes SDE data from CCP official source
 func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest) (*dto.UpdateSDEResponse, error) {
-	slog.Info("Starting SDE update", "source", req.Source, "format", req.Format)
+	slog.Info("Starting SDE update from CCP official source")
 
 	startTime := time.Now()
 	response := &dto.UpdateSDEResponse{
-		Source:        req.Source,
+		Source:        "ccp-official",
 		UpdatedAt:     time.Now().Format(time.RFC3339),
 		ProcessingLog: []dto.UpdateLogEntry{},
 	}
 
-	// Find the source
-	var source *SDESource
-	for _, s := range u.sources {
-		if s.Name == req.Source {
-			source = &s
-			break
-		}
-	}
+	// Use the CCP official source (only source)
+	source := &u.sources[0]
 
-	if source == nil && req.Source != "custom" {
-		response.Success = false
-		errorMsg := fmt.Sprintf("unknown source: %s", req.Source)
-		response.Error = &errorMsg
-		response.Message = errorMsg
-		return response, nil
-	}
-
-	// Get old version for comparison
-	oldVersion, _ := u.calculateCurrentHash()
-	response.OldVersion = oldVersion
+	// Get old version hash for comparison
+	oldZipHash, _ := u.loadSDEZipHash()
+	response.OldVersion = oldZipHash
 
 	// Create backup if requested
 	if req.BackupCurrent {
@@ -326,24 +240,21 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 		response.BackupID = &backupIDResult
 	}
 
-	// Download the data
-	downloadURL := req.URL
-	if downloadURL == "" && source != nil {
-		downloadURL = source.Metadata["download_url"]
-		if downloadURL == "" {
-			downloadURL = source.URL
-		}
+	// Download the data from CCP official source
+	downloadURL := source.Metadata["download_url"]
+	if downloadURL == "" {
+		downloadURL = source.URL
 	}
 
 	if downloadURL == "" {
 		response.Success = false
-		errorMsg := "no download URL specified"
+		errorMsg := "no download URL configured for CCP official source"
 		response.Error = &errorMsg
 		response.Message = errorMsg
 		return response, nil
 	}
 
-	downloadedFile, downloadSize, err := u.downloadFile(ctx, downloadURL)
+	downloadedFile, downloadSize, zipHash, err := u.downloadFile(ctx, downloadURL)
 	if err != nil {
 		response.Success = false
 		errorMsg := fmt.Sprintf("failed to download: %v", err)
@@ -379,10 +290,10 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 		Success:   true,
 	})
 
-	// Process and convert files
+	// Process and convert files (CCP provides YAML format)
 	convertedFiles := 0
 	if req.ConvertToJSON {
-		converted, err := u.processSDEFiles(u.tempDir, u.dataDir, req.Format == "" || req.Format == "yaml")
+		converted, err := u.processSDEFiles(u.tempDir, u.dataDir, true) // CCP official provides YAML
 		if err != nil {
 			response.Success = false
 			errorMsg := fmt.Sprintf("failed to process files: %v", err)
@@ -411,10 +322,15 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 		Success:   true,
 	})
 
-	// Calculate new version hash
-	newVersion, err := u.calculateCurrentHash()
-	if err == nil {
-		response.NewVersion = newVersion
+	// The new version is the zip hash we just saved
+	response.NewVersion = zipHash
+
+	// Save the zip hash for future update checks
+	if err := u.saveSDEZipHash(zipHash); err != nil {
+		slog.Warn("Failed to save SDE zip hash", "error", err, "hash", zipHash)
+		// Don't fail the entire update for this - it's just for optimization
+	} else {
+		slog.Info("Saved SDE zip hash for update tracking", "hash", zipHash[:16]) // Log first 16 chars
 	}
 
 	// Clean up temp files
@@ -423,49 +339,57 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 
 	response.Success = true
 	response.Duration = time.Since(startTime).String()
-	response.Message = fmt.Sprintf("Successfully updated SDE from %s", req.Source)
+	response.Message = "Successfully updated SDE from CCP official source"
 
-	slog.Info("SDE update completed", "source", req.Source, "duration", response.Duration, "files", convertedFiles)
+	slog.Info("SDE update completed", "source", "ccp-official", "duration", response.Duration, "files", convertedFiles, "zip_hash", zipHash[:16])
 
 	return response, nil
 }
 
-// downloadFile downloads a file from URL and returns local path and size
-func (u *UpdateService) downloadFile(ctx context.Context, url string) (string, int64, error) {
+// downloadFile downloads a file from URL and returns local path, size, and SHA256 hash
+func (u *UpdateService) downloadFile(ctx context.Context, url string) (string, int64, string, error) {
 	slog.Info("Downloading SDE data", "url", url)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 
 	req.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
 
 	resp, err := u.httpClient.Do(req)
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", 0, fmt.Errorf("download failed with status %d", resp.StatusCode)
+		return "", 0, "", fmt.Errorf("download failed with status %d", resp.StatusCode)
 	}
 
 	// Create temporary file
 	tmpFile, err := os.CreateTemp(u.tempDir, "sde-download-*.zip")
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 	defer tmpFile.Close()
 
-	// Copy with size tracking
-	written, err := io.Copy(tmpFile, resp.Body)
+	// Copy with size tracking and hash calculation
+	hash := sha256.New()
+	multiWriter := io.MultiWriter(tmpFile, hash)
+
+	written, err := io.Copy(multiWriter, resp.Body)
 	if err != nil {
 		os.Remove(tmpFile.Name())
-		return "", 0, err
+		return "", 0, "", err
 	}
 
-	return tmpFile.Name(), written, nil
+	// Calculate final hash
+	hashString := hex.EncodeToString(hash.Sum(nil))
+
+	slog.Debug("Downloaded file hash calculated", "hash", hashString, "size_bytes", written)
+
+	return tmpFile.Name(), written, hashString, nil
 }
 
 // extractArchive extracts a ZIP archive to the specified directory
@@ -500,10 +424,77 @@ func (u *UpdateService) extractArchive(archivePath, destDir string) (int, error)
 	return extractedCount, nil
 }
 
+// saveSDEZipHash saves the SDE zip file hash to a persistent file
+func (u *UpdateService) saveSDEZipHash(hash string) error {
+	hashFile := filepath.Join(u.dataDir, ".sde-hash")
+	slog.Debug("Saving SDE zip hash", "hash", hash, "file", hashFile)
+
+	return os.WriteFile(hashFile, []byte(hash), 0644)
+}
+
+// loadSDEZipHash loads the saved SDE zip file hash
+func (u *UpdateService) loadSDEZipHash() (string, error) {
+	hashFile := filepath.Join(u.dataDir, ".sde-hash")
+
+	data, err := os.ReadFile(hashFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil // No saved hash, treat as no current version
+		}
+		return "", err
+	}
+
+	hash := strings.TrimSpace(string(data))
+	slog.Debug("Loaded SDE zip hash", "hash", hash, "file", hashFile)
+	return hash, nil
+}
+
+// calculateFileHash calculates SHA256 hash of a file (used for checksum verification)
+func (u *UpdateService) calculateFileHash(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// GetCurrentZipHash returns the currently saved SDE zip hash (for testing/validation)
+func (u *UpdateService) GetCurrentZipHash() (string, error) {
+	return u.loadSDEZipHash()
+}
+
+// ValidateZipHash validates that a downloaded file matches the expected hash
+func (u *UpdateService) ValidateZipHash(filePath, expectedHash string) (bool, error) {
+	actualHash, err := u.calculateFileHash(filePath)
+	if err != nil {
+		return false, err
+	}
+	return actualHash == expectedHash, nil
+}
+
 // isSDEDataFile checks if a file is an SDE data file we care about
 func (u *UpdateService) isSDEDataFile(filename string) bool {
-	// Remove directory prefixes (GitHub archives have eve-sde-master/ prefix)
+	// Clean path for consistent checking
+	cleanPath := filepath.Clean(filename)
 	basename := filepath.Base(filename)
+
+	// Check for SDE subdirectories (fsd/ and bsd/)
+	isFSDFile := strings.Contains(cleanPath, "fsd/")
+	isBSDFile := strings.Contains(cleanPath, "bsd/")
+
+	// If not in expected SDE subdirectories, check for direct files (GitHub archives, etc.)
+	isDirectFile := !strings.Contains(cleanPath, "/") || strings.Contains(cleanPath, "eve-sde-")
+
+	if !isFSDFile && !isBSDFile && !isDirectFile {
+		return false
+	}
 
 	// Check for known SDE file patterns
 	knownFiles := []string{
@@ -551,13 +542,14 @@ func (u *UpdateService) isSDEDataFile(filename string) bool {
 		"types.yaml", "types.json",
 	}
 
-	for _, known := range knownFiles {
-		if basename == known {
-			return true
-		}
+	// Check for universe data files (regions, constellations, solar systems)
+	if strings.Contains(basename, "_region.yaml") || strings.Contains(basename, "_region.json") ||
+		strings.Contains(basename, "_constellation.yaml") || strings.Contains(basename, "_constellation.json") ||
+		strings.Contains(basename, "_solarsystem.json") {
+		return true
 	}
 
-	return false
+	return slices.Contains(knownFiles, basename)
 }
 
 // extractFile extracts a single file from archive
@@ -731,39 +723,6 @@ func (u *UpdateService) copyFile(src, dest string) error {
 
 	_, err = io.Copy(destFile, srcFile)
 	return err
-}
-
-// calculateCurrentHash calculates SHA256 hash of current SDE data
-func (u *UpdateService) calculateCurrentHash() (string, error) {
-	files, err := filepath.Glob(filepath.Join(u.dataDir, "*.json"))
-	if err != nil {
-		return "", err
-	}
-
-	if len(files) == 0 {
-		return "", fmt.Errorf("no SDE files found")
-	}
-
-	hash := sha256.New()
-
-	// Sort files for consistent hashing
-	for i := 0; i < len(files); i++ {
-		for j := i + 1; j < len(files); j++ {
-			if files[i] > files[j] {
-				files[i], files[j] = files[j], files[i]
-			}
-		}
-	}
-
-	for _, file := range files {
-		data, err := os.ReadFile(file)
-		if err != nil {
-			continue // Skip files we can't read
-		}
-		hash.Write(data)
-	}
-
-	return hex.EncodeToString(hash.Sum(nil))[:16], nil // Use first 16 chars
 }
 
 // createBackup creates a backup of current SDE data

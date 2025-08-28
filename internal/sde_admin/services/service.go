@@ -220,26 +220,3 @@ func (s *Service) ListBackups(ctx context.Context) (*dto.ListBackupsResponse, er
 func (s *Service) RestoreBackup(ctx context.Context, req *dto.RestoreBackupRequest) (*dto.RestoreBackupResponse, error) {
 	return s.updateService.RestoreBackup(ctx, req)
 }
-
-// GetSources returns configured SDE sources
-func (s *Service) GetSources(ctx context.Context) (*dto.GetSourcesResponse, error) {
-	sources := s.updateService.GetSources()
-
-	sourceConfigs := make([]dto.SDESourceConfig, len(sources))
-	for i, source := range sources {
-		sourceConfigs[i] = dto.SDESourceConfig{
-			Name:        source.Name,
-			Type:        source.Type,
-			URL:         source.URL,
-			Format:      source.Format,
-			Description: source.Description,
-			Enabled:     source.Enabled,
-			Metadata:    source.Metadata,
-		}
-	}
-
-	return &dto.GetSourcesResponse{
-		Sources:    sourceConfigs,
-		TotalCount: len(sourceConfigs),
-	}, nil
-}

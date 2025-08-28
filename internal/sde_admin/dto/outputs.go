@@ -168,15 +168,13 @@ type CheckUpdatesOutput struct {
 	Body CheckUpdatesResponse `json:"body"`
 }
 
-// CheckUpdatesResponse represents the result of checking for SDE updates
+// CheckUpdatesResponse represents the result of checking for SDE updates from CCP official source
 type CheckUpdatesResponse struct {
-	UpdatesAvailable bool              `json:"updates_available" doc:"Whether updates are available"`
-	CurrentVersion   string            `json:"current_version,omitempty" doc:"Current SDE version/hash"`
-	LatestVersion    string            `json:"latest_version,omitempty" doc:"Latest available SDE version/hash"`
-	Sources          []SDESourceStatus `json:"sources" doc:"Status of each checked source"`
-	CheckedAt        string            `json:"checked_at" doc:"Timestamp when check was performed"`
-	LastUpdateCheck  *string           `json:"last_update_check,omitempty" doc:"Last successful update check"`
-	UpdatesSince     *string           `json:"updates_since,omitempty" doc:"Time since last successful update"`
+	UpdatesAvailable bool            `json:"updates_available" doc:"Whether updates are available"`
+	CurrentVersion   string          `json:"current_version,omitempty" doc:"Current SDE version/hash"`
+	LatestVersion    string          `json:"latest_version,omitempty" doc:"Latest available SDE version/hash"`
+	CCPOfficial      SDESourceStatus `json:"ccp_official" doc:"Status of CCP official SDE source"`
+	CheckedAt        string          `json:"checked_at" doc:"Timestamp when check was performed"`
 }
 
 // SDESourceStatus represents the status of an SDE source
@@ -259,26 +257,4 @@ type RestoreBackupResponse struct {
 	RestoredFiles int     `json:"restored_files,omitempty" doc:"Number of files restored"`
 	BackupDeleted bool    `json:"backup_deleted" doc:"Whether backup was deleted after restore"`
 	Error         *string `json:"error,omitempty" doc:"Error message if restore failed"`
-}
-
-// GetSourcesOutput represents the output for listing configured SDE sources
-type GetSourcesOutput struct {
-	Body GetSourcesResponse `json:"body"`
-}
-
-// GetSourcesResponse represents the list of configured SDE sources
-type GetSourcesResponse struct {
-	Sources    []SDESourceConfig `json:"sources" doc:"List of configured SDE sources"`
-	TotalCount int               `json:"total_count" doc:"Total number of configured sources"`
-}
-
-// SDESourceConfig represents a configured SDE source
-type SDESourceConfig struct {
-	Name        string            `json:"name" doc:"Source name"`
-	Type        string            `json:"type" doc:"Source type (github, direct, hoboleaks)"`
-	URL         string            `json:"url" doc:"Base URL for source"`
-	Format      string            `json:"format" doc:"Expected data format (yaml, json)"`
-	Description string            `json:"description" doc:"Source description"`
-	Enabled     bool              `json:"enabled" doc:"Whether source is enabled"`
-	Metadata    map[string]string `json:"metadata,omitempty" doc:"Additional source metadata"`
 }

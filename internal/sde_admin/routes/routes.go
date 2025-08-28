@@ -267,29 +267,5 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 		return &dto.RestoreBackupOutput{Body: *response}, nil
 	})
 
-	// Get configured SDE sources (Super Admin only)
-	huma.Register(api, huma.Operation{
-		OperationID: "getSDESources",
-		Method:      http.MethodGet,
-		Path:        fmt.Sprintf("%s/sources", basePath),
-		Summary:     "Get SDE Sources",
-		Description: "List configured SDE data sources",
-		Tags:        []string{"SDE Admin"},
-	}, func(ctx context.Context, input *struct {
-		dto.AuthInput
-	}) (*dto.GetSourcesOutput, error) {
-		// Require super admin access
-		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
-		if err != nil {
-			return nil, err
-		}
-
-		response, err := service.GetSources(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return &dto.GetSourcesOutput{Body: *response}, nil
-	})
-
-	slog.Info("SDE admin routes registered successfully", "endpoints", 12)
+	slog.Info("SDE admin routes registered successfully", "endpoints", 11)
 }

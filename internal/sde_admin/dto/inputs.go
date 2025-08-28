@@ -13,23 +13,14 @@ type ReloadSDERequest struct {
 	DataTypes []string `json:"data_types,omitempty" example:"[\"agents\",\"types\"]" doc:"List of SDE data types to reload. Leave empty to reload all types."`
 }
 
-// CheckUpdatesRequest represents a request to check for SDE updates
+// CheckUpdatesRequest represents a request to check for SDE updates from CCP official source
 type CheckUpdatesRequest struct {
-	// Sources specifies which SDE sources to check
-	// If empty, all configured sources will be checked
-	Sources []string `json:"sources,omitempty" example:"[\"ccp-github\",\"hoboleaks\"]" doc:"List of SDE sources to check. Leave empty to check all configured sources."`
 	// Force bypasses cache and forces a fresh check
 	Force bool `json:"force,omitempty" doc:"Force check even if recently checked"`
 }
 
-// UpdateSDERequest represents a request to download and update SDE data
+// UpdateSDERequest represents a request to download and update SDE data from CCP official source
 type UpdateSDERequest struct {
-	// Source specifies which SDE source to use for update
-	Source string `json:"source" example:"ccp-github" doc:"SDE source to download from (ccp-github, hoboleaks, custom)"`
-	// Format specifies the expected format (yaml, json)
-	Format string `json:"format,omitempty" example:"yaml" doc:"Expected data format (yaml, json). Auto-detected if not specified."`
-	// URL for custom source downloads
-	URL string `json:"url,omitempty" example:"https://github.com/ccpgames/eve-sde/archive/refs/heads/master.zip" doc:"Custom URL for SDE download (required for custom source)"`
 	// BackupCurrent creates backup of current data before update
 	BackupCurrent bool `json:"backup_current,omitempty" doc:"Create backup of current SDE data before updating"`
 	// ConvertToJSON converts YAML files to JSON during processing
