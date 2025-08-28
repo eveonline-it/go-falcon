@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"time"
 )
 
 // Service provides in-memory access to EVE Online SDE data
@@ -125,6 +126,9 @@ func (s *Service) ensureLoaded() error {
 		return nil
 	}
 
+	startTime := time.Now()
+	slog.Debug("SDE ensureLoaded started", "data_dir", s.dataDir, "timestamp", startTime.Unix())
+
 	if err := s.loadAgents(); err != nil {
 		return fmt.Errorf("failed to load agents: %w", err)
 	}
@@ -161,6 +165,12 @@ func (s *Service) ensureLoaded() error {
 		return fmt.Errorf("failed to load type materials: %w", err)
 	}
 
+	// Progress log: Core market data loaded
+	slog.Debug("SDE loading progress: Core market data types loaded",
+		"types_count", len(s.types),
+		"market_groups_count", len(s.marketGroups),
+		"blueprints_count", len(s.blueprints))
+
 	if err := s.loadRaces(); err != nil {
 		return fmt.Errorf("failed to load races: %w", err)
 	}
@@ -176,6 +186,12 @@ func (s *Service) ensureLoaded() error {
 	if err := s.loadGroups(); err != nil {
 		return fmt.Errorf("failed to load groups: %w", err)
 	}
+
+	// Progress log: Character data loaded
+	slog.Debug("SDE loading progress: Character and faction data loaded",
+		"races_count", len(s.races),
+		"factions_count", len(s.factions),
+		"bloodlines_count", len(s.bloodlines))
 
 	if err := s.loadDogmaAttributes(); err != nil {
 		return fmt.Errorf("failed to load dogma attributes: %w", err)
@@ -200,6 +216,12 @@ func (s *Service) ensureLoaded() error {
 	if err := s.loadStaStations(); err != nil {
 		return fmt.Errorf("failed to load stations: %w", err)
 	}
+
+	// Progress log: Game systems data loaded
+	slog.Debug("SDE loading progress: Game systems and stations data loaded",
+		"stations_count", len(s.staStations),
+		"dogma_attributes_count", len(s.dogmaAttributes),
+		"skins_count", len(s.skins))
 
 	if err := s.loadDogmaEffects(); err != nil {
 		return fmt.Errorf("failed to load dogma effects: %w", err)
@@ -299,10 +321,12 @@ func (s *Service) ensureLoaded() error {
 
 	s.loaded = true
 
-	// Log memory usage after loading SDE data
+	// Log timing and memory usage after loading SDE data
+	loadDuration := time.Since(startTime)
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	slog.Info("SDE data loaded successfully",
+		"load_duration_ms", loadDuration.Milliseconds(),
 		"agents_count", len(s.agents),
 		"categories_count", len(s.categories),
 		"blueprints_count", len(s.blueprints),

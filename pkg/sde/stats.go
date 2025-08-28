@@ -2,9 +2,11 @@ package sde
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"time"
 	"unsafe"
 )
 
@@ -496,6 +498,9 @@ func (s *Service) ReloadAll() error {
 	s.loadMu.Lock()
 	defer s.loadMu.Unlock()
 
+	startTime := time.Now()
+	slog.Debug("SDE ReloadAll started", "data_dir", s.dataDir, "timestamp", startTime.Unix())
+
 	// Reset loaded flag
 	s.loaded = false
 
@@ -548,6 +553,20 @@ func (s *Service) ReloadAll() error {
 	s.loadMu.Unlock()
 	err := s.ensureLoaded()
 	s.loadMu.Lock()
+
+	// Log completion with timing
+	reloadDuration := time.Since(startTime)
+	if err == nil {
+		slog.Debug("SDE ReloadAll completed successfully",
+			"total_data_types", 43,
+			"reload_duration_ms", reloadDuration.Milliseconds(),
+			"timestamp", time.Now().Unix())
+	} else {
+		slog.Error("SDE ReloadAll failed",
+			"error", err,
+			"reload_duration_ms", reloadDuration.Milliseconds(),
+			"timestamp", time.Now().Unix())
+	}
 
 	return err
 }

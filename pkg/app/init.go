@@ -60,6 +60,14 @@ func InitializeApp(serviceName string) (*AppContext, error) {
 	sdeService := sde.NewService("data/sde")
 	slog.Info("SDE service initialized", "data_dir", "data/sde")
 
+	// Load SDE data into memory at startup
+	if err := sdeService.ReloadAll(); err != nil {
+		slog.Error("Failed to load SDE data", "error", err)
+		// Continue without SDE data - some operations might not need it
+	} else {
+		slog.Info("SDE data loaded into memory")
+	}
+
 	appCtx := &AppContext{
 		MongoDB:          mongodb,
 		Redis:            redis,
