@@ -58,6 +58,7 @@ Go Falcon is a production-ready monolithic API gateway built with Go that provid
 - [Core Features](#core-features)
 - [Module Documentation](#module-documentation)
 - [EVE Online Integration](#eve-online-integration)
+- [Database Management](#database-management)
 - [Development Guidelines](#development-guidelines)
 - [API Documentation](#api-documentation)
 - [Observability](#observability)
@@ -94,6 +95,7 @@ go-falcon/
 - ✅ Hot reload in development
 - ✅ Graceful shutdown
 - ✅ Distributed locking
+- ✅ Database migrations with rollback support
 - ✅ Comprehensive error handling
 - ✅ Request tracing and correlation
 - ✅ Health checks and metrics
@@ -124,6 +126,11 @@ go-falcon/
 3. **Start services**
    ```bash
    docker-compose up -d
+   ```
+
+4. **Run database migrations**
+   ```bash
+   make migrate-up
    ```
 
 ### Key Environment Variables
@@ -277,6 +284,67 @@ Complete EVE SSO integration with JWT tokens and group-based access control. See
 - First user → Automatically assigned to **Super Administrator** group
 
 **Migration**: Existing super admins need manual assignment to "Super Administrator" group via groups API.
+
+## 🗄️ Database Management
+
+### Migration System
+
+Go Falcon uses a comprehensive migration system for version-controlled database schema management:
+
+**Features:**
+- Version-controlled schema changes with Git integration
+- Atomic operations with MongoDB transaction support
+- Rollback capability for safe deployments  
+- Migration status tracking and integrity checks
+- Dry-run mode for previewing changes
+- Auto-generation of migration templates
+
+**Migration Commands:**
+```bash
+# Run all pending migrations
+make migrate-up
+
+# Check migration status
+make migrate-status  
+
+# Rollback last migration
+make migrate-down
+
+# Create new migration
+make migrate-create name=feature_name
+
+# Preview migrations (dry run)
+make migrate-dry-run
+```
+
+**Migration Files:**
+- Located in `migrations/` directory
+- Naming convention: `{version}_{description}.go`
+- Each migration has `up()` and `down()` functions
+- All migrations tracked in `_migrations` collection
+
+**Current Migrations:**
+1. `001_create_groups_indexes` - Groups and memberships indexes
+2. `002_create_scheduler_indexes` - Scheduler tasks and executions indexes  
+3. `003_seed_system_groups` - System groups (super_admin, authenticated, guest)
+4. `004_create_character_indexes` - Character collection indexes with text search
+5. `005_create_users_indexes` - User collection indexes
+
+**Deployment Integration:**
+```yaml
+# docker-compose.yml
+services:
+  migrate:
+    command: ["/app/migrate", "-command=up"]
+    depends_on: [mongodb]
+    
+  app:
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+```
+
+See `migrations/README.md` for complete documentation.
 
 ## 🛠️ Development Guidelines
 

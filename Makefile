@@ -37,7 +37,7 @@ build: ## Build the falcon application
 	@go build $(LDFLAGS) -o bin/falcon ./cmd/falcon
 	@echo "✅ Build complete: bin/falcon"
 
-build-all: ## Build all applications (falcon, backup, restore, postman, openapi)
+build-all: ## Build all applications (falcon, backup, restore, postman, openapi, migrate)
 	@echo "🔨 Building all applications..."
 	@mkdir -p bin
 	@go build $(LDFLAGS) -o bin/falcon ./cmd/falcon
@@ -45,7 +45,8 @@ build-all: ## Build all applications (falcon, backup, restore, postman, openapi)
 	@go build $(LDFLAGS) -o bin/restore ./cmd/restore
 	@go build $(LDFLAGS) -o bin/postman ./cmd/postman
 	@go build $(LDFLAGS) -o bin/openapi ./cmd/openapi
-	@echo "✅ Build complete: bin/falcon, bin/backup, bin/restore, bin/postman, bin/openapi"
+	@go build $(LDFLAGS) -o bin/migrate ./cmd/migrate
+	@echo "✅ Build complete: bin/falcon, bin/backup, bin/restore, bin/postman, bin/openapi, bin/migrate"
 
 build-utils: ## Build utility applications (backup, restore, postman, openapi)
 	@echo "🔨 Building utility applications..."
@@ -103,6 +104,27 @@ db-up: ## Start only database services
 db-down: ## Stop database services
 	@echo "🗄️ Stopping database services..."
 	@docker compose -f docker-compose.infra.yml down
+
+# Database migrations
+migrate-up: ## Run all pending migrations
+	@echo "🔄 Running database migrations..."
+	@go run cmd/migrate/main.go -command=up
+
+migrate-down: ## Rollback last migration
+	@echo "⏮️ Rolling back last migration..."
+	@go run cmd/migrate/main.go -command=down -steps=1
+
+migrate-status: ## Check migration status
+	@echo "📊 Migration status..."
+	@go run cmd/migrate/main.go -command=status
+
+migrate-create: ## Create new migration (usage: make migrate-create name=add_new_feature)
+	@echo "📝 Creating new migration..."
+	@go run cmd/migrate/main.go -command=create -name=$(name)
+
+migrate-dry-run: ## Preview migrations without applying them
+	@echo "👁️ Migration dry run..."
+	@go run cmd/migrate/main.go -command=up -dry-run
 
 # Production deployment
 deploy-prod: ## Deploy production environment (infrastructure + application)
