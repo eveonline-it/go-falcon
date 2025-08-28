@@ -3,7 +3,6 @@ package routes
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 
@@ -43,131 +42,131 @@ func RegisterSDEAdminRoutes(api huma.API, basePath string, service *services.Ser
 			Body: dto.SDEStatusResponse{
 				Module:  "sde_admin",
 				Status:  "healthy",
-				Message: "SDE admin module is operational",
+				Message: "SDE admin module is operational for in-memory data management",
 			},
 		}, nil
 	})
 
-	// Import SDE data endpoint (admin only)
+	// Get in-memory SDE data status (Super Admin only)
 	huma.Register(api, huma.Operation{
-		OperationID: "importSDEData",
-		Method:      http.MethodPost,
-		Path:        fmt.Sprintf("%s/import", basePath),
-		Summary:     "Import SDE Data to Redis",
-		Description: "Start an import operation to load SDE data from files into Redis for fast access",
-		Tags:        []string{"SDE Admin"},
-		Security: []map[string][]string{
-			{"bearerAuth": {}}, {"cookieAuth": {}},
-		},
-	}, func(ctx context.Context, input *struct {
-		dto.AuthInput
-		Body dto.ImportSDERequest `json:"body"`
-	}) (*dto.ImportSDEOutput, error) {
-		// Validate authentication and super admin permissions
-		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := service.StartImport(ctx, &input.Body)
-		if err != nil {
-			slog.Error("Failed to start SDE import", "error", err)
-			return nil, huma.Error500InternalServerError("Failed to start SDE import", err)
-		}
-
-		return &dto.ImportSDEOutput{Body: *result}, nil
-	})
-
-	// Get import status endpoint (admin only)
-	huma.Register(api, huma.Operation{
-		OperationID: "getSDEImportStatus",
+		OperationID: "getSDEMemoryStatus",
 		Method:      http.MethodGet,
-		Path:        fmt.Sprintf("%s/import/{import_id}/status", basePath),
-		Summary:     "Get SDE Import Status",
-		Description: "Get the current status and progress of an SDE import operation",
+		Path:        fmt.Sprintf("%s/memory", basePath),
+		Summary:     "Get SDE Memory Status",
+		Description: "Returns detailed status of SDE data currently loaded in memory",
 		Tags:        []string{"SDE Admin"},
-		Security: []map[string][]string{
-			{"bearerAuth": {}}, {"cookieAuth": {}},
-		},
 	}, func(ctx context.Context, input *struct {
 		dto.AuthInput
-		ImportID string `path:"import_id" doc:"The ID of the import operation to check"`
-	}) (*dto.ImportStatusOutput, error) {
-		// Validate authentication and super admin permissions
+	}) (*dto.MemoryStatusOutput, error) {
+		// Require super admin access
 		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
 
-		result, err := service.GetImportStatus(ctx, input.ImportID)
+		response, err := service.GetMemoryStatus(ctx)
 		if err != nil {
-			if err.Error() == fmt.Sprintf("import not found: %s", input.ImportID) {
-				return nil, huma.Error404NotFound("Import operation not found")
-			}
-			slog.Error("Failed to get import status", "import_id", input.ImportID, "error", err)
-			return nil, huma.Error500InternalServerError("Failed to get import status", err)
+			return nil, err
 		}
-
-		return &dto.ImportStatusOutput{Body: *result}, nil
+		return &dto.MemoryStatusOutput{Body: *response}, nil
 	})
 
-	// Get SDE statistics endpoint (admin only)
+	// Get SDE statistics (Super Admin only)
 	huma.Register(api, huma.Operation{
 		OperationID: "getSDEStats",
 		Method:      http.MethodGet,
 		Path:        fmt.Sprintf("%s/stats", basePath),
 		Summary:     "Get SDE Statistics",
-		Description: "Get statistics about SDE data currently stored in Redis",
+		Description: "Returns detailed statistics about SDE data loaded in memory",
 		Tags:        []string{"SDE Admin"},
-		Security: []map[string][]string{
-			{"bearerAuth": {}}, {"cookieAuth": {}},
-		},
 	}, func(ctx context.Context, input *struct {
 		dto.AuthInput
 	}) (*dto.SDEStatsOutput, error) {
-		// Validate authentication and super admin permissions
+		// Require super admin access
 		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
 
-		result, err := service.GetSDEStats(ctx)
+		response, err := service.GetStats(ctx)
 		if err != nil {
-			slog.Error("Failed to get SDE stats", "error", err)
-			return nil, huma.Error500InternalServerError("Failed to get SDE statistics", err)
+			return nil, err
 		}
-
-		return &dto.SDEStatsOutput{Body: *result}, nil
+		return &dto.SDEStatsOutput{Body: *response}, nil
 	})
 
-	// Clear SDE data endpoint (admin only)
+	// Reload SDE data from files (Super Admin only)
 	huma.Register(api, huma.Operation{
-		OperationID: "clearSDEData",
-		Method:      http.MethodDelete,
-		Path:        fmt.Sprintf("%s/clear", basePath),
-		Summary:     "Clear SDE Data from Redis",
-		Description: "Remove all SDE data from Redis. Use with caution - this cannot be undone.",
+		OperationID: "reloadSDE",
+		Method:      http.MethodPost,
+		Path:        fmt.Sprintf("%s/reload", basePath),
+		Summary:     "Reload SDE Data",
+		Description: "Reload SDE data from files into memory. Can reload all data types or specific ones.",
 		Tags:        []string{"SDE Admin"},
-		Security: []map[string][]string{
-			{"bearerAuth": {}}, {"cookieAuth": {}},
-		},
 	}, func(ctx context.Context, input *struct {
 		dto.AuthInput
-	}) (*dto.ClearSDEOutput, error) {
-		// Validate authentication and super admin permissions
+		Body dto.ReloadSDERequest `json:"body"`
+	}) (*dto.ReloadSDEOutput, error) {
+		// Require super admin access
 		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
 		if err != nil {
 			return nil, err
 		}
 
-		result, err := service.ClearSDE(ctx)
+		response, err := service.ReloadSDE(ctx, &input.Body)
 		if err != nil {
-			slog.Error("Failed to clear SDE data", "error", err)
-			return nil, huma.Error500InternalServerError("Failed to clear SDE data", err)
+			return nil, err
 		}
-
-		return &dto.ClearSDEOutput{Body: *result}, nil
+		return &dto.ReloadSDEOutput{Body: *response}, nil
 	})
 
-	log.Printf("SDE admin routes registered at %s", basePath)
+	// Verify SDE data integrity (Super Admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "verifySDEIntegrity",
+		Method:      http.MethodGet,
+		Path:        fmt.Sprintf("%s/verify", basePath),
+		Summary:     "Verify SDE Data Integrity",
+		Description: "Verify the integrity and completeness of loaded SDE data",
+		Tags:        []string{"SDE Admin"},
+	}, func(ctx context.Context, input *struct {
+		dto.AuthInput
+	}) (*dto.VerificationOutput, error) {
+		// Require super admin access
+		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := service.VerifyIntegrity(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.VerificationOutput{Body: *response}, nil
+	})
+
+	// Get system information (Super Admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "getSDESystemInfo",
+		Method:      http.MethodGet,
+		Path:        fmt.Sprintf("%s/system", basePath),
+		Summary:     "Get System Information",
+		Description: "Get system information relevant to SDE data management including memory usage",
+		Tags:        []string{"SDE Admin"},
+	}, func(ctx context.Context, input *struct {
+		dto.AuthInput
+	}) (*dto.SystemInfoOutput, error) {
+		// Require super admin access
+		_, err := middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := service.GetSystemInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.SystemInfoOutput{Body: *response}, nil
+	})
+
+	slog.Info("SDE admin routes registered successfully", "endpoints", 6)
 }

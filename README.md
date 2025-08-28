@@ -52,7 +52,7 @@ A production-ready Go gateway application with modular architecture featuring Ch
 - **🌍 Internationalization**: I18N support for multi-language
 - **🎯 Modular Design**: Clean separation with internal modules
 - **⚡ Auto CPU Tuning**: Automatic GOMAXPROCS optimization via automaxprocs
-- **🎮 EVE Online SDE**: Web-based Static Data Export management with automated updates
+- **🎮 EVE Online SDE**: In-memory Static Data Export management with real-time monitoring
 
 ## 🏗️ Clean Architecture
 
@@ -77,7 +77,7 @@ The gateway follows clean architecture principles:
 │   ├── users/                  # User management module
 │   ├── notifications/          # Notification module
 │   ├── scheduler/              # Task scheduling and management service
-│   ├── sde/                    # Web-based SDE management module
+│   ├── sde_admin/              # In-memory SDE administration module
 │   └── telemetry/              # Internal telemetry packages
 ├── pkg/                         # Public packages (can be imported by other projects)
 │   ├── database/               # Database connectors (MongoDB, Redis)
@@ -165,34 +165,40 @@ go build -o restore ./cmd/restore
 ./restore
 ```
 
-### SDE Management
-The project provides web-based EVE Online Static Data Export (SDE) management with automated processing:
+### SDE Administration
+The project provides in-memory EVE Online Static Data Export (SDE) management with administrative controls:
 
-#### Web-Based Management (Recommended)
+#### Administrative Management (Super Admin Required)
 ```bash
-# Check SDE status
-curl http://localhost:8080/sde/status
+# Check SDE module status (public)
+curl http://localhost:8080/sde_admin/status
 
-# Check for new SDE versions
-curl -X POST http://localhost:8080/sde/check
+# Get in-memory data status (requires super admin auth)
+curl -H "Authorization: Bearer <token>" http://localhost:8080/sde_admin/memory
 
-# Start SDE update
-curl -X POST http://localhost:8080/sde/update \
+# Get detailed statistics (requires super admin auth)  
+curl -H "Authorization: Bearer <token>" http://localhost:8080/sde_admin/stats
+
+# Reload SDE data from files (requires super admin auth)
+curl -X POST http://localhost:8080/sde_admin/reload \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"force_update": false}'
+  -d '{"data_types": ["agents", "types"]}'
 
-# Monitor update progress
-curl http://localhost:8080/sde/progress
+# Verify data integrity (requires super admin auth)
+curl -H "Authorization: Bearer <token>" http://localhost:8080/sde_admin/verify
+
+# Get system information (requires super admin auth)
+curl -H "Authorization: Bearer <token>" http://localhost:8080/sde_admin/system
 ```
 
-
 **Features:**
-- 🔄 **Automated Processing**: Background download and conversion of SDE data
-- 📊 **Progress Tracking**: Real-time progress updates during SDE processing  
-- 🕰️ **Scheduled Checks**: Automatic checking for new versions every 6 hours
-- 💾 **Redis Storage**: Processed SDE data stored in Redis for fast access
-- 🌐 **REST API**: Complete web interface for SDE management
-- 🔔 **Notifications**: Alerts when new SDE versions are available
+- 🧠 **In-Memory Storage**: Ultra-fast nanosecond data access without network overhead
+- 📊 **Real-time Monitoring**: Live memory usage and performance statistics
+- 🔄 **Hot Reload**: Refresh data from files without application restart
+- 🔒 **Super Admin Protected**: All operations require super administrator permissions
+- 🌐 **REST API**: Complete administrative interface for SDE management
+- 📈 **Performance Metrics**: Access pattern analysis and memory optimization
 
 ## 🔧 Configuration
 

@@ -181,4 +181,12 @@ type SDEService interface {
 
 	// Service status
 	IsLoaded() bool
+
+	// Memory inspection and management operations
+	GetLoadedDataTypes() []string
+	GetDataTypeStats(dataType string) DataTypeStats
+	GetTotalMemoryUsage() int64
+	GetLoadStatus() map[string]DataTypeStatus
+	ReloadDataType(dataType string) error
+	ReloadAll() error
 }

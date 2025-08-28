@@ -1,8 +1,7 @@
 package dto
 
 import (
-	"go-falcon/internal/sde_admin/models"
-	"time"
+	"go-falcon/pkg/sde"
 )
 
 // StatusOutput represents the output for module status endpoint
@@ -17,54 +16,44 @@ type SDEStatusResponse struct {
 	Message string `json:"message,omitempty" doc:"Additional status message"`
 }
 
-// ImportSDEOutput represents the output for starting an SDE import
-type ImportSDEOutput struct {
-	Body ImportSDEResponse `json:"body"`
+// ReloadSDEOutput represents the output for reloading SDE data
+type ReloadSDEOutput struct {
+	Body ReloadSDEResponse `json:"body"`
 }
 
-// ImportSDEResponse represents the response after starting an SDE import
-type ImportSDEResponse struct {
-	ImportID  string `json:"import_id" doc:"Unique ID for tracking this import operation"`
-	Status    string `json:"status" doc:"Current status of the import operation"`
-	Message   string `json:"message" doc:"Human-readable status message"`
-	StartTime string `json:"start_time" doc:"Timestamp when the import was started"`
+// ReloadSDEResponse represents the response after reloading SDE data
+type ReloadSDEResponse struct {
+	Success    bool     `json:"success" doc:"Whether the reload operation was successful"`
+	Message    string   `json:"message" doc:"Human-readable status message"`
+	DataTypes  []string `json:"data_types" doc:"List of data types that were reloaded"`
+	Duration   string   `json:"duration,omitempty" doc:"Duration of the reload operation"`
+	ReloadedAt string   `json:"reloaded_at" doc:"Timestamp when the reload was completed"`
+	Error      string   `json:"error,omitempty" doc:"Error message if reload failed"`
 }
 
-// ImportStatusOutput represents the output for import status endpoint
-type ImportStatusOutput struct {
-	Body ImportStatusResponse `json:"body"`
+// MemoryStatusOutput represents the output for memory status endpoint
+type MemoryStatusOutput struct {
+	Body MemoryStatusResponse `json:"body"`
 }
 
-// ImportStatusResponse represents the current status of an import operation
-type ImportStatusResponse struct {
-	ImportID  string                 `json:"import_id" doc:"Unique ID of the import operation"`
-	Status    string                 `json:"status" doc:"Current status: pending, running, completed, failed"`
-	StartTime *string                `json:"start_time,omitempty" doc:"When the import started"`
-	EndTime   *string                `json:"end_time,omitempty" doc:"When the import completed/failed"`
-	Duration  *string                `json:"duration,omitempty" doc:"Total duration of the import"`
-	Progress  ImportProgressResponse `json:"progress" doc:"Detailed progress information"`
-	Error     string                 `json:"error,omitempty" doc:"Error message if import failed"`
-	CreatedAt string                 `json:"created_at" doc:"When the import was created"`
-	UpdatedAt string                 `json:"updated_at" doc:"When the status was last updated"`
+// MemoryStatusResponse represents the current in-memory data status
+type MemoryStatusResponse struct {
+	LoadedDataTypes  []string                          `json:"loaded_data_types" doc:"List of currently loaded data types"`
+	TotalMemoryUsage int64                             `json:"total_memory_usage" doc:"Total estimated memory usage in bytes"`
+	TotalDataTypes   int                               `json:"total_data_types" doc:"Total number of data types loaded"`
+	TotalItems       int                               `json:"total_items" doc:"Total number of items across all data types"`
+	DataTypeStatuses map[string]DataTypeStatusInMemory `json:"data_type_statuses" doc:"Detailed status of each data type"`
+	IsLoaded         bool                              `json:"is_loaded" doc:"Whether SDE data is loaded in memory"`
+	LastReloaded     *string                           `json:"last_reloaded,omitempty" doc:"Timestamp when data was last reloaded"`
 }
 
-// ImportProgressResponse represents detailed progress information
-type ImportProgressResponse struct {
-	TotalSteps      int                               `json:"total_steps" doc:"Total number of steps in the import"`
-	CompletedSteps  int                               `json:"completed_steps" doc:"Number of completed steps"`
-	CurrentStep     string                            `json:"current_step" doc:"Description of the current step"`
-	PercentComplete float64                           `json:"percent_complete" doc:"Completion percentage (0-100)"`
-	DataTypes       map[string]DataTypeStatusResponse `json:"data_types" doc:"Status of each data type being imported"`
-}
-
-// DataTypeStatusResponse represents the status of importing a specific data type
-type DataTypeStatusResponse struct {
-	Name            string  `json:"name" doc:"Name of the data type"`
-	Status          string  `json:"status" doc:"Status: pending, processing, completed, failed"`
-	Count           int     `json:"count" doc:"Total number of items to import"`
-	Processed       int     `json:"processed" doc:"Number of items processed"`
-	PercentComplete float64 `json:"percent_complete" doc:"Completion percentage for this data type (0-100)"`
-	Error           string  `json:"error,omitempty" doc:"Error message if this data type failed"`
+// DataTypeStatusInMemory represents the status of a data type in memory
+type DataTypeStatusInMemory struct {
+	Name        string `json:"name" doc:"Name of the data type"`
+	Loaded      bool   `json:"loaded" doc:"Whether this data type is loaded"`
+	Count       int    `json:"count" doc:"Number of items loaded"`
+	MemoryBytes int64  `json:"memory_bytes" doc:"Estimated memory usage in bytes"`
+	FilePath    string `json:"file_path" doc:"Source file path"`
 }
 
 // SDEStatsOutput represents the output for SDE statistics endpoint
@@ -72,89 +61,104 @@ type SDEStatsOutput struct {
 	Body SDEStatsResponse `json:"body"`
 }
 
-// SDEStatsResponse represents statistics about SDE data in Redis
+// SDEStatsResponse represents statistics about SDE data in memory
 type SDEStatsResponse struct {
-	TotalKeys       int                      `json:"total_keys" doc:"Total number of SDE keys in Redis"`
-	DataTypes       map[string]DataTypeStats `json:"data_types" doc:"Statistics for each data type"`
-	LastImport      *string                  `json:"last_import,omitempty" doc:"Timestamp of last successful import"`
-	RedisMemoryUsed string                   `json:"redis_memory_used" doc:"Memory used by Redis"`
+	TotalItems      int                              `json:"total_items" doc:"Total number of items loaded in memory"`
+	TotalMemoryUsed int64                            `json:"total_memory_used" doc:"Total estimated memory usage in bytes"`
+	DataTypes       map[string]DataTypeStatsResponse `json:"data_types" doc:"Statistics for each data type"`
+	IsLoaded        bool                             `json:"is_loaded" doc:"Whether SDE data is loaded in memory"`
+	LoadedCount     int                              `json:"loaded_count" doc:"Number of data types loaded"`
 }
 
-// DataTypeStats represents statistics for a specific data type
-type DataTypeStats struct {
-	Count      int    `json:"count" doc:"Number of items stored"`
-	MemoryUsed string `json:"memory_used,omitempty" doc:"Estimated memory used"`
-	KeyPattern string `json:"key_pattern" doc:"Redis key pattern used"`
+// DataTypeStatsResponse represents statistics for a specific data type
+type DataTypeStatsResponse struct {
+	Count       int    `json:"count" doc:"Number of items loaded"`
+	MemoryBytes int64  `json:"memory_bytes" doc:"Estimated memory used in bytes"`
+	Loaded      bool   `json:"loaded" doc:"Whether this data type is loaded"`
+	FilePath    string `json:"file_path" doc:"Source file path"`
 }
 
-// ClearSDEOutput represents the output for clearing SDE data
-type ClearSDEOutput struct {
-	Body ClearSDEResponse `json:"body"`
-}
+// ConvertToMemoryStatus converts SDE service data to MemoryStatusResponse
+func ConvertToMemoryStatus(loadStatus map[string]sde.DataTypeStatus, loadedTypes []string, totalMemory int64, isLoaded bool) *MemoryStatusResponse {
+	totalItems := 0
+	dataTypeStatuses := make(map[string]DataTypeStatusInMemory)
 
-// ClearSDEResponse represents the response after clearing SDE data
-type ClearSDEResponse struct {
-	Success     bool   `json:"success" doc:"Whether the clear operation was successful"`
-	Message     string `json:"message" doc:"Human-readable status message"`
-	KeysDeleted int    `json:"keys_deleted" doc:"Number of keys deleted from Redis"`
-}
-
-// ConvertFromModel converts models.ImportStatus to ImportStatusResponse
-func ConvertFromModel(status *models.ImportStatus) *ImportStatusResponse {
-	response := &ImportStatusResponse{
-		ImportID:  status.ID,
-		Status:    status.Status,
-		Error:     status.Error,
-		CreatedAt: status.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: status.UpdatedAt.Format(time.RFC3339),
-	}
-
-	if status.StartTime != nil {
-		startTime := status.StartTime.Format(time.RFC3339)
-		response.StartTime = &startTime
-	}
-
-	if status.EndTime != nil {
-		endTime := status.EndTime.Format(time.RFC3339)
-		response.EndTime = &endTime
-
-		if status.StartTime != nil {
-			duration := status.EndTime.Sub(*status.StartTime)
-			durationStr := duration.String()
-			response.Duration = &durationStr
+	for name, status := range loadStatus {
+		totalItems += status.Count
+		dataTypeStatuses[name] = DataTypeStatusInMemory{
+			Name:        status.Name,
+			Loaded:      status.Loaded,
+			Count:       status.Count,
+			MemoryBytes: status.MemoryBytes,
+			FilePath:    "", // Will be populated by the service
 		}
 	}
 
-	// Convert progress
-	response.Progress = ImportProgressResponse{
-		TotalSteps:     status.Progress.TotalSteps,
-		CompletedSteps: status.Progress.CompletedSteps,
-		CurrentStep:    status.Progress.CurrentStep,
-		DataTypes:      make(map[string]DataTypeStatusResponse),
+	return &MemoryStatusResponse{
+		LoadedDataTypes:  loadedTypes,
+		TotalMemoryUsage: totalMemory,
+		TotalDataTypes:   len(loadedTypes),
+		TotalItems:       totalItems,
+		DataTypeStatuses: dataTypeStatuses,
+		IsLoaded:         isLoaded,
 	}
+}
 
-	// Calculate overall progress percentage
-	if status.Progress.TotalSteps > 0 {
-		response.Progress.PercentComplete = float64(status.Progress.CompletedSteps) / float64(status.Progress.TotalSteps) * 100
-	}
+// ConvertToStatsResponse converts SDE service data to SDEStatsResponse
+func ConvertToStatsResponse(loadStatus map[string]sde.DataTypeStatus, totalMemory int64, isLoaded bool) *SDEStatsResponse {
+	totalItems := 0
+	loadedCount := 0
+	dataTypes := make(map[string]DataTypeStatsResponse)
 
-	// Convert data type statuses
-	for name, dataType := range status.Progress.DataTypes {
-		dtResponse := DataTypeStatusResponse{
-			Name:      dataType.Name,
-			Status:    dataType.Status,
-			Count:     dataType.Count,
-			Processed: dataType.Processed,
-			Error:     dataType.Error,
+	for name, status := range loadStatus {
+		totalItems += status.Count
+		if status.Loaded {
+			loadedCount++
 		}
 
-		// Calculate percentage for this data type
-		if dataType.Count > 0 {
-			dtResponse.PercentComplete = float64(dataType.Processed) / float64(dataType.Count) * 100
+		dataTypes[name] = DataTypeStatsResponse{
+			Count:       status.Count,
+			MemoryBytes: status.MemoryBytes,
+			Loaded:      status.Loaded,
+			FilePath:    "", // Will be populated by the service
 		}
-
-		response.Progress.DataTypes[name] = dtResponse
 	}
 
-	return response
+	return &SDEStatsResponse{
+		TotalItems:      totalItems,
+		TotalMemoryUsed: totalMemory,
+		DataTypes:       dataTypes,
+		IsLoaded:        isLoaded,
+		LoadedCount:     loadedCount,
+	}
+}
+
+// VerificationOutput represents the output for data verification endpoint
+type VerificationOutput struct {
+	Body VerificationResponse `json:"body"`
+}
+
+// VerificationResponse represents the result of data integrity verification
+type VerificationResponse struct {
+	Status         string   `json:"status" doc:"Overall health status: healthy, warning, critical"`
+	HealthScore    float64  `json:"health_score" doc:"Health score from 0-100"`
+	TotalDataTypes int      `json:"total_data_types" doc:"Total number of data types"`
+	LoadedTypes    int      `json:"loaded_types" doc:"Number of successfully loaded data types"`
+	Issues         []string `json:"issues" doc:"List of detected issues"`
+	VerifiedAt     string   `json:"verified_at" doc:"Timestamp when verification was performed"`
+}
+
+// SystemInfoOutput represents the output for system information endpoint
+type SystemInfoOutput struct {
+	Body SystemInfoResponse `json:"body"`
+}
+
+// SystemInfoResponse represents system information
+type SystemInfoResponse struct {
+	IsLoaded          bool    `json:"is_loaded" doc:"Whether SDE data is loaded"`
+	LoadedDataTypes   int     `json:"loaded_data_types" doc:"Number of loaded data types"`
+	EstimatedMemoryMB float64 `json:"estimated_memory_mb" doc:"Estimated memory usage in MB"`
+	SystemMemoryMB    float64 `json:"system_memory_mb" doc:"Current system memory usage in MB"`
+	GoRoutines        int     `json:"go_routines" doc:"Number of active goroutines"`
+	Timestamp         string  `json:"timestamp" doc:"Current timestamp"`
 }

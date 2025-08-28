@@ -282,14 +282,14 @@ type CharacterAttribute struct {
 
 // Skin represents an EVE Online ship skin from the SDE
 type Skin struct {
-	AllowCCPDevs       bool   `json:"allowCCPDevs"`
-	InternalName       string `json:"internalName"`
-	SkinID             int    `json:"skinID"`
-	SkinMaterialID     int    `json:"skinMaterialID"`
+	AllowCCPDevs       bool        `json:"allowCCPDevs"`
+	InternalName       string      `json:"internalName"`
+	SkinID             int         `json:"skinID"`
+	SkinMaterialID     int         `json:"skinMaterialID"`
 	SkinDescription    interface{} `json:"skinDescription,omitempty"`
-	Types              []int  `json:"types"`
-	VisibleSerenity    bool   `json:"visibleSerenity"`
-	VisibleTranquility bool   `json:"visibleTranquility"`
+	Types              []int       `json:"types"`
+	VisibleSerenity    bool        `json:"visibleSerenity"`
+	VisibleTranquility bool        `json:"visibleTranquility"`
 }
 
 // StaStation represents an EVE Online station from the SDE

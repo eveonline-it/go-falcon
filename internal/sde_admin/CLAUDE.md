@@ -2,39 +2,38 @@
 
 ## Overview
 
-The SDE Admin module provides administrative functionality for managing EVE Online Static Data Export (SDE) data in Redis. It allows super administrators to import SDE data from the local file system into Redis for high-performance access and provides progress tracking and statistics.
+The SDE Admin module provides administrative functionality for managing EVE Online Static Data Export (SDE) data in memory. It allows super administrators to monitor, reload, and verify SDE data that is loaded from the local file system into application memory for ultra-high-performance access.
 
 ## Architecture
 
 ### Core Components
 
-- **Import Management**: Start and monitor SDE data imports from JSON files to Redis
-- **Progress Tracking**: Real-time import progress with detailed statistics per data type
-- **Data Statistics**: Monitor Redis storage usage and key counts for SDE data
-- **Data Management**: Clear SDE data from Redis when needed
+- **Memory Monitoring**: Real-time visibility into in-memory SDE data status and usage
+- **Data Reloading**: Hot reload SDE data from files without application restart
+- **Integrity Verification**: Validate completeness and consistency of loaded data
+- **Performance Statistics**: Monitor memory usage and item counts per data type
+- **System Information**: Runtime metrics and memory utilization tracking
 
 ### Files Structure
 
 ```
 internal/sde_admin/
 ├── dto/                 # Data transfer objects for API requests/responses
-│   ├── inputs.go       # Import request structures
+│   ├── inputs.go       # Reload request structures
 │   └── outputs.go      # Response structures and converters
-├── models/             # Data models for import tracking
-│   └── models.go       # Import status and progress structures
 ├── routes/             # HTTP route handlers
-│   └── routes.go       # Huma v2 route registrations
+│   └── routes.go       # Huma v2 route registrations for memory management
 ├── services/           # Business logic
-│   └── service.go      # Import orchestration and Redis operations
+│   └── service.go      # SDE in-memory data inspection and management
 ├── module.go           # Module initialization and integration
 └── CLAUDE.md           # This documentation
 ```
 
-## SDE Data Import System
+## SDE In-Memory Data Management
 
 ### Fully Supported Data Types (43 total)
 
-The module can import all SDE data types supported by the `pkg/sde` service - complete coverage of all EVE Online SDE data files:
+The module can monitor and manage all SDE data types supported by the `pkg/sde` service - complete coverage of all EVE Online SDE data files loaded in memory:
 
 - **agents**: Mission agents with location and corporation info
 - **categories**: Item categories with internationalized names
@@ -82,66 +81,29 @@ The module can import all SDE data types supported by the `pkg/sde` service - co
 
 **Complete Implementation**: All 43 SDE data files from the EVE Online Static Data Export are now fully implemented and available for import.
 
-### Redis Storage Structure
+### In-Memory Storage Structure
 
-SDE data is stored in Redis using the following key patterns:
+SDE data is stored in application memory using optimized Go data structures in the `pkg/sde` service:
 
-```
-sde:agents:{agent_id}                    # Agent data as JSON
-sde:categories:{category_id}             # Category data as JSON
-sde:blueprints:{blueprint_id}            # Blueprint data as JSON
-sde:marketGroups:{group_id}              # Market group data as JSON
-sde:metaGroups:{group_id}                # Meta group data as JSON
-sde:npcCorporations:{corp_id}            # NPC corporation data as JSON
-sde:typeIDs:{type_id}                    # Basic type info as JSON
-sde:types:{type_id}                      # Full type data as JSON
-sde:typeMaterials:{type_id}              # Type materials as JSON array
-sde:races:{race_id}                      # Race data as JSON
-sde:factions:{faction_id}                # Faction data as JSON
-sde:bloodlines:{bloodline_id}            # Bloodline data as JSON
-sde:groups:{group_id}                    # Group data as JSON
-sde:dogmaAttributes:{attribute_id}       # Dogma attribute data as JSON
-sde:ancestries:{ancestry_id}             # Ancestry data as JSON
-sde:certificates:{certificate_id}        # Certificate data as JSON
-sde:characterAttributes:{attribute_id}   # Character attribute data as JSON
-sde:skins:{skin_id}                      # Skin data as JSON
-sde:staStations:{station_id}             # Station data as JSON
-sde:dogmaEffects:{effect_id}             # Dogma effect data as JSON
-sde:iconIDs:{icon_id}                    # Icon ID data as JSON
-sde:graphicIDs:{graphic_id}              # Graphic ID data as JSON
-sde:typeDogma:{type_id}                  # Type dogma data as JSON
-sde:invFlags:{flag_id}                   # Inventory flag data as JSON
-sde:stationServices:{service_id}         # Station service data as JSON
-sde:stationOperations:{operation_id}     # Station operation data as JSON
-sde:researchAgents:{agent_id}            # Research agent data as JSON
-sde:agentsInSpace:{agent_id}             # Agent in space data as JSON
-sde:contrabandTypes:{type_id}            # Contraband type data as JSON
-sde:corporationActivities:{activity_id} # Corporation activity data as JSON
-sde:invItems:{item_id}                   # Inventory item data as JSON
-sde:npcCorporationDivisions:{division_id} # NPC corporation division data as JSON
-sde:controlTowerResources:{tower_id}   # Control tower resources data as JSON
-sde:dogmaAttributeCategories:{category_id} # Dogma attribute category data as JSON
-sde:invNames:{item_id}                 # Inventory name data as JSON
-sde:invPositions:{item_id}             # Inventory position data as JSON
-sde:invUniqueNames:{item_id}           # Inventory unique name data as JSON
-sde:planetResources:{resource_id}      # Planet resource data as JSON
-sde:planetSchematics:{schematic_id}    # Planet schematic data as JSON
-sde:skinLicenses:{license_id}          # Skin license data as JSON
-sde:skinMaterials:{material_id}        # Skin material data as JSON
-sde:sovereigntyUpgrades:{upgrade_id}   # Sovereignty upgrade data as JSON
-sde:translationLanguages:{language_code} # Translation language data as JSON
+- **Maps**: Fast O(1) lookups for keyed data (agents, types, categories, etc.)
+- **Slices**: Array-based data for ordered information (stations, inventory items, etc.)
+- **Pointers**: Memory-efficient storage with shared references
+- **Type Safety**: Strongly typed structs with JSON unmarshaling support
 
-sde:metadata:last_import                 # Timestamp of last successful import
-```
+**Memory Benefits**:
+- **Ultra-fast access**: Nanosecond lookups vs milliseconds for network calls
+- **No serialization overhead**: Direct struct access vs JSON parsing
+- **Efficient memory usage**: ~300MB vs ~610MB Redis overhead
+- **Thread-safe**: Concurrent read access with minimal locking
 
-### Import Process
+### Data Management Process
 
-1. **Initialization**: Create import status record with unique ID
-2. **Data Loading**: Ensure SDE service is loaded from local files
-3. **Batch Processing**: Import data in configurable batches (default: 1000 items)
-4. **Progress Tracking**: Update real-time progress for each data type
-5. **Error Handling**: Graceful error handling with detailed error messages
-6. **Completion**: Mark import as completed with duration statistics
+1. **Loading**: Automatic lazy-loading of SDE data on first access from JSON files
+2. **Monitoring**: Real-time visibility into loaded data types, counts, and memory usage
+3. **Reloading**: Hot reload individual data types or complete SDE dataset
+4. **Verification**: Integrity checks to ensure data completeness and consistency
+5. **Statistics**: Detailed memory usage and performance metrics
+6. **System Info**: Runtime monitoring with Go runtime statistics
 
 ## API Endpoints
 
@@ -159,7 +121,7 @@ Returns the health and status of the SDE admin module.
   "body": {
     "module": "sde_admin",
     "status": "healthy",
-    "message": "SDE admin module is operational"
+    "message": "SDE admin module is operational for in-memory data management"
   }
 }
 ```
@@ -168,90 +130,40 @@ Returns the health and status of the SDE admin module.
 
 All administrative endpoints require **Super Administrator** permissions.
 
-#### Start SDE Import
+#### Get SDE Memory Status
 ```
-POST /sde_admin/import
+GET /sde_admin/memory
 ```
 **Authentication:** Super Admin Required
 **Permission:** Super Administrator group membership
 
-Start an import operation to load SDE data from files into Redis.
-
-**Request Body:**
-```json
-{
-  "data_types": ["agents", "types", "categories"],  // Optional: specific data types
-  "force": false,                                   // Optional: overwrite existing data
-  "batch_size": 1000                               // Optional: batch processing size
-}
-```
+Get detailed status of SDE data currently loaded in memory.
 
 **Response:**
 ```json
 {
   "body": {
-    "import_id": "550e8400-e29b-41d4-a716-446655440000",
-    "status": "pending",
-    "message": "Import started for 3 data types",
-    "start_time": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
-**Parameters:**
-- `data_types`: Array of data type names to import (empty = all types)
-- `force`: Whether to overwrite existing Redis keys (default: false)
-- `batch_size`: Number of items to process per batch (default: 1000, range: 100-10000)
-
-#### Get Import Status
-```
-GET /sde_admin/import/{import_id}/status
-```
-**Authentication:** Super Admin Required
-
-Get real-time status and progress of an import operation.
-
-**Response:**
-```json
-{
-  "body": {
-    "import_id": "550e8400-e29b-41d4-a716-446655440000",
-    "status": "running",
-    "start_time": "2024-01-15T10:30:00Z",
-    "duration": null,
-    "progress": {
-      "total_steps": 9,
-      "completed_steps": 3,
-      "current_step": "Processing types (4/9)",
-      "percent_complete": 33.3,
+    "loaded_data_types": ["agents", "types", "categories"],
+    "total_data_types": 43,
+    "memory_usage": {
+      "total_estimated_mb": 245.7,
       "data_types": {
         "agents": {
-          "name": "agents",
-          "status": "completed",
           "count": 15420,
-          "processed": 15420,
-          "percent_complete": 100.0
+          "estimated_memory_mb": 12.3,
+          "status": "loaded"
         },
         "types": {
-          "name": "types",
-          "status": "processing", 
           "count": 87451,
-          "processed": 34500,
-          "percent_complete": 39.4
+          "estimated_memory_mb": 156.8,
+          "status": "loaded"
         }
       }
     },
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:32:45Z"
+    "last_reload": "2024-01-15T10:35:22Z"
   }
 }
 ```
-
-**Status Values:**
-- `pending`: Import queued but not started
-- `running`: Import in progress
-- `completed`: Import finished successfully
-- `failed`: Import failed with error
 
 #### Get SDE Statistics
 ```
@@ -259,104 +171,198 @@ GET /sde_admin/stats
 ```
 **Authentication:** Super Admin Required
 
-Get statistics about SDE data currently stored in Redis.
+Get detailed statistics about SDE data loaded in memory including performance metrics.
 
 **Response:**
 ```json
 {
   "body": {
-    "total_keys": 125843,
+    "total_data_types": 43,
+    "loaded_data_types": 35,
+    "total_items": 125843,
+    "memory_usage": {
+      "estimated_total_mb": 245.7,
+      "go_runtime_mb": 312.5,
+      "system_memory_mb": 1024.0
+    },
     "data_types": {
       "agents": {
         "count": 15420,
-        "key_pattern": "sde:agents:*"
+        "estimated_memory_mb": 12.3,
+        "last_accessed": "2024-01-15T10:30:00Z"
       },
       "types": {
         "count": 87451,
-        "key_pattern": "sde:types:*"
+        "estimated_memory_mb": 156.8,
+        "last_accessed": "2024-01-15T10:32:15Z"
       }
     },
-    "last_import": "2024-01-15T10:35:22Z",
-    "redis_memory_used": "245.7M"
+    "performance": {
+      "average_access_time_ns": 150,
+      "total_access_count": 45632
+    }
   }
 }
 ```
 
-#### Clear SDE Data
+#### Reload SDE Data
 ```
-DELETE /sde_admin/clear
+POST /sde_admin/reload
 ```
 **Authentication:** Super Admin Required
 
-Remove all SDE data from Redis. **Use with caution - this cannot be undone.**
+Reload SDE data from files into memory. Can reload all data types or specific ones.
+
+**Request Body:**
+```json
+{
+  "data_types": ["agents", "types", "categories"]  // Optional: specific data types
+}
+```
 
 **Response:**
 ```json
 {
   "body": {
     "success": true,
-    "message": "Successfully deleted 125843 SDE keys",
-    "keys_deleted": 125843
+    "message": "Successfully reloaded 3 data types from files",
+    "reloaded_data_types": ["agents", "types", "categories"],
+    "total_items": 125843,
+    "duration_seconds": 2.45,
+    "memory_usage_mb": 245.7
   }
 }
 ```
 
-## Progress Tracking System
+**Parameters:**
+- `data_types`: Array of data type names to reload (empty = all types)
 
-### Import Status Model
+#### Verify SDE Data Integrity
+```
+GET /sde_admin/verify
+```
+**Authentication:** Super Admin Required
 
-Import operations are tracked with comprehensive status information:
+Verify the integrity and completeness of loaded SDE data.
 
-```go
-type ImportStatus struct {
-    ID          string                // Unique import identifier
-    Status      string               // pending, running, completed, failed
-    StartTime   *time.Time           // When import started
-    EndTime     *time.Time           // When import finished
-    Progress    ImportProgress       // Detailed progress information
-    Error       string               // Error message if failed
-    CreatedAt   time.Time            // When import was created
-    UpdatedAt   time.Time            // Last status update
-}
-
-type ImportProgress struct {
-    TotalSteps     int                          // Total number of data types
-    CompletedSteps int                          // Completed data types
-    CurrentStep    string                       // Current operation description
-    DataTypes      map[string]DataTypeStatus    // Per-type progress
-}
-
-type DataTypeStatus struct {
-    Name      string    // Data type name
-    Status    string    // pending, processing, completed, failed
-    Count     int       // Total items to process
-    Processed int       // Items processed so far
-    Error     string    // Error message if failed
+**Response:**
+```json
+{
+  "body": {
+    "valid": true,
+    "message": "All SDE data integrity checks passed",
+    "checks": {
+      "data_completeness": {
+        "valid": true,
+        "loaded_types": 43,
+        "expected_types": 43,
+        "missing_types": []
+      },
+      "data_consistency": {
+        "valid": true,
+        "total_items": 125843,
+        "validation_errors": []
+      },
+      "memory_integrity": {
+        "valid": true,
+        "estimated_memory_mb": 245.7,
+        "fragmentation_ratio": 0.12
+      }
+    },
+    "verification_time": "2024-01-15T10:35:22Z"
+  }
 }
 ```
 
-### Progress Storage
+#### Get System Information
+```
+GET /sde_admin/system
+```
+**Authentication:** Super Admin Required
 
-- **Active Imports**: Stored in memory (`sync.Map`) for fast access during import
-- **Persistence**: All status updates saved to MongoDB `sde_import_status` collection
-- **Cleanup**: Active imports removed from memory when completed/failed
+Get system information relevant to SDE data management including memory usage.
 
-### Real-time Updates
+**Response:**
+```json
+{
+  "body": {
+    "go_runtime": {
+      "version": "go1.24.5",
+      "goroutines": 45,
+      "memory_mb": 312.5,
+      "gc_cycles": 1234
+    },
+    "system": {
+      "total_memory_mb": 16384,
+      "available_memory_mb": 8192,
+      "cpu_cores": 8
+    },
+    "sde_service": {
+      "memory_usage_mb": 245.7,
+      "loaded_data_types": 43,
+      "uptime_seconds": 3600,
+      "total_access_count": 45632
+    }
+  }
+}
+```
 
-Progress is updated in real-time during import:
+## Memory Management System
 
-1. **Batch Updates**: Progress updated every batch (typically every 1000 items)
-2. **Step Transitions**: Status updated when moving between data types
-3. **Error Capture**: Detailed error information captured and stored
-4. **Performance Metrics**: Duration and throughput statistics
+### Data Type Status Model
+
+Memory-loaded data is tracked with comprehensive status information:
+
+```go
+type DataTypeStatus struct {
+    Name              string    // Data type name (e.g., "agents", "types")
+    Status            string    // "loaded", "not_loaded", "loading", "error"
+    Count             int       // Total items loaded for this type
+    EstimatedMemoryMB float64   // Estimated memory usage in megabytes
+    LastAccessed      time.Time // Last time this data type was accessed
+    LastReloaded      time.Time // Last time this data type was reloaded
+    Error             string    // Error message if loading failed
+}
+
+type DataTypeStats struct {
+    Name              string    // Data type name
+    Count             int       // Total items in memory
+    EstimatedMemoryMB float64   // Memory estimation using reflection
+    Status            string    // Current status
+}
+
+type LoadStatus struct {
+    LoadedDataTypes   []string            // List of currently loaded data types
+    TotalDataTypes    int                // Total available data types
+    MemoryUsage       MemoryUsageInfo    // Memory usage statistics
+    LastReload        time.Time          // Last full or partial reload time
+}
+```
+
+### Memory Management
+
+- **Lazy Loading**: Data types loaded on first access from JSON files
+- **Hot Reload**: Individual data types or complete dataset can be reloaded without restart
+- **Thread Safety**: All operations are thread-safe for concurrent access
+- **Memory Estimation**: Accurate memory usage calculation using Go reflection
+
+### Real-time Monitoring
+
+Memory status is available in real-time:
+
+1. **Data Type Counts**: Number of items loaded per data type
+2. **Memory Usage**: Estimated memory consumption per type and total
+3. **Access Tracking**: Last access time for performance monitoring
+4. **Reload History**: Track when data was last refreshed from files
 
 ## Error Handling
 
-### Import Error Management
+### Memory Management Error Handling
 
-- **Data Type Errors**: Individual data type failures don't stop entire import
-- **Batch Retry**: Failed batches are retried with exponential backoff
-- **Graceful Degradation**: System continues operating if Redis is temporarily unavailable
+- **Data Type Errors**: Individual data type loading failures are isolated and reported
+- **File Access**: Graceful handling of missing or corrupted SDE data files
+- **Memory Limits**: Monitoring and warnings for excessive memory usage
+- **Reload Failures**: Partial reload failures preserve existing data in memory
 - **Error Logging**: Comprehensive error logging with context information
 
 ### HTTP Error Responses
@@ -364,8 +370,8 @@ Progress is updated in real-time during import:
 - **400 Bad Request**: Invalid request parameters (e.g., invalid data type names)
 - **401 Unauthorized**: Missing or invalid authentication token
 - **403 Forbidden**: User does not have Super Administrator permissions
-- **404 Not Found**: Import ID not found
-- **500 Internal Server Error**: System errors (Redis connection, file access, etc.)
+- **404 Not Found**: Requested data type or resource not found
+- **500 Internal Server Error**: System errors (file access, memory allocation, etc.)
 
 ### Error Response Format
 
@@ -382,97 +388,97 @@ Progress is updated in real-time during import:
 
 ## Performance Considerations
 
-### Batch Processing
+### Memory Management
 
-- **Configurable Batch Size**: Default 1000 items, adjustable from 100-10000
-- **Memory Efficiency**: Processes data in chunks to avoid memory exhaustion
-- **Redis Pipeline**: Uses Redis pipelines for efficient bulk operations
-- **Progress Updates**: Minimal database writes for progress tracking
+- **Lazy Loading**: Data loaded only when accessed, minimizing initial memory footprint
+- **Efficient Storage**: Direct Go struct access without serialization overhead
+- **Thread Safety**: Concurrent read access with minimal locking overhead
+- **Memory Estimation**: Real-time memory usage tracking using reflection
 
-### Import Performance
+### In-Memory Performance
 
-- **Expected Throughput**: 5000-10000 items per second (depending on data complexity)
-- **Memory Usage**: ~50-200MB during import (depending on batch size)
-- **Redis Storage**: ~100-500MB for complete SDE dataset
-- **Duration**: Complete import typically takes 2-5 minutes
+- **Access Speed**: Nanosecond O(1) lookups vs milliseconds for Redis network calls
+- **Memory Usage**: ~300MB for complete SDE dataset (vs ~610MB Redis overhead)
+- **No Serialization**: Direct struct access eliminates JSON parsing overhead
+- **Cache Efficiency**: CPU cache-friendly data structures improve performance
 
 ### Monitoring
 
-- **Active Import Tracking**: Real-time monitoring of running imports
-- **Memory Usage**: Redis memory usage reporting
-- **Key Count Statistics**: Per-data-type key counts and patterns
-- **Last Import Tracking**: Timestamp of most recent successful import
+- **Real-time Memory Tracking**: Live monitoring of memory usage per data type
+- **Access Pattern Analysis**: Track data type usage for optimization
+- **System Resource Monitoring**: Go runtime statistics and system memory usage
+- **Performance Metrics**: Access time measurements and throughput analysis
 
 ## Security Features
 
 ### Super Administrator Only
 
 All administrative operations require Super Administrator group membership:
-- Import operations cannot be initiated by regular users
-- Progress monitoring restricted to administrators
-- Data clearing requires highest privilege level
+- Memory status operations cannot be accessed by regular users
+- Data reloading restricted to administrators
+- System information requires highest privilege level
 - Statistical data access limited to administrators
 
 ### Audit Trail
 
 - **Operation Logging**: All administrative actions logged with operator information
-- **Import History**: Complete history of import operations maintained
+- **Reload History**: Complete history of data reload operations maintained
 - **Error Logging**: Failed operations logged with detailed error information
-- **Performance Metrics**: Import duration and throughput logged for analysis
+- **Performance Metrics**: Memory usage and access patterns logged for analysis
 
 ## Integration Points
 
 ### SDE Service Integration
 
-- **Data Source**: Loads data from `pkg/sde` service (file-based)
-- **Service Validation**: Ensures SDE service is loaded before import
-- **Type Compatibility**: Supports all SDE data types from the service
-- **Error Propagation**: SDE service errors handled gracefully
+- **Direct Interface**: Direct integration with `pkg/sde` service interface
+- **Service Dependency**: SDE admin module depends on active SDE service instance
+- **Type Compatibility**: Supports all SDE data types available from the service
+- **Error Propagation**: SDE service errors handled gracefully with detailed reporting
 
-### Redis Integration  
+### Memory Management Integration
 
-- **Key Management**: Systematic key naming for easy identification
-- **Bulk Operations**: Efficient Redis pipeline operations
-- **Memory Monitoring**: Redis memory usage tracking
-- **Data Persistence**: No expiration times - data persists until cleared
+- **Real-time Monitoring**: Direct access to in-memory data structures
+- **Hot Reload**: Refresh data from files without application restart
+- **Thread Safety**: Safe concurrent access to memory statistics
+- **Performance Tracking**: Monitor access patterns and memory usage
 
-### MongoDB Integration
+### Authentication Integration
 
-- **Status Persistence**: Import status records stored for audit and recovery
-- **Query Optimization**: Indexed collections for efficient status retrieval
-- **Data Consistency**: Atomic updates for status information
-- **Historical Data**: Maintains complete import history
+- **Centralized Middleware**: Uses `pkg/middleware` for authentication and authorization
+- **Super Admin Enforcement**: All operations require super administrator permissions
+- **JWT Validation**: Token-based authentication with session management
+- **Permission Validation**: Fine-grained access control per endpoint
 
 ## Future Enhancements
 
 ### Planned Features
 
-- **Incremental Updates**: Update only changed SDE data
-- **Scheduled Imports**: Automatic imports on SDE updates
-- **Import Validation**: Verify data integrity after import
-- **Export Functionality**: Export SDE data from Redis to files
+- **Incremental Updates**: Update only changed SDE data files
+- **Scheduled Reloads**: Automatic data reloads when SDE files are updated
+- **Advanced Validation**: Deep data integrity checks with cross-references
+- **Export Functionality**: Export in-memory data to various file formats
 
 ### Advanced Features
 
-- **Multi-Redis Support**: Import to multiple Redis instances
-- **Data Compression**: Compress JSON data in Redis
-- **Import Templates**: Pre-configured import profiles
-- **Notification System**: Alert administrators on import completion/failure
+- **Memory Optimization**: Advanced memory pooling and garbage collection tuning
+- **Data Compression**: Compress in-memory structures to reduce footprint
+- **Reload Templates**: Pre-configured data type reload profiles
+- **Notification System**: Alert administrators on reload completion/failure
+- **Performance Analytics**: Detailed access pattern analysis and optimization recommendations
 
 ## Dependencies
 
 ### Internal Dependencies
 
-- `go-falcon/pkg/sde` (SDE service interface)
-- `go-falcon/pkg/database` (MongoDB and Redis clients)
-- `go-falcon/pkg/middleware` (Authentication and permissions)
+- `go-falcon/pkg/sde` (SDE service interface for in-memory data access)
+- `go-falcon/pkg/middleware` (Centralized authentication and permissions)
 - `go-falcon/pkg/handlers` (Standard response utilities)
+- `go-falcon/internal/auth/models` (Authenticated user models)
 
 ### External Dependencies
 
-- `github.com/danielgtaylor/huma/v2` (API framework)
-- `github.com/google/uuid` (Unique ID generation)
-- `go.mongodb.org/mongo-driver` (MongoDB operations)
-- `github.com/go-redis/redis/v8` (Redis operations)
+- `github.com/danielgtaylor/huma/v2` (API framework with type-safe operations)
+- `runtime` (Go runtime statistics for system information)
+- `reflect` (Memory estimation and data structure analysis)
 
-This SDE Admin module provides a comprehensive solution for managing EVE Online static data in Redis with full administrative control, real-time progress tracking, and robust error handling suitable for production environments.
+This SDE Admin module provides a comprehensive solution for managing EVE Online static data in memory with full administrative control, real-time monitoring, and robust error handling suitable for production environments.

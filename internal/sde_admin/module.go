@@ -30,7 +30,7 @@ type Module struct {
 
 // New creates a new SDE admin module instance
 func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, permissionManager *permissions.PermissionManager, sdeService sde.SDEService) *Module {
-	service := services.NewService(mongodb, redis, sdeService)
+	service := services.NewService(sdeService)
 
 	return &Module{
 		BaseModule:        module.NewBaseModule("sde_admin", mongodb, redis),
