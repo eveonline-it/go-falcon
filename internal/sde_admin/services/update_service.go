@@ -3,7 +3,7 @@ package services
 import (
 	"archive/zip"
 	"context"
-	"crypto/sha256"
+	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -77,9 +77,9 @@ func getDefaultSDESources() []SDESource {
 	}
 }
 
-// CheckForUpdates checks the CCP official SDE source for updates
+// CheckForUpdates checks the CCP official SDE source for updates by comparing hashes
 func (u *UpdateService) CheckForUpdates(ctx context.Context, req *dto.CheckUpdatesRequest) (*dto.CheckUpdatesResponse, error) {
-	slog.Info("Checking CCP official SDE for updates")
+	slog.Info("Checking CCP official SDE for updates using checksum comparison")
 
 	// Load the saved SDE zip hash for comparison
 	currentZipHash, err := u.loadSDEZipHash()
@@ -103,8 +103,8 @@ func (u *UpdateService) CheckForUpdates(ctx context.Context, req *dto.CheckUpdat
 		LastChecked: time.Now().Format(time.RFC3339),
 	}
 
-	// Check the CCP official source
-	status = u.checkDirectSource(ctx, ccpSource, status)
+	// Check the CCP official source using checksum comparison
+	status = u.checkSourceViaChecksum(ctx, ccpSource, status)
 
 	updatesAvailable := false
 	latestVersion := ""
@@ -190,6 +190,128 @@ func (u *UpdateService) checkDirectSource(ctx context.Context, source SDESource,
 	return status
 }
 
+// checkSourceViaChecksum checks for updates by fetching checksum file from SDE_CHECKSUMS_URL
+func (u *UpdateService) checkSourceViaChecksum(ctx context.Context, source SDESource, status dto.SDESourceStatus) dto.SDESourceStatus {
+	// Get the checksum URL from config
+	checksumURL := config.GetSDEChecksumsURL()
+	slog.Debug("Fetching checksum file for comparison", "url", checksumURL)
+
+	// Fetch the checksum file
+	req, err := http.NewRequestWithContext(ctx, "GET", checksumURL, nil)
+	if err != nil {
+		errorMsg := fmt.Sprintf("failed to create checksum request: %v", err)
+		status.Error = &errorMsg
+		return status
+	}
+
+	req.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
+
+	resp, err := u.httpClient.Do(req)
+	if err != nil {
+		errorMsg := fmt.Sprintf("failed to fetch checksum: %v", err)
+		status.Error = &errorMsg
+		return status
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errorMsg := fmt.Sprintf("checksum URL returned status %d", resp.StatusCode)
+		status.Error = &errorMsg
+		return status
+	}
+
+	// Read the checksum file
+	checksumData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		errorMsg := fmt.Sprintf("failed to read checksum data: %v", err)
+		status.Error = &errorMsg
+		return status
+	}
+
+	// Parse the checksum file to find the sde.zip hash
+	sdeZipHash, err := u.parseSDEHashFromChecksums(string(checksumData))
+	if err != nil {
+		errorMsg := fmt.Sprintf("failed to parse SDE hash from checksum: %v", err)
+		status.Error = &errorMsg
+		return status
+	}
+
+	if sdeZipHash == "" {
+		errorMsg := "sde.zip hash not found in checksum file"
+		status.Error = &errorMsg
+		return status
+	}
+
+	// Set status with found hash
+	status.Available = true
+	status.URL = checksumURL
+	status.LatestVersion = sdeZipHash
+	status.LatestSize = int64(len(checksumData)) // Size of checksum file (not the zip)
+
+	slog.Debug("Found SDE zip hash from checksum file", "hash", sdeZipHash[:16])
+
+	return status
+}
+
+// parseSDEHashFromChecksums parses the checksum file to extract the hash for sde.zip
+func (u *UpdateService) parseSDEHashFromChecksums(checksumData string) (string, error) {
+	lines := strings.Split(checksumData, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Format: <hash> <filename>
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+
+		hash := parts[0]
+		filename := parts[1]
+
+		// Look for sde.zip
+		if filename == "sde.zip" {
+			slog.Debug("Found sde.zip hash in checksum file", "hash", hash[:16], "filename", filename)
+			return hash, nil
+		}
+	}
+
+	return "", fmt.Errorf("sde.zip not found in checksum file")
+}
+
+// getSDEHashFromChecksum fetches the checksum file and extracts the sde.zip hash
+func (u *UpdateService) getSDEHashFromChecksum(ctx context.Context, checksumURL string) (string, error) {
+	// Fetch the checksum file
+	req, err := http.NewRequestWithContext(ctx, "GET", checksumURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create checksum request: %v", err)
+	}
+
+	req.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
+
+	resp, err := u.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch checksum: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("checksum URL returned status %d", resp.StatusCode)
+	}
+
+	// Read the checksum file
+	checksumData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read checksum data: %v", err)
+	}
+
+	// Parse and return the hash
+	return u.parseSDEHashFromChecksums(string(checksumData))
+}
+
 // UpdateSDE downloads and processes SDE data from CCP official source
 func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest) (*dto.UpdateSDEResponse, error) {
 	slog.Info("Starting SDE update from CCP official source")
@@ -222,7 +344,7 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 		return response, nil
 	}
 
-	downloadedFile, downloadSize, zipHash, err := u.downloadFile(ctx, downloadURL)
+	downloadedFile, downloadSize, err := u.downloadFileSimple(ctx, downloadURL)
 	if err != nil {
 		response.Success = false
 		errorMsg := fmt.Sprintf("failed to download: %v", err)
@@ -290,15 +412,26 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 		Success:   true,
 	})
 
-	// The new version is the zip hash we just saved
-	response.NewVersion = zipHash
+	// Get the official hash from CCP's checksum file
+	checksumURL := config.GetSDEChecksumsURL()
+	officialHash, err := u.getSDEHashFromChecksum(ctx, checksumURL)
+	if err != nil {
+		slog.Warn("Failed to get official SDE hash from checksum", "error", err)
+		response.Success = false
+		errorMsg := fmt.Sprintf("failed to get official SDE hash: %v", err)
+		response.Error = &errorMsg
+		response.Message = errorMsg
+		return response, nil
+	}
 
-	// Save the zip hash for future update checks
-	if err := u.saveSDEZipHash(zipHash); err != nil {
-		slog.Warn("Failed to save SDE zip hash", "error", err, "hash", zipHash)
+	response.NewVersion = officialHash
+
+	// Save the official hash from CCP's checksum file for future update checks
+	if err := u.saveSDEZipHash(officialHash); err != nil {
+		slog.Warn("Failed to save official SDE zip hash", "error", err, "hash", officialHash)
 		// Don't fail the entire update for this - it's just for optimization
 	} else {
-		slog.Info("Saved SDE zip hash for update tracking", "hash", zipHash[:16]) // Log first 16 chars
+		slog.Info("Saved official SDE zip hash for update tracking", "hash", officialHash[:16]) // Log first 16 chars
 	}
 
 	// Clean up temp files
@@ -309,12 +442,12 @@ func (u *UpdateService) UpdateSDE(ctx context.Context, req *dto.UpdateSDERequest
 	response.Duration = time.Since(startTime).String()
 	response.Message = "Successfully updated SDE from CCP official source"
 
-	slog.Info("SDE update completed", "source", "ccp-official", "duration", response.Duration, "files", convertedFiles, "zip_hash", zipHash[:16])
+	slog.Info("SDE update completed", "source", "ccp-official", "duration", response.Duration, "files", convertedFiles, "official_hash", officialHash[:16])
 
 	return response, nil
 }
 
-// downloadFile downloads a file from URL and returns local path, size, and SHA256 hash
+// downloadFile downloads a file from URL and returns local path, size, and MD5 hash
 func (u *UpdateService) downloadFile(ctx context.Context, url string) (string, int64, string, error) {
 	slog.Info("Downloading SDE data", "url", url)
 
@@ -343,7 +476,7 @@ func (u *UpdateService) downloadFile(ctx context.Context, url string) (string, i
 	defer tmpFile.Close()
 
 	// Copy with size tracking and hash calculation
-	hash := sha256.New()
+	hash := md5.New()
 	multiWriter := io.MultiWriter(tmpFile, hash)
 
 	written, err := io.Copy(multiWriter, resp.Body)
@@ -358,6 +491,46 @@ func (u *UpdateService) downloadFile(ctx context.Context, url string) (string, i
 	slog.Debug("Downloaded file hash calculated", "hash", hashString, "size_bytes", written)
 
 	return tmpFile.Name(), written, hashString, nil
+}
+
+// downloadFileSimple downloads a file from URL without hash calculation
+func (u *UpdateService) downloadFileSimple(ctx context.Context, url string) (string, int64, error) {
+	slog.Info("Downloading SDE data", "url", url)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", 0, err
+	}
+
+	req.Header.Set("User-Agent", "go-falcon-sde-admin/1.0")
+
+	resp, err := u.httpClient.Do(req)
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", 0, fmt.Errorf("download failed with status %d", resp.StatusCode)
+	}
+
+	// Create temporary file
+	tmpFile, err := os.CreateTemp(u.tempDir, "sde-download-*.zip")
+	if err != nil {
+		return "", 0, err
+	}
+	defer tmpFile.Close()
+
+	// Copy with size tracking only
+	written, err := io.Copy(tmpFile, resp.Body)
+	if err != nil {
+		os.Remove(tmpFile.Name())
+		return "", 0, err
+	}
+
+	slog.Debug("Downloaded file", "size_bytes", written)
+
+	return tmpFile.Name(), written, nil
 }
 
 // extractArchive extracts a ZIP archive to the specified directory
@@ -417,7 +590,7 @@ func (u *UpdateService) loadSDEZipHash() (string, error) {
 	return hash, nil
 }
 
-// calculateFileHash calculates SHA256 hash of a file (used for checksum verification)
+// calculateFileHash calculates MD5 hash of a file (used for checksum verification)
 func (u *UpdateService) calculateFileHash(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -425,7 +598,7 @@ func (u *UpdateService) calculateFileHash(filePath string) (string, error) {
 	}
 	defer file.Close()
 
-	hash := sha256.New()
+	hash := md5.New()
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}
