@@ -22,26 +22,26 @@ This project uses a structured memory bank system with specialized context files
 
 ### Core Context Files
 
-* **CLAUDE-activeContext.md** - Current session state, goals, and progress (if exists)
-* **CLAUDE-patterns.md** - Established code patterns and conventions (if exists)
-* **CLAUDE-decisions.md** - Architecture decisions and rationale (if exists)
-* **CLAUDE-troubleshooting.md** - Common issues and proven solutions (if exists)
-* **CLAUDE-config-variables.md** - Configuration variables reference (if exists)
-* **CLAUDE-temp.md** - Temporary scratch pad (only read when referenced)
+* **CLAUDE-activeContext.md** - Current session state, goals, and progress
+* **CLAUDE-patterns.md** - Established code patterns and conventions
+* **CLAUDE-decisions.md** - Architecture decisions and rationale
 
 **Important:** Always reference the active context file first to understand what's currently being worked on and maintain session continuity.
+
+### Archive System
+
+* **archive/README.md** - Index of archived historical documentation
+* **archive/historical-work-2025-08.md** - Historical development work (August 2025)
+
+Historical content is archived to reduce active context usage while preserving implementation history for reference.
 
 ### Memory Bank System Backups
 
 When asked to backup Memory Bank System files, you will copy the core context files above and @.claude settings directory to directory @/path/to/backup-directory. If files already exist in the backup directory, you will overwrite them.
 
-## Project Overview
+## 🚀 Project Overview
 
-Go Falcon - Monolithic API Gateway is a production-ready Go monolithic architecture featuring modular design, EVE Online integration, and comprehensive task scheduling capabilities.
-
-## 🚀 Overview
-
-Go Falcon is a monolithic API gateway built with Go that provides:
+Go Falcon is a production-ready monolithic API gateway built with Go that provides:
 
 - **Type-Safe APIs**: Huma v2 framework with compile-time validation
 - **Modular Architecture**: Clean separation of concerns with internal modules
