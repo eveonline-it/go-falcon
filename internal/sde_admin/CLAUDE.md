@@ -8,11 +8,12 @@ The SDE Admin module provides administrative functionality for managing EVE Onli
 
 ### Core Components
 
-- **Memory Monitoring**: Real-time visibility into in-memory SDE data status and usage
+- **Memory Monitoring**: Real-time visibility into in-memory SDE data status and usage, including universe data
 - **Data Reloading**: Hot reload SDE data from files without application restart
-- **Integrity Verification**: Validate completeness and consistency of loaded data
-- **Performance Statistics**: Monitor memory usage and item counts per data type
+- **Integrity Verification**: Validate completeness and consistency of loaded data across all 46 data types
+- **Performance Statistics**: Monitor memory usage and item counts per data type (including 9,725+ universe files)
 - **System Information**: Runtime metrics and memory utilization tracking
+- **Universe Management**: Complete EVE universe administration (regions, constellations, solar systems)
 
 ### Files Structure
 
@@ -31,9 +32,9 @@ internal/sde_admin/
 
 ## SDE In-Memory Data Management
 
-### Fully Supported Data Types (43 total)
+### Fully Supported Data Types (46 total)
 
-The module can monitor and manage all SDE data types supported by the `pkg/sde` service - complete coverage of all EVE Online SDE data files loaded in memory:
+The module can monitor and manage all SDE data types supported by the `pkg/sde` service - complete coverage of all EVE Online SDE data files loaded in memory, including universe data:
 
 - **agents**: Mission agents with location and corporation info
 - **categories**: Item categories with internationalized names
@@ -79,7 +80,12 @@ The module can monitor and manage all SDE data types supported by the `pkg/sde` 
 - **sovereigntyUpgrades**: Sovereignty upgrade specifications with fuel and resource costs
 - **translationLanguages**: Language code to name mappings for internationalization
 
-**Complete Implementation**: All 43 SDE data files from the EVE Online Static Data Export are now fully implemented and available for import.
+**Universe Data** (3 data types - 9,725 files total):
+- **regions**: EVE Online regions with boundaries, factions, and nebula information (113 files)
+- **constellations**: Star constellation data with positioning and radius information (1,175 files)  
+- **solarSystems**: Complete solar system data including planets, moons, stations, stargates, and asteroid belts (8,437 files)
+
+**Complete Implementation**: All 46 data types from the EVE Online Static Data Export are now fully implemented and available for import, including the complete EVE universe structure.
 
 ### In-Memory Storage Structure
 
@@ -92,9 +98,10 @@ SDE data is stored in application memory using optimized Go data structures in t
 
 **Memory Benefits**:
 - **Ultra-fast access**: Nanosecond lookups vs milliseconds for network calls
-- **No serialization overhead**: Direct struct access vs JSON parsing
-- **Efficient memory usage**: ~300MB vs ~610MB Redis overhead
+- **No serialization overhead**: Direct struct access vs JSON parsing  
+- **Efficient memory usage**: ~400MB for all data including complete EVE universe
 - **Thread-safe**: Concurrent read access with minimal locking
+- **Complete EVE universe**: In-memory access to all 9,725 universe files (regions, constellations, solar systems)
 
 ### Data Management Process
 
@@ -144,7 +151,7 @@ Get detailed status of SDE data currently loaded in memory.
 {
   "body": {
     "loaded_data_types": ["agents", "types", "categories"],
-    "total_data_types": 43,
+    "total_data_types": 46,
     "memory_usage": {
       "total_estimated_mb": 245.7,
       "data_types": {
@@ -177,7 +184,7 @@ Get detailed statistics about SDE data loaded in memory including performance me
 ```json
 {
   "body": {
-    "total_data_types": 43,
+    "total_data_types": 46,
     "loaded_data_types": 35,
     "total_items": 125843,
     "memory_usage": {
@@ -254,8 +261,8 @@ Verify the integrity and completeness of loaded SDE data.
     "checks": {
       "data_completeness": {
         "valid": true,
-        "loaded_types": 43,
-        "expected_types": 43,
+        "loaded_types": 46,
+        "expected_types": 46,
         "missing_types": []
       },
       "data_consistency": {
@@ -299,7 +306,7 @@ Get system information relevant to SDE data management including memory usage.
     },
     "sde_service": {
       "memory_usage_mb": 245.7,
-      "loaded_data_types": 43,
+      "loaded_data_types": 46,
       "uptime_seconds": 3600,
       "total_access_count": 45632
     }

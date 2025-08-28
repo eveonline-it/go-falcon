@@ -56,6 +56,9 @@ type Service struct {
 	skinMaterials            map[string]*SkinMaterial
 	sovereigntyUpgrades      map[string]*SovereigntyUpgrade
 	translationLanguages     map[string]*TranslationLanguage
+	regions                  map[int]*Region        // Universe data - regions by regionID
+	constellations           map[int]*Constellation // Universe data - constellations by constellationID
+	solarSystems             map[int]*SolarSystem   // Universe data - solar systems by solarSystemID
 	loaded                   bool
 	loadMu                   sync.Mutex // Only used during initial loading
 	dataDir                  string
@@ -107,6 +110,9 @@ func NewService(dataDir string) *Service {
 		skinMaterials:            make(map[string]*SkinMaterial),
 		sovereigntyUpgrades:      make(map[string]*SovereigntyUpgrade),
 		translationLanguages:     make(map[string]*TranslationLanguage),
+		regions:                  make(map[int]*Region),
+		constellations:           make(map[int]*Constellation),
+		solarSystems:             make(map[int]*SolarSystem),
 		dataDir:                  dataDir,
 	}
 }
@@ -318,6 +324,27 @@ func (s *Service) ensureLoaded() error {
 	if err := s.loadTranslationLanguages(); err != nil {
 		return fmt.Errorf("failed to load translation languages: %w", err)
 	}
+
+	// Progress log: Universe data loading started
+	slog.Debug("SDE loading progress: Starting universe data import (regions, constellations, solar systems)")
+
+	if err := s.loadRegions(); err != nil {
+		return fmt.Errorf("failed to load regions: %w", err)
+	}
+
+	if err := s.loadConstellations(); err != nil {
+		return fmt.Errorf("failed to load constellations: %w", err)
+	}
+
+	if err := s.loadSolarSystems(); err != nil {
+		return fmt.Errorf("failed to load solar systems: %w", err)
+	}
+
+	// Progress log: Universe data loaded
+	slog.Debug("SDE loading progress: Universe data loaded successfully",
+		"regions_count", len(s.regions),
+		"constellations_count", len(s.constellations),
+		"solar_systems_count", len(s.solarSystems))
 
 	s.loaded = true
 
@@ -2415,4 +2442,211 @@ func formatBytes(bytes uint64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// ===============================
+// Universe Data Loading Methods
+// ===============================
+
+// loadRegions loads all region data from universe JSON files
+func (s *Service) loadRegions() error {
+	// Find all region files matching the pattern universe_*_region.yaml_region.json
+	pattern := filepath.Join(s.dataDir, "universe_*_region.yaml_region.json")
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("failed to glob region files: %w", err)
+	}
+
+	regions := make(map[int]*Region)
+	for _, filePath := range files {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read region file %s: %w", filePath, err)
+		}
+
+		var region Region
+		if err := json.Unmarshal(data, &region); err != nil {
+			return fmt.Errorf("failed to unmarshal region file %s: %w", filePath, err)
+		}
+
+		regions[region.RegionID] = &region
+	}
+
+	s.regions = regions
+	return nil
+}
+
+// loadConstellations loads all constellation data from universe JSON files
+func (s *Service) loadConstellations() error {
+	// Find all constellation files matching the pattern universe_*_constellation.yaml_constellation.json
+	pattern := filepath.Join(s.dataDir, "universe_*_constellation.yaml_constellation.json")
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("failed to glob constellation files: %w", err)
+	}
+
+	constellations := make(map[int]*Constellation)
+	for _, filePath := range files {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read constellation file %s: %w", filePath, err)
+		}
+
+		var constellation Constellation
+		if err := json.Unmarshal(data, &constellation); err != nil {
+			return fmt.Errorf("failed to unmarshal constellation file %s: %w", filePath, err)
+		}
+
+		constellations[constellation.ConstellationID] = &constellation
+	}
+
+	s.constellations = constellations
+	return nil
+}
+
+// loadSolarSystems loads all solar system data from universe JSON files
+func (s *Service) loadSolarSystems() error {
+	// Find all solar system files matching the pattern universe_*_solarsystem.json
+	pattern := filepath.Join(s.dataDir, "universe_*_solarsystem.json")
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("failed to glob solar system files: %w", err)
+	}
+
+	solarSystems := make(map[int]*SolarSystem)
+	for _, filePath := range files {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read solar system file %s: %w", filePath, err)
+		}
+
+		var solarSystem SolarSystem
+		if err := json.Unmarshal(data, &solarSystem); err != nil {
+			return fmt.Errorf("failed to unmarshal solar system file %s: %w", filePath, err)
+		}
+
+		solarSystems[solarSystem.SolarSystemID] = &solarSystem
+	}
+
+	s.solarSystems = solarSystems
+	return nil
+}
+
+// ===============================
+// Universe Data Access Methods
+// ===============================
+
+// GetRegion retrieves a region by ID
+func (s *Service) GetRegion(regionID int) (*Region, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	region, exists := s.regions[regionID]
+	if !exists {
+		return nil, fmt.Errorf("region %d not found", regionID)
+	}
+
+	return region, nil
+}
+
+// GetAllRegions returns all regions
+func (s *Service) GetAllRegions() (map[int]*Region, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	// Return a copy to prevent external modification
+	regions := make(map[int]*Region, len(s.regions))
+	for id, region := range s.regions {
+		regions[id] = region
+	}
+
+	return regions, nil
+}
+
+// GetConstellation retrieves a constellation by ID
+func (s *Service) GetConstellation(constellationID int) (*Constellation, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	constellation, exists := s.constellations[constellationID]
+	if !exists {
+		return nil, fmt.Errorf("constellation %d not found", constellationID)
+	}
+
+	return constellation, nil
+}
+
+// GetAllConstellations returns all constellations
+func (s *Service) GetAllConstellations() (map[int]*Constellation, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	// Return a copy to prevent external modification
+	constellations := make(map[int]*Constellation, len(s.constellations))
+	for id, constellation := range s.constellations {
+		constellations[id] = constellation
+	}
+
+	return constellations, nil
+}
+
+// GetSolarSystem retrieves a solar system by ID
+func (s *Service) GetSolarSystem(solarSystemID int) (*SolarSystem, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	solarSystem, exists := s.solarSystems[solarSystemID]
+	if !exists {
+		return nil, fmt.Errorf("solar system %d not found", solarSystemID)
+	}
+
+	return solarSystem, nil
+}
+
+// GetAllSolarSystems returns all solar systems
+func (s *Service) GetAllSolarSystems() (map[int]*SolarSystem, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	// Return a copy to prevent external modification
+	solarSystems := make(map[int]*SolarSystem, len(s.solarSystems))
+	for id, solarSystem := range s.solarSystems {
+		solarSystems[id] = solarSystem
+	}
+
+	return solarSystems, nil
+}
+
+// GetConstellationsByRegion returns all constellations in a specific region
+// Note: This requires looking up constellation-to-region mapping from the universe file names
+// For now, this returns an empty slice as the relationship is encoded in filenames
+func (s *Service) GetConstellationsByRegion(regionID int) ([]*Constellation, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	// TODO: Implement region-constellation relationship mapping
+	// This would require parsing the file names or storing additional metadata
+	var constellations []*Constellation
+	return constellations, nil
+}
+
+// GetSolarSystemsByConstellation returns all solar systems in a specific constellation
+// Note: This requires looking up solar system-to-constellation mapping from the universe file names
+// For now, this returns an empty slice as the relationship is encoded in filenames
+func (s *Service) GetSolarSystemsByConstellation(constellationID int) ([]*SolarSystem, error) {
+	if err := s.ensureLoaded(); err != nil {
+		return nil, err
+	}
+
+	// TODO: Implement constellation-solar system relationship mapping
+	// This would require parsing the file names or storing additional metadata
+	var solarSystems []*SolarSystem
+	return solarSystems, nil
 }

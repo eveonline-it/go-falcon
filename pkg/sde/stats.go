@@ -165,6 +165,16 @@ func (s *Service) GetLoadedDataTypes() []string {
 	if len(s.translationLanguages) > 0 {
 		types = append(types, "translationLanguages")
 	}
+	// Universe data types
+	if len(s.regions) > 0 {
+		types = append(types, "regions")
+	}
+	if len(s.constellations) > 0 {
+		types = append(types, "constellations")
+	}
+	if len(s.solarSystems) > 0 {
+		types = append(types, "solarSystems")
+	}
 	return types
 }
 
@@ -348,6 +358,19 @@ func (s *Service) GetDataTypeStats(dataType string) DataTypeStats {
 		stats.Count = len(s.translationLanguages)
 		stats.MemoryBytes = estimateMapMemory(s.translationLanguages)
 		stats.FilePath = filepath.Join(s.dataDir, "translationLanguages.json")
+	// Universe data types
+	case "regions":
+		stats.Count = len(s.regions)
+		stats.MemoryBytes = estimateMapMemory(s.regions)
+		stats.FilePath = "universe_*_region.yaml_region.json (multiple files)"
+	case "constellations":
+		stats.Count = len(s.constellations)
+		stats.MemoryBytes = estimateMapMemory(s.constellations)
+		stats.FilePath = "universe_*_constellation.yaml_constellation.json (multiple files)"
+	case "solarSystems":
+		stats.Count = len(s.solarSystems)
+		stats.MemoryBytes = estimateMapMemory(s.solarSystems)
+		stats.FilePath = "universe_*_solarsystem.json (multiple files)"
 	}
 
 	return stats
@@ -381,6 +404,7 @@ func (s *Service) GetLoadStatus() map[string]DataTypeStatus {
 		"controlTowerResources", "dogmaAttributeCategories", "invNames",
 		"invPositions", "invUniqueNames", "planetResources", "planetSchematics",
 		"skinLicenses", "skinMaterials", "sovereigntyUpgrades", "translationLanguages",
+		"regions", "constellations", "solarSystems",
 	}
 
 	for _, dt := range dataTypes {

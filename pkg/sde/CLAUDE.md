@@ -1,7 +1,7 @@
 # SDE Package (pkg/sde)
 
 ## Overview
-EVE Online Static Data Export (SDE) in-memory service providing ultra-fast access to game static data including agents, categories, blueprints, types, and market information. Single instance shared across all modules.
+EVE Online Static Data Export (SDE) in-memory service providing ultra-fast access to game static data including agents, categories, blueprints, types, market information, and complete EVE universe data. Single instance shared across all modules.
 
 ## Core Features
 - **In-Memory Storage**: All data loaded at startup for nanosecond access
@@ -17,7 +17,7 @@ EVE Online Static Data Export (SDE) in-memory service providing ultra-fast acces
 
 ## Available Data Types
 
-### Fully Implemented (43 types)
+### Fully Implemented (46 types)
 
 The SDE service currently loads and supports these data types for import:
 
@@ -65,21 +65,26 @@ The SDE service currently loads and supports these data types for import:
 - **`sovereigntyUpgrades`**: Sovereignty upgrade specifications with fuel and resource costs
 - **`translationLanguages`**: Language code to name mappings for internationalization
 
-**Complete Coverage**: All 43 SDE data files from the EVE Online Static Data Export are now fully implemented and supported.
+**Universe Data** (3 types - 9,725 files):
+- **`regions`**: EVE Online regions with boundaries, factions, and nebula information (113 files)
+- **`constellations`**: Star constellation data with positioning and radius information (1,175 files)
+- **`solarSystems`**: Complete solar system data including planets, moons, stations, stargates, and asteroid belts (8,437 files)
+
+**Complete Coverage**: All 46 SDE data types from the EVE Online Static Data Export are now fully implemented and supported, including complete universe structure (9,725+ files).
 
 ### Import Options
 
 **Import All Supported Data Types** (default):
 ```bash
 POST /sde/import
-# Empty request body imports all 43 supported types
+# Empty request body imports all 46 supported types
 ```
 
 **Import Specific Data Types**:
 ```bash
 POST /sde/import
 {
-  "data_types": ["agents", "types", "categories", "races", "factions", "dogmaAttributes"]
+  "data_types": ["agents", "types", "categories", "races", "factions", "dogmaAttributes", "regions", "constellations", "solarSystems"]
 }
 ```
 
@@ -127,12 +132,16 @@ POST /sde/import
 - `skinMaterials`
 - `sovereigntyUpgrades`
 - `translationLanguages`
+- `regions`
+- `constellations`
+- `solarSystems`
 
 ## Performance Characteristics
-- **Memory Usage**: ~50-500MB depending on data size
+- **Memory Usage**: ~400MB with complete dataset including universe data (9,725+ files)
 - **Access Speed**: O(1) map lookups, O(log n) sorted searches
-- **Startup Impact**: 1-2 second initial load time
+- **Startup Impact**: 3-7 seconds initial load time (including universe data)
 - **No Network Calls**: All data served from memory
+- **Universe Coverage**: Complete EVE universe in memory (113 regions, 1,175 constellations, 8,437 solar systems)
 
 ## Usage Examples
 ```go
@@ -208,6 +217,16 @@ sovereigntyUpgrade, err := sdeService.GetSovereigntyUpgrade("81615")
 allSovereigntyUpgrades := sdeService.GetAllSovereigntyUpgrades()
 translationLanguage, err := sdeService.GetTranslationLanguage("en-us")
 allTranslationLanguages := sdeService.GetAllTranslationLanguages()
+
+// Universe data access
+region, err := sdeService.GetRegion(10000002)  // The Forge region
+allRegions := sdeService.GetAllRegions()
+constellation, err := sdeService.GetConstellation(20000020)  // Kimotoro constellation  
+allConstellations := sdeService.GetAllConstellations()
+solarSystem, err := sdeService.GetSolarSystem(30000142)  // Jita solar system
+allSolarSystems := sdeService.GetAllSolarSystems()
+constellationsByRegion := sdeService.GetConstellationsByRegion(10000002)  // All constellations in The Forge
+systemsByConstellation := sdeService.GetSolarSystemsByConstellation(20000020)  // All systems in Kimotoro
 ```
 
 ## Service Interface
@@ -218,14 +237,25 @@ type SDEService interface {
     GetCategory(categoryID string) (*Category, error)
     GetBlueprint(blueprintID string) (*Blueprint, error)
     // ... many more data access methods
+    
+    // Universe data methods
+    GetRegion(regionID int) (*Region, error)
+    GetAllRegions() (map[int]*Region, error)
+    GetConstellation(constellationID int) (*Constellation, error)
+    GetAllConstellations() (map[int]*Constellation, error)
+    GetSolarSystem(solarSystemID int) (*SolarSystem, error)
+    GetAllSolarSystems() (map[int]*SolarSystem, error)
+    GetConstellationsByRegion(regionID int) ([]*Constellation, error)
+    GetSolarSystemsByConstellation(constellationID int) ([]*SolarSystem, error)
 }
 ```
 
 ## Integration Points
 - **Module Access**: Available through base module interface
-- **ESI Enrichment**: Combines with live ESI data
+- **ESI Enrichment**: Combines with live ESI data for comprehensive game context
+- **Universe Context**: Provides location-based enrichment for character, corporation, and alliance data
 - **Development Testing**: Used by dev module for validation
-- **Query Operations**: Supports complex data queries and filtering
+- **Query Operations**: Supports complex data queries and filtering across universe hierarchy
 
 ## Thread Safety
 - **Read-Write Mutexes**: Safe concurrent access

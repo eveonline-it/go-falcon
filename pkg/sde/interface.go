@@ -179,6 +179,16 @@ type SDEService interface {
 	GetTranslationLanguage(code string) (*TranslationLanguage, error)
 	GetAllTranslationLanguages() (map[string]*TranslationLanguage, error)
 
+	// Universe data operations
+	GetRegion(regionID int) (*Region, error)
+	GetAllRegions() (map[int]*Region, error)
+	GetConstellation(constellationID int) (*Constellation, error)
+	GetAllConstellations() (map[int]*Constellation, error)
+	GetConstellationsByRegion(regionID int) ([]*Constellation, error)
+	GetSolarSystem(solarSystemID int) (*SolarSystem, error)
+	GetAllSolarSystems() (map[int]*SolarSystem, error)
+	GetSolarSystemsByConstellation(constellationID int) ([]*SolarSystem, error)
+
 	// Service status
 	IsLoaded() bool
 

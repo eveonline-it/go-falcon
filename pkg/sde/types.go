@@ -561,3 +561,153 @@ type TranslationLanguage struct {
 	Code string `json:"-"` // This will be set from the map key
 	Name string `json:"-"` // This will be set from the map value
 }
+
+// ===============================
+// Universe Data Types
+// ===============================
+
+// Region represents an EVE Online region from the SDE universe data
+type Region struct {
+	Center          [3]float64 `json:"center"`
+	DescriptionID   int        `json:"descriptionID,omitempty"`
+	FactionID       int        `json:"factionID,omitempty"`
+	Max             [3]float64 `json:"max"`
+	Min             [3]float64 `json:"min"`
+	NameID          int        `json:"nameID"`
+	Nebula          int        `json:"nebula,omitempty"`
+	RegionID        int        `json:"regionID"`
+	WormholeClassID int        `json:"wormholeClassID,omitempty"`
+}
+
+// Constellation represents an EVE Online constellation from the SDE universe data
+type Constellation struct {
+	Center          [3]float64 `json:"center"`
+	ConstellationID int        `json:"constellationID"`
+	Max             [3]float64 `json:"max"`
+	Min             [3]float64 `json:"min"`
+	NameID          int        `json:"nameID"`
+	Radius          float64    `json:"radius,omitempty"`
+}
+
+// SolarSystem represents an EVE Online solar system from the SDE universe data
+type SolarSystem struct {
+	Border            bool                 `json:"border"`
+	Center            [3]float64           `json:"center"`
+	Corridor          bool                 `json:"corridor"`
+	Fringe            bool                 `json:"fringe"`
+	Hub               bool                 `json:"hub"`
+	International     bool                 `json:"international"`
+	Luminosity        float64              `json:"luminosity"`
+	Max               [3]float64           `json:"max"`
+	Min               [3]float64           `json:"min"`
+	Planets           map[string]*Planet   `json:"planets,omitempty"`
+	Radius            float64              `json:"radius"`
+	Regional          bool                 `json:"regional"`
+	Security          float64              `json:"security"`
+	SecurityClass     string               `json:"securityClass,omitempty"`
+	SolarSystemID     int                  `json:"solarSystemID"`
+	SolarSystemNameID int                  `json:"solarSystemNameID"`
+	Star              *Star                `json:"star,omitempty"`
+	Stargates         map[string]*Stargate `json:"stargates,omitempty"`
+	SunTypeID         int                  `json:"sunTypeID,omitempty"`
+	WormholeClassID   int                  `json:"wormholeClassID,omitempty"`
+}
+
+// Planet represents a planet in a solar system
+type Planet struct {
+	AsteroidBelts    map[string]*AsteroidBelt `json:"asteroidBelts,omitempty"`
+	CelestialIndex   int                      `json:"celestialIndex"`
+	Moons            map[string]*Moon         `json:"moons,omitempty"`
+	NPCStations      map[string]*NPCStation   `json:"npcStations,omitempty"`
+	PlanetAttributes *PlanetAttributes        `json:"planetAttributes,omitempty"`
+	Position         [3]float64               `json:"position"`
+	Radius           float64                  `json:"radius"`
+	Statistics       *CelestialStatistics     `json:"statistics,omitempty"`
+	TypeID           int                      `json:"typeID"`
+}
+
+// Moon represents a moon orbiting a planet
+type Moon struct {
+	NPCStations      map[string]*NPCStation `json:"npcStations,omitempty"`
+	PlanetAttributes *PlanetAttributes      `json:"planetAttributes,omitempty"`
+	Position         [3]float64             `json:"position"`
+	Radius           float64                `json:"radius"`
+	Statistics       *CelestialStatistics   `json:"statistics,omitempty"`
+	TypeID           int                    `json:"typeID"`
+}
+
+// AsteroidBelt represents an asteroid belt in a solar system
+type AsteroidBelt struct {
+	Position   [3]float64           `json:"position"`
+	Statistics *CelestialStatistics `json:"statistics,omitempty"`
+	TypeID     int                  `json:"typeID"`
+}
+
+// Star represents the central star of a solar system
+type Star struct {
+	ID         int             `json:"id"`
+	Radius     float64         `json:"radius"`
+	Statistics *StarStatistics `json:"statistics,omitempty"`
+	TypeID     int             `json:"typeID"`
+}
+
+// Stargate represents a stargate in a solar system
+type Stargate struct {
+	Destination int        `json:"destination"`
+	Position    [3]float64 `json:"position"`
+	TypeID      int        `json:"typeID"`
+}
+
+// NPCStation represents an NPC station on a moon or planet
+type NPCStation struct {
+	GraphicID                int        `json:"graphicID"`
+	IsConquerable            bool       `json:"isConquerable"`
+	OperationID              int        `json:"operationID"`
+	OwnerID                  int        `json:"ownerID"`
+	Position                 [3]float64 `json:"position"`
+	ReprocessingEfficiency   float64    `json:"reprocessingEfficiency"`
+	ReprocessingHangarFlag   int        `json:"reprocessingHangarFlag"`
+	ReprocessingStationsTake float64    `json:"reprocessingStationsTake"`
+	TypeID                   int        `json:"typeID"`
+	UseOperationName         bool       `json:"useOperationName"`
+}
+
+// PlanetAttributes represents visual and shader attributes for planets and moons
+type PlanetAttributes struct {
+	HeightMap1   int  `json:"heightMap1"`
+	HeightMap2   int  `json:"heightMap2"`
+	Population   bool `json:"population"`
+	ShaderPreset int  `json:"shaderPreset"`
+}
+
+// CelestialStatistics represents physical statistics for planets, moons, and asteroid belts
+type CelestialStatistics struct {
+	Age            *int64  `json:"age,omitempty"`
+	Density        float64 `json:"density"`
+	Eccentricity   float64 `json:"eccentricity"`
+	EscapeVelocity float64 `json:"escapeVelocity"`
+	Fragmented     bool    `json:"fragmented"`
+	Life           float64 `json:"life"`
+	Locked         bool    `json:"locked"`
+	MassDust       float64 `json:"massDust"`
+	MassGas        float64 `json:"massGas"`
+	OrbitPeriod    float64 `json:"orbitPeriod"`
+	OrbitRadius    float64 `json:"orbitRadius"`
+	Pressure       float64 `json:"pressure"`
+	Radius         float64 `json:"radius"`
+	RotationRate   float64 `json:"rotationRate"`
+	SpectralClass  string  `json:"spectralClass"`
+	SurfaceGravity float64 `json:"surfaceGravity"`
+	Temperature    float64 `json:"temperature"`
+}
+
+// StarStatistics represents statistics for stars
+type StarStatistics struct {
+	Age           int64   `json:"age"`
+	Life          int64   `json:"life"`
+	Locked        bool    `json:"locked"`
+	Luminosity    float64 `json:"luminosity"`
+	Radius        float64 `json:"radius"`
+	SpectralClass string  `json:"spectralClass"`
+	Temperature   int     `json:"temperature"`
+}

@@ -257,18 +257,19 @@ The sitemap module provides backend-controlled frontend routing with a dual-stru
 | **Logging** | OpenTelemetry integration | Conditional telemetry (ENABLE_TELEMETRY), trace correlation |
 | **Middleware** | Request processing | Centralized authentication, permission checking, tracing middleware |
 | **Module** | Module system base | BaseModule interface, shared dependencies |
-| **SDE Service** | In-memory data service | EVE static data, O(1) lookups, thread-safe |
+| **SDE Service** | In-memory data service | EVE static data + complete universe, O(1) lookups, thread-safe |
 
 *For detailed implementation, see individual `pkg/[package]/CLAUDE.md` files*
 
 ## 🚀 EVE Online Integration
 
-The system provides comprehensive EVE Online integration with automated background updates:
+The system provides comprehensive EVE Online integration with automated background updates and complete universe data support:
 
 - **Character Updates**: Affiliation tracking every 30 minutes ([details](internal/character/CLAUDE.md))
 - **Corporation Updates**: Daily data refresh at 4 AM ([details](internal/corporation/CLAUDE.md))  
 - **Alliance Updates**: Complete alliance data synchronization ([details](internal/alliance/CLAUDE.md))
 - **Scheduler Integration**: All updates managed via system tasks ([details](internal/scheduler/CLAUDE.md))
+- **Universe Data**: Complete EVE universe in memory - 113 regions, 1,175 constellations, 8,437 solar systems ([details](internal/sde_admin/CLAUDE.md))
 
 ### ESI Best Practices
 
