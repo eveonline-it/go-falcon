@@ -811,6 +811,116 @@ func (s *Service) fetchStructureFromESI(ctx context.Context, structureID int64, 
 	return nil, fmt.Errorf("structure ESI lookup not yet implemented")
 }
 
+// GetCorporationAllianceHistory retrieves the alliance history for a corporation from EVE ESI
+func (s *Service) GetCorporationAllianceHistory(ctx context.Context, corporationID int) (*dto.CorporationAllianceHistoryOutput, error) {
+	slog.InfoContext(ctx, "Getting corporation alliance history", "corporation_id", corporationID)
+
+	// Fetch alliance history from ESI
+	history, err := s.eveClient.Corporation.GetCorporationAllianceHistory(ctx, corporationID)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get corporation alliance history from ESI", "error", err, "corporation_id", corporationID)
+		return nil, fmt.Errorf("failed to get corporation alliance history: %w", err)
+	}
+
+	// Convert ESI data to our DTO format
+	result := &dto.CorporationAllianceHistoryResult{
+		CorporationID: corporationID,
+		History:       make([]dto.AllianceHistoryEntry, 0, len(history)),
+		Count:         len(history),
+	}
+
+	for _, entry := range history {
+		historyEntry := dto.AllianceHistoryEntry{
+			RecordID:  entry.RecordID,
+			StartDate: entry.StartDate,
+			IsDeleted: entry.IsDeleted,
+		}
+
+		// AllianceID is optional (null when corporation left all alliances)
+		if entry.AllianceID != 0 {
+			historyEntry.AllianceID = &entry.AllianceID
+		}
+
+		result.History = append(result.History, historyEntry)
+	}
+
+	slog.InfoContext(ctx, "Successfully retrieved corporation alliance history",
+		"corporation_id", corporationID,
+		"history_count", result.Count)
+
+	return &dto.CorporationAllianceHistoryOutput{
+		Body: *result,
+	}, nil
+}
+
+// GetCorporationMembers retrieves corporation members from ESI
+func (s *Service) GetCorporationMembers(ctx context.Context, corporationID int, ceoID int) (*dto.CorporationMembersOutput, error) {
+	slog.InfoContext(ctx, "Getting corporation members", "corporation_id", corporationID, "ceo_id", ceoID)
+
+	// First verify that the CEO ID matches the corporation's CEO
+	corporation, err := s.repository.GetCorporationByID(ctx, corporationID)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("corporation not found: %d", corporationID)
+		}
+		slog.ErrorContext(ctx, "Failed to get corporation from database", "error", err)
+		return nil, fmt.Errorf("failed to get corporation: %w", err)
+	}
+
+	// Check if the provided CEO ID matches the corporation's CEO
+	if corporation.CEOID != ceoID {
+		slog.WarnContext(ctx, "CEO ID mismatch",
+			"provided_ceo_id", ceoID,
+			"actual_ceo_id", corporation.CEOID,
+			"corporation_id", corporationID)
+		return nil, fmt.Errorf("invalid CEO ID for corporation %d", corporationID)
+	}
+
+	// Get CEO's profile to get their access token
+	ceoProfile, err := s.authService.GetUserProfileByCharacterID(ctx, ceoID)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get CEO profile", "ceo_id", ceoID, "error", err)
+		return nil, fmt.Errorf("failed to get CEO profile: %w", err)
+	}
+	if ceoProfile == nil {
+		return nil, fmt.Errorf("CEO profile not found for character ID %d", ceoID)
+	}
+
+	// Check if the CEO's token is valid
+	if ceoProfile.AccessToken == "" {
+		return nil, fmt.Errorf("CEO does not have a valid access token")
+	}
+
+	// Get members from ESI
+	members, err := s.eveClient.Corporation.GetCorporationMembers(ctx, corporationID, ceoProfile.AccessToken)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get corporation members from ESI", "error", err, "corporation_id", corporationID)
+		return nil, fmt.Errorf("failed to get corporation members: %w", err)
+	}
+
+	// Convert ESI data to our DTO format
+	result := &dto.CorporationMembersResult{
+		CorporationID: corporationID,
+		Members:       make([]dto.CorporationMemberInfo, 0, len(members)),
+		Count:         len(members),
+	}
+
+	for _, member := range members {
+		memberInfo := dto.CorporationMemberInfo{
+			CharacterID: member.CharacterID,
+		}
+		result.Members = append(result.Members, memberInfo)
+	}
+
+	slog.InfoContext(ctx, "Successfully retrieved corporation members",
+		"corporation_id", corporationID,
+		"member_count", result.Count)
+
+	return &dto.CorporationMembersOutput{
+		Body: *result,
+	}, nil
+}
+
 // GetStatus returns the health status of the corporation module
 func (s *Service) GetStatus(ctx context.Context) *dto.CorporationStatusResponse {
 	// Check database connectivity

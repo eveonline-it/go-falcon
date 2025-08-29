@@ -2,12 +2,12 @@ package dto
 
 // GetCorporationInput represents the input for getting corporation information
 type GetCorporationInput struct {
-	CorporationID int `path:"corporation_id" minimum:"1" description:"Corporation ID to retrieve information for" example:"98000001"`
+	CorporationID int `path:"corporation_id" minimum:"1" description:"Corporation ID to retrieve information for" example:"98701142"`
 }
 
 // GetCorporationAuthInput represents the authenticated input for getting corporation information
 type GetCorporationAuthInput struct {
-	CorporationID int    `path:"corporation_id" minimum:"1" description:"Corporation ID to retrieve information for" example:"98000001"`
+	CorporationID int    `path:"corporation_id" minimum:"1" description:"Corporation ID to retrieve information for" example:"98701142"`
 	Authorization string `header:"Authorization" description:"JWT Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Authentication cookie"`
 }
@@ -26,14 +26,29 @@ type SearchCorporationsByNameAuthInput struct {
 
 // GetCorporationMemberTrackingInput represents the input for getting corporation member tracking
 type GetCorporationMemberTrackingInput struct {
-	CorporationID int    `path:"corporation_id" minimum:"1" description:"Corporation ID to retrieve member tracking for" example:"98000001"`
-	CEOID         int    `query:"ceo_id" minimum:"1" description:"CEO character ID for authentication" example:"95465499"`
+	CorporationID int    `path:"corporation_id" minimum:"1" description:"Corporation ID to retrieve member tracking for" example:"98701142"`
+	CEOID         int    `query:"ceo_id" minimum:"1" description:"CEO character ID for authentication" example:"661916654"`
 	Authorization string `header:"Authorization" description:"JWT Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Authentication cookie"`
 }
 
 // ValidateCEOTokensInput represents the input for validating CEO tokens (super_admin only)
 type ValidateCEOTokensInput struct {
+	Authorization string `header:"Authorization" description:"JWT Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Authentication cookie"`
+}
+
+// GetCorporationAllianceHistoryInput represents the input for getting corporation alliance history
+type GetCorporationAllianceHistoryInput struct {
+	CorporationID int    `path:"corporation_id" minimum:"1" description:"Corporation ID to retrieve alliance history for" example:"98701142"`
+	Authorization string `header:"Authorization" description:"JWT Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Authentication cookie"`
+}
+
+// GetCorporationMembersInput represents the input for getting corporation members
+type GetCorporationMembersInput struct {
+	CorporationID int    `path:"corporation_id" minimum:"1" description:"Corporation ID to retrieve members for" example:"98701142"`
+	CEOID         int    `query:"ceo_id" minimum:"1" description:"CEO character ID for authentication" example:"661916654"`
 	Authorization string `header:"Authorization" description:"JWT Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Authentication cookie"`
 }

@@ -57,10 +57,10 @@ type CorporationErrorOutput struct {
 
 // CorporationSearchInfo represents a corporation in search results
 type CorporationSearchInfo struct {
-	CorporationID  int       `json:"corporation_id" description:"Corporation ID" example:"98000001"`
+	CorporationID  int       `json:"corporation_id" description:"Corporation ID" example:"98701142"`
 	Name           string    `json:"name" description:"Corporation name" example:"Dreddit"`
 	Ticker         string    `json:"ticker" description:"Corporation ticker" example:"B0RT"`
-	CEOCharacterID int       `json:"ceo_id" description:"Character ID of the corporation CEO" example:"95465499"`
+	CEOCharacterID int       `json:"ceo_id" description:"Character ID of the corporation CEO" example:"661916654"`
 	MemberCount    int       `json:"member_count" description:"Number of members" example:"3500"`
 	AllianceID     *int      `json:"alliance_id,omitempty" description:"Alliance ID if in an alliance"`
 	UpdatedAt      time.Time `json:"updated_at" description:"Last update timestamp"`
@@ -138,4 +138,41 @@ type CEOTokenValidationResult struct {
 // ValidateCEOTokensOutput represents the CEO token validation response (Huma wrapper)
 type ValidateCEOTokensOutput struct {
 	Body CEOTokenValidationResult `json:"body"`
+}
+
+// AllianceHistoryEntry represents a single alliance history record
+type AllianceHistoryEntry struct {
+	AllianceID *int      `json:"alliance_id,omitempty" description:"Alliance ID (null if corporation left all alliances)"`
+	IsDeleted  bool      `json:"is_deleted,omitempty" description:"True if the alliance has been deleted"`
+	RecordID   int       `json:"record_id" description:"Unique record ID for this history entry"`
+	StartDate  time.Time `json:"start_date" description:"Date when the corporation joined this alliance"`
+}
+
+// CorporationAllianceHistoryResult represents the alliance history for a corporation
+type CorporationAllianceHistoryResult struct {
+	CorporationID int                    `json:"corporation_id" description:"Corporation ID"`
+	History       []AllianceHistoryEntry `json:"history" description:"Alliance history entries, ordered by date"`
+	Count         int                    `json:"count" description:"Number of history entries"`
+}
+
+// CorporationAllianceHistoryOutput represents the alliance history response (Huma wrapper)
+type CorporationAllianceHistoryOutput struct {
+	Body CorporationAllianceHistoryResult `json:"body"`
+}
+
+// CorporationMemberInfo represents basic corporation member information
+type CorporationMemberInfo struct {
+	CharacterID int `json:"character_id" description:"Character ID of the corporation member"`
+}
+
+// CorporationMembersResult represents the members list for a corporation
+type CorporationMembersResult struct {
+	CorporationID int                     `json:"corporation_id" description:"Corporation ID"`
+	Members       []CorporationMemberInfo `json:"members" description:"List of corporation members"`
+	Count         int                     `json:"count" description:"Number of members in the corporation"`
+}
+
+// CorporationMembersOutput represents the corporation members response (Huma wrapper)
+type CorporationMembersOutput struct {
+	Body CorporationMembersResult `json:"body"`
 }

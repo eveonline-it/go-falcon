@@ -124,6 +124,46 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, corporatio
 
 		return &dto.ValidateCEOTokensOutput{Body: *results}, nil
 	})
+
+	// Alliance history endpoint (authenticated)
+	huma.Register(api, huma.Operation{
+		OperationID: "corporation-alliance-history",
+		Method:      "GET",
+		Path:        basePath + "/{corporation_id}/alliancehistory",
+		Summary:     "Get Corporation Alliance History",
+		Description: "Retrieves the complete alliance history for a corporation from EVE Online ESI API. Shows when the corporation joined and left alliances. Requires authentication.",
+		Tags:        []string{"Corporations"},
+	}, func(ctx context.Context, input *dto.GetCorporationAllianceHistoryInput) (*dto.CorporationAllianceHistoryOutput, error) {
+		// Require authentication
+		if corporationAdapter != nil {
+			_, err := corporationAdapter.RequireCorporationAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return m.getCorporationAllianceHistory(ctx, input.CorporationID)
+	})
+
+	// Corporation members endpoint (authenticated, requires CEO ID)
+	huma.Register(api, huma.Operation{
+		OperationID: "corporation-get-members",
+		Method:      "GET",
+		Path:        basePath + "/{corporation_id}/members",
+		Summary:     "Get Corporation Members",
+		Description: "Retrieves the list of corporation members from EVE Online ESI API. Requires authentication and valid CEO ID that matches the corporation's CEO. Returns a list of character IDs for all corporation members.",
+		Tags:        []string{"Corporations"},
+	}, func(ctx context.Context, input *dto.GetCorporationMembersInput) (*dto.CorporationMembersOutput, error) {
+		// Require authentication
+		if corporationAdapter != nil {
+			_, err := corporationAdapter.RequireCorporationAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return m.getCorporationMembers(ctx, input.CorporationID, input.CEOID)
+	})
 }
 
 // getCorporationInfo handles the corporation information request
@@ -160,6 +200,67 @@ func (m *Module) searchCorporationsByName(ctx context.Context, name string) (*dt
 	}
 
 	return results, nil
+}
+
+// getCorporationAllianceHistory handles the corporation alliance history request
+func (m *Module) getCorporationAllianceHistory(ctx context.Context, corporationID int) (*dto.CorporationAllianceHistoryOutput, error) {
+	if corporationID <= 0 {
+		return nil, huma.Error400BadRequest("Corporation ID must be a positive integer")
+	}
+
+	// Call the service to get alliance history
+	history, err := m.service.GetCorporationAllianceHistory(ctx, corporationID)
+	if err != nil {
+		// Check if it's a 404 from ESI (corporation not found)
+		if isNotFoundError(err) {
+			return nil, huma.Error404NotFound(fmt.Sprintf("Corporation with ID %d not found", corporationID))
+		}
+
+		// For other errors, return a 500
+		return nil, huma.Error500InternalServerError("Failed to retrieve corporation alliance history", err)
+	}
+
+	return history, nil
+}
+
+// getCorporationMembers handles the corporation members request
+func (m *Module) getCorporationMembers(ctx context.Context, corporationID int, ceoID int) (*dto.CorporationMembersOutput, error) {
+	if corporationID <= 0 {
+		return nil, huma.Error400BadRequest("Corporation ID must be a positive integer")
+	}
+
+	if ceoID <= 0 {
+		return nil, huma.Error400BadRequest("CEO ID must be a positive integer")
+	}
+
+	// Call the service to get corporation members
+	members, err := m.service.GetCorporationMembers(ctx, corporationID, ceoID)
+	if err != nil {
+		// Check if it's a 404 from ESI (corporation not found)
+		if isNotFoundError(err) {
+			return nil, huma.Error404NotFound(fmt.Sprintf("Corporation with ID %d not found", corporationID))
+		}
+
+		// Check for CEO validation errors
+		if err.Error() == fmt.Sprintf("invalid CEO ID for corporation %d", corporationID) {
+			return nil, huma.Error403Forbidden("The provided CEO ID does not match the corporation's CEO")
+		}
+
+		// Check for missing CEO profile
+		if err.Error() == fmt.Sprintf("CEO profile not found for character ID %d", ceoID) {
+			return nil, huma.Error404NotFound("CEO profile not found")
+		}
+
+		// Check for invalid token
+		if err.Error() == "CEO does not have a valid access token" {
+			return nil, huma.Error403Forbidden("CEO does not have a valid access token")
+		}
+
+		// For other errors, return a 500
+		return nil, huma.Error500InternalServerError("Failed to retrieve corporation members", err)
+	}
+
+	return members, nil
 }
 
 // isNotFoundError checks if the error indicates a corporation was not found

@@ -708,10 +708,60 @@ func (c *CorporationClient) GetCorporationAllianceHistory(ctx context.Context, c
 	endpoint := fmt.Sprintf("/corporations/%d/alliancehistory/", corporationID)
 	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
 
-	body, err := c.makeAuthenticatedRequest(ctx, endpoint, "", cacheKey) // Public endpoint
-	if err != nil {
-		return nil, err
+	// Check cache first
+	if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		var history []CorporationAllianceHistory
+		if err := json.Unmarshal(cachedData, &history); err == nil {
+			return history, nil
+		}
 	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers for public endpoint
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Accept", "application/json")
+
+	// Add conditional headers if we have cached data
+	c.cacheManager.SetConditionalHeaders(req, cacheKey)
+
+	// Use retry mechanism
+	resp, err := c.retryClient.DoWithRetry(ctx, req, 3)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call ESI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Handle 304 Not Modified
+	if resp.StatusCode == http.StatusNotModified {
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
+			// Refresh the expiry since ESI confirmed data is still valid
+			c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+
+			var history []CorporationAllianceHistory
+			if err := json.Unmarshal(cachedData, &history); err != nil {
+				return nil, fmt.Errorf("failed to parse cached response: %w", err)
+			}
+			return history, nil
+		} else {
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for corporation %d", corporationID)
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Update cache
+	c.cacheManager.Set(cacheKey, body, resp.Header)
 
 	var history []CorporationAllianceHistory
 	if err := json.Unmarshal(body, &history); err != nil {
@@ -763,9 +813,18 @@ func (c *CorporationClient) GetCorporationMembers(ctx context.Context, corporati
 		return nil, err
 	}
 
-	var members []CorporationMember
-	if err := json.Unmarshal(body, &members); err != nil {
+	// ESI returns a simple array of character IDs (integers)
+	var characterIDs []int
+	if err := json.Unmarshal(body, &characterIDs); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert to CorporationMember structs
+	members := make([]CorporationMember, len(characterIDs))
+	for i, characterID := range characterIDs {
+		members[i] = CorporationMember{
+			CharacterID: characterID,
+		}
 	}
 
 	return members, nil

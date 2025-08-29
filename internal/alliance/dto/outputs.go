@@ -6,7 +6,7 @@ import "time"
 // https://esi.evetech.net/meta/openapi.json - AlliancesAllianceIdGet schema
 type AllianceInfo struct {
 	Name                  string    `json:"name" description:"the full name of the alliance" example:"Test Alliance Please Ignore"`
-	CreatorID             int       `json:"creator_id" description:"ID of the character that created the alliance" example:"12345"`
+	CreatorID             int       `json:"creator_id" description:"ID of the character that created the alliance" example:"661916654"`
 	CreatorCorporationID  int       `json:"creator_corporation_id" description:"ID of the corporation that created the alliance" example:"45678"`
 	Ticker                string    `json:"ticker" description:"the short name of the alliance" example:"TEST"`
 	DateFounded           time.Time `json:"date_founded" description:"Date the alliance was founded" format:"date-time"`
