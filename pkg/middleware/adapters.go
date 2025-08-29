@@ -295,6 +295,11 @@ func (ca *CorporationAdapter) RequirePermission(ctx context.Context, authHeader,
 	return ca.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, permissionID)
 }
 
+// RequireSuperAdmin ensures the user is authenticated and is a super admin
+func (ca *CorporationAdapter) RequireSuperAdmin(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ca.permissionMiddleware.RequireSuperAdmin(ctx, authHeader, cookieHeader)
+}
+
 // SiteSettingsAdapter provides site settings-specific permission methods
 type SiteSettingsAdapter struct {
 	*ModuleAdapter

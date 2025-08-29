@@ -257,12 +257,13 @@ func (s *Service) SearchCorporationsByName(ctx context.Context, name string) (*d
 	searchResults := make([]dto.CorporationSearchInfo, len(corporations))
 	for i, corp := range corporations {
 		searchResults[i] = dto.CorporationSearchInfo{
-			CorporationID: corp.CorporationID,
-			Name:          corp.Name,
-			Ticker:        corp.Ticker,
-			MemberCount:   corp.MemberCount,
-			AllianceID:    corp.AllianceID,
-			UpdatedAt:     corp.UpdatedAt,
+			CorporationID:  corp.CorporationID,
+			Name:           corp.Name,
+			Ticker:         corp.Ticker,
+			CEOCharacterID: corp.CEOCharacterID,
+			MemberCount:    corp.MemberCount,
+			AllianceID:     corp.AllianceID,
+			UpdatedAt:      corp.UpdatedAt,
 		}
 	}
 
@@ -408,6 +409,12 @@ func (s *Service) UpdateAllCorporations(ctx context.Context, concurrentWorkers i
 func (s *Service) ValidateCEOTokens(ctx context.Context) error {
 	slog.InfoContext(ctx, "Starting CEO token validation")
 
+	// Check if auth service is available
+	if s.authService == nil {
+		slog.WarnContext(ctx, "Auth service not available, skipping CEO token validation")
+		return nil
+	}
+
 	// Get all CEO IDs from enabled corporations
 	ceoIDs, err := s.repository.GetCEOIDsFromEnabledCorporations(ctx)
 	if err != nil {
@@ -424,42 +431,178 @@ func (s *Service) ValidateCEOTokens(ctx context.Context) error {
 
 	invalidTokenCount := 0
 	validTokenCount := 0
+	noProfileCount := 0
 
 	// Check each CEO's token validity
 	for _, ceoID := range ceoIDs {
-		// Check if character has a valid token in user_profiles collection
-		// This would need access to the auth repository or service
-		// For now, we'll just log the CEO IDs that need checking
+		// Get the user profile for this CEO from the auth service
+		profile, err := s.authService.GetUserProfileByCharacterID(ctx, ceoID)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				// CEO doesn't have a profile/token at all
+				noProfileCount++
+				slog.WarnContext(ctx, "CEO has no user profile/token",
+					"ceo_character_id", ceoID)
+			} else {
+				// Other error occurred
+				slog.ErrorContext(ctx, "Failed to get CEO profile",
+					"ceo_character_id", ceoID,
+					"error", err)
+			}
+			continue
+		}
 
-		// TODO: Integrate with auth module to check token validity
-		// For now, just log the CEO ID for demonstration
-		slog.InfoContext(ctx, "TODO: Check token validity for CEO",
-			"ceo_character_id", ceoID,
-			"action", "validate_token")
+		// Check if profile is nil (can happen when no document exists but no error is returned)
+		if profile == nil {
+			noProfileCount++
+			slog.WarnContext(ctx, "CEO has no user profile/token",
+				"ceo_character_id", ceoID)
+			continue
+		}
 
-		// TODO: Replace this placeholder logic with actual token validation
-		// Sample logic would be:
-		// 1. Get user profile by character_id from auth service
-		// 2. Check if token_expiry is in the future
-		// 3. Check if valid flag is true
-		// 4. If invalid, log and increment invalidTokenCount
-		// 5. If valid, increment validTokenCount
-
-		// Placeholder: assume all tokens are valid for now
-		validTokenCount++
+		// Check if the token is valid
+		if profile.Valid {
+			validTokenCount++
+			slog.DebugContext(ctx, "CEO has valid token",
+				"ceo_character_id", ceoID,
+				"character_name", profile.CharacterName,
+				"corporation_id", profile.CorporationID)
+		} else {
+			invalidTokenCount++
+			slog.WarnContext(ctx, "CEO has invalid token",
+				"ceo_character_id", ceoID,
+				"character_name", profile.CharacterName,
+				"corporation_id", profile.CorporationID,
+				"last_login", profile.LastLogin,
+				"token_expiry", profile.TokenExpiry)
+		}
 	}
 
 	slog.InfoContext(ctx, "CEO token validation completed",
 		"total_ceos", len(ceoIDs),
 		"valid_tokens", validTokenCount,
-		"invalid_tokens", invalidTokenCount)
+		"invalid_tokens", invalidTokenCount,
+		"no_profile", noProfileCount)
 
 	if invalidTokenCount > 0 {
 		slog.WarnContext(ctx, "Found CEOs with invalid tokens", "count", invalidTokenCount)
 		// TODO: Implement notification system integration here
 	}
 
+	if noProfileCount > 0 {
+		slog.WarnContext(ctx, "Found CEOs with no user profile", "count", noProfileCount)
+		// TODO: These CEOs need to authenticate with the system
+	}
+
 	return nil
+}
+
+// ValidateCEOTokensWithResults checks if all CEO characters have valid tokens and returns detailed results
+func (s *Service) ValidateCEOTokensWithResults(ctx context.Context) (*dto.CEOTokenValidationResult, error) {
+	slog.InfoContext(ctx, "Starting CEO token validation with results")
+
+	result := &dto.CEOTokenValidationResult{
+		InvalidCEOs: []dto.CEOTokenInfo{},
+		MissingCEOs: []int{},
+		ExecutedAt:  time.Now().UTC(),
+	}
+
+	// Check if auth service is available
+	if s.authService == nil {
+		slog.WarnContext(ctx, "Auth service not available, skipping CEO token validation")
+		return result, fmt.Errorf("auth service not available")
+	}
+
+	// Get all CEO IDs from enabled corporations
+	ceoIDs, err := s.repository.GetCEOIDsFromEnabledCorporations(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get CEO IDs from enabled corporations", "error", err)
+		return nil, fmt.Errorf("failed to get CEO IDs: %w", err)
+	}
+
+	result.TotalCEOs = len(ceoIDs)
+
+	if len(ceoIDs) == 0 {
+		slog.InfoContext(ctx, "No CEOs found in enabled corporations")
+		return result, nil
+	}
+
+	slog.InfoContext(ctx, "Found CEOs to validate", "count", len(ceoIDs))
+
+	// Check each CEO's token validity
+	for _, ceoID := range ceoIDs {
+		// Get the user profile for this CEO from the auth service
+		profile, err := s.authService.GetUserProfileByCharacterID(ctx, ceoID)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				// CEO doesn't have a profile/token at all
+				result.NoProfile++
+				result.MissingCEOs = append(result.MissingCEOs, ceoID)
+				slog.WarnContext(ctx, "CEO has no user profile/token",
+					"ceo_character_id", ceoID)
+			} else {
+				// Other error occurred
+				slog.ErrorContext(ctx, "Failed to get CEO profile",
+					"ceo_character_id", ceoID,
+					"error", err)
+			}
+			continue
+		}
+
+		// Check if profile is nil (can happen when no document exists but no error is returned)
+		if profile == nil {
+			result.NoProfile++
+			result.MissingCEOs = append(result.MissingCEOs, ceoID)
+			slog.WarnContext(ctx, "CEO has no user profile/token",
+				"ceo_character_id", ceoID)
+			continue
+		}
+
+		// Check if the token is valid
+		if profile.Valid {
+			result.ValidTokens++
+			slog.DebugContext(ctx, "CEO has valid token",
+				"ceo_character_id", ceoID,
+				"character_name", profile.CharacterName,
+				"corporation_id", profile.CorporationID)
+		} else {
+			result.InvalidTokens++
+			// Add to invalid CEOs list
+			ceoInfo := dto.CEOTokenInfo{
+				CharacterID:     ceoID,
+				CharacterName:   profile.CharacterName,
+				CorporationID:   profile.CorporationID,
+				CorporationName: profile.CorporationName,
+				Valid:           false,
+				TokenExpiry:     &profile.TokenExpiry,
+				LastLogin:       &profile.LastLogin,
+			}
+			result.InvalidCEOs = append(result.InvalidCEOs, ceoInfo)
+
+			slog.WarnContext(ctx, "CEO has invalid token",
+				"ceo_character_id", ceoID,
+				"character_name", profile.CharacterName,
+				"corporation_id", profile.CorporationID,
+				"last_login", profile.LastLogin,
+				"token_expiry", profile.TokenExpiry)
+		}
+	}
+
+	slog.InfoContext(ctx, "CEO token validation completed",
+		"total_ceos", result.TotalCEOs,
+		"valid_tokens", result.ValidTokens,
+		"invalid_tokens", result.InvalidTokens,
+		"no_profile", result.NoProfile)
+
+	if result.InvalidTokens > 0 {
+		slog.WarnContext(ctx, "Found CEOs with invalid tokens", "count", result.InvalidTokens)
+	}
+
+	if result.NoProfile > 0 {
+		slog.WarnContext(ctx, "Found CEOs with no user profile", "count", result.NoProfile)
+	}
+
+	return result, nil
 }
 
 // GetMemberTracking retrieves member tracking information for a corporation

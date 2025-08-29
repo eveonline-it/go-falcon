@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -189,33 +190,37 @@ func (r *Repository) SearchCorporationsByName(ctx context.Context, name string) 
 	return corporations, nil
 }
 
-// GetCEOIDsFromEnabledCorporations retrieves CEO character IDs from all enabled (non-deleted) corporations
+// GetCEOIDsFromEnabledCorporations retrieves CEO character IDs from site_settings managed_corporations
 func (r *Repository) GetCEOIDsFromEnabledCorporations(ctx context.Context) ([]int, error) {
-	filter := bson.M{"deleted_at": bson.M{"$exists": false}, "ceo_character_id": bson.M{"$gt": 0}}
+	// Get the site_settings collection
+	siteSettingsCollection := r.mongodb.Database.Collection("site_settings")
 
-	// Only project the ceo_character_id field for efficiency
-	projection := bson.M{"ceo_character_id": 1}
-	findOptions := options.Find().SetProjection(projection)
-
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
-	if err != nil {
-		return nil, err
+	// Find the managed_corporations setting
+	var settingDoc struct {
+		Value struct {
+			Corporations []struct {
+				CEOCharacterID *int64 `bson:"ceo_character_id,omitempty"`
+				Enabled        bool   `bson:"enabled"`
+			} `bson:"corporations"`
+		} `bson:"value"`
 	}
-	defer cursor.Close(ctx)
+
+	filter := bson.M{"key": "managed_corporations"}
+	err := siteSettingsCollection.FindOne(ctx, filter).Decode(&settingDoc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// No managed corporations setting found, return empty list
+			return []int{}, nil
+		}
+		return nil, fmt.Errorf("failed to get managed corporations from site_settings: %w", err)
+	}
 
 	var ceoIDs []int
-	for cursor.Next(ctx) {
-		var doc struct {
-			CEOCharacterID int `bson:"ceo_character_id"`
+	for _, corp := range settingDoc.Value.Corporations {
+		// Only include enabled corporations with CEO IDs
+		if corp.Enabled && corp.CEOCharacterID != nil && *corp.CEOCharacterID > 0 {
+			ceoIDs = append(ceoIDs, int(*corp.CEOCharacterID))
 		}
-		if err := cursor.Decode(&doc); err != nil {
-			continue // Skip invalid documents
-		}
-		ceoIDs = append(ceoIDs, doc.CEOCharacterID)
-	}
-
-	if err := cursor.Err(); err != nil {
-		return nil, err
 	}
 
 	return ceoIDs, nil

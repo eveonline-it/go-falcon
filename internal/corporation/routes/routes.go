@@ -98,6 +98,32 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, corporatio
 		status := m.service.GetStatus(ctx)
 		return &dto.StatusOutput{Body: *status}, nil
 	})
+
+	// CEO Token Validation endpoint (super_admin only)
+	huma.Register(api, huma.Operation{
+		OperationID: "corporation-validate-ceo-tokens",
+		Method:      "POST",
+		Path:        basePath + "/validate-ceo-tokens",
+		Summary:     "Validate CEO Tokens",
+		Description: "Validates all CEO tokens and returns detailed results about invalid or missing tokens. This endpoint requires super_admin privileges and may take a while to complete for large datasets.",
+		Tags:        []string{"Corporations", "Administration"},
+	}, func(ctx context.Context, input *dto.ValidateCEOTokensInput) (*dto.ValidateCEOTokensOutput, error) {
+		// Require super_admin privileges
+		if corporationAdapter != nil {
+			_, err := corporationAdapter.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Run the validation and return results
+		results, err := m.service.ValidateCEOTokensWithResults(ctx)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to validate CEO tokens", err)
+		}
+
+		return &dto.ValidateCEOTokensOutput{Body: *results}, nil
+	})
 }
 
 // getCorporationInfo handles the corporation information request

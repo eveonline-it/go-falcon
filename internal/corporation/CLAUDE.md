@@ -336,6 +336,7 @@ GET /search?name=Investment Bank  # Multi-word text search
       "corporation_id": 98444472,
       "name": "Protestant Knights Investment Bank",
       "ticker": "PKIB",
+      "ceo_id": 95465499,
       "member_count": 25,
       "alliance_id": 0,
       "updated_at": "2025-08-22T09:41:26.014Z"
@@ -411,6 +412,64 @@ GET /search?name=Investment Bank  # Multi-word text search
   "message": ""
 }
 ```
+
+### POST `/validate-ceo-tokens` - Validate CEO Tokens
+
+**Description**: Validates all CEO tokens from managed corporations and returns detailed results about invalid or missing tokens. This endpoint is designed for system administrators to monitor and maintain CEO token validity.
+
+**Authentication**: Required (JWT token)
+**Authorization**: Super admin privileges required
+
+**Headers**:
+- `Authorization: Bearer <jwt_token>` or `Cookie: falcon_auth_token=<token>`
+
+**Implementation Flow**:
+1. Verify super admin privileges  
+2. Retrieve all CEO character IDs from site_settings managed_corporations
+3. Check each CEO's user profile and token validity
+4. Return comprehensive validation results with detailed statistics
+
+**Response**: Detailed CEO token validation results
+```json
+{
+  "body": {
+    "total_ceos": 15,
+    "valid_tokens": 12,
+    "invalid_tokens": 2,
+    "no_profile": 1,
+    "invalid_ceos": [
+      {
+        "character_id": 95465499,
+        "character_name": "Example CEO",
+        "corporation_id": 98000001,
+        "corporation_name": "Example Corp",
+        "valid": false,
+        "token_expiry": "2024-01-01T00:00:00Z",
+        "last_login": "2023-12-01T00:00:00Z"
+      }
+    ],
+    "missing_ceos": [95465500],
+    "executed_at": "2025-08-29T12:00:00Z"
+  }
+}
+```
+
+**Key Features**:
+- **Smart Data Source**: Uses site_settings managed_corporations for CEO list (not all database corporations)
+- **Comprehensive Analysis**: Distinguishes between invalid tokens and missing profiles
+- **Detailed Results**: Provides actionable information for each invalid CEO
+- **Performance Optimized**: Only checks CEOs from enabled managed corporations
+
+**Error Handling**:
+- `400`: Invalid request format
+- `401`: Missing or invalid authentication token
+- `403`: Insufficient permissions (not super admin)
+- `500`: Auth service unavailable or database errors
+
+**Use Cases**:
+- **System Monitoring**: Regular checks of CEO token health
+- **Maintenance Planning**: Identify CEOs needing token renewal
+- **Troubleshooting**: Debug corporation member tracking issues
 
 ## Database Schema
 

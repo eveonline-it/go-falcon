@@ -91,6 +91,7 @@ The module stores managed corporations in a special site setting with key `"mana
         "corporation_id": 98000001,
         "name": "Example Corporation",
         "ticker": "EXAM",
+        "ceo_character_id": 95465499,
         "enabled": true,
         "position": 1,
         "added_at": "2025-01-01T00:00:00Z",
@@ -109,7 +110,8 @@ The module stores managed corporations in a special site setting with key `"mana
 **Corporation Fields:**
 - `corporation_id` (int64): EVE Online corporation ID
 - `name` (string): Corporation name
-- `ticker` (string): **REQUIRED** - Corporation ticker used for group naming (e.g., `corp_EXAM`)
+- `ticker` (string): Corporation ticker used for group naming (e.g., `corp_EXAM`). **Auto-fetched if not provided**
+- `ceo_character_id` (int64, optional): CEO character ID, automatically fetched from corporation service
 - `enabled` (boolean): Whether the corporation is enabled
 - `position` (int): Display order position for frontend sorting
 - `added_at` (timestamp): When the corporation was first added
@@ -298,6 +300,8 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
   "corporation": {
     "corporation_id": 98000001,
     "name": "Example Corporation",
+    "ticker": "EXAM",
+    "ceo_character_id": 95465499,
     "enabled": true,
     "position": 3,
     "added_at": "2025-01-01T00:00:00Z",
@@ -326,6 +330,8 @@ Authorization: Bearer <token> | Cookie: falcon_auth_token
     {
       "corporation_id": 98000001,
       "name": "Example Corporation",
+      "ticker": "EXAM",
+      "ceo_character_id": 95465499,
       "enabled": true,
       "position": 1,
       "added_at": "2025-01-01T00:00:00Z",

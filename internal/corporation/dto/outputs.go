@@ -57,12 +57,13 @@ type CorporationErrorOutput struct {
 
 // CorporationSearchInfo represents a corporation in search results
 type CorporationSearchInfo struct {
-	CorporationID int       `json:"corporation_id" description:"Corporation ID" example:"98000001"`
-	Name          string    `json:"name" description:"Corporation name" example:"Dreddit"`
-	Ticker        string    `json:"ticker" description:"Corporation ticker" example:"B0RT"`
-	MemberCount   int       `json:"member_count" description:"Number of members" example:"3500"`
-	AllianceID    *int      `json:"alliance_id,omitempty" description:"Alliance ID if in an alliance"`
-	UpdatedAt     time.Time `json:"updated_at" description:"Last update timestamp"`
+	CorporationID  int       `json:"corporation_id" description:"Corporation ID" example:"98000001"`
+	Name           string    `json:"name" description:"Corporation name" example:"Dreddit"`
+	Ticker         string    `json:"ticker" description:"Corporation ticker" example:"B0RT"`
+	CEOCharacterID int       `json:"ceo_id" description:"Character ID of the corporation CEO" example:"95465499"`
+	MemberCount    int       `json:"member_count" description:"Number of members" example:"3500"`
+	AllianceID     *int      `json:"alliance_id,omitempty" description:"Alliance ID if in an alliance"`
+	UpdatedAt      time.Time `json:"updated_at" description:"Last update timestamp"`
 }
 
 // SearchCorporationsResult represents search results for corporations
@@ -110,4 +111,31 @@ type MemberTrackingResult struct {
 // CorporationMemberTrackingOutput represents the member tracking response (Huma wrapper)
 type CorporationMemberTrackingOutput struct {
 	Body MemberTrackingResult `json:"body"`
+}
+
+// CEOTokenInfo represents information about a CEO's token status
+type CEOTokenInfo struct {
+	CharacterID     int        `json:"character_id" description:"CEO character ID"`
+	CharacterName   string     `json:"character_name" description:"CEO character name"`
+	CorporationID   int        `json:"corporation_id" description:"Corporation ID"`
+	CorporationName string     `json:"corporation_name,omitempty" description:"Corporation name"`
+	Valid           bool       `json:"valid" description:"Whether the token is valid"`
+	TokenExpiry     *time.Time `json:"token_expiry,omitempty" description:"Token expiration time"`
+	LastLogin       *time.Time `json:"last_login,omitempty" description:"Last login time"`
+}
+
+// CEOTokenValidationResult represents the result of CEO token validation
+type CEOTokenValidationResult struct {
+	TotalCEOs     int            `json:"total_ceos" description:"Total number of CEOs found"`
+	ValidTokens   int            `json:"valid_tokens" description:"Number of CEOs with valid tokens"`
+	InvalidTokens int            `json:"invalid_tokens" description:"Number of CEOs with invalid tokens"`
+	NoProfile     int            `json:"no_profile" description:"Number of CEOs with no user profile"`
+	InvalidCEOs   []CEOTokenInfo `json:"invalid_ceos" description:"List of CEOs with invalid tokens"`
+	MissingCEOs   []int          `json:"missing_ceos" description:"List of CEO character IDs with no profile"`
+	ExecutedAt    time.Time      `json:"executed_at" description:"When the validation was executed"`
+}
+
+// ValidateCEOTokensOutput represents the CEO token validation response (Huma wrapper)
+type ValidateCEOTokensOutput struct {
+	Body CEOTokenValidationResult `json:"body"`
 }

@@ -31,3 +31,9 @@ type GetCorporationMemberTrackingInput struct {
 	Authorization string `header:"Authorization" description:"JWT Bearer token for authentication"`
 	Cookie        string `header:"Cookie" description:"Authentication cookie"`
 }
+
+// ValidateCEOTokensInput represents the input for validating CEO tokens (super_admin only)
+type ValidateCEOTokensInput struct {
+	Authorization string `header:"Authorization" description:"JWT Bearer token for authentication"`
+	Cookie        string `header:"Cookie" description:"Authentication cookie"`
+}
