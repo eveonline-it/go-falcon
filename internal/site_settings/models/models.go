@@ -108,16 +108,15 @@ var SettingCategories = []string{
 
 // ManagedCorporation represents a managed corporation in the database
 type ManagedCorporation struct {
-	CorporationID  int64     `bson:"corporation_id" json:"corporation_id"`
-	Name           string    `bson:"name" json:"name"`
-	Ticker         string    `bson:"ticker" json:"ticker"`                                         // NEW: Corporation ticker
-	CEOCharacterID *int64    `bson:"ceo_character_id,omitempty" json:"ceo_character_id,omitempty"` // NEW: CEO character ID
-	Enabled        bool      `bson:"enabled" json:"enabled"`
-	Position       int       `bson:"position" json:"position"`
-	AddedAt        time.Time `bson:"added_at" json:"added_at"`
-	AddedBy        *int64    `bson:"added_by,omitempty" json:"added_by,omitempty"`
-	UpdatedAt      time.Time `bson:"updated_at" json:"updated_at"`
-	UpdatedBy      *int64    `bson:"updated_by,omitempty" json:"updated_by,omitempty"`
+	CorporationID int64     `bson:"corporation_id" json:"corporation_id"`
+	Name          string    `bson:"name" json:"name"`
+	Ticker        string    `bson:"ticker" json:"ticker"` // Corporation ticker
+	Enabled       bool      `bson:"enabled" json:"enabled"`
+	Position      int       `bson:"position" json:"position"`
+	AddedAt       time.Time `bson:"added_at" json:"added_at"`
+	AddedBy       *int64    `bson:"added_by,omitempty" json:"added_by,omitempty"`
+	UpdatedAt     time.Time `bson:"updated_at" json:"updated_at"`
+	UpdatedBy     *int64    `bson:"updated_by,omitempty" json:"updated_by,omitempty"`
 }
 
 // ManagedCorporationsValue represents the value structure for managed_corporations setting

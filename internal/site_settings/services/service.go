@@ -13,99 +13,17 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// CorporationService interface for fetching corporation information
-type CorporationService interface {
-	GetCorporationInfo(ctx context.Context, corporationID int) (*CorporationInfo, error)
-}
-
-// CorporationInfo represents basic corporation information needed for CEO ID and ticker
-type CorporationInfo struct {
-	CEOCharacterID int
-	Ticker         string
-}
-
-// RealCorporationService interface for the real corporation service
-type RealCorporationService interface {
-	GetCorporationInfo(ctx context.Context, corporationID int) (interface{}, error)
-}
-
-// CorporationServiceAdapter adapts the real corporation service to our interface
-type CorporationServiceAdapter struct {
-	corpService RealCorporationService
-}
-
-// NewCorporationServiceAdapter creates a new adapter
-func NewCorporationServiceAdapter(corpService RealCorporationService) *CorporationServiceAdapter {
-	return &CorporationServiceAdapter{corpService: corpService}
-}
-
-// GetCorporationInfo implements the CorporationService interface
-func (a *CorporationServiceAdapter) GetCorporationInfo(ctx context.Context, corporationID int) (*CorporationInfo, error) {
-	result, err := a.corpService.GetCorporationInfo(ctx, corporationID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Use reflection to extract CEO ID from the result
-	// We expect something like *dto.CorporationInfoOutput with Body.CEOCharacterID
-	if result == nil {
-		return nil, fmt.Errorf("corporation service returned nil result")
-	}
-
-	// Use reflect package to safely extract the CEO ID
-	value := reflect.ValueOf(result)
-	if value.Kind() == reflect.Ptr {
-		value = value.Elem()
-	}
-
-	// Try to find Body field first
-	if value.Kind() == reflect.Struct {
-		bodyField := value.FieldByName("Body")
-		if bodyField.IsValid() && bodyField.Kind() == reflect.Struct {
-			ceoField := bodyField.FieldByName("CEOCharacterID")
-			tickerField := bodyField.FieldByName("Ticker")
-			if ceoField.IsValid() && ceoField.Kind() == reflect.Int {
-				info := &CorporationInfo{CEOCharacterID: int(ceoField.Int())}
-				if tickerField.IsValid() && tickerField.Kind() == reflect.String {
-					info.Ticker = tickerField.String()
-				}
-				return info, nil
-			}
-		}
-
-		// Fallback: try to find CEOCharacterID and Ticker directly
-		ceoField := value.FieldByName("CEOCharacterID")
-		tickerField := value.FieldByName("Ticker")
-		if ceoField.IsValid() && ceoField.Kind() == reflect.Int {
-			info := &CorporationInfo{CEOCharacterID: int(ceoField.Int())}
-			if tickerField.IsValid() && tickerField.Kind() == reflect.String {
-				info.Ticker = tickerField.String()
-			}
-			return info, nil
-		}
-	}
-
-	return nil, fmt.Errorf("could not extract CEO ID from result type: %T", result)
-}
-
 // Service handles business logic for site settings
 type Service struct {
-	repo               *Repository
-	corporationService CorporationService
+	repo *Repository
 }
 
 // NewService creates a new service instance
 func NewService(db *mongo.Database) *Service {
 	repo := NewRepository(db)
 	return &Service{
-		repo:               repo,
-		corporationService: nil, // Will be set later via SetCorporationService
+		repo: repo,
 	}
-}
-
-// SetCorporationService sets the corporation service dependency
-func (s *Service) SetCorporationService(corporationService CorporationService) {
-	s.corporationService = corporationService
 }
 
 // InitializeModule initializes the site settings module
@@ -371,39 +289,23 @@ func (s *Service) AddManagedCorporation(ctx context.Context, input *dto.AddCorpo
 		}
 	}
 
-	// Fetch CEO ID and ticker if corporation service is available
-	var ceoCharacterID *int64
+	// Set ticker if provided, otherwise empty (can be updated later)
 	ticker := ""
 	if input.Body.Ticker != nil {
 		ticker = *input.Body.Ticker
 	}
 
-	if s.corporationService != nil {
-		corpInfo, err := s.corporationService.GetCorporationInfo(ctx, int(input.Body.CorporationID))
-		if err == nil && corpInfo != nil {
-			ceoID := int64(corpInfo.CEOCharacterID)
-			ceoCharacterID = &ceoID
-
-			// Use fetched ticker if none was provided
-			if ticker == "" && corpInfo.Ticker != "" {
-				ticker = corpInfo.Ticker
-			}
-		}
-		// Don't fail if CEO fetch fails - just continue without CEO ID/ticker
-	}
-
 	now := time.Now()
 	newCorp := dto.ManagedCorporation{
-		CorporationID:  input.Body.CorporationID,
-		Name:           input.Body.Name,
-		Ticker:         ticker,
-		CEOCharacterID: ceoCharacterID,
-		Enabled:        enabled,
-		Position:       position,
-		AddedAt:        now,
-		AddedBy:        &addedBy,
-		UpdatedAt:      now,
-		UpdatedBy:      &addedBy,
+		CorporationID: input.Body.CorporationID,
+		Name:          input.Body.Name,
+		Ticker:        ticker,
+		Enabled:       enabled,
+		Position:      position,
+		AddedAt:       now,
+		AddedBy:       &addedBy,
+		UpdatedAt:     now,
+		UpdatedBy:     &addedBy,
 	}
 
 	corporations = append(corporations, newCorp)
@@ -574,38 +476,21 @@ func (s *Service) BulkUpdateCorporations(ctx context.Context, input *dto.BulkUpd
 			}
 
 			// Add new corporation
-			// Fetch CEO ID and ticker if corporation service is available
-			var ceoCharacterID *int64
 			ticker := ""
 			if inputCorp.Ticker != nil {
 				ticker = *inputCorp.Ticker
 			}
 
-			if s.corporationService != nil {
-				corpInfo, err := s.corporationService.GetCorporationInfo(ctx, int(inputCorp.CorporationID))
-				if err == nil && corpInfo != nil {
-					ceoID := int64(corpInfo.CEOCharacterID)
-					ceoCharacterID = &ceoID
-
-					// Use fetched ticker if none was provided
-					if ticker == "" && corpInfo.Ticker != "" {
-						ticker = corpInfo.Ticker
-					}
-				}
-				// Don't fail if CEO fetch fails - just continue without CEO ID/ticker
-			}
-
 			newCorp := dto.ManagedCorporation{
-				CorporationID:  inputCorp.CorporationID,
-				Name:           inputCorp.Name,
-				Ticker:         ticker,
-				CEOCharacterID: ceoCharacterID,
-				Enabled:        inputCorp.Enabled,
-				Position:       position,
-				AddedAt:        now,
-				AddedBy:        &updatedBy,
-				UpdatedAt:      now,
-				UpdatedBy:      &updatedBy,
+				CorporationID: inputCorp.CorporationID,
+				Name:          inputCorp.Name,
+				Ticker:        ticker,
+				Enabled:       inputCorp.Enabled,
+				Position:      position,
+				AddedAt:       now,
+				AddedBy:       &updatedBy,
+				UpdatedAt:     now,
+				UpdatedBy:     &updatedBy,
 			}
 			corporations = append(corporations, newCorp)
 			added++
@@ -663,16 +548,15 @@ func (s *Service) getManagedCorporationsData(ctx context.Context) ([]dto.Managed
 	corporations := make([]dto.ManagedCorporation, len(managedCorpsValue.Corporations))
 	for i, corp := range managedCorpsValue.Corporations {
 		corporations[i] = dto.ManagedCorporation{
-			CorporationID:  corp.CorporationID,
-			Name:           corp.Name,
-			Ticker:         corp.Ticker,
-			CEOCharacterID: corp.CEOCharacterID,
-			Enabled:        corp.Enabled,
-			Position:       corp.Position,
-			AddedAt:        corp.AddedAt,
-			AddedBy:        corp.AddedBy,
-			UpdatedAt:      corp.UpdatedAt,
-			UpdatedBy:      corp.UpdatedBy,
+			CorporationID: corp.CorporationID,
+			Name:          corp.Name,
+			Ticker:        corp.Ticker,
+			Enabled:       corp.Enabled,
+			Position:      corp.Position,
+			AddedAt:       corp.AddedAt,
+			AddedBy:       corp.AddedBy,
+			UpdatedAt:     corp.UpdatedAt,
+			UpdatedBy:     corp.UpdatedBy,
 		}
 	}
 
@@ -685,16 +569,15 @@ func (s *Service) updateManagedCorporationsSetting(ctx context.Context, corporat
 	modelCorps := make([]models.ManagedCorporation, len(corporations))
 	for i, corp := range corporations {
 		modelCorps[i] = models.ManagedCorporation{
-			CorporationID:  corp.CorporationID,
-			Name:           corp.Name,
-			Ticker:         corp.Ticker,
-			CEOCharacterID: corp.CEOCharacterID,
-			Enabled:        corp.Enabled,
-			Position:       corp.Position,
-			AddedAt:        corp.AddedAt,
-			AddedBy:        corp.AddedBy,
-			UpdatedAt:      corp.UpdatedAt,
-			UpdatedBy:      corp.UpdatedBy,
+			CorporationID: corp.CorporationID,
+			Name:          corp.Name,
+			Ticker:        corp.Ticker,
+			Enabled:       corp.Enabled,
+			Position:      corp.Position,
+			AddedAt:       corp.AddedAt,
+			AddedBy:       corp.AddedBy,
+			UpdatedAt:     corp.UpdatedAt,
+			UpdatedBy:     corp.UpdatedBy,
 		}
 	}
 

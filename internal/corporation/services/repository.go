@@ -190,17 +190,17 @@ func (r *Repository) SearchCorporationsByName(ctx context.Context, name string) 
 	return corporations, nil
 }
 
-// GetCEOIDsFromEnabledCorporations retrieves CEO character IDs from site_settings managed_corporations
+// GetCEOIDsFromEnabledCorporations retrieves CEO character IDs from enabled managed corporations
 func (r *Repository) GetCEOIDsFromEnabledCorporations(ctx context.Context) ([]int, error) {
 	// Get the site_settings collection
 	siteSettingsCollection := r.mongodb.Database.Collection("site_settings")
 
-	// Find the managed_corporations setting
+	// Find the managed_corporations setting to get enabled corporation IDs
 	var settingDoc struct {
 		Value struct {
 			Corporations []struct {
-				CEOCharacterID *int64 `bson:"ceo_character_id,omitempty"`
-				Enabled        bool   `bson:"enabled"`
+				CorporationID int64 `bson:"corporation_id"`
+				Enabled       bool  `bson:"enabled"`
 			} `bson:"corporations"`
 		} `bson:"value"`
 	}
@@ -215,12 +215,50 @@ func (r *Repository) GetCEOIDsFromEnabledCorporations(ctx context.Context) ([]in
 		return nil, fmt.Errorf("failed to get managed corporations from site_settings: %w", err)
 	}
 
-	var ceoIDs []int
+	// Collect enabled corporation IDs
+	var enabledCorpIDs []int
 	for _, corp := range settingDoc.Value.Corporations {
-		// Only include enabled corporations with CEO IDs
-		if corp.Enabled && corp.CEOCharacterID != nil && *corp.CEOCharacterID > 0 {
-			ceoIDs = append(ceoIDs, int(*corp.CEOCharacterID))
+		if corp.Enabled {
+			enabledCorpIDs = append(enabledCorpIDs, int(corp.CorporationID))
 		}
+	}
+
+	// If no enabled corporations, return empty list
+	if len(enabledCorpIDs) == 0 {
+		return []int{}, nil
+	}
+
+	// Now query the corporations collection to get CEO IDs for these corporations
+	corpFilter := bson.M{
+		"corporation_id": bson.M{"$in": enabledCorpIDs},
+		"deleted_at":     bson.M{"$exists": false},
+	}
+
+	// Only project the ceo_character_id field for efficiency
+	projection := bson.M{"ceo_character_id": 1}
+	findOptions := options.Find().SetProjection(projection)
+
+	cursor, err := r.collection.Find(ctx, corpFilter, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query corporations collection: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var ceoIDs []int
+	for cursor.Next(ctx) {
+		var doc struct {
+			CEOCharacterID int `bson:"ceo_character_id"`
+		}
+		if err := cursor.Decode(&doc); err != nil {
+			continue // Skip invalid documents
+		}
+		if doc.CEOCharacterID > 0 {
+			ceoIDs = append(ceoIDs, doc.CEOCharacterID)
+		}
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over corporations cursor: %w", err)
 	}
 
 	return ceoIDs, nil

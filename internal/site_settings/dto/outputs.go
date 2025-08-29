@@ -89,16 +89,15 @@ type SiteSettingsHealthResponse struct {
 
 // ManagedCorporation represents a managed corporation in API responses
 type ManagedCorporation struct {
-	CorporationID  int64     `json:"corporation_id" description:"EVE Online corporation ID"`
-	Name           string    `json:"name" description:"Corporation name"`
-	Ticker         string    `json:"ticker" description:"Corporation ticker"`
-	CEOCharacterID *int64    `json:"ceo_character_id,omitempty" description:"CEO character ID"`
-	Enabled        bool      `json:"enabled" description:"Whether the corporation is enabled"`
-	Position       int       `json:"position" description:"Display order position"`
-	AddedAt        time.Time `json:"added_at" description:"When the corporation was added"`
-	AddedBy        *int64    `json:"added_by,omitempty" description:"Character ID who added the corporation"`
-	UpdatedAt      time.Time `json:"updated_at" description:"When the corporation was last updated"`
-	UpdatedBy      *int64    `json:"updated_by,omitempty" description:"Character ID who last updated the corporation"`
+	CorporationID int64     `json:"corporation_id" description:"EVE Online corporation ID"`
+	Name          string    `json:"name" description:"Corporation name"`
+	Ticker        string    `json:"ticker" description:"Corporation ticker"`
+	Enabled       bool      `json:"enabled" description:"Whether the corporation is enabled"`
+	Position      int       `json:"position" description:"Display order position"`
+	AddedAt       time.Time `json:"added_at" description:"When the corporation was added"`
+	AddedBy       *int64    `json:"added_by,omitempty" description:"Character ID who added the corporation"`
+	UpdatedAt     time.Time `json:"updated_at" description:"When the corporation was last updated"`
+	UpdatedBy     *int64    `json:"updated_by,omitempty" description:"Character ID who last updated the corporation"`
 }
 
 // AddCorporationOutput represents the response for adding a managed corporation
