@@ -50,6 +50,8 @@ type CorporationInfo struct {
 type SiteSettingsServiceInterface interface {
 	// GetManagedCorporations gets the list of managed corporations with enabled status
 	GetManagedCorporations(ctx context.Context) ([]ManagedCorporation, error)
+	// GetManagedAlliances gets the list of managed alliances with enabled status
+	GetManagedAlliances(ctx context.Context) ([]ManagedAlliance, error)
 }
 
 // ManagedCorporation represents a managed corporation from site settings
@@ -59,6 +61,15 @@ type ManagedCorporation struct {
 	Ticker        string `json:"ticker"`
 	Enabled       bool   `json:"enabled"`
 	Position      int    `json:"position"`
+}
+
+// ManagedAlliance represents a managed alliance from site settings
+type ManagedAlliance struct {
+	AllianceID int64  `json:"alliance_id"`
+	Name       string `json:"name"`
+	Ticker     string `json:"ticker"`
+	Enabled    bool   `json:"enabled"`
+	Position   int    `json:"position"`
 }
 
 // GroupsServiceAdapter adapts the real groups service to our interface
@@ -120,14 +131,17 @@ func (a *CorporationServiceAdapter) GetCorporationInfo(ctx context.Context, corp
 // SiteSettingsServiceAdapter adapts the real site settings service to our interface
 type SiteSettingsServiceAdapter struct {
 	getManagedCorporationsFunc func(ctx context.Context) ([]ManagedCorporation, error)
+	getManagedAlliancesFunc    func(ctx context.Context) ([]ManagedAlliance, error)
 }
 
 // NewSiteSettingsServiceAdapter creates an adapter that bridges the site settings service
 func NewSiteSettingsServiceAdapter(
 	getManagedCorporationsFunc func(ctx context.Context) ([]ManagedCorporation, error),
+	getManagedAlliancesFunc func(ctx context.Context) ([]ManagedAlliance, error),
 ) SiteSettingsServiceInterface {
 	return &SiteSettingsServiceAdapter{
 		getManagedCorporationsFunc: getManagedCorporationsFunc,
+		getManagedAlliancesFunc:    getManagedAlliancesFunc,
 	}
 }
 
@@ -137,6 +151,14 @@ func (a *SiteSettingsServiceAdapter) GetManagedCorporations(ctx context.Context)
 		return []ManagedCorporation{}, nil // Gracefully handle nil function
 	}
 	return a.getManagedCorporationsFunc(ctx)
+}
+
+// GetManagedAlliances implements SiteSettingsServiceInterface
+func (a *SiteSettingsServiceAdapter) GetManagedAlliances(ctx context.Context) ([]ManagedAlliance, error) {
+	if a.getManagedAlliancesFunc == nil {
+		return []ManagedAlliance{}, nil // Gracefully handle nil function
+	}
+	return a.getManagedAlliancesFunc(ctx)
 }
 
 // Service handles sitemap business logic
@@ -458,9 +480,18 @@ func (s *Service) GetUserRoutesWithAuth(ctx context.Context, input *dto.GetUserR
 		corporationRoutes = []models.Route{}
 	}
 
+	// Generate dynamic alliance dashboard routes
+	allianceRoutes, err := s.generateAllianceRoutes(ctx, characterID)
+	if err != nil {
+		// Log error but don't fail the entire request
+		fmt.Printf("⚠️  [DEBUG] Warning: Failed to generate alliance routes: %v\n", err)
+		allianceRoutes = []models.Route{}
+	}
+
 	// Merge static and dynamic routes
 	allRoutes := append(routes, corporationRoutes...)
-	fmt.Printf("📋 [DEBUG] Merged %d static + %d dynamic = %d total routes\n", len(routes), len(corporationRoutes), len(allRoutes))
+	allRoutes = append(allRoutes, allianceRoutes...)
+	fmt.Printf("📋 [DEBUG] Merged %d static + %d corp + %d alliance = %d total routes\n", len(routes), len(corporationRoutes), len(allianceRoutes), len(allRoutes))
 
 	// Extract user permissions and groups
 	userPermissions, userGroups, err := s.extractUserContext(ctx, userID, characterID)
@@ -580,7 +611,7 @@ func (s *Service) generateCorporationRoutes(ctx context.Context, characterID int
 			RouteID:     fmt.Sprintf("corp-dashboard-%d", corp.CorporationID),
 			Path:        fmt.Sprintf("/corporations/%d/dashboard", corp.CorporationID),
 			Component:   "CorporationDashboard",
-			Name:        fmt.Sprintf("%s Dashboard", corp.Name),
+			Name:        corp.Name,
 			Type:        models.RouteTypeProtected, // Requires specific permissions
 			ParentID:    stringPtr("folder-corporation"),
 			NavPosition: models.NavMain,
@@ -623,6 +654,89 @@ func (s *Service) generateCorporationRoutes(ctx context.Context, characterID int
 // stringPtr returns a pointer to the given string (helper function)
 func stringPtr(s string) *string {
 	return &s
+}
+
+// generateAllianceRoutes creates dynamic alliance dashboard routes based on user access
+func (s *Service) generateAllianceRoutes(ctx context.Context, characterID int64) ([]models.Route, error) {
+	var allianceRoutes []models.Route
+
+	// Get managed alliances from site settings
+	fmt.Printf("🔍 [DEBUG] Generating alliance routes for character %d\n", characterID)
+	managedAlliances, err := s.siteSettingsService.GetManagedAlliances(ctx)
+	if err != nil {
+		fmt.Printf("❌ [DEBUG] Failed to get managed alliances: %v\n", err)
+		return nil, fmt.Errorf("failed to get managed alliances: %w", err)
+	}
+
+	fmt.Printf("📊 [DEBUG] Found %d managed alliances total\n", len(managedAlliances))
+
+	// Filter to only enabled alliances
+	var enabledAlliances []ManagedAlliance
+	for _, alliance := range managedAlliances {
+		if alliance.Enabled {
+			enabledAlliances = append(enabledAlliances, alliance)
+			fmt.Printf("✅ [DEBUG] Enabled alliance: %s [%s] (ID: %d)\n", alliance.Name, alliance.Ticker, alliance.AllianceID)
+		} else {
+			fmt.Printf("❌ [DEBUG] Disabled alliance: %s [%s] (ID: %d)\n", alliance.Name, alliance.Ticker, alliance.AllianceID)
+		}
+	}
+
+	fmt.Printf("🎯 [DEBUG] Found %d enabled alliances\n", len(enabledAlliances))
+
+	if len(enabledAlliances) == 0 {
+		fmt.Printf("⚠️  [DEBUG] No enabled alliances found - returning empty routes\n")
+		return allianceRoutes, nil // No enabled alliances
+	}
+
+	// Get user's character alliance ID (this would need to be passed from auth context)
+	// For now, we'll generate routes for all enabled alliances and let the access control filter them
+	// TODO: In the future, we could add logic to determine which alliances the user has access to
+
+	// Generate dynamic routes for each enabled alliance
+	for _, alliance := range enabledAlliances {
+		route := models.Route{
+			ID:          primitive.NewObjectID(),
+			RouteID:     fmt.Sprintf("alliance-dashboard-%d", alliance.AllianceID),
+			Path:        fmt.Sprintf("/alliances/%d/dashboard", alliance.AllianceID),
+			Component:   "AllianceDashboard",
+			Name:        alliance.Name,
+			Type:        models.RouteTypeProtected, // Requires specific permissions
+			ParentID:    stringPtr("folder-alliance"),
+			NavPosition: models.NavMain,
+			NavOrder:    200 + alliance.Position, // Start from 200 to avoid conflicts with static routes and corporation routes
+			ShowInNav:   true,
+			Title:       fmt.Sprintf("%s Alliance Dashboard", alliance.Name),
+			Description: stringPtr(fmt.Sprintf("Dashboard for %s [%s] alliance", alliance.Name, alliance.Ticker)),
+			Group:       stringPtr("alliance"),
+			LazyLoad:    true,
+			Exact:       false,
+			NewTab:      false,
+			IsEnabled:   true,
+			Icon:        stringPtr("users"),
+
+			// Alliance-specific permissions: user must be in the alliance OR have alliance management permissions
+			RequiredPermissions: []string{},                                            // We'll handle access logic via route access checker
+			RequiredGroups:      []string{fmt.Sprintf("alliance_%s", alliance.Ticker)}, // Alliance-specific group
+
+			// Metadata
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+
+			// Add alliance-specific props
+			Props: map[string]interface{}{
+				"allianceId":   alliance.AllianceID,
+				"allianceName": alliance.Name,
+				"ticker":       alliance.Ticker,
+				"isDynamic":    true,
+			},
+		}
+
+		allianceRoutes = append(allianceRoutes, route)
+		fmt.Printf("🚀 [DEBUG] Generated route: %s -> %s\n", route.RouteID, route.Path)
+	}
+
+	fmt.Printf("✅ [DEBUG] Successfully generated %d alliance dashboard routes\n", len(allianceRoutes))
+	return allianceRoutes, nil
 }
 
 // extractUserContext extracts user permissions and groups from authentication context
