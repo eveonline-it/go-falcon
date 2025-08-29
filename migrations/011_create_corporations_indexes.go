@@ -36,9 +36,6 @@ func up011(ctx context.Context, db *mongo.Database) error {
 			Keys: bson.D{{Key: "alliance_id", Value: 1}},
 		},
 		{
-			Keys: bson.D{{Key: "ceo_character_id", Value: 1}},
-		},
-		{
 			Keys: bson.D{{Key: "member_count", Value: -1}}, // Descending for largest first
 		},
 		{

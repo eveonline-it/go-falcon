@@ -115,12 +115,6 @@ func (s *Service) convertESIDataToModel(esiData map[string]any, corporationID in
 		corporation.AllianceID = &allianceIDInt
 	}
 
-	if ceoID, ok := esiData["ceo_id"].(int); ok {
-		corporation.CEOCharacterID = ceoID
-	} else if ceoIDFloat, ok := esiData["ceo_id"].(float64); ok {
-		corporation.CEOCharacterID = int(ceoIDFloat)
-	}
-
 	if creatorID, ok := esiData["creator_id"].(int); ok {
 		corporation.CreatorID = creatorID
 	} else if creatorIDFloat, ok := esiData["creator_id"].(float64); ok {
@@ -175,7 +169,7 @@ func getMapKeys(m map[string]any) []string {
 func (s *Service) convertModelToOutput(ctx context.Context, corporation *models.Corporation) *dto.CorporationInfoOutput {
 	corporationInfo := dto.CorporationInfo{
 		AllianceID:     corporation.AllianceID,
-		CEOCharacterID: corporation.CEOCharacterID,
+		CEOCharacterID: corporation.CEOID,
 		CreatorID:      corporation.CreatorID,
 		DateFounded:    corporation.DateFounded,
 		Description:    corporation.Description,
@@ -191,10 +185,10 @@ func (s *Service) convertModelToOutput(ctx context.Context, corporation *models.
 	}
 
 	// Fetch CEO character information
-	if corporation.CEOCharacterID > 0 {
-		ceoProfile, err := s.characterService.GetCharacterProfile(ctx, corporation.CEOCharacterID)
+	if corporation.CEOID > 0 {
+		ceoProfile, err := s.characterService.GetCharacterProfile(ctx, corporation.CEOID)
 		if err != nil {
-			slog.WarnContext(ctx, "Failed to get CEO character info", "ceo_id", corporation.CEOCharacterID, "error", err)
+			slog.WarnContext(ctx, "Failed to get CEO character info", "ceo_id", corporation.CEOID, "error", err)
 		} else if ceoProfile != nil && ceoProfile.Body.CharacterID > 0 {
 			corporationInfo.CEO = &dto.CharacterInfo{
 				CharacterID: ceoProfile.Body.CharacterID,
@@ -260,7 +254,7 @@ func (s *Service) SearchCorporationsByName(ctx context.Context, name string) (*d
 			CorporationID:  corp.CorporationID,
 			Name:           corp.Name,
 			Ticker:         corp.Ticker,
-			CEOCharacterID: corp.CEOCharacterID,
+			CEOCharacterID: 0, // CEO ID not available in search results to avoid ESI calls
 			MemberCount:    corp.MemberCount,
 			AllianceID:     corp.AllianceID,
 			UpdatedAt:      corp.UpdatedAt,
@@ -620,10 +614,10 @@ func (s *Service) GetMemberTracking(ctx context.Context, corporationID int, ceoI
 	}
 
 	// Check if the provided CEO ID matches the corporation's CEO
-	if corporation.CEOCharacterID != ceoID {
+	if corporation.CEOID != ceoID {
 		slog.WarnContext(ctx, "CEO ID mismatch",
 			"provided_ceo_id", ceoID,
-			"actual_ceo_id", corporation.CEOCharacterID,
+			"actual_ceo_id", corporation.CEOID,
 			"corporation_id", corporationID)
 		return nil, fmt.Errorf("invalid CEO ID for corporation %d", corporationID)
 	}

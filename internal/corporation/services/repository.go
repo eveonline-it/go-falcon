@@ -234,8 +234,8 @@ func (r *Repository) GetCEOIDsFromEnabledCorporations(ctx context.Context) ([]in
 		"deleted_at":     bson.M{"$exists": false},
 	}
 
-	// Only project the ceo_character_id field for efficiency
-	projection := bson.M{"ceo_character_id": 1}
+	// Only project the ceo_id field for efficiency
+	projection := bson.M{"ceo_id": 1}
 	findOptions := options.Find().SetProjection(projection)
 
 	cursor, err := r.collection.Find(ctx, corpFilter, findOptions)
@@ -247,13 +247,13 @@ func (r *Repository) GetCEOIDsFromEnabledCorporations(ctx context.Context) ([]in
 	var ceoIDs []int
 	for cursor.Next(ctx) {
 		var doc struct {
-			CEOCharacterID int `bson:"ceo_character_id"`
+			CEOID int `bson:"ceo_id"`
 		}
 		if err := cursor.Decode(&doc); err != nil {
 			continue // Skip invalid documents
 		}
-		if doc.CEOCharacterID > 0 {
-			ceoIDs = append(ceoIDs, doc.CEOCharacterID)
+		if doc.CEOID > 0 {
+			ceoIDs = append(ceoIDs, doc.CEOID)
 		}
 	}
 
