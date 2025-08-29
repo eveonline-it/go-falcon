@@ -285,7 +285,51 @@ func main() {
 		},
 	)
 
-	sitemapModule, err := sitemap.NewModule(appCtx.MongoDB, appCtx.Redis, authModule.GetAuthService(), permissionManager, groupsAdapter)
+	// Create corporation service adapter for sitemap
+	corporationAdapter := sitemapServices.NewCorporationServiceAdapter(
+		func(ctx context.Context, corporationID int) (*sitemapServices.CorporationInfo, error) {
+			// Bridge to corporation module service
+			corpService := corporationModule.GetService()
+			corpInfo, err := corpService.GetCorporationInfo(ctx, corporationID)
+			if err != nil {
+				return nil, err
+			}
+			return &sitemapServices.CorporationInfo{
+				CorporationID: corporationID, // Use the parameter since the DTO doesn't include ID
+				Name:          corpInfo.Body.Name,
+				Ticker:        corpInfo.Body.Ticker,
+			}, nil
+		},
+	)
+
+	// Create site settings service adapter for sitemap
+	siteSettingsAdapter := sitemapServices.NewSiteSettingsServiceAdapter(
+		func(ctx context.Context) ([]sitemapServices.ManagedCorporation, error) {
+			// Bridge to site settings module service
+			settingsService := siteSettingsModule.GetService()
+
+			// Get all managed corporations (no filter, high limit)
+			managedCorps, _, err := settingsService.GetManagedCorporations(ctx, "", 1, 1000)
+			if err != nil {
+				return nil, err
+			}
+
+			// Convert to sitemap interface format
+			result := make([]sitemapServices.ManagedCorporation, len(managedCorps))
+			for i, corp := range managedCorps {
+				result[i] = sitemapServices.ManagedCorporation{
+					CorporationID: corp.CorporationID,
+					Name:          corp.Name,
+					Ticker:        corp.Ticker,
+					Enabled:       corp.Enabled,
+					Position:      corp.Position,
+				}
+			}
+			return result, nil
+		},
+	)
+
+	sitemapModule, err := sitemap.NewModule(appCtx.MongoDB, appCtx.Redis, authModule.GetAuthService(), permissionManager, groupsAdapter, corporationAdapter, siteSettingsAdapter)
 	if err != nil {
 		log.Fatalf("Failed to initialize sitemap module: %v", err)
 	}

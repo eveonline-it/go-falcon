@@ -33,6 +33,34 @@ type GroupInfo struct {
 	IsActive    bool    `json:"is_active"`
 }
 
+// CorporationServiceInterface defines the interface for corporation service operations
+type CorporationServiceInterface interface {
+	// GetCorporationInfo gets basic corporation information by ID
+	GetCorporationInfo(ctx context.Context, corporationID int) (*CorporationInfo, error)
+}
+
+// CorporationInfo represents corporation information returned by the corporation service
+type CorporationInfo struct {
+	CorporationID int    `json:"corporation_id"`
+	Name          string `json:"name"`
+	Ticker        string `json:"ticker"`
+}
+
+// SiteSettingsServiceInterface defines the interface for site settings service operations
+type SiteSettingsServiceInterface interface {
+	// GetManagedCorporations gets the list of managed corporations with enabled status
+	GetManagedCorporations(ctx context.Context) ([]ManagedCorporation, error)
+}
+
+// ManagedCorporation represents a managed corporation from site settings
+type ManagedCorporation struct {
+	CorporationID int64  `json:"corporation_id"`
+	Name          string `json:"name"`
+	Ticker        string `json:"ticker"`
+	Enabled       bool   `json:"enabled"`
+	Position      int    `json:"position"`
+}
+
 // GroupsServiceAdapter adapts the real groups service to our interface
 type GroupsServiceAdapter struct {
 	// We'll store a function interface instead of a concrete service to avoid import cycles
@@ -67,21 +95,69 @@ func (a *GroupsServiceAdapter) GetCharacterGroups(ctx context.Context, character
 	return a.getCharacterGroupsFunc(ctx, characterID)
 }
 
+// CorporationServiceAdapter adapts the real corporation service to our interface
+type CorporationServiceAdapter struct {
+	getCorporationInfoFunc func(ctx context.Context, corporationID int) (*CorporationInfo, error)
+}
+
+// NewCorporationServiceAdapter creates an adapter that bridges the corporation service
+func NewCorporationServiceAdapter(
+	getCorporationInfoFunc func(ctx context.Context, corporationID int) (*CorporationInfo, error),
+) CorporationServiceInterface {
+	return &CorporationServiceAdapter{
+		getCorporationInfoFunc: getCorporationInfoFunc,
+	}
+}
+
+// GetCorporationInfo implements CorporationServiceInterface
+func (a *CorporationServiceAdapter) GetCorporationInfo(ctx context.Context, corporationID int) (*CorporationInfo, error) {
+	if a.getCorporationInfoFunc == nil {
+		return nil, fmt.Errorf("corporation service not available")
+	}
+	return a.getCorporationInfoFunc(ctx, corporationID)
+}
+
+// SiteSettingsServiceAdapter adapts the real site settings service to our interface
+type SiteSettingsServiceAdapter struct {
+	getManagedCorporationsFunc func(ctx context.Context) ([]ManagedCorporation, error)
+}
+
+// NewSiteSettingsServiceAdapter creates an adapter that bridges the site settings service
+func NewSiteSettingsServiceAdapter(
+	getManagedCorporationsFunc func(ctx context.Context) ([]ManagedCorporation, error),
+) SiteSettingsServiceInterface {
+	return &SiteSettingsServiceAdapter{
+		getManagedCorporationsFunc: getManagedCorporationsFunc,
+	}
+}
+
+// GetManagedCorporations implements SiteSettingsServiceInterface
+func (a *SiteSettingsServiceAdapter) GetManagedCorporations(ctx context.Context) ([]ManagedCorporation, error) {
+	if a.getManagedCorporationsFunc == nil {
+		return []ManagedCorporation{}, nil // Gracefully handle nil function
+	}
+	return a.getManagedCorporationsFunc(ctx)
+}
+
 // Service handles sitemap business logic
 type Service struct {
-	db                *mongo.Database
-	repository        *Repository
-	permissionManager *permissions.PermissionManager
-	groupService      GroupServiceInterface
+	db                  *mongo.Database
+	repository          *Repository
+	permissionManager   *permissions.PermissionManager
+	groupService        GroupServiceInterface
+	corporationService  CorporationServiceInterface
+	siteSettingsService SiteSettingsServiceInterface
 }
 
 // NewService creates a new sitemap service
-func NewService(db *mongo.Database, permissionManager *permissions.PermissionManager, groupService GroupServiceInterface) *Service {
+func NewService(db *mongo.Database, permissionManager *permissions.PermissionManager, groupService GroupServiceInterface, corporationService CorporationServiceInterface, siteSettingsService SiteSettingsServiceInterface) *Service {
 	return &Service{
-		db:                db,
-		repository:        NewRepository(db),
-		permissionManager: permissionManager,
-		groupService:      groupService,
+		db:                  db,
+		repository:          NewRepository(db),
+		permissionManager:   permissionManager,
+		groupService:        groupService,
+		corporationService:  corporationService,
+		siteSettingsService: siteSettingsService,
 	}
 }
 
@@ -374,6 +450,18 @@ func (s *Service) GetUserRoutesWithAuth(ctx context.Context, input *dto.GetUserR
 		return nil, fmt.Errorf("failed to get routes: %w", err)
 	}
 
+	// Generate dynamic corporation dashboard routes
+	corporationRoutes, err := s.generateCorporationRoutes(ctx, characterID)
+	if err != nil {
+		// Log error but don't fail the entire request
+		fmt.Printf("⚠️  [DEBUG] Warning: Failed to generate corporation routes: %v\n", err)
+		corporationRoutes = []models.Route{}
+	}
+
+	// Merge static and dynamic routes
+	allRoutes := append(routes, corporationRoutes...)
+	fmt.Printf("📋 [DEBUG] Merged %d static + %d dynamic = %d total routes\n", len(routes), len(corporationRoutes), len(allRoutes))
+
 	// Extract user permissions and groups
 	userPermissions, userGroups, err := s.extractUserContext(ctx, userID, characterID)
 	if err != nil {
@@ -391,7 +479,7 @@ func (s *Service) GetUserRoutesWithAuth(ctx context.Context, input *dto.GetUserR
 
 	// Filter routes based on user access
 	accessibleRoutes := []models.Route{}
-	for _, route := range routes {
+	for _, route := range allRoutes {
 		if s.checkRouteAccess(route, userPermissions, userGroups, isSuperAdmin) {
 			accessibleRoutes = append(accessibleRoutes, route)
 		}
@@ -447,6 +535,94 @@ func (s *Service) getUserFeatures(ctx context.Context, characterID int64) map[st
 	features["betaFeatures"] = false
 
 	return features
+}
+
+// generateCorporationRoutes creates dynamic corporation dashboard routes based on user access
+func (s *Service) generateCorporationRoutes(ctx context.Context, characterID int64) ([]models.Route, error) {
+	var corporationRoutes []models.Route
+
+	// Get managed corporations from site settings
+	fmt.Printf("🔍 [DEBUG] Generating corporation routes for character %d\n", characterID)
+	managedCorps, err := s.siteSettingsService.GetManagedCorporations(ctx)
+	if err != nil {
+		fmt.Printf("❌ [DEBUG] Failed to get managed corporations: %v\n", err)
+		return nil, fmt.Errorf("failed to get managed corporations: %w", err)
+	}
+
+	fmt.Printf("📊 [DEBUG] Found %d managed corporations total\n", len(managedCorps))
+
+	// Filter to only enabled corporations
+	var enabledCorps []ManagedCorporation
+	for _, corp := range managedCorps {
+		if corp.Enabled {
+			enabledCorps = append(enabledCorps, corp)
+			fmt.Printf("✅ [DEBUG] Enabled corporation: %s [%s] (ID: %d)\n", corp.Name, corp.Ticker, corp.CorporationID)
+		} else {
+			fmt.Printf("❌ [DEBUG] Disabled corporation: %s [%s] (ID: %d)\n", corp.Name, corp.Ticker, corp.CorporationID)
+		}
+	}
+
+	fmt.Printf("🎯 [DEBUG] Found %d enabled corporations\n", len(enabledCorps))
+
+	if len(enabledCorps) == 0 {
+		fmt.Printf("⚠️  [DEBUG] No enabled corporations found - returning empty routes\n")
+		return corporationRoutes, nil // No enabled corporations
+	}
+
+	// Get user's character corporation ID (this would need to be passed from auth context)
+	// For now, we'll generate routes for all enabled corporations and let the access control filter them
+	// TODO: In the future, we could add logic to determine which corporations the user has access to
+
+	// Generate dynamic routes for each enabled corporation
+	for _, corp := range enabledCorps {
+		route := models.Route{
+			ID:          primitive.NewObjectID(),
+			RouteID:     fmt.Sprintf("corp-dashboard-%d", corp.CorporationID),
+			Path:        fmt.Sprintf("/corporations/%d/dashboard", corp.CorporationID),
+			Component:   "CorporationDashboard",
+			Name:        fmt.Sprintf("%s Dashboard", corp.Name),
+			Type:        models.RouteTypeProtected, // Requires specific permissions
+			ParentID:    stringPtr("folder-corporation"),
+			NavPosition: models.NavMain,
+			NavOrder:    100 + corp.Position, // Start from 100 to avoid conflicts with static routes
+			ShowInNav:   true,
+			Title:       fmt.Sprintf("%s Corporation Dashboard", corp.Name),
+			Description: stringPtr(fmt.Sprintf("Dashboard for %s [%s] corporation", corp.Name, corp.Ticker)),
+			Group:       stringPtr("corporation"),
+			LazyLoad:    true,
+			Exact:       false,
+			NewTab:      false,
+			IsEnabled:   true,
+			Icon:        stringPtr("building"),
+
+			// Corporation-specific permissions: user must be in the corporation OR have corporation management permissions
+			RequiredPermissions: []string{},                                    // We'll handle access logic via route access checker
+			RequiredGroups:      []string{fmt.Sprintf("corp_%s", corp.Ticker)}, // Corporation-specific group
+
+			// Metadata
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+
+			// Add corporation-specific props
+			Props: map[string]interface{}{
+				"corporationId":   corp.CorporationID,
+				"corporationName": corp.Name,
+				"ticker":          corp.Ticker,
+				"isDynamic":       true,
+			},
+		}
+
+		corporationRoutes = append(corporationRoutes, route)
+		fmt.Printf("🚀 [DEBUG] Generated route: %s -> %s\n", route.RouteID, route.Path)
+	}
+
+	fmt.Printf("✅ [DEBUG] Successfully generated %d corporation dashboard routes\n", len(corporationRoutes))
+	return corporationRoutes, nil
+}
+
+// stringPtr returns a pointer to the given string (helper function)
+func stringPtr(s string) *string {
+	return &s
 }
 
 // extractUserContext extracts user permissions and groups from authentication context

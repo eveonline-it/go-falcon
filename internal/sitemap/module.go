@@ -27,9 +27,9 @@ type Module struct {
 }
 
 // NewModule creates a new sitemap module
-func NewModule(mongodb *database.MongoDB, redis *database.Redis, authService *services.AuthService, permissionManager *permissions.PermissionManager, groupService sitemapServices.GroupServiceInterface) (*Module, error) {
+func NewModule(mongodb *database.MongoDB, redis *database.Redis, authService *services.AuthService, permissionManager *permissions.PermissionManager, groupService sitemapServices.GroupServiceInterface, corporationService sitemapServices.CorporationServiceInterface, siteSettingsService sitemapServices.SiteSettingsServiceInterface) (*Module, error) {
 	// Create service with dependencies
-	service := sitemapServices.NewService(mongodb.Database, permissionManager, groupService)
+	service := sitemapServices.NewService(mongodb.Database, permissionManager, groupService, corporationService, siteSettingsService)
 
 	// Initialize centralized permission middleware
 	permissionMiddleware := middleware.NewPermissionMiddleware(
