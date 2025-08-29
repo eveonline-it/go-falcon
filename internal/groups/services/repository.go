@@ -426,6 +426,43 @@ func (r *Repository) GetCharacterNames(ctx context.Context, characterIDs []int64
 	return names, nil
 }
 
+// GetActiveGroupMemberships returns all active memberships for a specific group
+func (r *Repository) GetActiveGroupMemberships(ctx context.Context, groupID primitive.ObjectID) ([]models.GroupMembership, error) {
+	filter := bson.M{
+		"group_id":  groupID,
+		"is_active": true,
+	}
+
+	cursor, err := r.membershipsCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find group memberships: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var memberships []models.GroupMembership
+	if err := cursor.All(ctx, &memberships); err != nil {
+		return nil, fmt.Errorf("failed to decode group memberships: %w", err)
+	}
+
+	return memberships, nil
+}
+
+// GetGroupsByFilter returns all groups matching the provided filter
+func (r *Repository) GetGroupsByFilter(ctx context.Context, filter bson.M) ([]models.Group, error) {
+	cursor, err := r.groupsCollection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "name", Value: 1}}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find groups: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var groups []models.Group
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, fmt.Errorf("failed to decode groups: %w", err)
+	}
+
+	return groups, nil
+}
+
 // GetCharacterIDsByUserID fetches all character IDs for a given user_id
 func (r *Repository) GetCharacterIDsByUserID(ctx context.Context, userID string) ([]int64, error) {
 	// Query the user_profiles collection (same as used by auth/users modules)

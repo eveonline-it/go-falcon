@@ -1067,6 +1067,76 @@ func (s *Service) addMemberToGroup(ctx context.Context, groupID primitive.Object
 	return s.repo.AddMembership(ctx, membership)
 }
 
+// HandleEntityStatusChange processes group membership when entities are enabled/disabled
+// When an entity is disabled, removes all characters from its group
+// When enabled, group memberships will be handled during next authentication
+func (s *Service) HandleEntityStatusChange(ctx context.Context, entityType string, entityID int64, enabled bool) error {
+	if enabled {
+		// Entity re-enabled - group memberships will be handled on next authentication
+		slog.Info("Entity re-enabled - group memberships will be updated during next authentication",
+			"entity_type", entityType, "entity_id", entityID)
+		return nil
+	}
+
+	// Entity disabled - remove all characters from this entity's group
+	slog.Info("Entity disabled - removing all characters from entity group",
+		"entity_type", entityType, "entity_id", entityID)
+
+	return s.removeAllCharactersFromEntityGroup(ctx, entityID)
+}
+
+// removeAllCharactersFromEntityGroup removes all characters from a specific corp/alliance group
+func (s *Service) removeAllCharactersFromEntityGroup(ctx context.Context, entityID int64) error {
+	// Find the group for this entity
+	group, err := s.repo.GetGroupByEVEEntityID(ctx, entityID)
+	if err != nil {
+		return fmt.Errorf("failed to find group for entity %d: %w", entityID, err)
+	}
+	if group == nil {
+		// No group exists for this entity, nothing to clean up
+		slog.Debug("No group found for disabled entity", "entity_id", entityID)
+		return nil
+	}
+
+	// Get all active memberships for this group
+	memberships, err := s.repo.GetActiveGroupMemberships(ctx, group.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get group memberships for entity %d: %w", entityID, err)
+	}
+
+	if len(memberships) == 0 {
+		slog.Debug("No active memberships found for disabled entity group", "entity_id", entityID, "group_id", group.ID.Hex())
+		return nil
+	}
+
+	// Remove all members
+	removedCount := 0
+	for _, membership := range memberships {
+		if err := s.repo.RemoveMembership(ctx, group.ID, membership.CharacterID); err != nil {
+			slog.Error("Failed to remove character from disabled entity group",
+				"character_id", membership.CharacterID,
+				"entity_id", entityID,
+				"group_id", group.ID.Hex(),
+				"error", err)
+			// Continue with other members - don't fail the entire operation
+		} else {
+			removedCount++
+			slog.Debug("Removed character from disabled entity group",
+				"character_id", membership.CharacterID,
+				"entity_id", entityID,
+				"group_name", group.Name)
+		}
+	}
+
+	slog.Info("Completed group membership cleanup for disabled entity",
+		"entity_id", entityID,
+		"group_name", group.Name,
+		"total_members", len(memberships),
+		"removed_count", removedCount)
+
+	return nil
+}
+
 // RemoveCharacterFromAllGroups removes a character from all groups (for user deletion cleanup)
 func (s *Service) RemoveCharacterFromAllGroups(ctx context.Context, characterID int64) error {
 	// Get all groups the character belongs to
@@ -1088,6 +1158,100 @@ func (s *Service) RemoveCharacterFromAllGroups(ctx context.Context, characterID 
 	}
 
 	slog.Info("Completed group membership cleanup for deleted user", "character_id", characterID, "groups_count", len(groups))
+	return nil
+}
+
+// ValidateGroupMembershipsAgainstEntityStatus validates all group memberships against current entity status
+// This can be called by scheduler tasks to ensure consistency
+func (s *Service) ValidateGroupMembershipsAgainstEntityStatus(ctx context.Context) error {
+	// Get enabled entities from site settings
+	enabledCorps, err := s.siteSettingsService.GetEnabledCorporations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get enabled corporations: %w", err)
+	}
+
+	enabledAlliances, err := s.siteSettingsService.GetEnabledAlliances(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get enabled alliances: %w", err)
+	}
+
+	// Create maps for quick lookup
+	enabledCorpIDs := make(map[int64]bool)
+	for _, corp := range enabledCorps {
+		enabledCorpIDs[corp.CorporationID] = true
+	}
+
+	enabledAllianceIDs := make(map[int64]bool)
+	for _, alliance := range enabledAlliances {
+		enabledAllianceIDs[alliance.AllianceID] = true
+	}
+
+	// Get all corp/alliance groups
+	filter := bson.M{
+		"type":          bson.M{"$in": []string{string(models.GroupTypeCorporation), string(models.GroupTypeAlliance)}},
+		"eve_entity_id": bson.M{"$exists": true},
+	}
+
+	allEntityGroups, err := s.repo.GetGroupsByFilter(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to get entity groups: %w", err)
+	}
+
+	cleanedGroups := 0
+	totalMembersRemoved := 0
+
+	// Check each group against enabled entities
+	for _, group := range allEntityGroups {
+		if group.EVEEntityID == nil {
+			continue
+		}
+
+		entityID := *group.EVEEntityID
+		isEnabled := false
+
+		// Check if entity is still enabled
+		if group.Type == models.GroupTypeCorporation {
+			isEnabled = enabledCorpIDs[entityID]
+		} else if group.Type == models.GroupTypeAlliance {
+			isEnabled = enabledAllianceIDs[entityID]
+		}
+
+		if !isEnabled {
+			// Entity is disabled - remove all members from this group
+			memberships, err := s.repo.GetActiveGroupMemberships(ctx, group.ID)
+			if err != nil {
+				slog.Error("Failed to get memberships for validation", "group_id", group.ID.Hex(), "error", err)
+				continue
+			}
+
+			if len(memberships) > 0 {
+				removedCount := 0
+				for _, membership := range memberships {
+					if err := s.repo.RemoveMembership(ctx, group.ID, membership.CharacterID); err != nil {
+						slog.Error("Failed to remove character during validation cleanup",
+							"character_id", membership.CharacterID, "group_id", group.ID.Hex(), "error", err)
+					} else {
+						removedCount++
+					}
+				}
+
+				if removedCount > 0 {
+					cleanedGroups++
+					totalMembersRemoved += removedCount
+					slog.Info("Validated and cleaned group memberships",
+						"group_name", group.Name,
+						"entity_id", entityID,
+						"entity_type", group.Type,
+						"removed_members", removedCount)
+				}
+			}
+		}
+	}
+
+	slog.Info("Completed group membership validation",
+		"cleaned_groups", cleanedGroups,
+		"total_members_removed", totalMembersRemoved)
+
 	return nil
 }
 

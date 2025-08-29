@@ -35,6 +35,14 @@ func NewModule(db *database.MongoDB, authService *authServices.AuthService, grou
 	// Create service layer
 	service := services.NewService(db.Database)
 
+	// Set groups service dependency if available
+	if groupsService != nil {
+		service.SetGroupsService(groupsService)
+		slog.Info("Site settings service initialized with groups service dependency")
+	} else {
+		slog.Info("Site settings service initialized without groups service (will be set later)")
+	}
+
 	var permissionMiddleware *middleware.PermissionMiddleware
 	var routesModule *routes.Module
 
@@ -147,9 +155,13 @@ func (m *Module) SetAuthService(authService *authServices.AuthService) {
 
 // SetGroupsService sets the groups service dependency after module initialization
 func (m *Module) SetGroupsService(groupsService *groupsServices.Service) {
-	// This method is kept for backward compatibility but doesn't do anything
-	// The actual work is done in SetDependencies when both services are available
-	slog.Info("Site settings groups service dependency noted (waiting for auth service)")
+	// Set the groups service in the service layer
+	if groupsService != nil {
+		m.service.SetGroupsService(groupsService)
+		slog.Info("Site settings groups service dependency updated")
+	} else {
+		slog.Warn("Attempted to set nil groups service in site settings module")
+	}
 }
 
 // Ensure Module implements the module.Module interface

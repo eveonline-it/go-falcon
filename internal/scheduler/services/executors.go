@@ -187,15 +187,17 @@ type SystemExecutor struct {
 	characterModule   CharacterModule
 	allianceModule    AllianceModule
 	corporationModule CorporationModule
+	groupsModule      GroupsModule
 }
 
 // NewSystemExecutor creates a new system executor
-func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule) *SystemExecutor {
+func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule, groupsModule GroupsModule) *SystemExecutor {
 	return &SystemExecutor{
 		authModule:        authModule,
 		characterModule:   characterModule,
 		allianceModule:    allianceModule,
 		corporationModule: corporationModule,
+		groupsModule:      groupsModule,
 	}
 }
 
@@ -224,6 +226,8 @@ func (e *SystemExecutor) Execute(ctx context.Context, task *models.Task) (*model
 		return e.executeCorporationUpdate(ctx, config, start)
 	case "ceo_token_validation":
 		return e.executeCEOTokenValidation(ctx, config, start)
+	case "groups_sync":
+		return e.executeGroupsSync(ctx, config, start)
 	default:
 		return &models.TaskResult{
 			Success:  false,
@@ -455,6 +459,36 @@ func (e *SystemExecutor) executeCEOTokenValidation(ctx context.Context, config *
 		Duration: models.Duration(time.Since(start)),
 		Metadata: map[string]interface{}{
 			"task_type": "ceo_token_validation",
+		},
+	}, nil
+}
+
+// executeGroupsSync executes the groups synchronization system task
+func (e *SystemExecutor) executeGroupsSync(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
+	if e.groupsModule == nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    "Groups module not available",
+			Duration: models.Duration(time.Since(start)),
+		}, nil
+	}
+
+	// Execute group membership validation
+	err := e.groupsModule.ValidateGroupMembershipsAgainstEntityStatus(ctx)
+	if err != nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    fmt.Sprintf("Groups sync failed: %v", err),
+			Duration: models.Duration(time.Since(start)),
+		}, nil
+	}
+
+	return &models.TaskResult{
+		Success:  true,
+		Output:   "Group membership validation completed successfully",
+		Duration: models.Duration(time.Since(start)),
+		Metadata: map[string]interface{}{
+			"task_type": "groups_sync",
 		},
 	}, nil
 }

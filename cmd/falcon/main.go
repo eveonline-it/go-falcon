@@ -327,6 +327,29 @@ func main() {
 			}
 			return result, nil
 		},
+		func(ctx context.Context) ([]sitemapServices.ManagedAlliance, error) {
+			// Bridge to site settings module service
+			settingsService := siteSettingsModule.GetService()
+
+			// Get all managed alliances (no filter, high limit)
+			managedAlliances, _, err := settingsService.GetManagedAlliances(ctx, "", 1, 1000)
+			if err != nil {
+				return nil, err
+			}
+
+			// Convert to sitemap interface format
+			result := make([]sitemapServices.ManagedAlliance, len(managedAlliances))
+			for i, alliance := range managedAlliances {
+				result[i] = sitemapServices.ManagedAlliance{
+					AllianceID: alliance.AllianceID,
+					Name:       alliance.Name,
+					Ticker:     alliance.Ticker,
+					Enabled:    alliance.Enabled,
+					Position:   alliance.Position,
+				}
+			}
+			return result, nil
+		},
 	)
 
 	sitemapModule, err := sitemap.NewModule(appCtx.MongoDB, appCtx.Redis, authModule.GetAuthService(), permissionManager, groupsAdapter, corporationAdapter, siteSettingsAdapter)

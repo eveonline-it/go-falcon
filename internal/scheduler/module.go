@@ -60,8 +60,8 @@ type CorporationModule interface {
 func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule) *Module {
 	baseModule := module.NewBaseModule("scheduler", mongodb, redis)
 
-	// Create services
-	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule, corporationModule)
+	// Create services (note: groups module will be set later via SetGroupService)
+	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule, corporationModule, nil)
 
 	// Note: SchedulerAdapter will be created in SetGroupService when PermissionManager becomes available
 	var schedulerAdapter *middleware.SchedulerAdapter
@@ -82,6 +82,16 @@ func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Modu
 // SetGroupService sets the groups service dependency
 func (m *Module) SetGroupService(groupService *groupsServices.Service) {
 	m.groupService = groupService
+
+	// Recreate scheduler service with groups module dependency
+	if groupService != nil {
+		m.schedulerService = services.NewSchedulerService(
+			m.BaseModule.MongoDB(), m.BaseModule.Redis(),
+			m.authModule, m.characterModule, m.allianceModule, m.corporationModule,
+			groupService,
+		)
+		slog.Info("Scheduler service recreated with groups module dependency")
+	}
 
 	// Create scheduler adapter with permission manager
 	if m.authModule != nil && groupService != nil {

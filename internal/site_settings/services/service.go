@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"strconv"
 	"time"
@@ -13,17 +14,29 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// Interface to access groups service without circular dependency
+type GroupsServiceInterface interface {
+	HandleEntityStatusChange(ctx context.Context, entityType string, entityID int64, enabled bool) error
+}
+
 // Service handles business logic for site settings
 type Service struct {
-	repo *Repository
+	repo          *Repository
+	groupsService GroupsServiceInterface
 }
 
 // NewService creates a new service instance
 func NewService(db *mongo.Database) *Service {
 	repo := NewRepository(db)
 	return &Service{
-		repo: repo,
+		repo:          repo,
+		groupsService: nil, // Will be set later via SetGroupsService
 	}
+}
+
+// SetGroupsService sets the groups service dependency
+func (s *Service) SetGroupsService(groupsService GroupsServiceInterface) {
+	s.groupsService = groupsService
 }
 
 // InitializeModule initializes the site settings module
@@ -335,6 +348,18 @@ func (s *Service) UpdateCorporationStatus(ctx context.Context, corporationID int
 			// Update the setting
 			if err := s.updateManagedCorporationsSetting(ctx, corporations, updatedBy); err != nil {
 				return nil, err
+			}
+
+			// Handle group membership changes
+			if s.groupsService != nil {
+				if err := s.groupsService.HandleEntityStatusChange(ctx, "corporation", corporationID, enabled); err != nil {
+					slog.Error("Failed to update group memberships for corporation status change",
+						"corp_id", corporationID, "enabled", enabled, "error", err)
+					// Don't fail the entire operation - log and continue
+				}
+			} else {
+				slog.Warn("Groups service not available - group memberships not updated for corporation status change",
+					"corp_id", corporationID, "enabled", enabled)
 			}
 
 			return &corporations[i], nil
@@ -778,6 +803,18 @@ func (s *Service) UpdateAllianceStatus(ctx context.Context, allianceID int64, en
 			// Update the setting
 			if err := s.updateManagedAlliancesSetting(ctx, alliances, updatedBy); err != nil {
 				return nil, err
+			}
+
+			// Handle group membership changes
+			if s.groupsService != nil {
+				if err := s.groupsService.HandleEntityStatusChange(ctx, "alliance", allianceID, enabled); err != nil {
+					slog.Error("Failed to update group memberships for alliance status change",
+						"alliance_id", allianceID, "enabled", enabled, "error", err)
+					// Don't fail the entire operation - log and continue
+				}
+			} else {
+				slog.Warn("Groups service not available - group memberships not updated for alliance status change",
+					"alliance_id", allianceID, "enabled", enabled)
 			}
 
 			return &alliances[i], nil
