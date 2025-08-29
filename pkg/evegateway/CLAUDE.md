@@ -21,10 +21,11 @@ Provides type-safe access to all EVE Online APIs with proper error handling and 
 - **And many more**: Complete ESI API coverage planned
 
 ## Cache Management
-- **Default Cache Manager**: In-memory caching with expiration
-- **Cache Keys**: URL-based for consistency
+- **Redis Cache Manager**: Persistent Redis-based caching (recommended for production)
+- **In-Memory Cache Manager**: Default fallback for development/testing
+- **Cache Keys**: URL-based with `esi:cache:` prefix for Redis namespace consistency
 - **Conditional Requests**: If-None-Match and If-Modified-Since headers
-- **Cache Metadata**: Expiration tracking and hit/miss analytics
+- **Cache Metadata**: Expiration tracking and hit/miss analytics with JSON serialization
 
 ## Rate Limiting & Compliance
 ```go
@@ -40,7 +41,11 @@ type ESIErrorLimits struct {
 
 ## Usage Examples
 ```go
-// Initialize client
+// Initialize client with Redis caching (recommended for production)
+redisClient, _ := database.NewRedis(ctx)
+client := evegateway.NewClientWithRedis(redisClient)
+
+// OR initialize client with in-memory caching (for development/testing)
 client := evegateway.NewClient()
 
 // Get server status with caching
@@ -216,8 +221,10 @@ Current pagination support across ESI endpoints:
 - **Character Assets**: Single response with potential foldering
 
 ## Performance
-- **Cache Hit**: <1ms response time
+- **Redis Cache Hit**: ~400µs response time (persistent, shared across instances)
+- **In-Memory Cache Hit**: <1ms response time (process-specific)
 - **Cache Miss**: Network latency + ESI response time
-- **Memory Usage**: Configurable cache size limits
+- **Memory Usage**: Configurable cache size limits (Redis: external, In-memory: process heap)
+- **Cache Persistence**: Redis cache survives application restarts
 - **Connection Pooling**: Efficient HTTP client reuse
 - **Pagination Efficiency**: Token-based pagination reduces server load and improves consistency

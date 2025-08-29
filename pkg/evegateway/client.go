@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"go-falcon/pkg/config"
+	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway/alliance"
 	"go-falcon/pkg/evegateway/character"
 	"go-falcon/pkg/evegateway/corporation"
@@ -109,7 +110,7 @@ type CorporationClient interface {
 	GetCorporationWalletsWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationWalletResult, error)
 }
 
-// NewClient creates a new EVE Online ESI client
+// NewClient creates a new EVE Online ESI client with in-memory caching
 func NewClient() *Client {
 	var transport http.RoundTripper = http.DefaultTransport
 
@@ -131,6 +132,59 @@ func NewClient() *Client {
 	}
 
 	cacheManager := NewDefaultCacheManager()
+	errorLimits := &ESIErrorLimits{}
+	limitsMutex := &sync.RWMutex{}
+	retryClient := NewDefaultRetryClient(httpClient, errorLimits, limitsMutex)
+
+	// Create category clients using the shared infrastructure
+	statusClient := &statusClientImpl{cacheManager, retryClient, httpClient, "https://esi.evetech.net", userAgent}
+	characterClientDirect := character.NewCharacterClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	characterClient := &characterClientImpl{client: characterClientDirect}
+	universeClient := &universeClientImpl{cacheManager, retryClient, httpClient, "https://esi.evetech.net", userAgent}
+	allianceClientDirect := alliance.NewAllianceClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	allianceClient := &allianceClientImpl{client: allianceClientDirect}
+	corporationClientDirect := corporation.NewCorporationClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	corporationClient := &corporationClientImpl{client: corporationClientDirect}
+
+	return &Client{
+		httpClient:   httpClient,
+		baseURL:      "https://esi.evetech.net",
+		userAgent:    userAgent,
+		cacheManager: cacheManager,
+		retryClient:  retryClient,
+		errorLimits:  errorLimits,
+		limitsMutex:  sync.RWMutex{},
+		Status:       statusClient,
+		Character:    characterClient,
+		Universe:     universeClient,
+		Alliance:     allianceClient,
+		Corporation:  corporationClient,
+	}
+}
+
+// NewClientWithRedis creates a new EVE Online ESI client with Redis caching
+func NewClientWithRedis(redisClient *database.Redis) *Client {
+	var transport http.RoundTripper = http.DefaultTransport
+
+	// Only add OpenTelemetry instrumentation if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		transport = otelhttp.NewTransport(http.DefaultTransport,
+			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+				return fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Host)
+			}),
+		)
+	}
+
+	// ESI-compliant User-Agent header with contact information
+	userAgent := config.GetEnv("ESI_USER_AGENT", "go-falcon/1.0.0 contact@example.com")
+
+	httpClient := &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
+
+	// Use Redis cache manager instead of default in-memory cache
+	cacheManager := NewRedisCacheManager(redisClient)
 	errorLimits := &ESIErrorLimits{}
 	limitsMutex := &sync.RWMutex{}
 	retryClient := NewDefaultRetryClient(httpClient, errorLimits, limitsMutex)

@@ -174,8 +174,8 @@ func main() {
 	// Health check endpoint with version info
 	r.Get("/health", enhancedHealthHandler)
 
-	// Initialize EVE Online ESI client as shared package
-	evegateClient := evegateway.NewClient()
+	// Initialize EVE Online ESI client with Redis caching
+	evegateClient := evegateway.NewClientWithRedis(appCtx.Redis)
 
 	// Initialize modules in dependency order
 	var modules []module.Module
