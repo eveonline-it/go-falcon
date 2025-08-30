@@ -408,20 +408,33 @@ func (m *Module) getDefaultRoutes() []dto.CreateRouteInput {
 				Icon:        stringPtr("cogs"),
 			},
 		},
-
-		// =============================================================================
-		// ALLIANCE ROUTES (Children of folder-alliance)
-		// =============================================================================
+		{
+			Body: dto.CreateRouteBody{
+				RouteID:     "admin-corporations",
+				Path:        "/admin/corporations",
+				Component:   "CorporationsAdmin",
+				Name:        "Corporations",
+				Type:        "admin",
+				ParentID:    stringPtr("folder-administration"),
+				NavPosition: "admin",
+				NavOrder:    7,
+				ShowInNav:   true,
+				Title:       "Corporation Administration",
+				LazyLoad:    true,
+				IsEnabled:   true,
+				Icon:        stringPtr("building"),
+			},
+		},
 		{
 			Body: dto.CreateRouteBody{
 				RouteID:     "admin-alliances",
 				Path:        "/admin/alliances",
-				Component:   "AlliancesAdmin",
-				Name:        "Alliance Management",
+				Component:   "AllianceAdmin",
+				Name:        "Alliances",
 				Type:        "admin",
-				ParentID:    stringPtr("folder-alliance"),
+				ParentID:    stringPtr("folder-administration"),
 				NavPosition: "admin",
-				NavOrder:    1,
+				NavOrder:    8,
 				ShowInNav:   true,
 				Title:       "Alliance Administration",
 				LazyLoad:    true,
@@ -431,25 +444,14 @@ func (m *Module) getDefaultRoutes() []dto.CreateRouteInput {
 		},
 
 		// =============================================================================
+		// ALLIANCE ROUTES (Children of folder-alliance)
+		// =============================================================================
+		// Note: Alliance Management moved to Administration section
+
+		// =============================================================================
 		// CORPORATION ROUTES (Children of folder-corporation)
 		// =============================================================================
-		{
-			Body: dto.CreateRouteBody{
-				RouteID:     "admin-corporations",
-				Path:        "/admin/corporations",
-				Component:   "CorporationsAdmin",
-				Name:        "Corporation Management",
-				Type:        "admin",
-				ParentID:    stringPtr("folder-corporation"),
-				NavPosition: "admin",
-				NavOrder:    1,
-				ShowInNav:   true,
-				Title:       "Corporation Administration",
-				LazyLoad:    true,
-				IsEnabled:   true,
-				Icon:        stringPtr("building"),
-			},
-		},
+		// Note: Corporation Management moved to Administration section
 
 		// =============================================================================
 		// PERSONAL ROUTES (Children of folder-personal)
