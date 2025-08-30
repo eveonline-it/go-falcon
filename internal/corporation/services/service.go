@@ -115,6 +115,12 @@ func (s *Service) convertESIDataToModel(esiData map[string]any, corporationID in
 		corporation.AllianceID = &allianceIDInt
 	}
 
+	if ceoID, ok := esiData["ceo_id"].(int); ok {
+		corporation.CEOID = ceoID
+	} else if ceoIDFloat, ok := esiData["ceo_id"].(float64); ok {
+		corporation.CEOID = int(ceoIDFloat)
+	}
+
 	if creatorID, ok := esiData["creator_id"].(int); ok {
 		corporation.CreatorID = creatorID
 	} else if creatorIDFloat, ok := esiData["creator_id"].(float64); ok {
