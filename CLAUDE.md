@@ -91,14 +91,7 @@ go-falcon/
 
 ### Production Features
 
-- ✅ Multi-stage Docker builds
-- ✅ Hot reload in development
-- ✅ Graceful shutdown
-- ✅ Distributed locking
-- ✅ Database migrations with rollback support
-- ✅ Comprehensive error handling
-- ✅ Request tracing and correlation
-- ✅ Health checks and metrics
+Multi-stage Docker builds, hot reload, graceful shutdown, distributed locking, database migrations, comprehensive error handling, request tracing, health checks.
 
 ## 🚀 Quick Start
 
@@ -136,32 +129,16 @@ go-falcon/
 ### Key Environment Variables
 
 ```bash
-# Server Configuration
-HOST="0.0.0.0"                 # Host interface to bind to (all interfaces)
-PORT="3000"                    # Main server port
-
-# API Configuration
-API_PREFIX="/api"              # API route prefix (empty for root)
+HOST="0.0.0.0"                 # Host interface
+PORT="3000"                    # Server port
+API_PREFIX="/api"              # API route prefix
 JWT_SECRET="your-secret-key"   # JWT signing key
-
-# OpenAPI Configuration
-OPENAPI_SERVERS=""             # Custom OpenAPI servers (optional)
-                              # Format: "url1|description1,url2|description2"
-                              # Example: "https://api.prod.com|Production,https://api.staging.com|Staging"
-
-# HUMA Server Configuration (Future Feature)
-# HUMA_PORT="8081"               # Reserved for future separate HUMA server
-# HUMA_HOST="0.0.0.0"            # Reserved for future separate HUMA server  
-# HUMA_SEPARATE_SERVER="false"   # Currently disabled - will be reimplemented
-
-# EVE Online Integration
-EVE_CLIENT_ID="your-client-id"
-EVE_CLIENT_SECRET="your-secret"
-# SUPER_ADMIN_CHARACTER_ID="123456789" # DEPRECATED: First user is now auto-assigned to super_admin group
-
-# Observability
-ENABLE_TELEMETRY="true"        # Enable OpenTelemetry
+EVE_CLIENT_ID="your-client-id" # EVE OAuth
+EVE_CLIENT_SECRET="your-secret" # EVE OAuth
+ENABLE_TELEMETRY="true"        # OpenTelemetry
 ```
+
+See `.env.example` for complete configuration options.
 
 ## 🎯 Core Features
 
@@ -176,59 +153,23 @@ Each module in `internal/` is self-contained with:
 
 ### 2. Unified OpenAPI Architecture
 
-Modern API gateway with unified OpenAPI 3.1.1 specification:
-
-**Single API Specification**
-- All modules documented in one comprehensive OpenAPI spec
-- Unified schema registry with shared types across modules
-- Environment-aware server configuration
-- Modern API standards compliance
-
-**Flexible API Prefix Support**
-- Configure API versioning via `API_PREFIX` environment variable
-- Supports deployment patterns: `/api`, `/v1`, `/v2`, etc.
-- OpenAPI servers field automatically configured for different environments
-- Backward compatible with existing deployment strategies
-
-**Future: Separate Server Mode**
-- HUMA separate server mode currently disabled during architectural refactor
-- Will be reimplemented with unified OpenAPI support
-- For now, all APIs served from main server with unified specification
+Unified OpenAPI 3.1.1 spec with flexible API prefix support, environment-aware configuration, and automatic documentation generation via Huma v2.
 
 ### 3. Task Scheduling System
 
-The scheduler module provides:
-- **Cron Scheduling**: Standard cron expression support with 6-field format (including seconds)
-- **Task Types**: HTTP webhooks, functions, system tasks, custom executors
-- **System Tasks**: Automated background operations including character affiliation updates, corporation data updates, and alliance bulk imports
-- **Distributed Locking**: Redis-based coordination preventing duplicate executions
-- **Execution Cancellation**: Real-time cancellation of running task executions via context-based system
-- **Execution History**: Complete audit trail with performance metrics
-- **Worker Pool**: Configurable concurrent execution (default: 10 workers)
-- **Module Integration**: Direct integration with character, corporation, and alliance modules for ESI-based updates
+Distributed cron-based task scheduling with system tasks, execution cancellation, and module integration. See [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) for complete documentation.
 
 ### 4. EVE Online SDE Management
 
-In-memory SDE (Static Data Export) service:
-- **In-Memory Service** (`pkg/sde`): Ultra-fast data access for EVE game data
-- **Preserved Interface**: Maintains compatibility for modules that may need SDE data
+In-memory SDE service for ultra-fast EVE game data access. See [`pkg/sde/CLAUDE.md`](pkg/sde/CLAUDE.md).
 
 ### 5. Authentication & Security
 
-- **EVE Online SSO**: OAuth2 integration
-- **JWT Tokens**: Stateless authentication
-- **Dual Auth Support**: Cookies (web) and Bearer tokens (mobile)
-- **Granular Permissions**: Fine-grained access control
-- **CSRF Protection**: State validation
+EVE SSO OAuth2, JWT tokens, dual auth support (cookies/bearer), granular permissions. See [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md).
 
 ### 6. Dynamic Routing System (Sitemap Module)
 
-The sitemap module provides backend-controlled frontend routing with a dual-structure response:
-- **Flat Routes Array**: Simple list of available routes for React Router configuration (no nested children)
-- **Hierarchical Navigation**: Tree structure with folders for rendering vertical navigation menus
-- **Permission-Based Access**: Routes filtered based on user permissions and group memberships
-- **Separation of Concerns**: Routes define what's accessible, navigation defines how it's organized
-- **Real-time Updates**: Route access can change without frontend deployments
+Backend-controlled frontend routing with permission-based access and dual-structure response. See [`internal/sitemap/CLAUDE.md`](internal/sitemap/CLAUDE.md).
 
 ## 📚 Module Documentation
 
@@ -263,28 +204,13 @@ The sitemap module provides backend-controlled frontend routing with a dual-stru
 
 ## 🚀 EVE Online Integration
 
-The system provides comprehensive EVE Online integration with automated background updates and complete universe data support:
+Comprehensive EVE integration with automated updates:
+- **Character**: 30-minute affiliation updates ([details](internal/character/CLAUDE.md))
+- **Corporation**: Daily 4 AM refresh ([details](internal/corporation/CLAUDE.md))
+- **Alliance**: Complete sync ([details](internal/alliance/CLAUDE.md))
+- **Universe**: 113 regions, 1,175 constellations, 8,437 systems in memory ([details](internal/sde_admin/CLAUDE.md))
 
-- **Character Updates**: Affiliation tracking every 30 minutes ([details](internal/character/CLAUDE.md))
-- **Corporation Updates**: Daily data refresh at 4 AM ([details](internal/corporation/CLAUDE.md))  
-- **Alliance Updates**: Complete alliance data synchronization ([details](internal/alliance/CLAUDE.md))
-- **Scheduler Integration**: All updates managed via system tasks ([details](internal/scheduler/CLAUDE.md))
-- **Universe Data**: Complete EVE universe in memory - 113 regions, 1,175 constellations, 8,437 solar systems ([details](internal/sde_admin/CLAUDE.md))
-
-### ESI Best Practices
-
-The project strictly follows [CCP's ESI guidelines](https://developers.eveonline.com/docs/services/esi/best-practices/) and adheres to the official [ESI OpenAPI specification](https://esi.evetech.net/meta/openapi.json).
-
-### Authentication & Security
-
-Complete EVE SSO integration with JWT tokens and group-based access control. See [Authentication Module](internal/auth/CLAUDE.md) for detailed implementation including authentication flows, profile management, and automatic group assignment system.
-
-#### Authentication Flow
-- `/auth/eve/register` → Full EVE scopes → **Authenticated Users** group
-- `/auth/eve/login` → Basic login only → **Guest Users** group
-- First user → Automatically assigned to **Super Administrator** group
-
-**Migration**: Existing super admins need manual assignment to "Super Administrator" group via groups API.
+Follows [CCP ESI guidelines](https://developers.eveonline.com/docs/services/esi/best-practices/). First user gets Super Administrator group. See module docs for details.
 
 ## 🗄️ Database Management
 
@@ -302,47 +228,10 @@ Go Falcon uses a comprehensive migration system for version-controlled database 
 
 **Migration Commands:**
 ```bash
-# Run all pending migrations
-make migrate-up
-
-# Check migration status
-make migrate-status  
-
-# Rollback last migration
-make migrate-down
-
-# Create new migration
-make migrate-create name=feature_name
-
-# Preview migrations (dry run)
-make migrate-dry-run
-```
-
-**Migration Files:**
-- Located in `migrations/` directory
-- Naming convention: `{version}_{description}.go`
-- Each migration has `up()` and `down()` functions
-- All migrations tracked in `_migrations` collection
-
-**Current Migrations:**
-1. `001_create_groups_indexes` - Groups and memberships indexes
-2. `002_create_scheduler_indexes` - Scheduler tasks and executions indexes  
-3. `003_seed_system_groups` - System groups (super_admin, authenticated, guest)
-4. `004_create_character_indexes` - Character collection indexes with text search
-5. `005_create_users_indexes` - User collection indexes
-
-**Deployment Integration:**
-```yaml
-# docker-compose.yml
-services:
-  migrate:
-    command: ["/app/migrate", "-command=up"]
-    depends_on: [mongodb]
-    
-  app:
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
+make migrate-up        # Run pending migrations
+make migrate-status    # Check status
+make migrate-down      # Rollback last
+make migrate-create name=feature  # Create new
 ```
 
 See `migrations/README.md` for complete documentation.
@@ -390,6 +279,14 @@ Every module **MUST** implement `GET /{module}/status` endpoint:
 4. **Testing**: Unit tests (services), integration tests (routes), DTO validation
 5. **Error Handling**: Use `pkg/handlers` for consistent responses
 
+### Testing Authenticated Endpoints
+
+For testing authenticated endpoints during development:
+- **Authentication Cookie**: Use the cookie stored in `/tmp/cookie.txt`
+- **curl Example**: `curl -H "Cookie: $(cat /tmp/cookie.txt)" http://localhost:3000/api/endpoint`
+- **Postman/Bruno**: Import cookie from `/tmp/cookie.txt` file
+- **Session Management**: Cookie is automatically updated during EVE SSO authentication flow
+
 ### Best Practices
 
 - ✅ Follow the standardized module structure (dto/, routes/, services/, models/)
@@ -426,34 +323,11 @@ Control the API prefix via `API_PREFIX` environment variable:
 
 ### Scalar API Documentation
 
-The falcon gateway includes **Scalar**, a modern, interactive API documentation interface:
-
-```bash
-# Access Scalar Documentation:
-http://localhost:3000/docs
-```
-
-**Scalar Features:**
-- Modern UI with dark mode, interactive testing, search (Ctrl/Cmd + K)
-- JWT authentication support, code generation, server selection
-- Try API endpoints directly from documentation
-
-**API Features:**
-- Single OpenAPI 3.1.1 spec with unified schema registry
-- Type-safe operations with compile-time validation
-- Postman compatible, live documentation updates
-- Environment-aware server configuration
-
-**Important**: OpenAPI specifications are generated in real-time and automatically reflect the current `API_PREFIX` configuration.
+Interactive API docs at `http://localhost:3000/docs` with dark mode, JWT auth, endpoint testing, and live OpenAPI 3.1.1 spec generation.
 
 ### Available Endpoints
 
-**Unified API Endpoints** (Huma v2 type-safe operations):
-- `/auth/*` - EVE SSO integration, `/users/*` - User management
-- `/scheduler/*` - Task scheduling, `/character/*` - Character info
-- `/corporations/*` - Corp data, `/alliances/*` - Alliance info
-
-**Features:** Auto OpenAPI 3.1.1 docs, type-safe validation, enhanced error handling
+All endpoints under configurable `API_PREFIX`. See `/openapi.json` for complete API specification or `/docs` for interactive documentation.
 
 ## 🔧 Observability
 
