@@ -52,7 +52,8 @@ type CreateRouteBody struct {
 	BadgeText *string `json:"badge_text,omitempty" maxLength:"20" description:"Badge text"`
 
 	// Folder status (computed from type if not provided)
-	IsFolder *bool `json:"is_folder,omitempty" description:"Whether this is a folder route (computed from type if not provided)"`
+	IsFolder   *bool `json:"is_folder,omitempty" description:"Whether this is a folder route (computed from type if not provided)"`
+	IsExpanded *bool `json:"is_expanded,omitempty" description:"Default expanded state for folders"`
 }
 
 // UpdateRouteInput represents the input for updating a route
@@ -102,6 +103,9 @@ type UpdateRouteBody struct {
 	// Badge
 	BadgeType *string `json:"badge_type,omitempty" enum:"success,warning,danger,info,primary,secondary" description:"Badge type"`
 	BadgeText *string `json:"badge_text,omitempty" maxLength:"20" description:"Badge text"`
+
+	// Folder status
+	IsExpanded *bool `json:"is_expanded,omitempty" description:"Default expanded state for folders"`
 }
 
 // ListRoutesInput represents the input for listing routes

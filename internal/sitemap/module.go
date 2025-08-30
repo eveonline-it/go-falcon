@@ -204,6 +204,7 @@ func (m *Module) getDefaultRoutes() []dto.CreateRouteInput {
 				LazyLoad:    false,
 				IsEnabled:   true,
 				Icon:        stringPtr("cogs"),
+				IsExpanded:  boolPtr(false), // Collapsed by default
 			},
 		},
 		{
@@ -714,6 +715,11 @@ func (m *Module) getDefaultRoutes() []dto.CreateRouteInput {
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s
+}
+
+// Helper function to create bool pointers
+func boolPtr(b bool) *bool {
+	return &b
 }
 
 // Ensure Module implements the module interface

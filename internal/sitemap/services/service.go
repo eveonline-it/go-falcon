@@ -902,6 +902,7 @@ func (s *Service) CreateRoute(ctx context.Context, input *dto.CreateRouteInput) 
 		IsFolder:      isFolder,
 		Depth:         depth,
 		ChildrenCount: 0,
+		IsExpanded:    input.Body.IsExpanded,
 
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -1030,6 +1031,11 @@ func (s *Service) UpdateRoute(ctx context.Context, routeID string, body *dto.Upd
 	}
 	if body.BadgeText != nil {
 		updateDoc["badge_text"] = *body.BadgeText
+	}
+
+	// Folder-specific fields
+	if body.IsExpanded != nil {
+		updateDoc["is_expanded"] = *body.IsExpanded
 	}
 
 	err = s.repository.UpdateRoute(ctx, route.ID, updateDoc)
