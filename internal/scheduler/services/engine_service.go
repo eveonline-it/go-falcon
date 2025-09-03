@@ -312,11 +312,18 @@ func (e *EngineService) scheduleTask(task *models.Task) error {
 		return fmt.Errorf("invalid cron schedule '%s': %w", task.Schedule, err)
 	}
 
-	// Calculate next run time
-	schedule, err := cron.ParseStandard(task.Schedule)
+	// Calculate next run time - use same parser as validator (6-field with seconds)
+	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	schedule, err := parser.Parse(task.Schedule)
 	if err == nil {
 		nextRun := schedule.Next(time.Now())
 		e.repository.UpdateTaskRun(context.Background(), task.ID, nil, &nextRun)
+	} else {
+		slog.Error("Failed to parse cron schedule for task scheduling",
+			slog.String("task_id", task.ID),
+			slog.String("task_name", task.Name),
+			slog.String("schedule", task.Schedule),
+			slog.String("error", err.Error()))
 	}
 
 	return nil
@@ -453,9 +460,18 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 	// Update task run time with duration and statistics
 	now := time.Now()
 	var nextRun *time.Time
-	if schedule, err := cron.ParseStandard(task.Schedule); err == nil {
+
+	// Use same parser as validator - 6-field cron expression (with seconds)
+	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	if schedule, err := parser.Parse(task.Schedule); err == nil {
 		next := schedule.Next(now)
 		nextRun = &next
+	} else {
+		slog.Error("Failed to parse cron schedule for task completion",
+			slog.String("task_id", task.ID),
+			slog.String("task_name", task.Name),
+			slog.String("schedule", task.Schedule),
+			slog.String("error", err.Error()))
 	}
 
 	// Use the new method that includes duration tracking and average calculation
