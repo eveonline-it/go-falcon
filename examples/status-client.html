@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Status Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .status-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .status-healthy { background-color: #4CAF50; }
+        .status-degraded { background-color: #FF9800; }
+        .status-unhealthy { background-color: #F44336; }
+        .status-unknown { background-color: #9E9E9E; }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .service-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .service-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .service-name {
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .service-details {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .system-metrics {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .alerts {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .alert-item {
+            margin: 5px 0;
+            color: #856404;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 12px;
+        }
+        .connected { background-color: #4CAF50; }
+        .disconnected { background-color: #F44336; }
+        
+        .notifications {
+            position: fixed;
+            top: 50px;
+            right: 10px;
+            width: 300px;
+            z-index: 1000;
+        }
+        .notification {
+            background: white;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease-out;
+        }
+        .notification.critical {
+            border-left-color: #F44336;
+            background-color: #ffebee;
+        }
+        .notification.recovery {
+            border-left-color: #4CAF50;
+            background-color: #e8f5e8;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Disconnected</div>
+    <div class="notifications" id="notifications"></div>
+    
+    <div class="status-header">
+        <div class="status-indicator status-unknown" id="overallStatusIndicator"></div>
+        <h1>Backend Status Monitor</h1>
+    </div>
+    
+    <div class="system-metrics" id="systemMetrics">
+        <h3>System Metrics</h3>
+        <div id="metricsContent">Waiting for data...</div>
+    </div>
+    
+    <div class="alerts" id="alertsSection" style="display: none;">
+        <h3>System Alerts</h3>
+        <div id="alertsContent"></div>
+    </div>
+    
+    <div class="services-grid" id="servicesGrid">
+        <div class="service-card">
+            <div class="service-header">
+                <div class="status-indicator status-unknown"></div>
+                <div class="service-name">Loading...</div>
+            </div>
+            <div class="service-details">Connecting to WebSocket...</div>
+        </div>
+    </div>
+
+    <script>
+        class BackendStatusMonitor {
+            constructor() {
+                this.ws = null;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.reconnectDelay = 1000;
+                
+                this.elements = {
+                    connectionStatus: document.getElementById('connectionStatus'),
+                    overallStatusIndicator: document.getElementById('overallStatusIndicator'),
+                    systemMetrics: document.getElementById('metricsContent'),
+                    alertsSection: document.getElementById('alertsSection'),
+                    alertsContent: document.getElementById('alertsContent'),
+                    servicesGrid: document.getElementById('servicesGrid'),
+                    notifications: document.getElementById('notifications')
+                };
+                
+                this.connect();
+            }
+            
+            connect() {
+                try {
+                    // Use the WebSocket connection to the backend
+                    this.ws = new WebSocket('ws://localhost:3000/websocket/connect');
+                    
+                    this.ws.onopen = () => {
+                        console.log('WebSocket connected');
+                        this.updateConnectionStatus(true);
+                        this.reconnectAttempts = 0;
+                    };
+                    
+                    this.ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.handleMessage(data);
+                        } catch (error) {
+                            console.error('Failed to parse WebSocket message:', error);
+                        }
+                    };
+                    
+                    this.ws.onclose = () => {
+                        console.log('WebSocket disconnected');
+                        this.updateConnectionStatus(false);
+                        this.attemptReconnect();
+                    };
+                    
+                    this.ws.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        this.updateConnectionStatus(false);
+                    };
+                } catch (error) {
+                    console.error('Failed to connect to WebSocket:', error);
+                    this.attemptReconnect();
+                }
+            }
+            
+            attemptReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+                    
+                    setTimeout(() => {
+                        this.connect();
+                    }, this.reconnectDelay * this.reconnectAttempts);
+                }
+            }
+            
+            updateConnectionStatus(connected) {
+                const statusEl = this.elements.connectionStatus;
+                if (connected) {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'connection-status connected';
+                } else {
+                    statusEl.textContent = 'Disconnected';
+                    statusEl.className = 'connection-status disconnected';
+                }
+            }
+            
+            handleMessage(data) {
+                console.log('Received WebSocket message:', data);
+                
+                switch (data.type) {
+                    case 'backend_status':
+                        this.updateBackendStatus(data);
+                        break;
+                    case 'critical_alert':
+                        this.showCriticalAlert(data);
+                        break;
+                    case 'service_recovery':
+                        this.showRecoveryNotification(data);
+                        break;
+                    default:
+                        console.log('Unknown message type:', data.type);
+                }
+            }
+            
+            updateBackendStatus(data) {
+                // Update overall status indicator
+                this.updateOverallStatus(data.overall_status);
+                
+                // Update system metrics
+                this.updateSystemMetrics(data.system_metrics);
+                
+                // Update services
+                this.updateServices(data.services);
+                
+                // Update alerts
+                this.updateAlerts(data.alerts);
+                
+                // Show notification for status updates
+                if (data.overall_status !== 'healthy') {
+                    this.showNotification(`Backend status: ${data.overall_status}`, 'warning');
+                }
+            }
+            
+            updateOverallStatus(status) {
+                const indicator = this.elements.overallStatusIndicator;
+                indicator.className = `status-indicator status-${status}`;
+            }
+            
+            updateSystemMetrics(metrics) {
+                const content = this.elements.systemMetrics;
+                content.innerHTML = `
+                    <div><strong>Memory Usage:</strong> ${metrics.memory_usage.toFixed(1)} MB</div>
+                    <div><strong>CPU Usage:</strong> ${metrics.cpu_usage}%</div>
+                    <div><strong>Active Connections:</strong> ${metrics.active_connections}</div>
+                    <div><strong>Uptime:</strong> ${metrics.uptime_formatted}</div>
+                `;
+            }
+            
+            updateServices(services) {
+                const grid = this.elements.servicesGrid;
+                
+                const serviceCards = Object.entries(services).map(([name, service]) => `
+                    <div class="service-card">
+                        <div class="service-header">
+                            <div class="status-indicator status-${service.status}"></div>
+                            <div class="service-name">${service.module}</div>
+                        </div>
+                        <div class="service-details">
+                            Status: ${service.status}<br>
+                            Response: ${service.response_time}<br>
+                            ${service.message ? `Message: ${service.message}<br>` : ''}
+                            Last checked: ${new Date(service.last_checked).toLocaleTimeString()}
+                        </div>
+                    </div>
+                `).join('');
+                
+                grid.innerHTML = serviceCards;
+            }
+            
+            updateAlerts(alerts) {
+                const section = this.elements.alertsSection;
+                const content = this.elements.alertsContent;
+                
+                if (alerts && alerts.length > 0) {
+                    section.style.display = 'block';
+                    content.innerHTML = alerts.map(alert => 
+                        `<div class="alert-item">⚠️ ${alert}</div>`
+                    ).join('');
+                } else {
+                    section.style.display = 'none';
+                }
+            }
+            
+            showCriticalAlert(data) {
+                this.showNotification(
+                    `CRITICAL: ${data.message}`,
+                    'critical'
+                );
+            }
+            
+            showRecoveryNotification(data) {
+                this.showNotification(
+                    `✅ ${data.service} service has recovered`,
+                    'recovery'
+                );
+            }
+            
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 5px;">
+                        ${type === 'critical' ? '🚨' : type === 'recovery' ? '✅' : 'ℹ️'} Status Update
+                    </div>
+                    <div>${message}</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                        ${new Date().toLocaleTimeString()}
+                    </div>
+                `;
+                
+                this.elements.notifications.appendChild(notification);
+                
+                // Auto-remove notification after 10 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 10000);
+            }
+        }
+        
+        // Initialize the status monitor when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new BackendStatusMonitor();
+        });
+    </script>
+</body>
+</html>
