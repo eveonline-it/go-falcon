@@ -21,6 +21,7 @@ import (
 	"go-falcon/internal/corporation"
 	"go-falcon/internal/groups"
 	groupsDto "go-falcon/internal/groups/dto"
+	"go-falcon/internal/killmails"
 	"go-falcon/internal/scheduler"
 	"go-falcon/internal/sde_admin"
 	"go-falcon/internal/site_settings"
@@ -373,6 +374,7 @@ func main() {
 
 	// 7. Initialize remaining modules that depend on auth
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule.GetAuthService(), permissionManager)
+	killmailsModule := killmails.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule, evegateClient, appCtx.SDEService)
 	usersModule.SetGroupService(groupsModule.GetService())
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
@@ -467,7 +469,7 @@ func main() {
 	// Update site settings with auth, groups services, and permission manager
 	siteSettingsModule.SetDependenciesWithPermissions(authModule.GetAuthService(), groupsModule.GetService(), permissionManager)
 
-	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule)
+	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule)
 
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
@@ -626,6 +628,10 @@ func main() {
 	// Register alliance module routes
 	log.Printf("   🤝 Alliance module: /alliances/*")
 	allianceModule.RegisterUnifiedRoutes(unifiedAPI, "/alliances")
+
+	// Register killmails module routes
+	log.Printf("   ⚔️  Killmails module: /killmails/*")
+	killmailsModule.RegisterUnifiedRoutes(unifiedAPI, "/killmails")
 
 	// Register groups module routes
 	log.Printf("   👥 Groups module: /groups/*")
