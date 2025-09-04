@@ -231,6 +231,33 @@ func GetSDEChecksumsURL() string {
 	return GetEnv("SDE_CHECKSUMS_URL", "https://eve-static-data-export.s3-eu-west-1.amazonaws.com/tranquility/checksum")
 }
 
+// GetWebSocketURL returns the WebSocket URL from environment
+func GetWebSocketURL() string {
+	return GetEnv("WEBSOCKET_URL", "wss://localhost:3000/websocket/connect")
+}
+
+// GetWebSocketPath returns the WebSocket path from environment (for internal routing)
+func GetWebSocketPath() string {
+	return GetEnv("WEBSOCKET_PATH", "/websocket/connect")
+}
+
+// GetWebSocketAllowedOrigins returns the allowed origins for WebSocket connections
+func GetWebSocketAllowedOrigins() []string {
+	origins := GetEnv("WEBSOCKET_ALLOWED_ORIGINS", "https://go.eveonline.it,http://localhost:3000,https://localhost:3000")
+	if origins == "" {
+		return []string{}
+	}
+
+	result := []string{}
+	for _, origin := range strings.Split(origins, ",") {
+		origin = strings.TrimSpace(origin)
+		if origin != "" {
+			result = append(result, origin)
+		}
+	}
+	return result
+}
+
 // OpenAPIServer represents an OpenAPI server configuration
 type OpenAPIServer struct {
 	URL         string

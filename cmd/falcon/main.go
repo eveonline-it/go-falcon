@@ -27,6 +27,7 @@ import (
 	"go-falcon/internal/sitemap"
 	sitemapServices "go-falcon/internal/sitemap/services"
 	"go-falcon/internal/users"
+	"go-falcon/internal/websocket"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
 	evegateway "go-falcon/pkg/evegateway"
@@ -173,6 +174,8 @@ func main() {
 
 	// Health check endpoint with version info
 	r.Get("/health", enhancedHealthHandler)
+
+	// Note: WebSocket handler registration will be done after WebSocket module initialization
 
 	// Initialize EVE Online ESI client with Redis caching
 	evegateClient := evegateway.NewClientWithRedis(appCtx.Redis)
@@ -365,7 +368,25 @@ func main() {
 	schedulerModule.SetGroupService(groupsModule.GetService())
 	sdeAdminModule := sde_admin.New(appCtx.MongoDB, appCtx.Redis, authModule, permissionManager, appCtx.SDEService)
 
-	// 8. Register service permissions
+	// 8. Initialize WebSocket module
+	log.Printf("🔌 Initializing WebSocket module")
+	websocketModule, err := websocket.NewModule(appCtx.MongoDB.Database, appCtx.Redis.Client, authModule.GetAuthService())
+	if err != nil {
+		log.Fatalf("Failed to initialize WebSocket module: %v", err)
+	}
+
+	// Start WebSocket service
+	if err := websocketModule.Initialize(ctx); err != nil {
+		log.Printf("❌ Failed to initialize WebSocket service: %v", err)
+	} else {
+		log.Printf("✅ WebSocket module initialized successfully")
+	}
+
+	// Register WebSocket HTTP handler on main router (must be outside Huma API for WebSocket upgrades)
+	log.Printf("🔌 Registering WebSocket HTTP handler")
+	websocketModule.RegisterHTTPHandler(r)
+
+	// 9. Register service permissions
 	log.Printf("📝 Registering service permissions")
 
 	// Register permissions in background to avoid startup hang
@@ -435,7 +456,7 @@ func main() {
 	// Update site settings with auth, groups services, and permission manager
 	siteSettingsModule.SetDependenciesWithPermissions(authModule.GetAuthService(), groupsModule.GetService(), permissionManager)
 
-	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule)
+	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule)
 
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
@@ -517,6 +538,9 @@ func main() {
 		{Name: "Site Settings / Public", Description: "Public site settings accessible without authentication"},
 		{Name: "Site Settings / Management", Description: "Administrative site settings management operations"},
 		{Name: "SDE Admin", Description: "EVE Online Static Data Export administration and Redis import management"},
+		{Name: "WebSocket", Description: "Real-time WebSocket communication and connection management"},
+		{Name: "WebSocket Admin", Description: "Administrative WebSocket connection and room management"},
+		{Name: "Module Status", Description: "Module health status and statistics endpoints"},
 	}
 
 	// Add servers based on environment configuration or defaults
@@ -607,6 +631,10 @@ func main() {
 	// Register SDE admin module routes
 	log.Printf("   📊 SDE Admin module: /sde/*")
 	sdeAdminModule.RegisterUnifiedRoutes(unifiedAPI, "/sde")
+
+	// Register WebSocket module routes
+	log.Printf("   🔌 WebSocket module: /websocket/*")
+	websocketModule.RegisterUnifiedRoutes(unifiedAPI)
 
 	log.Printf("✅ All modules registered on unified API")
 

@@ -20,6 +20,9 @@ Centralized configuration management using environment variables with sensible d
 - `GetHumaHost()`: Get HUMA server host interface (HUMA_HOST, defaults to HOST)
 - `GetSDEURL()`: Get SDE download URL (SDE_URL)
 - `GetSDEChecksumsURL()`: Get SDE checksums file URL (SDE_CHECKSUMS_URL)
+- `GetWebSocketURL()`: Get WebSocket URL for client connections (WEBSOCKET_URL)
+- `GetWebSocketPath()`: Get WebSocket path for internal routing (WEBSOCKET_PATH)
+- `GetWebSocketAllowedOrigins()`: Get allowed origins for WebSocket connections (WEBSOCKET_ALLOWED_ORIGINS)
 
 ## EVE Online Configuration
 ```go
@@ -48,6 +51,19 @@ GetFrontendURL()       // FRONTEND_URL
 GetSDEURL()            // SDE_URL (default: AWS S3 EVE SDE ZIP)
 GetSDEChecksumsURL()   // SDE_CHECKSUMS_URL (default: AWS S3 checksum file)
 ```
+
+## WebSocket Configuration
+```go
+// WebSocket configuration
+GetWebSocketURL()          // WEBSOCKET_URL (default: wss://localhost:3000/websocket/connect)
+GetWebSocketPath()         // WEBSOCKET_PATH (default: /websocket/connect)
+GetWebSocketAllowedOrigins() // WEBSOCKET_ALLOWED_ORIGINS (comma-separated list of allowed origins)
+```
+
+**WebSocket Configuration Details:**
+- `WEBSOCKET_URL`: Full URL including protocol (ws:// or wss://) for client connections
+- `WEBSOCKET_PATH`: Server-side routing path for HTTP handler registration
+- `WEBSOCKET_ALLOWED_ORIGINS`: Comma-separated list of allowed origins for CORS security (e.g., "https://yourdomain.com,http://localhost:3000")
 
 ## Usage Pattern
 All modules use this package for consistent configuration access across the monolith.
