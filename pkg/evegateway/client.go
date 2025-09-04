@@ -18,6 +18,7 @@ import (
 	"go-falcon/pkg/evegateway/alliance"
 	"go-falcon/pkg/evegateway/character"
 	"go-falcon/pkg/evegateway/corporation"
+	"go-falcon/pkg/evegateway/killmails"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -42,6 +43,7 @@ type Client struct {
 	Universe    UniverseClient
 	Alliance    AllianceClient
 	Corporation CorporationClient
+	Killmails   KillmailClient
 }
 
 // ESIStatusResponse represents the EVE Online server status
@@ -110,6 +112,13 @@ type CorporationClient interface {
 	GetCorporationWalletsWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationWalletResult, error)
 }
 
+// KillmailClient interface for killmail operations
+type KillmailClient interface {
+	GetKillmail(ctx context.Context, killmailID int64, hash string) (map[string]any, error)
+	GetCharacterRecentKillmails(ctx context.Context, characterID int, token string) ([]map[string]any, error)
+	GetCorporationRecentKillmails(ctx context.Context, corporationID int, token string) ([]map[string]any, error)
+}
+
 // NewClient creates a new EVE Online ESI client with in-memory caching
 func NewClient() *Client {
 	var transport http.RoundTripper = http.DefaultTransport
@@ -145,6 +154,8 @@ func NewClient() *Client {
 	allianceClient := &allianceClientImpl{client: allianceClientDirect}
 	corporationClientDirect := corporation.NewCorporationClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	corporationClient := &corporationClientImpl{client: corporationClientDirect}
+	killmailClientDirect := killmails.NewKillmailClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	killmailClient := &killmailClientImpl{client: killmailClientDirect}
 
 	return &Client{
 		httpClient:   httpClient,
@@ -159,6 +170,7 @@ func NewClient() *Client {
 		Universe:     universeClient,
 		Alliance:     allianceClient,
 		Corporation:  corporationClient,
+		Killmails:    killmailClient,
 	}
 }
 
@@ -198,6 +210,8 @@ func NewClientWithRedis(redisClient *database.Redis) *Client {
 	allianceClient := &allianceClientImpl{client: allianceClientDirect}
 	corporationClientDirect := corporation.NewCorporationClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	corporationClient := &corporationClientImpl{client: corporationClientDirect}
+	killmailClientDirect := killmails.NewKillmailClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	killmailClient := &killmailClientImpl{client: killmailClientDirect}
 
 	return &Client{
 		httpClient:   httpClient,
@@ -212,6 +226,7 @@ func NewClientWithRedis(redisClient *database.Redis) *Client {
 		Universe:     universeClient,
 		Alliance:     allianceClient,
 		Corporation:  corporationClient,
+		Killmails:    killmailClient,
 	}
 }
 
@@ -770,4 +785,156 @@ func (c *corporationClientImpl) GetCorporationWallets(ctx context.Context, corpo
 
 func (c *corporationClientImpl) GetCorporationWalletsWithCache(ctx context.Context, corporationID int, token string) (*corporation.CorporationWalletResult, error) {
 	return c.client.GetCorporationWalletsWithCache(ctx, corporationID, token)
+}
+
+// Killmail client adapter
+type killmailClientImpl struct {
+	client killmails.Client
+}
+
+func (k *killmailClientImpl) GetKillmail(ctx context.Context, killmailID int64, hash string) (map[string]any, error) {
+	killmail, err := k.client.GetKillmail(ctx, killmailID, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to map[string]any for backward compatibility
+	result := map[string]any{
+		"killmail_id":     killmail.KillmailID,
+		"killmail_time":   killmail.KillmailTime,
+		"solar_system_id": killmail.SolarSystemID,
+		"victim":          convertVictimToMap(killmail.Victim),
+		"attackers":       convertAttackersToMap(killmail.Attackers),
+	}
+
+	if killmail.MoonID != nil {
+		result["moon_id"] = *killmail.MoonID
+	}
+	if killmail.WarID != nil {
+		result["war_id"] = *killmail.WarID
+	}
+
+	return result, nil
+}
+
+func (k *killmailClientImpl) GetCharacterRecentKillmails(ctx context.Context, characterID int, token string) ([]map[string]any, error) {
+	killmails, err := k.client.GetCharacterRecentKillmails(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]map[string]any, len(killmails))
+	for i, km := range killmails {
+		result[i] = map[string]any{
+			"killmail_id":   km.KillmailID,
+			"killmail_hash": km.KillmailHash,
+		}
+	}
+	return result, nil
+}
+
+func (k *killmailClientImpl) GetCorporationRecentKillmails(ctx context.Context, corporationID int, token string) ([]map[string]any, error) {
+	killmails, err := k.client.GetCorporationRecentKillmails(ctx, corporationID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]map[string]any, len(killmails))
+	for i, km := range killmails {
+		result[i] = map[string]any{
+			"killmail_id":   km.KillmailID,
+			"killmail_hash": km.KillmailHash,
+		}
+	}
+	return result, nil
+}
+
+// Helper functions for killmail conversion
+func convertVictimToMap(victim killmails.Victim) map[string]any {
+	result := map[string]any{
+		"ship_type_id": victim.ShipTypeID,
+		"damage_taken": victim.DamageTaken,
+	}
+
+	if victim.CharacterID != nil {
+		result["character_id"] = *victim.CharacterID
+	}
+	if victim.CorporationID != nil {
+		result["corporation_id"] = *victim.CorporationID
+	}
+	if victim.AllianceID != nil {
+		result["alliance_id"] = *victim.AllianceID
+	}
+	if victim.FactionID != nil {
+		result["faction_id"] = *victim.FactionID
+	}
+	if victim.Position != nil {
+		result["position"] = map[string]any{
+			"x": victim.Position.X,
+			"y": victim.Position.Y,
+			"z": victim.Position.Z,
+		}
+	}
+	if victim.Items != nil {
+		result["items"] = convertItemsToMap(victim.Items)
+	}
+
+	return result
+}
+
+func convertAttackersToMap(attackers []killmails.Attacker) []map[string]any {
+	result := make([]map[string]any, len(attackers))
+	for i, attacker := range attackers {
+		a := map[string]any{
+			"damage_done":     attacker.DamageDone,
+			"final_blow":      attacker.FinalBlow,
+			"security_status": attacker.SecurityStatus,
+		}
+
+		if attacker.CharacterID != nil {
+			a["character_id"] = *attacker.CharacterID
+		}
+		if attacker.CorporationID != nil {
+			a["corporation_id"] = *attacker.CorporationID
+		}
+		if attacker.AllianceID != nil {
+			a["alliance_id"] = *attacker.AllianceID
+		}
+		if attacker.FactionID != nil {
+			a["faction_id"] = *attacker.FactionID
+		}
+		if attacker.ShipTypeID != nil {
+			a["ship_type_id"] = *attacker.ShipTypeID
+		}
+		if attacker.WeaponTypeID != nil {
+			a["weapon_type_id"] = *attacker.WeaponTypeID
+		}
+
+		result[i] = a
+	}
+	return result
+}
+
+func convertItemsToMap(items []killmails.Item) []map[string]any {
+	result := make([]map[string]any, len(items))
+	for i, item := range items {
+		it := map[string]any{
+			"item_type_id": item.ItemTypeID,
+			"flag":         item.Flag,
+			"singleton":    item.Singleton,
+		}
+
+		if item.QuantityDestroyed != nil {
+			it["quantity_destroyed"] = *item.QuantityDestroyed
+		}
+		if item.QuantityDropped != nil {
+			it["quantity_dropped"] = *item.QuantityDropped
+		}
+		if item.Items != nil {
+			it["items"] = convertItemsToMap(item.Items)
+		}
+
+		result[i] = it
+	}
+	return result
 }
