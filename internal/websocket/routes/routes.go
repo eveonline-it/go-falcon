@@ -111,12 +111,22 @@ func (wr *WebSocketRoutes) RegisterRoutes(api huma.API) {
 
 // HandleWebSocketUpgrade handles actual WebSocket upgrade (called by HTTP handler)
 func (wr *WebSocketRoutes) HandleWebSocketUpgrade(w http.ResponseWriter, r *http.Request) {
+	slog.Info("🔌 WebSocket upgrade request received",
+		"origin", r.Header.Get("Origin"),
+		"user_agent", r.Header.Get("User-Agent"),
+		"remote_addr", r.RemoteAddr)
+
 	// Authenticate and upgrade connection
 	conn, user, err := wr.authMw.UpgradeConnectionWithAuth(w, r)
 	if err != nil {
 		slog.Error("Failed to upgrade WebSocket connection", "error", err)
 		return
 	}
+
+	slog.Info("✅ WebSocket connection upgraded successfully",
+		"user_id", user.UserID,
+		"character_id", user.CharacterID,
+		"character_name", user.CharacterName)
 
 	// Create connection model
 	connection := &models.Connection{

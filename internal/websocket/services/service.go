@@ -125,16 +125,24 @@ func (ws *WebSocketService) GetIntegrationService() *IntegrationService {
 
 // CreateConnection creates a new WebSocket connection with automatic room assignment
 func (ws *WebSocketService) CreateConnection(conn *models.Connection) error {
-	// Add connection to manager
+	// Add connection to manager first (fast operation)
 	if _, err := ws.connectionMgr.AddConnection(conn.Conn, conn.UserID, conn.CharacterID, conn.CharacterName); err != nil {
 		return err
 	}
 
-	// Assign to appropriate rooms
-	if err := ws.integrationSvc.AssignUserToRooms(ws.ctx, conn); err != nil {
-		slog.Error("Failed to assign user to rooms", "error", err, "connection_id", conn.ID)
-		// Don't fail the connection creation - just log the error
-	}
+	// Assign to appropriate rooms asynchronously to prevent blocking the WebSocket upgrade
+	go func() {
+		// Use a timeout context to prevent indefinite blocking
+		ctx, cancel := context.WithTimeout(ws.ctx, 30*time.Second)
+		defer cancel()
+
+		if err := ws.integrationSvc.AssignUserToRooms(ctx, conn); err != nil {
+			slog.Error("Failed to assign user to rooms", "error", err, "connection_id", conn.ID, "user_id", conn.UserID)
+			// Room assignment failed but connection is still valid - user just won't get group messages initially
+		} else {
+			slog.Info("Successfully assigned user to rooms", "connection_id", conn.ID, "user_id", conn.UserID)
+		}
+	}()
 
 	return nil
 }

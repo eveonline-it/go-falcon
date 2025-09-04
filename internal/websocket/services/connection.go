@@ -310,6 +310,12 @@ func (cm *ConnectionManager) HandleConnection(ctx context.Context, conn *models.
 			return
 
 		case <-ticker.C:
+			// Set write deadline for ping message
+			if err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+				slog.Error("Failed to set write deadline for ping", "error", err, "connection_id", conn.ID)
+				return
+			}
+
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				slog.Error("Failed to send ping", "error", err, "connection_id", conn.ID)
 				return

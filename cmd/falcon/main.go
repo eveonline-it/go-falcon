@@ -169,7 +169,18 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Timeout(60 * time.Second))
+	// Apply timeout middleware but exclude WebSocket endpoints
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip timeout for WebSocket endpoints
+			if strings.HasPrefix(r.URL.Path, "/websocket/") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// Apply timeout for all other endpoints
+			middleware.Timeout(60*time.Second)(next).ServeHTTP(w, r)
+		})
+	})
 	r.Use(corsMiddleware) // Add CORS support for cross-subdomain requests
 
 	// Health check endpoint with version info
