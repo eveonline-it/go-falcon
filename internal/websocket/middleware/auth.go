@@ -103,7 +103,10 @@ func (m *WebSocketAuthMiddleware) UpgradeConnectionWithAuth(w http.ResponseWrite
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
-		// CheckOrigin removed - behind Traefik proxy, origin checking handled by proxy
+		// TEMPORARY: Allow all origins for bypass
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
 	}
 
 	// Upgrade the connection
