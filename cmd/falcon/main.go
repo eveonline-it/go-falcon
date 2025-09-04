@@ -33,7 +33,6 @@ import (
 	evegateway "go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
-	"go-falcon/pkg/status"
 	"go-falcon/pkg/version"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -637,30 +636,6 @@ func main() {
 	log.Printf("   🔌 WebSocket module: /websocket/*")
 	websocketModule.RegisterUnifiedRoutes(unifiedAPI)
 
-	// Initialize and register Backend Status Service
-	log.Printf("📊 Initializing Backend Status Service")
-	statusConfig := status.LoadConfigFromEnv()
-	host := config.GetHost()
-	port := config.GetHumaPort()
-	baseURL := fmt.Sprintf("http://%s:%s", host, port)
-	if host == "0.0.0.0" {
-		baseURL = fmt.Sprintf("http://localhost:%s", port)
-	}
-
-	moduleNames := []string{"auth", "users", "scheduler", "character", "corporations", "alliances", "groups", "sitemap", "site-settings", "sde", "websocket"}
-	statusService := status.NewService(statusConfig, baseURL, apiPrefix, moduleNames, websocketModule)
-
-	// Start the status service
-	if err := statusService.Start(); err != nil {
-		log.Printf("❌ Failed to start status service: %v", err)
-	} else {
-		log.Printf("✅ Backend status service started successfully")
-	}
-
-	// Register status endpoints
-	log.Printf("   📊 Status service: /status/*")
-	status.RegisterStatusEndpoints(unifiedAPI, statusService)
-
 	log.Printf("✅ All modules registered on unified API")
 
 	// Note: evegateway is now a shared package for EVE Online ESI integration
@@ -673,8 +648,8 @@ func main() {
 	}
 
 	// HTTP server setup
-	port = app.GetPort("8080")
-	host = config.GetHost()
+	port := app.GetPort("8080")
+	host := config.GetHost()
 	humaPort := config.GetHumaPort()
 	humaHost := config.GetHumaHost()
 	separateHumaServer := config.GetHumaSeparateServer()
@@ -768,12 +743,6 @@ func main() {
 	// Stop background services for all modules
 	for _, mod := range modules {
 		mod.Stop()
-	}
-
-	// Stop status service
-	if statusService != nil {
-		statusService.Stop()
-		log.Printf("✅ Backend status service stopped")
 	}
 
 	// Application context will handle database and telemetry shutdown

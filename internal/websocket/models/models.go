@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -62,14 +63,50 @@ type Message struct {
 	From      string                 `json:"from,omitempty"` // Connection ID of sender
 	To        string                 `json:"to,omitempty"`   // Target connection ID (for direct messages)
 	Data      map[string]interface{} `json:"data,omitempty"` // Message payload
-	Timestamp time.Time              `json:"timestamp"`
+	Timestamp time.Time              `json:"timestamp,omitempty"`
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for Message
+// Handles timestamp as either string (RFC3339) or number (Unix milliseconds)
+func (m *Message) UnmarshalJSON(data []byte) error {
+	// Create a temporary struct with same fields except timestamp
+	type MessageAlias Message
+	aux := &struct {
+		Timestamp interface{} `json:"timestamp,omitempty"`
+		*MessageAlias
+	}{
+		MessageAlias: (*MessageAlias)(m),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Handle timestamp field
+	if aux.Timestamp != nil {
+		switch ts := aux.Timestamp.(type) {
+		case string:
+			// RFC3339 string format
+			if parsedTime, err := time.Parse(time.RFC3339, ts); err == nil {
+				m.Timestamp = parsedTime
+			}
+		case float64:
+			// Unix timestamp in milliseconds
+			m.Timestamp = time.Unix(0, int64(ts)*int64(time.Millisecond))
+		case int64:
+			// Unix timestamp in milliseconds
+			m.Timestamp = time.Unix(0, ts*int64(time.Millisecond))
+		}
+	}
+
+	return nil
 }
 
 // RedisMessage represents a message for Redis pub/sub
 type RedisMessage struct {
 	ServerID  string    `json:"server_id"` // ID of the server that published the message
 	Message   Message   `json:"message"`   // The actual message
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp time.Time `json:"timestamp,omitempty"`
 }
 
 // ConnectionInfo represents public connection information

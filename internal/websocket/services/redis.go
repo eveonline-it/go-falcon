@@ -98,7 +98,10 @@ func (rh *RedisHub) listen(ctx context.Context) {
 func (rh *RedisHub) handleRedisMessage(msg *redis.Message) {
 	var redisMsg models.RedisMessage
 	if err := json.Unmarshal([]byte(msg.Payload), &redisMsg); err != nil {
-		slog.Error("Failed to unmarshal Redis message", "error", err, "payload", msg.Payload)
+		slog.Error("Failed to unmarshal Redis message",
+			"error", err,
+			"channel", msg.Channel,
+			"payload", msg.Payload)
 		return
 	}
 
@@ -207,7 +210,7 @@ func (rh *RedisHub) BroadcastUserProfileUpdate(ctx context.Context, userID strin
 			"user_id":      userID,
 			"character_id": characterID,
 			"profile":      profileData,
-			"timestamp":    time.Now(),
+			"timestamp":    time.Now().Format(time.RFC3339),
 		},
 		Timestamp: time.Now(),
 	}
@@ -224,7 +227,7 @@ func (rh *RedisHub) BroadcastGroupMembershipChange(ctx context.Context, userID s
 			"group_id":   groupID,
 			"group_name": groupName,
 			"joined":     joined,
-			"timestamp":  time.Now(),
+			"timestamp":  time.Now().Format(time.RFC3339),
 		},
 		Timestamp: time.Now(),
 	}

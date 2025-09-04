@@ -318,8 +318,17 @@ func (cm *ConnectionManager) HandleConnection(ctx context.Context, conn *models.
 		case message := <-messageChan:
 			// Process incoming message
 			var msg models.Message
+
+			// Log the raw message for debugging
+			slog.Debug("📥 Received WebSocket message",
+				"connection_id", conn.ID,
+				"raw_message", string(message))
+
 			if err := json.Unmarshal(message, &msg); err != nil {
-				slog.Error("Failed to unmarshal message", "error", err, "connection_id", conn.ID)
+				slog.Error("Failed to unmarshal message",
+					"error", err,
+					"connection_id", conn.ID,
+					"raw_message", string(message))
 				continue
 			}
 
@@ -338,6 +347,7 @@ func (cm *ConnectionManager) HandleConnection(ctx context.Context, conn *models.
 // handleMessage processes incoming WebSocket messages
 func (cm *ConnectionManager) handleMessage(conn *models.Connection, message *models.Message) {
 	message.From = conn.ID
+	// Always set server timestamp regardless of what client sent
 	message.Timestamp = time.Now()
 
 	switch message.Type {
@@ -346,7 +356,7 @@ func (cm *ConnectionManager) handleMessage(conn *models.Connection, message *mod
 		response := &models.Message{
 			Type: models.MessageTypeHeartbeat,
 			Data: map[string]interface{}{
-				"timestamp": time.Now(),
+				"timestamp": time.Now().Format(time.RFC3339),
 			},
 			Timestamp: time.Now(),
 		}

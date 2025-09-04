@@ -3,7 +3,9 @@ package websocket
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"go-falcon/internal/websocket/middleware"
 	"go-falcon/internal/websocket/models"
@@ -167,13 +169,21 @@ func (m *Module) SendSystemMessage(ctx context.Context, message string, data map
 	redisHub := m.service.GetRedisHub()
 
 	systemMessage := &models.Message{
-		Type: models.MessageTypeSystemNotification,
+		Type:      models.MessageTypeSystemNotification,
+		Timestamp: time.Now(),
 		Data: map[string]interface{}{
 			"message": message,
 			"data":    data,
 		},
 	}
 
+	// Send to local connections first
+	if err := m.service.SendMessage(systemMessage); err != nil {
+		slog.Error("Failed to send system message to local connections", "error", err)
+		// Continue to Redis broadcast even if local send fails
+	}
+
+	// Publish to Redis for other instances
 	return redisHub.PublishSystemMessage(ctx, systemMessage)
 }
 
