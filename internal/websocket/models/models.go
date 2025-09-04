@@ -21,14 +21,17 @@ const (
 type MessageType string
 
 const (
+	// Standard websocket message types
+	MessageTypeMessage               MessageType = "message"
 	MessageTypeUserProfileUpdate     MessageType = "user_profile_update"
 	MessageTypeGroupMembershipChange MessageType = "group_membership_change"
 	MessageTypeSystemNotification    MessageType = "system_notification"
-	MessageTypeCustomEvent           MessageType = "custom_event"
-	MessageTypeHeartbeat             MessageType = "heartbeat"
-	MessageTypeError                 MessageType = "error"
-	MessageTypeRoomJoined            MessageType = "room_joined"
-	MessageTypeRoomLeft              MessageType = "room_left"
+	MessageTypePresence              MessageType = "presence"
+	MessageTypeNotification          MessageType = "notification"
+	MessageTypeRoomUpdate            MessageType = "room_update"
+	MessageTypeBackendStatus         MessageType = "backend_status"
+	MessageTypeCriticalAlert         MessageType = "critical_alert"
+	MessageTypeServiceRecovery       MessageType = "service_recovery"
 )
 
 // Connection represents a WebSocket connection

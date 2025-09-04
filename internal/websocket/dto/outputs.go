@@ -98,6 +98,41 @@ type WebSocketStatusOutput struct {
 	}
 }
 
+// DirectMessageOutput represents the response for sending a direct message
+type DirectMessageOutput struct {
+	Body struct {
+		Success      bool      `json:"success" doc:"Whether the message was sent successfully"`
+		MessageID    string    `json:"message_id,omitempty" doc:"Unique message identifier"`
+		ConnectionID string    `json:"connection_id,omitempty" doc:"Target connection ID"`
+		Timestamp    time.Time `json:"timestamp,omitempty" doc:"Message timestamp"`
+		Message      string    `json:"message,omitempty" doc:"Status message"`
+	}
+}
+
+// UserMessageOutput represents the response for sending a message to user connections
+type UserMessageOutput struct {
+	Body struct {
+		Success         bool      `json:"success" doc:"Whether the message was sent successfully"`
+		MessageID       string    `json:"message_id,omitempty" doc:"Unique message identifier"`
+		UserID          string    `json:"user_id,omitempty" doc:"Target user ID"`
+		RecipientsCount int       `json:"recipients_count,omitempty" doc:"Number of user connections reached"`
+		Timestamp       time.Time `json:"timestamp,omitempty" doc:"Message timestamp"`
+		Message         string    `json:"message,omitempty" doc:"Status message"`
+	}
+}
+
+// RoomMessageOutput represents the response for sending a message to a room
+type RoomMessageOutput struct {
+	Body struct {
+		Success         bool      `json:"success" doc:"Whether the message was sent successfully"`
+		MessageID       string    `json:"message_id,omitempty" doc:"Unique message identifier"`
+		RoomID          string    `json:"room_id,omitempty" doc:"Target room ID"`
+		RecipientsCount int       `json:"recipients_count,omitempty" doc:"Number of room members reached"`
+		Timestamp       time.Time `json:"timestamp,omitempty" doc:"Message timestamp"`
+		Message         string    `json:"message,omitempty" doc:"Status message"`
+	}
+}
+
 // WebSocketErrorOutput represents an error response
 type WebSocketErrorOutput struct {
 	Body struct {

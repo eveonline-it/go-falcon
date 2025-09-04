@@ -357,18 +357,19 @@ func (cm *ConnectionManager) handleMessage(conn *models.Connection, message *mod
 	message.Timestamp = time.Now()
 
 	switch message.Type {
-	case models.MessageTypeHeartbeat:
-		// Send heartbeat response
+	case models.MessageTypePresence:
+		// Send presence response (heartbeat)
 		response := &models.Message{
-			Type: models.MessageTypeHeartbeat,
+			Type: models.MessageTypePresence,
 			Data: map[string]interface{}{
+				"status":    "online",
 				"timestamp": time.Now().Format(time.RFC3339),
 			},
 			Timestamp: time.Now(),
 		}
 		cm.SendToConnection(conn.ID, response)
 
-	case models.MessageTypeCustomEvent:
+	case models.MessageTypeMessage:
 		// Handle custom events based on room
 		if message.Room != "" {
 			// Broadcast to room members

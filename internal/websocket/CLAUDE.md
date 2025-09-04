@@ -112,15 +112,31 @@ type Message struct {
 ### System Message Types
 ```go
 const (
+    // Standard websocket message types
+    MessageTypeMessage               = "message"
     MessageTypeUserProfileUpdate     = "user_profile_update"
     MessageTypeGroupMembershipChange = "group_membership_change"
     MessageTypeSystemNotification    = "system_notification"
-    MessageTypeCustomEvent           = "custom_event"
-    MessageTypeHeartbeat             = "heartbeat"
-    MessageTypeRoomJoined            = "room_joined"
-    MessageTypeRoomLeft              = "room_left"
+    MessageTypePresence              = "presence"
+    MessageTypeNotification          = "notification"
+    MessageTypeRoomUpdate            = "room_update"
+    MessageTypeBackendStatus         = "backend_status"
+    MessageTypeCriticalAlert         = "critical_alert"
+    MessageTypeServiceRecovery       = "service_recovery"
 )
 ```
+
+**Standardized Message Types:**
+- `message` - Generic messaging between users
+- `user_profile_update` - User profile changes
+- `group_membership_change` - Group membership changes  
+- `system_notification` - System-wide notifications
+- `presence` - User online/offline status (replaces heartbeat)
+- `notification` - General user notifications
+- `room_update` - Room changes (replaces room_joined/room_left)
+- `backend_status` - Backend service status updates
+- `critical_alert` - Critical system alerts
+- `service_recovery` - Service recovery notifications
 
 ### Message Flow Examples
 
@@ -196,20 +212,71 @@ GET /websocket/rooms/{room_id}
 Authorization: Bearer <token> | Cookie: falcon_auth_token
 ```
 
-#### Broadcast Message
+#### Broadcast Message to All Connections
 ```
 POST /websocket/broadcast
 Authorization: Bearer <token> | Cookie: falcon_auth_token
 
 {
   "type": "system_notification",
-  "room": "group:60f1e2a8c8e4f5001234567",
   "data": {
-    "message": "Server maintenance in 5 minutes",
+    "title": "System Maintenance",
+    "message": "The system will be offline for maintenance from 02:00 to 04:00 UTC",
+    "severity": "warning",
+    "scheduled_time": "2025-09-05T02:00:00Z"
+  }
+}
+```
+
+#### Send Direct Message to Connection
+```
+POST /websocket/connections/{connection_id}/message
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+
+{
+  "type": "message",
+  "data": {
+    "text": "Hello from admin",
     "priority": "high"
   }
 }
 ```
+
+#### Send Message to User Connections
+```
+POST /websocket/users/{user_id}/message
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+
+{
+  "type": "notification",
+  "data": {
+    "title": "System Alert",
+    "message": "Your account requires attention",
+    "action_url": "/profile"
+  }
+}
+```
+
+#### Send Message to Room
+```
+POST /websocket/rooms/{room_id}/message
+Authorization: Bearer <token> | Cookie: falcon_auth_token
+
+{
+  "type": "room_update",
+  "data": {
+    "action": "room_announcement",
+    "title": "Room Maintenance",
+    "message": "This room will be offline for maintenance at 3 PM UTC"
+  }
+}
+```
+
+**Message Body Structure:**
+All admin messaging endpoints use the standardized `MessageBody` with:
+- `type`: One of the 10 standardized message types (dropdown in OpenAPI docs)
+- `data`: Flexible object containing message-specific data
+- Complete OpenAPI 3.1.1 documentation with examples and validation
 
 ### Module Status Endpoint
 ```

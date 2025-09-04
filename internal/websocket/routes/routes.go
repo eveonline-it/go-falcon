@@ -90,13 +90,49 @@ func (wr *WebSocketRoutes) RegisterRoutes(api huma.API) {
 		OperationID: "websocket-broadcast",
 		Method:      http.MethodPost,
 		Path:        "/websocket/broadcast",
-		Summary:     "Broadcast message",
-		Description: "Broadcast a message to WebSocket connections (admin only)",
+		Summary:     "Broadcast message to all connections",
+		Description: "Broadcast a message to all WebSocket connections (admin only)",
 		Tags:        []string{"WebSocket Admin"},
 		Security: []map[string][]string{
 			{"bearerAuth": {}},
 		},
 	}, wr.handleBroadcast)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "websocket-direct-message",
+		Method:      http.MethodPost,
+		Path:        "/websocket/connections/{connection_id}/message",
+		Summary:     "Send direct message to connection",
+		Description: "Send a direct message to a specific WebSocket connection (admin only)",
+		Tags:        []string{"WebSocket Admin"},
+		Security: []map[string][]string{
+			{"bearerAuth": {}},
+		},
+	}, wr.handleDirectMessage)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "websocket-user-message",
+		Method:      http.MethodPost,
+		Path:        "/websocket/users/{user_id}/message",
+		Summary:     "Send message to user connections",
+		Description: "Send a message to all connections of a specific user (admin only)",
+		Tags:        []string{"WebSocket Admin"},
+		Security: []map[string][]string{
+			{"bearerAuth": {}},
+		},
+	}, wr.handleUserMessage)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "websocket-room-message",
+		Method:      http.MethodPost,
+		Path:        "/websocket/rooms/{room_id}/message",
+		Summary:     "Send message to room",
+		Description: "Send a message to all members of a specific room (admin only)",
+		Tags:        []string{"WebSocket Admin"},
+		Security: []map[string][]string{
+			{"bearerAuth": {}},
+		},
+	}, wr.handleRoomMessage)
 
 	// Status endpoint
 	huma.Register(api, huma.Operation{
@@ -293,7 +329,7 @@ func (wr *WebSocketRoutes) handleGetRoom(ctx context.Context, input *dto.GetRoom
 	}, nil
 }
 
-// handleBroadcast handles message broadcasting
+// handleBroadcast handles global message broadcasting to all connections
 func (wr *WebSocketRoutes) handleBroadcast(ctx context.Context, input *dto.BroadcastInput) (*dto.BroadcastOutput, error) {
 	// Require admin access
 	_, err := wr.authMw.RequireWebSocketAdmin(ctx, input.Authorization, input.Cookie)
@@ -303,39 +339,21 @@ func (wr *WebSocketRoutes) handleBroadcast(ctx context.Context, input *dto.Broad
 
 	message := &models.Message{
 		ID:        uuid.New().String(),
-		Type:      input.Type,
-		Room:      input.Room,
-		Data:      input.Data,
+		Type:      input.Body.Type,
+		Data:      input.Body.Data,
 		Timestamp: time.Now(),
 	}
 
-	var recipientsCount int
+	// Broadcast to all connections
+	connectionMgr := wr.service.GetConnectionManager()
+	connections := connectionMgr.GetAllConnections()
+	recipientsCount := len(connections)
 
-	if input.Room != "" {
-		// Broadcast to specific room
-		roomMgr := wr.service.GetRoomManager()
-		members := roomMgr.GetRoomMembers(input.Room)
-		recipientsCount = len(members)
+	wr.service.SendMessage(message)
 
-		if err := wr.service.SendMessage(message); err != nil {
-			return nil, huma.Error500InternalServerError("Failed to broadcast message", err)
-		}
-
-		// Also publish via Redis for other instances
-		redisHub := wr.service.GetRedisHub()
-		redisHub.PublishToRoom(ctx, input.Room, message)
-	} else {
-		// Broadcast to all connections
-		connectionMgr := wr.service.GetConnectionManager()
-		connections := connectionMgr.GetAllConnections()
-		recipientsCount = len(connections)
-
-		wr.service.SendMessage(message)
-
-		// Also publish via Redis for other instances
-		redisHub := wr.service.GetRedisHub()
-		redisHub.BroadcastToAllInstances(ctx, message)
-	}
+	// Also publish via Redis for other instances
+	redisHub := wr.service.GetRedisHub()
+	redisHub.BroadcastToAllInstances(ctx, message)
 
 	return &dto.BroadcastOutput{
 		Body: struct {
@@ -350,6 +368,164 @@ func (wr *WebSocketRoutes) handleBroadcast(ctx context.Context, input *dto.Broad
 			RecipientsCount: recipientsCount,
 			Timestamp:       message.Timestamp,
 			Message:         "Message broadcast successfully",
+		},
+	}, nil
+}
+
+// handleDirectMessage sends a direct message to a specific connection
+func (wr *WebSocketRoutes) handleDirectMessage(ctx context.Context, input *dto.DirectMessageInput) (*dto.DirectMessageOutput, error) {
+	// Require admin access
+	_, err := wr.authMw.RequireWebSocketAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if connection exists
+	connectionMgr := wr.service.GetConnectionManager()
+	_, exists := connectionMgr.GetConnection(input.ConnectionID)
+	if !exists {
+		return nil, huma.Error404NotFound("Connection not found")
+	}
+
+	message := &models.Message{
+		ID:        uuid.New().String(),
+		Type:      input.Body.Type,
+		To:        input.ConnectionID,
+		Data:      input.Body.Data,
+		Timestamp: time.Now(),
+	}
+
+	// Send direct message
+	if err := connectionMgr.SendToConnection(input.ConnectionID, message); err != nil {
+		return nil, huma.Error500InternalServerError("Failed to send direct message", err)
+	}
+
+	// Also publish via Redis for other instances
+	redisHub := wr.service.GetRedisHub()
+	redisHub.PublishMessage(ctx, "websocket:direct", message)
+
+	return &dto.DirectMessageOutput{
+		Body: struct {
+			Success      bool      `json:"success" doc:"Whether the message was sent successfully"`
+			MessageID    string    `json:"message_id,omitempty" doc:"Unique message identifier"`
+			ConnectionID string    `json:"connection_id,omitempty" doc:"Target connection ID"`
+			Timestamp    time.Time `json:"timestamp,omitempty" doc:"Message timestamp"`
+			Message      string    `json:"message,omitempty" doc:"Status message"`
+		}{
+			Success:      true,
+			MessageID:    message.ID,
+			ConnectionID: input.ConnectionID,
+			Timestamp:    message.Timestamp,
+			Message:      "Direct message sent successfully",
+		},
+	}, nil
+}
+
+// handleUserMessage sends a message to all connections of a specific user
+func (wr *WebSocketRoutes) handleUserMessage(ctx context.Context, input *dto.UserMessageInput) (*dto.UserMessageOutput, error) {
+	// Require admin access
+	_, err := wr.authMw.RequireWebSocketAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get user connections
+	connectionMgr := wr.service.GetConnectionManager()
+	connections := connectionMgr.GetConnectionsByUser(input.UserID)
+
+	if len(connections) == 0 {
+		return nil, huma.Error404NotFound("No active connections found for user")
+	}
+
+	message := &models.Message{
+		ID:        uuid.New().String(),
+		Type:      input.Body.Type,
+		Data:      input.Body.Data,
+		Timestamp: time.Now(),
+	}
+
+	// Send to all user connections
+	recipientsCount := 0
+	for _, conn := range connections {
+		if err := connectionMgr.SendToConnection(conn.ID, message); err == nil {
+			recipientsCount++
+		}
+	}
+
+	// Also publish via Redis for other instances
+	redisHub := wr.service.GetRedisHub()
+	redisHub.PublishToUser(ctx, input.UserID, message)
+
+	return &dto.UserMessageOutput{
+		Body: struct {
+			Success         bool      `json:"success" doc:"Whether the message was sent successfully"`
+			MessageID       string    `json:"message_id,omitempty" doc:"Unique message identifier"`
+			UserID          string    `json:"user_id,omitempty" doc:"Target user ID"`
+			RecipientsCount int       `json:"recipients_count,omitempty" doc:"Number of user connections reached"`
+			Timestamp       time.Time `json:"timestamp,omitempty" doc:"Message timestamp"`
+			Message         string    `json:"message,omitempty" doc:"Status message"`
+		}{
+			Success:         true,
+			MessageID:       message.ID,
+			UserID:          input.UserID,
+			RecipientsCount: recipientsCount,
+			Timestamp:       message.Timestamp,
+			Message:         "User message sent successfully",
+		},
+	}, nil
+}
+
+// handleRoomMessage sends a message to all members of a specific room
+func (wr *WebSocketRoutes) handleRoomMessage(ctx context.Context, input *dto.RoomMessageInput) (*dto.RoomMessageOutput, error) {
+	// Require admin access
+	_, err := wr.authMw.RequireWebSocketAdmin(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if room exists
+	roomMgr := wr.service.GetRoomManager()
+	_, exists := roomMgr.GetRoom(input.RoomID)
+	if !exists {
+		return nil, huma.Error404NotFound("Room not found")
+	}
+
+	// Get room members count
+	members := roomMgr.GetRoomMembers(input.RoomID)
+	recipientsCount := len(members)
+
+	message := &models.Message{
+		ID:        uuid.New().String(),
+		Type:      input.Body.Type,
+		Room:      input.RoomID,
+		Data:      input.Body.Data,
+		Timestamp: time.Now(),
+	}
+
+	// Send to room
+	if err := roomMgr.BroadcastToRoom(input.RoomID, message); err != nil {
+		return nil, huma.Error500InternalServerError("Failed to send room message", err)
+	}
+
+	// Also publish via Redis for other instances
+	redisHub := wr.service.GetRedisHub()
+	redisHub.PublishToRoom(ctx, input.RoomID, message)
+
+	return &dto.RoomMessageOutput{
+		Body: struct {
+			Success         bool      `json:"success" doc:"Whether the message was sent successfully"`
+			MessageID       string    `json:"message_id,omitempty" doc:"Unique message identifier"`
+			RoomID          string    `json:"room_id,omitempty" doc:"Target room ID"`
+			RecipientsCount int       `json:"recipients_count,omitempty" doc:"Number of room members reached"`
+			Timestamp       time.Time `json:"timestamp,omitempty" doc:"Message timestamp"`
+			Message         string    `json:"message,omitempty" doc:"Status message"`
+		}{
+			Success:         true,
+			MessageID:       message.ID,
+			RoomID:          input.RoomID,
+			RecipientsCount: recipientsCount,
+			Timestamp:       message.Timestamp,
+			Message:         "Room message sent successfully",
 		},
 	}, nil
 }

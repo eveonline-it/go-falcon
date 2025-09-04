@@ -129,9 +129,10 @@ func (rm *RoomManager) AddConnectionToRoom(roomID string, connectionID string) e
 	// Notify other room members
 	if rm.connectionMgr != nil {
 		message := &models.Message{
-			Type: models.MessageTypeRoomJoined,
+			Type: models.MessageTypeRoomUpdate,
 			Room: roomID,
 			Data: map[string]interface{}{
+				"action":        "member_joined",
 				"connection_id": connectionID,
 				"room_id":       roomID,
 				"member_count":  room.GetMemberCount(),
@@ -177,9 +178,10 @@ func (rm *RoomManager) RemoveConnectionFromRoom(roomID string, connectionID stri
 	// Notify other room members
 	if rm.connectionMgr != nil {
 		message := &models.Message{
-			Type: models.MessageTypeRoomLeft,
+			Type: models.MessageTypeRoomUpdate,
 			Room: roomID,
 			Data: map[string]interface{}{
+				"action":        "member_left",
 				"connection_id": connectionID,
 				"room_id":       roomID,
 				"member_count":  room.GetMemberCount(),
