@@ -210,7 +210,35 @@ type StatusOutput struct {
 
 // SchedulerModuleStatusResponse represents the actual status response data
 type SchedulerModuleStatusResponse struct {
-	Module  string `json:"module" description:"Module name"`
-	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
-	Message string `json:"message,omitempty" description:"Optional status message or error details"`
+	Module       string                     `json:"module" description:"Module name"`
+	Status       string                     `json:"status" enum:"healthy,degraded,unhealthy" description:"Module health status"`
+	Message      string                     `json:"message,omitempty" description:"Optional status message or error details"`
+	Dependencies *SchedulerDependencyStatus `json:"dependencies,omitempty" description:"Status of module dependencies"`
+	Metrics      *SchedulerMetrics          `json:"metrics,omitempty" description:"Performance and operational metrics"`
+	LastChecked  string                     `json:"last_checked" description:"Timestamp of last health check"`
+}
+
+// SchedulerDependencyStatus represents the status of scheduler module dependencies
+type SchedulerDependencyStatus struct {
+	Database        string `json:"database" description:"MongoDB connection status"`
+	DatabaseLatency string `json:"database_latency,omitempty" description:"Database response time"`
+	Redis           string `json:"redis,omitempty" description:"Redis connection status (for distributed locking)"`
+	RedisLatency    string `json:"redis_latency,omitempty" description:"Redis response time"`
+	Engine          string `json:"engine" description:"Scheduler engine status"`
+}
+
+// SchedulerMetrics represents performance metrics for the scheduler module
+type SchedulerMetrics struct {
+	TotalTasks       int     `json:"total_tasks" description:"Total number of tasks"`
+	EnabledTasks     int     `json:"enabled_tasks" description:"Number of enabled tasks"`
+	RunningTasks     int     `json:"running_tasks" description:"Currently running tasks"`
+	CompletedToday   int     `json:"completed_today" description:"Tasks completed in last 24 hours"`
+	FailedToday      int     `json:"failed_today" description:"Tasks failed in last 24 hours"`
+	WorkerCount      int     `json:"worker_count" description:"Number of worker threads"`
+	ActiveWorkers    int     `json:"active_workers" description:"Currently active workers"`
+	QueueSize        int     `json:"queue_size" description:"Current task queue size"`
+	AverageRuntime   string  `json:"average_runtime" description:"Average task execution time"`
+	NextScheduledRun string  `json:"next_scheduled_run,omitempty" description:"Next scheduled task execution"`
+	MemoryUsage      float64 `json:"memory_usage_mb" description:"Memory usage in MB"`
+	SuccessRate      float64 `json:"success_rate" description:"Success rate percentage (last 24h)"`
 }

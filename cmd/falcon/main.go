@@ -646,17 +646,17 @@ func main() {
 	if host == "0.0.0.0" {
 		baseURL = fmt.Sprintf("http://localhost:%s", port)
 	}
-	
+
 	moduleNames := []string{"auth", "users", "scheduler", "character", "corporations", "alliances", "groups", "sitemap", "site-settings", "sde", "websocket"}
 	statusService := status.NewService(statusConfig, baseURL, apiPrefix, moduleNames, websocketModule)
-	
+
 	// Start the status service
 	if err := statusService.Start(); err != nil {
 		log.Printf("❌ Failed to start status service: %v", err)
 	} else {
 		log.Printf("✅ Backend status service started successfully")
 	}
-	
+
 	// Register status endpoints
 	log.Printf("   📊 Status service: /status/*")
 	status.RegisterStatusEndpoints(unifiedAPI, statusService)

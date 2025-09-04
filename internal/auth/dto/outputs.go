@@ -169,7 +169,30 @@ type StatusOutput struct {
 
 // AuthModuleStatusResponse represents the actual status response data
 type AuthModuleStatusResponse struct {
-	Module  string `json:"module" description:"Module name"`
-	Status  string `json:"status" enum:"healthy,unhealthy" description:"Module health status"`
-	Message string `json:"message,omitempty" description:"Optional status message or error details"`
+	Module       string                `json:"module" description:"Module name"`
+	Status       string                `json:"status" enum:"healthy,degraded,unhealthy" description:"Module health status"`
+	Message      string                `json:"message,omitempty" description:"Optional status message or error details"`
+	Dependencies *AuthDependencyStatus `json:"dependencies,omitempty" description:"Status of module dependencies"`
+	Metrics      *AuthMetrics          `json:"metrics,omitempty" description:"Performance and operational metrics"`
+	LastChecked  string                `json:"last_checked" description:"Timestamp of last health check"`
+}
+
+// AuthDependencyStatus represents the status of auth module dependencies
+type AuthDependencyStatus struct {
+	Database        string `json:"database" description:"MongoDB connection status"`
+	DatabaseLatency string `json:"database_latency,omitempty" description:"Database response time"`
+	Redis           string `json:"redis,omitempty" description:"Redis connection status (if available)"`
+	RedisLatency    string `json:"redis_latency,omitempty" description:"Redis response time"`
+	EVEOnlineESI    string `json:"eve_online_esi,omitempty" description:"EVE Online ESI availability"`
+	ESILatency      string `json:"esi_latency,omitempty" description:"ESI response time"`
+}
+
+// AuthMetrics represents performance metrics for the auth module
+type AuthMetrics struct {
+	ActiveSessions   int     `json:"active_sessions" description:"Number of active user sessions"`
+	TotalUsers       int     `json:"total_users" description:"Total registered users"`
+	TokenRefreshes   int     `json:"token_refreshes_24h" description:"Token refreshes in last 24 hours"`
+	FailedLogins     int     `json:"failed_logins_1h" description:"Failed login attempts in last hour"`
+	AverageLoginTime string  `json:"avg_login_time" description:"Average login processing time"`
+	MemoryUsage      float64 `json:"memory_usage_mb" description:"Memory usage in MB"`
 }

@@ -273,6 +273,24 @@ func (r *Repository) CheckHealth(ctx context.Context) error {
 	return r.mongodb.Client.Ping(ctx, nil)
 }
 
+// GetCharacterCount returns the total number of characters in the database
+func (r *Repository) GetCharacterCount(ctx context.Context) (int64, error) {
+	count, err := r.collection.CountDocuments(ctx, bson.M{})
+	return count, err
+}
+
+// GetRecentlyUpdatedCount returns the number of characters updated within the specified duration
+func (r *Repository) GetRecentlyUpdatedCount(ctx context.Context, duration time.Duration) (int64, error) {
+	threshold := time.Now().Add(-duration)
+	filter := bson.M{
+		"updated_at": bson.M{
+			"$gte": threshold,
+		},
+	}
+	count, err := r.collection.CountDocuments(ctx, filter)
+	return count, err
+}
+
 // GetCharactersByIDs retrieves multiple characters by their IDs
 func (r *Repository) GetCharactersByIDs(ctx context.Context, characterIDs []int) ([]*models.Character, error) {
 	filter := bson.M{"character_id": bson.M{"$in": characterIDs}}
