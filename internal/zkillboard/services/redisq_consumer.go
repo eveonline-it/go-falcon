@@ -228,6 +228,13 @@ func (c *RedisQConsumer) Stop() error {
 		slog.Warn("RedisQ consumer stop timeout")
 	}
 
+	// Flush any remaining killmails in the batch
+	if err := c.processor.Flush(context.Background()); err != nil {
+		slog.Error("Failed to flush pending killmails on stop", "error", err)
+	} else {
+		slog.Info("Flushed pending killmails on stop")
+	}
+
 	// Update state
 	c.running.Store(false)
 	c.state.Store(int32(StateStopped))
@@ -236,7 +243,7 @@ func (c *RedisQConsumer) Stop() error {
 	state := c.getState()
 	now := time.Now()
 	state.StoppedAt = &now
-	if err := c.repository.SaveConsumerState(c.ctx, state); err != nil {
+	if err := c.repository.SaveConsumerState(context.Background(), state); err != nil {
 		slog.Warn("Failed to save final consumer state", "error", err)
 	}
 
@@ -253,16 +260,37 @@ func (c *RedisQConsumer) pollLoop() {
 	stateTicker := time.NewTicker(30 * time.Second)
 	defer stateTicker.Stop()
 
+	// Periodic batch flush ticker (every 3 seconds to ensure killmails are saved)
+	flushTicker := time.NewTicker(3 * time.Second)
+	defer flushTicker.Stop()
+
+	// Flush any pending killmails when we exit
+	defer func() {
+		if err := c.processor.Flush(context.Background()); err != nil {
+			slog.Error("Failed to flush pending killmails on exit", "error", err)
+		}
+	}()
+
 	for {
 		select {
 		case <-c.ctx.Done():
 			slog.Info("Poll loop context cancelled")
+			// Flush pending killmails before exiting
+			if err := c.processor.Flush(context.Background()); err != nil {
+				slog.Error("Failed to flush pending killmails", "error", err)
+			}
 			return
 
 		case <-stateTicker.C:
 			// Save current state periodically
 			if err := c.repository.SaveConsumerState(c.ctx, c.getState()); err != nil {
 				slog.Warn("Failed to save consumer state", "error", err)
+			}
+
+		case <-flushTicker.C:
+			// Flush any pending killmails periodically
+			if err := c.processor.Flush(c.ctx); err != nil {
+				slog.Error("Failed to flush pending killmails", "error", err)
 			}
 
 		default:

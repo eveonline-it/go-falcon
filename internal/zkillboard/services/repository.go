@@ -273,14 +273,33 @@ func (r *Repository) SaveConsumerState(ctx context.Context, state *models.Consum
 
 	filter := bson.M{"queue_id": state.QueueID}
 
-	// If no ID, this is a new state
-	if state.ID.IsZero() {
-		state.ID = primitive.NewObjectID()
+	// Always exclude the ID field from updates to avoid immutable field errors
+	// Use upsert to handle both new and existing documents
+	update := bson.M{
+		"$set": bson.M{
+			"queue_id":         state.QueueID,
+			"state":            state.State,
+			"total_polls":      state.TotalPolls,
+			"null_responses":   state.NullResponses,
+			"killmails_found":  state.KillmailsFound,
+			"http_errors":      state.HTTPErrors,
+			"parse_errors":     state.ParseErrors,
+			"store_errors":     state.StoreErrors,
+			"rate_limit_hits":  state.RateLimitHits,
+			"current_ttw":      state.CurrentTTW,
+			"null_streak":      state.NullStreak,
+			"last_killmail_id": state.LastKillmailID,
+			"last_poll_time":   state.LastPollTime,
+			"started_at":       state.StartedAt,
+			"stopped_at":       state.StoppedAt,
+			"updated_at":       state.UpdatedAt,
+		},
+		"$setOnInsert": bson.M{
+			"_id": primitive.NewObjectID(),
+		},
 	}
 
-	update := bson.M{"$set": state}
 	opts := options.Update().SetUpsert(true)
-
 	_, err := r.consumerStateCollection.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
 		return fmt.Errorf("failed to save consumer state: %w", err)

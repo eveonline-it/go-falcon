@@ -106,7 +106,8 @@ func (r *Routes) ControlService(ctx context.Context, input *ControlServiceBody) 
 
 	switch input.Body.Action {
 	case "start":
-		err := r.consumer.Start(ctx)
+		// Use background context for long-running service, not the HTTP request context
+		err := r.consumer.Start(context.Background())
 		if err != nil {
 			message = "Failed to start service: " + err.Error()
 			success = false
@@ -130,8 +131,8 @@ func (r *Routes) ControlService(ctx context.Context, input *ControlServiceBody) 
 		_ = r.consumer.Stop()
 		time.Sleep(1 * time.Second)
 
-		// Start again
-		err := r.consumer.Start(ctx)
+		// Start again with background context
+		err := r.consumer.Start(context.Background())
 		if err != nil {
 			message = "Failed to restart service: " + err.Error()
 			success = false
