@@ -89,13 +89,20 @@ func (rh *RedisHub) listen(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case msg := <-ch:
-			rh.handleRedisMessage(msg)
+			if msg != nil {
+				rh.handleRedisMessage(msg)
+			}
 		}
 	}
 }
 
 // handleRedisMessage handles incoming Redis messages
 func (rh *RedisHub) handleRedisMessage(msg *redis.Message) {
+	if msg == nil {
+		slog.Error("Received nil Redis message")
+		return
+	}
+
 	var redisMsg models.RedisMessage
 	if err := json.Unmarshal([]byte(msg.Payload), &redisMsg); err != nil {
 		slog.Error("Failed to unmarshal Redis message",
