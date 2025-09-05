@@ -20,6 +20,7 @@ type ZKBMetadata struct {
 	NPC            bool               `bson:"npc" json:"npc"`
 	Solo           bool               `bson:"solo" json:"solo"`
 	Awox           bool               `bson:"awox" json:"awox"`
+	Labels         []string           `bson:"labels" json:"labels"`
 	Href           string             `bson:"href" json:"href"`
 	ProcessedAt    time.Time          `bson:"processed_at" json:"processed_at"`
 	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`

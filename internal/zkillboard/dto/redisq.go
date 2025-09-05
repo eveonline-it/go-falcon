@@ -19,17 +19,18 @@ type RedisQPackage struct {
 
 // ZKBData represents ZKillboard-specific metadata in the RedisQ response
 type ZKBData struct {
-	LocationID     int64   `json:"locationID"`
-	Hash           string  `json:"hash"`
-	FittedValue    float64 `json:"fittedValue"`
-	DroppedValue   float64 `json:"droppedValue"`
-	DestroyedValue float64 `json:"destroyedValue"`
-	TotalValue     float64 `json:"totalValue"`
-	Points         int     `json:"points"`
-	NPC            bool    `json:"npc"`
-	Solo           bool    `json:"solo"`
-	Awox           bool    `json:"awox"`
-	Href           string  `json:"href"`
+	LocationID     int64    `json:"locationID"`
+	Hash           string   `json:"hash"`
+	FittedValue    float64  `json:"fittedValue"`
+	DroppedValue   float64  `json:"droppedValue"`
+	DestroyedValue float64  `json:"destroyedValue"`
+	TotalValue     float64  `json:"totalValue"`
+	Points         int      `json:"points"`
+	NPC            bool     `json:"npc"`
+	Solo           bool     `json:"solo"`
+	Awox           bool     `json:"awox"`
+	Labels         []string `json:"labels"`
+	Href           string   `json:"href"`
 }
 
 // ESIKillmail represents the killmail data from ESI
