@@ -20,10 +20,6 @@ type KillmailResponse struct {
 	// Participants
 	Victim    VictimResponse     `json:"victim" doc:"Victim information"`
 	Attackers []AttackerResponse `json:"attackers" doc:"List of attackers involved"`
-
-	// Metadata
-	CreatedAt time.Time `json:"created_at" doc:"When this killmail was first stored in our database"`
-	UpdatedAt time.Time `json:"updated_at" doc:"When this killmail was last updated in our database"`
 }
 
 // VictimResponse represents the victim in a killmail
@@ -83,9 +79,13 @@ type KillmailListResponse struct {
 
 // KillmailStatsResponse represents statistics about killmails
 type KillmailStatsResponse struct {
-	TotalKillmails int64     `json:"total_killmails" doc:"Total number of killmails stored"`
-	Collection     string    `json:"collection" doc:"Database collection name"`
-	LastUpdated    time.Time `json:"last_updated" doc:"When these stats were last calculated"`
+	TotalKillmails int64  `json:"total_killmails" doc:"Total number of killmails stored"`
+	Collection     string `json:"collection" doc:"Database collection name"`
+}
+
+// StatusOutput represents the module status response (Huma v2 wrapper)
+type StatusOutput struct {
+	Body ModuleStatusResponse
 }
 
 // ModuleStatusResponse represents the health status of the killmails module
@@ -95,15 +95,30 @@ type ModuleStatusResponse struct {
 	Message string `json:"message,omitempty" doc:"Additional status message"`
 }
 
+// KillmailOutput wraps KillmailResponse for Huma v2
+type KillmailOutput struct {
+	Body KillmailResponse
+}
+
+// KillmailListOutput wraps KillmailListResponse for Huma v2
+type KillmailListOutput struct {
+	Body KillmailListResponse
+}
+
+// KillmailStatsOutput wraps KillmailStatsResponse for Huma v2
+type KillmailStatsOutput struct {
+	Body KillmailStatsResponse
+}
+
 // Helper functions to convert models to responses
 
 // ConvertKillmailToResponse converts a killmail model to response DTO
-func ConvertKillmailToResponse(killmail *models.Killmail) *KillmailResponse {
+func ConvertKillmailToResponse(killmail *models.Killmail) *KillmailOutput {
 	if killmail == nil {
 		return nil
 	}
 
-	response := &KillmailResponse{
+	response := KillmailResponse{
 		KillmailID:    killmail.KillmailID,
 		KillmailHash:  killmail.KillmailHash,
 		KillmailTime:  killmail.KillmailTime,
@@ -112,11 +127,9 @@ func ConvertKillmailToResponse(killmail *models.Killmail) *KillmailResponse {
 		WarID:         killmail.WarID,
 		Victim:        ConvertVictimToResponse(killmail.Victim),
 		Attackers:     ConvertAttackersToResponse(killmail.Attackers),
-		CreatedAt:     killmail.CreatedAt,
-		UpdatedAt:     killmail.UpdatedAt,
 	}
 
-	return response
+	return &KillmailOutput{Body: response}
 }
 
 // ConvertVictimToResponse converts a victim model to response DTO
@@ -211,7 +224,7 @@ func ConvertKillmailRefsToResponse(refs []models.KillmailRef) []KillmailRefRespo
 }
 
 // ConvertKillmailsToList converts killmails to a list response
-func ConvertKillmailsToList(killmails []models.Killmail, total *int64) *KillmailListResponse {
+func ConvertKillmailsToList(killmails []models.Killmail, total *int64) *KillmailListOutput {
 	refs := make([]KillmailRefResponse, len(killmails))
 	for i, km := range killmails {
 		refs[i] = KillmailRefResponse{
@@ -220,9 +233,11 @@ func ConvertKillmailsToList(killmails []models.Killmail, total *int64) *Killmail
 		}
 	}
 
-	return &KillmailListResponse{
+	response := KillmailListResponse{
 		Killmails: refs,
 		Count:     len(refs),
 		Total:     total,
 	}
+
+	return &KillmailListOutput{Body: response}
 }

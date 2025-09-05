@@ -18,23 +18,27 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID:   "getKillmailsStatus",
 		Method:        http.MethodGet,
-		Path:          basePath + "/killmails/status",
+		Path:          basePath + "/status",
 		Summary:       "Get killmails module status",
 		Description:   "Returns the health status of the killmails module",
 		Tags:          []string{"Module Status"},
 		DefaultStatus: http.StatusOK,
-	}, func(ctx context.Context, input *struct{}) (*dto.ModuleStatusResponse, error) {
+	}, func(ctx context.Context, input *struct{}) (*dto.StatusOutput, error) {
 		if err := service.HealthCheck(ctx); err != nil {
-			return &dto.ModuleStatusResponse{
-				Module:  "killmails",
-				Status:  "unhealthy",
-				Message: err.Error(),
+			return &dto.StatusOutput{
+				Body: dto.ModuleStatusResponse{
+					Module:  "killmails",
+					Status:  "unhealthy",
+					Message: err.Error(),
+				},
 			}, nil
 		}
 
-		return &dto.ModuleStatusResponse{
-			Module: "killmails",
-			Status: "healthy",
+		return &dto.StatusOutput{
+			Body: dto.ModuleStatusResponse{
+				Module: "killmails",
+				Status: "healthy",
+			},
 		}, nil
 	})
 
@@ -42,12 +46,12 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID:   "getKillmail",
 		Method:        http.MethodGet,
-		Path:          basePath + "/killmails/{killmail_id}/{hash}",
+		Path:          basePath + "/{killmail_id}/{hash}",
 		Summary:       "Get killmail by ID and hash",
 		Description:   "Retrieves a specific killmail using its ID and hash. Uses database-first approach with ESI fallback.",
 		Tags:          []string{"Killmails"},
 		DefaultStatus: http.StatusOK,
-	}, func(ctx context.Context, input *dto.GetKillmailInput) (*dto.KillmailResponse, error) {
+	}, func(ctx context.Context, input *dto.GetKillmailInput) (*dto.KillmailOutput, error) {
 		killmail, err := service.GetKillmail(ctx, input.KillmailID, input.Hash)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Failed to fetch killmail", err)
@@ -64,23 +68,23 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID:   "getRecentKillmails",
 		Method:        http.MethodGet,
-		Path:          basePath + "/killmails/recent",
+		Path:          basePath + "/recent",
 		Summary:       "Get recent killmails from database",
 		Description:   "Retrieves recent killmails from the local database with optional filtering by character, corporation, alliance, or system.",
 		Tags:          []string{"Killmails"},
 		DefaultStatus: http.StatusOK,
-	}, func(ctx context.Context, input *dto.GetRecentKillmailsInput) (*dto.KillmailListResponse, error) {
+	}, func(ctx context.Context, input *dto.GetRecentKillmailsInput) (*dto.KillmailListOutput, error) {
 		// Handle different filtering options
 		var killmails []models.Killmail
 		var err error
 
-		if input.CharacterID != nil {
-			killmails, err = service.GetRecentKillmailsByCharacter(ctx, *input.CharacterID, input.Limit)
-		} else if input.CorporationID != nil {
-			killmails, err = service.GetRecentKillmailsByCorporation(ctx, *input.CorporationID, input.Limit)
-		} else if input.AllianceID != nil {
-			killmails, err = service.GetRecentKillmailsByAlliance(ctx, *input.AllianceID, input.Limit)
-		} else if input.SystemID != nil {
+		if input.CharacterID != 0 {
+			killmails, err = service.GetRecentKillmailsByCharacter(ctx, input.CharacterID, input.Limit)
+		} else if input.CorporationID != 0 {
+			killmails, err = service.GetRecentKillmailsByCorporation(ctx, input.CorporationID, input.Limit)
+		} else if input.AllianceID != 0 {
+			killmails, err = service.GetRecentKillmailsByAlliance(ctx, input.AllianceID, input.Limit)
+		} else if input.SystemID != 0 {
 			// Parse since time if provided
 			var since time.Time
 			if input.Since != "" {
@@ -93,7 +97,7 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 				// Default to last 24 hours
 				since = time.Now().Add(-24 * time.Hour)
 			}
-			killmails, err = service.GetKillmailsBySystem(ctx, *input.SystemID, since, input.Limit)
+			killmails, err = service.GetKillmailsBySystem(ctx, input.SystemID, since, input.Limit)
 		} else {
 			return nil, huma.Error400BadRequest("At least one filter parameter is required (character_id, corporation_id, alliance_id, or system_id)")
 		}
@@ -109,13 +113,13 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID:   "importKillmail",
 		Method:        http.MethodPost,
-		Path:          basePath + "/killmails/import",
+		Path:          basePath + "/import",
 		Summary:       "Import a killmail",
 		Description:   "Imports a killmail by fetching it from ESI using the provided ID and hash, then stores it in the database.",
 		Tags:          []string{"Killmails"},
 		DefaultStatus: http.StatusCreated,
-	}, func(ctx context.Context, input *dto.ImportKillmailInput) (*dto.KillmailResponse, error) {
-		killmail, err := service.ImportKillmail(ctx, input.KillmailID, input.Hash)
+	}, func(ctx context.Context, input *dto.ImportKillmailInput) (*dto.KillmailOutput, error) {
+		killmail, err := service.ImportKillmail(ctx, input.Body.KillmailID, input.Body.Hash)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Failed to import killmail", err)
 		}
@@ -127,21 +131,22 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID:   "getKillmailStats",
 		Method:        http.MethodGet,
-		Path:          basePath + "/killmails/stats",
+		Path:          basePath + "/stats",
 		Summary:       "Get killmail statistics",
 		Description:   "Returns basic statistics about killmails stored in the database.",
 		Tags:          []string{"Killmails"},
 		DefaultStatus: http.StatusOK,
-	}, func(ctx context.Context, input *struct{}) (*dto.KillmailStatsResponse, error) {
+	}, func(ctx context.Context, input *struct{}) (*dto.KillmailStatsOutput, error) {
 		stats, err := service.GetKillmailStats(ctx)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to get killmail statistics", err)
 		}
 
-		return &dto.KillmailStatsResponse{
-			TotalKillmails: stats["total_killmails"].(int64),
-			Collection:     stats["collection"].(string),
-			LastUpdated:    stats["last_updated"].(time.Time),
+		return &dto.KillmailStatsOutput{
+			Body: dto.KillmailStatsResponse{
+				TotalKillmails: stats["total_killmails"].(int64),
+				Collection:     stats["collection"].(string),
+			},
 		}, nil
 	})
 
@@ -149,7 +154,7 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID:   "getCharacterRecentKillmails",
 		Method:        http.MethodGet,
-		Path:          basePath + "/killmails/character/{character_id}/recent",
+		Path:          basePath + "/character/{character_id}/recent",
 		Summary:       "Get character's recent killmails from ESI",
 		Description:   "Fetches recent killmail references for a character from EVE ESI. Requires authentication.",
 		Tags:          []string{"Killmails", "Authenticated"},
@@ -158,7 +163,7 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 			{"bearerAuth": {}},
 			{"cookieAuth": {}},
 		},
-	}, func(ctx context.Context, input *dto.GetCharacterRecentKillmailsInput) (*dto.KillmailListResponse, error) {
+	}, func(ctx context.Context, input *dto.GetCharacterRecentKillmailsInput) (*dto.KillmailListOutput, error) {
 		// In a real implementation, you would extract the token from the authenticated context
 		// This is a placeholder for the authentication middleware
 		token := getTokenFromContext(ctx)
@@ -171,9 +176,11 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 			return nil, huma.Error400BadRequest("Failed to fetch character recent killmails", err)
 		}
 
-		return &dto.KillmailListResponse{
-			Killmails: dto.ConvertKillmailRefsToResponse(refs),
-			Count:     len(refs),
+		return &dto.KillmailListOutput{
+			Body: dto.KillmailListResponse{
+				Killmails: dto.ConvertKillmailRefsToResponse(refs),
+				Count:     len(refs),
+			},
 		}, nil
 	})
 
@@ -181,7 +188,7 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 	huma.Register(api, huma.Operation{
 		OperationID:   "getCorporationRecentKillmails",
 		Method:        http.MethodGet,
-		Path:          basePath + "/killmails/corporation/{corporation_id}/recent",
+		Path:          basePath + "/corporation/{corporation_id}/recent",
 		Summary:       "Get corporation's recent killmails from ESI",
 		Description:   "Fetches recent killmail references for a corporation from EVE ESI. Requires authentication.",
 		Tags:          []string{"Killmails", "Authenticated"},
@@ -190,7 +197,7 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 			{"bearerAuth": {}},
 			{"cookieAuth": {}},
 		},
-	}, func(ctx context.Context, input *dto.GetCorporationRecentKillmailsInput) (*dto.KillmailListResponse, error) {
+	}, func(ctx context.Context, input *dto.GetCorporationRecentKillmailsInput) (*dto.KillmailListOutput, error) {
 		// In a real implementation, you would extract the token from the authenticated context
 		// This is a placeholder for the authentication middleware
 		token := getTokenFromContext(ctx)
@@ -203,9 +210,11 @@ func RegisterKillmailRoutes(api huma.API, basePath string, service *services.Ser
 			return nil, huma.Error400BadRequest("Failed to fetch corporation recent killmails", err)
 		}
 
-		return &dto.KillmailListResponse{
-			Killmails: dto.ConvertKillmailRefsToResponse(refs),
-			Count:     len(refs),
+		return &dto.KillmailListOutput{
+			Body: dto.KillmailListResponse{
+				Killmails: dto.ConvertKillmailRefsToResponse(refs),
+				Count:     len(refs),
+			},
 		}, nil
 	})
 }
