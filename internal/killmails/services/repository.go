@@ -189,6 +189,39 @@ func (r *Repository) CountKillmails(ctx context.Context) (int64, error) {
 	return r.collection.CountDocuments(ctx, bson.M{})
 }
 
+// Exists checks if a killmail exists by ID and optionally hash
+func (r *Repository) Exists(ctx context.Context, killmailID int64, hash string) (bool, error) {
+	filter := bson.M{"killmail_id": killmailID}
+	if hash != "" {
+		filter["killmail_hash"] = hash
+	}
+
+	count, err := r.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+// CreateMany inserts multiple killmails in a batch operation
+func (r *Repository) CreateMany(ctx context.Context, killmails []*models.Killmail) error {
+	if len(killmails) == 0 {
+		return nil
+	}
+
+	// Prepare documents for insertion
+	documents := make([]interface{}, len(killmails))
+	for i, killmail := range killmails {
+		documents[i] = killmail
+	}
+
+	// Use ordered=false for better performance (continues on errors)
+	opts := options.InsertMany().SetOrdered(false)
+	_, err := r.collection.InsertMany(ctx, documents, opts)
+	return err
+}
+
 // CreateIndexes creates necessary indexes for the killmails collection
 func (r *Repository) CreateIndexes(ctx context.Context) error {
 	indexes := []mongo.IndexModel{

@@ -29,6 +29,7 @@ import (
 	sitemapServices "go-falcon/internal/sitemap/services"
 	"go-falcon/internal/users"
 	"go-falcon/internal/websocket"
+	"go-falcon/internal/zkillboard"
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
 	evegateway "go-falcon/pkg/evegateway"
@@ -401,11 +402,30 @@ func main() {
 		log.Printf("✅ WebSocket module initialized successfully")
 	}
 
+	// 9. Initialize zkillboard module with websocket dependency
+	log.Printf("📡 Initializing ZKillboard module")
+	zkillboardModule, err := zkillboard.NewModule(
+		appCtx.MongoDB,
+		appCtx.Redis,
+		killmailsModule.GetRepository(),
+		evegateClient,
+		websocketModule.GetService(),
+		appCtx.SDEService,
+	)
+	if err != nil {
+		log.Fatalf("Failed to create zkillboard module: %v", err)
+	}
+
+	// Initialize zkillboard module
+	if err := zkillboardModule.Initialize(ctx); err != nil {
+		log.Fatalf("Failed to initialize zkillboard module: %v", err)
+	}
+
 	// Register WebSocket HTTP handler on main router (must be outside Huma API for WebSocket upgrades)
 	log.Printf("🔌 Registering WebSocket HTTP handler")
 	websocketModule.RegisterHTTPHandler(r)
 
-	// 9. Register service permissions
+	// 10. Register service permissions
 	log.Printf("📝 Registering service permissions")
 
 	// Register permissions in background to avoid startup hang
@@ -475,7 +495,7 @@ func main() {
 	// Update site settings with auth, groups services, and permission manager
 	siteSettingsModule.SetDependenciesWithPermissions(authModule.GetAuthService(), groupsModule.GetService(), permissionManager)
 
-	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule)
+	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, zkillboardModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule)
 
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
@@ -559,6 +579,7 @@ func main() {
 		{Name: "SDE Admin", Description: "EVE Online Static Data Export administration and Redis import management"},
 		{Name: "WebSocket", Description: "Real-time WebSocket communication and connection management"},
 		{Name: "WebSocket Admin", Description: "Administrative WebSocket connection and room management"},
+		{Name: "ZKillboard", Description: "ZKillboard RedisQ consumer service and killmail statistics"},
 		{Name: "Module Status", Description: "Module health status and statistics endpoints"},
 	}
 
@@ -638,6 +659,12 @@ func main() {
 	// Register killmails module routes
 	log.Printf("   ⚔️  Killmails module: /killmails/*")
 	killmailsModule.RegisterUnifiedRoutes(unifiedAPI, "/killmails")
+
+	// Register zkillboard module routes
+	log.Printf("   📡 ZKillboard module: /zkillboard/*")
+	if err := zkillboardModule.RegisterRoutes(unifiedAPI); err != nil {
+		log.Fatalf("Failed to register zkillboard routes: %v", err)
+	}
 
 	// Register groups module routes
 	log.Printf("   👥 Groups module: /groups/*")
