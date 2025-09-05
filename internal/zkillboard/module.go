@@ -23,11 +23,12 @@ type Module struct {
 	*module.BaseModule
 
 	// Services
-	consumer   *services.RedisQConsumer
-	processor  *services.KillmailProcessor
-	repository *services.Repository
-	aggregator *services.Aggregator
-	routes     *routes.Routes
+	consumer         *services.RedisQConsumer
+	processor        *services.KillmailProcessor
+	repository       *services.Repository
+	aggregator       *services.Aggregator
+	charStatsService *killmailsService.CharStatsService
+	routes           *routes.Routes
 }
 
 // NewModule creates a new ZKillboard module instance
@@ -48,6 +49,10 @@ func NewModule(
 	// Create aggregator
 	aggregator := services.NewAggregator(repository, sdeService)
 
+	// Create character stats repository and service
+	charStatsRepo := killmailsService.NewCharStatsRepository(mongodb)
+	charStatsService := killmailsService.NewCharStatsService(charStatsRepo, sdeService)
+
 	// Create processor
 	processor := services.NewKillmailProcessor(
 		killmailRepo,
@@ -56,6 +61,7 @@ func NewModule(
 		eveGateway.Killmails,
 		websocketService,
 		sdeService,
+		charStatsService,
 	)
 
 	// Create RedisQ consumer
@@ -65,12 +71,13 @@ func NewModule(
 	routesHandler := routes.NewRoutes(consumer, repository, aggregator)
 
 	return &Module{
-		BaseModule: baseModule,
-		consumer:   consumer,
-		processor:  processor,
-		repository: repository,
-		aggregator: aggregator,
-		routes:     routesHandler,
+		BaseModule:       baseModule,
+		consumer:         consumer,
+		processor:        processor,
+		repository:       repository,
+		aggregator:       aggregator,
+		charStatsService: charStatsService,
+		routes:           routesHandler,
 	}, nil
 }
 
@@ -80,6 +87,11 @@ func (m *Module) Initialize(ctx context.Context) error {
 
 	// Create database indexes
 	if err := m.repository.CreateIndexes(ctx); err != nil {
+		return err
+	}
+
+	// Create character stats indexes
+	if err := m.charStatsService.CreateIndexes(ctx); err != nil {
 		return err
 	}
 

@@ -25,6 +25,7 @@ type KillmailProcessor struct {
 	esiClient        evegateway.KillmailClient
 	websocketService *websocketServices.WebSocketService
 	sdeService       sde.SDEService
+	charStatsService *killmailsService.CharStatsService
 
 	// Batch processing
 	batchSize  int
@@ -50,6 +51,7 @@ func NewKillmailProcessor(
 	esiClient evegateway.KillmailClient,
 	websocketService *websocketServices.WebSocketService,
 	sdeService sde.SDEService,
+	charStatsService *killmailsService.CharStatsService,
 ) *KillmailProcessor {
 	batchSize := getEnvAsInt("ZKB_BATCH_SIZE", 10)
 
@@ -60,6 +62,7 @@ func NewKillmailProcessor(
 		esiClient:        esiClient,
 		websocketService: websocketService,
 		sdeService:       sdeService,
+		charStatsService: charStatsService,
 		batchSize:        batchSize,
 		batch:            make([]*ProcessedKillmail, 0, batchSize),
 	}
@@ -325,10 +328,15 @@ func (p *KillmailProcessor) flushBatch(ctx context.Context) error {
 		return fmt.Errorf("failed to insert ZKB metadata: %w", err)
 	}
 
-	// Update timeseries aggregations
+	// Update timeseries aggregations and character stats
 	for _, processed := range p.batch {
 		if err := p.aggregator.UpdateTimeseries(ctx, processed.Killmail, processed.ZKBMetadata); err != nil {
 			slog.Error("Failed to update timeseries", "error", err, "killmail_id", processed.Killmail.KillmailID)
+		}
+
+		// Update character stats for tracked ship categories
+		if err := p.charStatsService.UpdateFromKillmail(ctx, processed.Killmail); err != nil {
+			slog.Error("Failed to update character stats", "error", err, "killmail_id", processed.Killmail.KillmailID)
 		}
 
 		// Emit WebSocket event

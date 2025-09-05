@@ -11,14 +11,16 @@ import (
 )
 
 type Service struct {
-	repository *Repository
-	eveGateway *evegateway.Client
+	repository       *Repository
+	eveGateway       *evegateway.Client
+	charStatsService *CharStatsService
 }
 
-func NewService(repository *Repository, eveGateway *evegateway.Client) *Service {
+func NewService(repository *Repository, eveGateway *evegateway.Client, charStatsService *CharStatsService) *Service {
 	return &Service{
-		repository: repository,
-		eveGateway: eveGateway,
+		repository:       repository,
+		eveGateway:       eveGateway,
+		charStatsService: charStatsService,
 	}
 }
 
@@ -401,4 +403,62 @@ func (s *Service) convertItems(data []any) []models.Item {
 	}
 
 	return items
+}
+
+// Character Stats Service Methods
+
+// GetCharacterStats retrieves character killmail statistics
+func (s *Service) GetCharacterStats(ctx context.Context, characterID int32) (*models.CharacterKillmailStats, error) {
+	if s.charStatsService == nil {
+		return nil, fmt.Errorf("character stats service not available")
+	}
+	return s.charStatsService.GetCharacterStats(ctx, characterID)
+}
+
+// GetCharacterLastShipByCategory gets the last ship used by a character in a specific category
+func (s *Service) GetCharacterLastShipByCategory(ctx context.Context, characterID int32, category string) (*int64, error) {
+	if s.charStatsService == nil {
+		return nil, fmt.Errorf("character stats service not available")
+	}
+	return s.charStatsService.GetCharacterLastShipByCategory(ctx, characterID, category)
+}
+
+// GetCharactersByShipCategory returns characters who have used ships in a specific category
+func (s *Service) GetCharactersByShipCategory(ctx context.Context, category string, limit int) ([]*models.CharacterKillmailStats, error) {
+	if s.charStatsService == nil {
+		return nil, fmt.Errorf("character stats service not available")
+	}
+	return s.charStatsService.GetCharactersByShipCategory(ctx, category, limit)
+}
+
+// GetCharactersByShipType returns characters who last used a specific ship type
+func (s *Service) GetCharactersByShipType(ctx context.Context, shipTypeID int64, limit int) ([]*models.CharacterKillmailStats, error) {
+	if s.charStatsService == nil {
+		return nil, fmt.Errorf("character stats service not available")
+	}
+	return s.charStatsService.GetCharactersByShipType(ctx, shipTypeID, limit)
+}
+
+// GetRecentCharacterActivity returns characters with recent activity
+func (s *Service) GetRecentCharacterActivity(ctx context.Context, since time.Time, limit int) ([]*models.CharacterKillmailStats, error) {
+	if s.charStatsService == nil {
+		return nil, fmt.Errorf("character stats service not available")
+	}
+	return s.charStatsService.GetRecentCharacterActivity(ctx, since, limit)
+}
+
+// GetTrackedCategories returns all tracked ship categories
+func (s *Service) GetTrackedCategories(ctx context.Context) ([]string, error) {
+	if s.charStatsService == nil {
+		return nil, fmt.Errorf("character stats service not available")
+	}
+	return s.charStatsService.GetTrackedCategories(), nil
+}
+
+// GetCategoryStats returns statistics about character usage by category
+func (s *Service) GetCategoryStats(ctx context.Context) (map[string]int64, error) {
+	if s.charStatsService == nil {
+		return nil, fmt.Errorf("character stats service not available")
+	}
+	return s.charStatsService.GetCategoryStats(ctx)
 }

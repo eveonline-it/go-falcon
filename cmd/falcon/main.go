@@ -375,7 +375,7 @@ func main() {
 
 	// 7. Initialize remaining modules that depend on auth
 	allianceModule := alliance.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule.GetAuthService(), permissionManager)
-	killmailsModule := killmails.New(appCtx.MongoDB, appCtx.Redis, evegateClient)
+	killmailsModule := killmails.New(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService)
 
 	// Initialize killmails module to create database indexes
 	if err := killmailsModule.Initialize(ctx); err != nil {

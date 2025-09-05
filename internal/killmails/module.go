@@ -8,6 +8,7 @@ import (
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/module"
+	"go-falcon/pkg/sde"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -16,21 +17,29 @@ import (
 // Module represents the killmails module
 type Module struct {
 	*module.BaseModule
-	service    *services.Service
-	repository *services.Repository
-	eveGateway *evegateway.Client
+	service          *services.Service
+	repository       *services.Repository
+	charStatsService *services.CharStatsService
+	eveGateway       *evegateway.Client
 }
 
 // New creates a new killmails module instance
-func New(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client, sdeService sde.SDEService) *Module {
 	repository := services.NewRepository(mongodb)
-	service := services.NewService(repository, eveGateway)
+
+	// Create character stats repository and service
+	charStatsRepo := services.NewCharStatsRepository(mongodb)
+	charStatsService := services.NewCharStatsService(charStatsRepo, sdeService)
+
+	// Create main service with character stats service
+	service := services.NewService(repository, eveGateway, charStatsService)
 
 	return &Module{
-		BaseModule: module.NewBaseModule("killmails", mongodb, redis),
-		service:    service,
-		repository: repository,
-		eveGateway: eveGateway,
+		BaseModule:       module.NewBaseModule("killmails", mongodb, redis),
+		service:          service,
+		repository:       repository,
+		charStatsService: charStatsService,
+		eveGateway:       eveGateway,
 	}
 }
 
@@ -48,6 +57,11 @@ func (m *Module) Routes(r chi.Router) {
 func (m *Module) Initialize(ctx context.Context) error {
 	// Create database indexes for optimal performance
 	if err := m.repository.CreateIndexes(ctx); err != nil {
+		return err
+	}
+
+	// Create character stats indexes
+	if err := m.charStatsService.CreateIndexes(ctx); err != nil {
 		return err
 	}
 

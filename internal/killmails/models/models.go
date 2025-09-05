@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	KillmailsCollection = "killmails"
+	KillmailsCollection          = "killmails"
+	KillmailsCharStatsCollection = "killmails_char_stats"
 )
 
 type Killmail struct {
@@ -70,4 +71,17 @@ type Item struct {
 type KillmailRef struct {
 	KillmailID   int64  `bson:"killmail_id" json:"killmail_id"`
 	KillmailHash string `bson:"killmail_hash" json:"killmail_hash"`
+}
+
+// CharacterKillmailStats represents character statistics for killmails
+type CharacterKillmailStats struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CharacterID int32              `bson:"character_id" json:"character_id"`
+
+	// Notable ships used per category - maps category name to ship type ID
+	// Example: { "interdictor": 22452, "forcerecon": 11965 }
+	NotableShips map[string]int64 `bson:"notable_ships" json:"notable_ships"`
+
+	// Tracking metadata
+	LastUpdated time.Time `bson:"last_updated" json:"last_updated"`
 }

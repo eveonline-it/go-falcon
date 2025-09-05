@@ -241,3 +241,143 @@ func ConvertKillmailsToList(killmails []models.Killmail, total *int64) *Killmail
 
 	return &KillmailListOutput{Body: response}
 }
+
+// Character Stats Response DTOs
+
+// CharacterKillmailStatsResponse represents character killmail statistics
+type CharacterKillmailStatsResponse struct {
+	CharacterID  int32            `json:"character_id" doc:"Character ID"`
+	NotableShips map[string]int64 `json:"notable_ships" doc:"Notable ship type ID used per category"`
+	LastUpdated  time.Time        `json:"last_updated" doc:"When the stats were last updated"`
+}
+
+// CharacterStatsOutput represents the output for character stats
+type CharacterStatsOutput struct {
+	Body CharacterKillmailStatsResponse `json:"body"`
+}
+
+// LastShipByCategoryOutput represents the output for last ship by category
+type LastShipByCategoryOutput struct {
+	Body LastShipByCategoryResponse `json:"body"`
+}
+
+// LastShipByCategoryResponse represents a ship type ID for a category
+type LastShipByCategoryResponse struct {
+	Category   string `json:"category" doc:"Ship category"`
+	ShipTypeID *int64 `json:"ship_type_id" doc:"Ship type ID (null if no ship used in this category)"`
+}
+
+// CharactersByShipCategoryResponse represents characters using a ship category
+type CharactersByShipCategoryResponse struct {
+	Category   string                           `json:"category" doc:"Ship category"`
+	Characters []CharacterKillmailStatsResponse `json:"characters" doc:"Characters who have used ships in this category"`
+	Count      int                              `json:"count" doc:"Number of characters returned"`
+}
+
+// CharactersByShipCategoryOutput represents output for characters by ship category
+type CharactersByShipCategoryOutput struct {
+	Body CharactersByShipCategoryResponse `json:"body"`
+}
+
+// CharactersByShipTypeResponse represents characters using a specific ship type
+type CharactersByShipTypeResponse struct {
+	ShipTypeID int64                            `json:"ship_type_id" doc:"Ship type ID"`
+	Characters []CharacterKillmailStatsResponse `json:"characters" doc:"Characters who last used this ship type"`
+	Count      int                              `json:"count" doc:"Number of characters returned"`
+}
+
+// CharactersByShipTypeOutput represents output for characters by ship type
+type CharactersByShipTypeOutput struct {
+	Body CharactersByShipTypeResponse `json:"body"`
+}
+
+// RecentCharacterActivityResponse represents recent character activity
+type RecentCharacterActivityResponse struct {
+	Hours      int                              `json:"hours" doc:"Hours looked back"`
+	Characters []CharacterKillmailStatsResponse `json:"characters" doc:"Characters with recent activity"`
+	Count      int                              `json:"count" doc:"Number of characters returned"`
+}
+
+// RecentCharacterActivityOutput represents output for recent character activity
+type RecentCharacterActivityOutput struct {
+	Body RecentCharacterActivityResponse `json:"body"`
+}
+
+// TrackedCategoriesResponse represents the tracked ship categories
+type TrackedCategoriesResponse struct {
+	Categories []string `json:"categories" doc:"List of tracked ship categories"`
+	Count      int      `json:"count" doc:"Number of categories"`
+}
+
+// TrackedCategoriesOutput represents output for tracked categories
+type TrackedCategoriesOutput struct {
+	Body TrackedCategoriesResponse `json:"body"`
+}
+
+// CategoryStatsResponse represents statistics by category
+type CategoryStatsResponse struct {
+	Stats map[string]int64 `json:"stats" doc:"Character count per category"`
+	Total int64            `json:"total" doc:"Total characters with stats"`
+}
+
+// CategoryStatsOutput represents output for category stats
+type CategoryStatsOutput struct {
+	Body CategoryStatsResponse `json:"body"`
+}
+
+// Conversion functions
+
+// ConvertCharacterStatsToResponse converts character stats model to response
+func ConvertCharacterStatsToResponse(stats *models.CharacterKillmailStats) *CharacterStatsOutput {
+	if stats == nil {
+		return nil
+	}
+
+	// NotableShips is now just a simple map of category to ship type ID
+	notableShips := stats.NotableShips
+	if notableShips == nil {
+		notableShips = make(map[string]int64)
+	}
+
+	return &CharacterStatsOutput{
+		Body: CharacterKillmailStatsResponse{
+			CharacterID:  stats.CharacterID,
+			NotableShips: notableShips,
+			LastUpdated:  stats.LastUpdated,
+		},
+	}
+}
+
+// ConvertLastShipToResponse converts ship type ID and category to response
+func ConvertLastShipToResponse(shipTypeID *int64, category string) *LastShipByCategoryOutput {
+	return &LastShipByCategoryOutput{
+		Body: LastShipByCategoryResponse{
+			Category:   category,
+			ShipTypeID: shipTypeID,
+		},
+	}
+}
+
+// ConvertCharacterStatsList converts list of character stats to response
+func ConvertCharacterStatsList(statsList []*models.CharacterKillmailStats) []CharacterKillmailStatsResponse {
+	if statsList == nil {
+		return nil
+	}
+
+	responses := make([]CharacterKillmailStatsResponse, len(statsList))
+	for i, stats := range statsList {
+		// NotableShips is now just a simple map of category to ship type ID
+		notableShips := stats.NotableShips
+		if notableShips == nil {
+			notableShips = make(map[string]int64)
+		}
+
+		responses[i] = CharacterKillmailStatsResponse{
+			CharacterID:  stats.CharacterID,
+			NotableShips: notableShips,
+			LastUpdated:  stats.LastUpdated,
+		}
+	}
+
+	return responses
+}

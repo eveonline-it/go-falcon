@@ -38,3 +38,34 @@ type GetRecentKillmailsInput struct {
 	Since         string `query:"since" validate:"omitempty" doc:"Filter killmails since this timestamp (RFC3339 format, optional)"`
 	Limit         int    `query:"limit" validate:"min:1,max:100" default:"20" doc:"Maximum number of killmails to return (1-100, default 20)"`
 }
+
+// Character Stats Input DTOs
+
+// GetCharacterStatsInput represents input for fetching character killmail stats
+type GetCharacterStatsInput struct {
+	CharacterID int32 `path:"character_id" validate:"required" minimum:"90000000" maximum:"2147483647" doc:"EVE Online character ID"`
+}
+
+// GetCharacterLastShipByCategoryInput represents input for fetching character's last ship by category
+type GetCharacterLastShipByCategoryInput struct {
+	CharacterID int32  `path:"character_id" validate:"required" minimum:"90000000" maximum:"2147483647" doc:"EVE Online character ID"`
+	Category    string `path:"category" validate:"required" doc:"Ship category (interdictor, forcerecon, strategic, hic, monitor, blackops, marauders, fax, dread, carrier, super, titan, lancer)"`
+}
+
+// GetCharactersByShipCategoryInput represents input for fetching characters by ship category
+type GetCharactersByShipCategoryInput struct {
+	Category string `path:"category" validate:"required" doc:"Ship category (interdictor, forcerecon, strategic, hic, monitor, blackops, marauders, fax, dread, carrier, super, titan, lancer)"`
+	Limit    int    `query:"limit" validate:"min:1,max:100" default:"50" doc:"Maximum number of characters to return (1-100, default 50)"`
+}
+
+// GetCharactersByShipTypeInput represents input for fetching characters by ship type
+type GetCharactersByShipTypeInput struct {
+	ShipTypeID int64 `path:"ship_type_id" validate:"required" minimum:"1" doc:"EVE Online ship type ID"`
+	Limit      int   `query:"limit" validate:"min:1,max:100" default:"50" doc:"Maximum number of characters to return (1-100, default 50)"`
+}
+
+// GetRecentCharacterActivityInput represents input for fetching recent character activity
+type GetRecentCharacterActivityInput struct {
+	Hours int `query:"hours" validate:"min:1,max:720" default:"24" doc:"Number of hours to look back for activity (1-720, default 24)"`
+	Limit int `query:"limit" validate:"min:1,max:100" default:"50" doc:"Maximum number of characters to return (1-100, default 50)"`
+}
