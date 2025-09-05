@@ -15,12 +15,17 @@ import (
 	"syscall"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"go-falcon/internal/alliance"
 	"go-falcon/internal/auth"
 	"go-falcon/internal/character"
 	"go-falcon/internal/corporation"
+	"go-falcon/internal/discord"
+	discordServices "go-falcon/internal/discord/services"
 	"go-falcon/internal/groups"
 	groupsDto "go-falcon/internal/groups/dto"
+	groupsServices "go-falcon/internal/groups/services"
 	"go-falcon/internal/killmails"
 	"go-falcon/internal/scheduler"
 	"go-falcon/internal/sde_admin"
@@ -43,6 +48,43 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	_ "go.uber.org/automaxprocs"
 )
+
+// DiscordGroupsAdapter adapts the groups service to the Discord module interface
+type DiscordGroupsAdapter struct {
+	groupsService *groupsServices.Service
+}
+
+// GetUserGroups implements the Discord GroupsServiceInterface
+func (a *DiscordGroupsAdapter) GetUserGroups(ctx context.Context, userID string) ([]discordServices.GroupInfo, error) {
+	input := &groupsDto.GetUserGroupsInput{
+		UserID: userID,
+	}
+
+	output, err := a.groupsService.GetUserGroups(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert groups service output to Discord interface format
+	groups := make([]discordServices.GroupInfo, len(output.Body.Groups))
+	for i, group := range output.Body.Groups {
+		// Convert string ID to primitive.ObjectID
+		objectID, err := primitive.ObjectIDFromHex(group.ID)
+		if err != nil {
+			// If conversion fails, create a new ObjectID (this shouldn't happen in normal operation)
+			objectID = primitive.NewObjectID()
+		}
+
+		groups[i] = discordServices.GroupInfo{
+			ID:       objectID,
+			Name:     group.Name,
+			Type:     group.Type,
+			IsActive: group.IsActive,
+		}
+	}
+
+	return groups, nil
+}
 
 // customLoggerMiddleware logs requests but excludes health check endpoints
 func customLoggerMiddleware(next http.Handler) http.Handler {
@@ -384,6 +426,11 @@ func main() {
 
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule, evegateClient, appCtx.SDEService)
 	usersModule.SetGroupService(groupsModule.GetService())
+
+	// Initialize Discord module with groups service adapter
+	discordGroupsAdapter := &DiscordGroupsAdapter{groupsService: groupsModule.GetService()}
+	discordModule := discord.NewModule(appCtx.MongoDB, appCtx.Redis, discordGroupsAdapter)
+
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	schedulerModule.SetGroupService(groupsModule.GetService())
 	sdeAdminModule := sde_admin.New(appCtx.MongoDB, appCtx.Redis, authModule, permissionManager, appCtx.SDEService)
@@ -495,7 +542,7 @@ func main() {
 	// Update site settings with auth, groups services, and permission manager
 	siteSettingsModule.SetDependenciesWithPermissions(authModule.GetAuthService(), groupsModule.GetService(), permissionManager)
 
-	modules = append(modules, authModule, usersModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, zkillboardModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule)
+	modules = append(modules, authModule, usersModule, discordModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, zkillboardModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule)
 
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
@@ -561,6 +608,10 @@ func main() {
 		{Name: "Users / Management", Description: "Administrative user management operations"},
 		{Name: "Users / Characters", Description: "Character listing and management"},
 		{Name: "Character", Description: "EVE Online character profiles and information"},
+		{Name: "Discord", Description: "Discord bot integration and role synchronization management"},
+		{Name: "Discord / OAuth", Description: "Discord OAuth authentication and account linking"},
+		{Name: "Discord / Guilds", Description: "Discord guild configuration and management"},
+		{Name: "Discord / Roles", Description: "Discord role mapping and synchronization"},
 		{Name: "Corporations", Description: "EVE Online corporation information and management"},
 		{Name: "Alliances", Description: "EVE Online alliance information and management"},
 		{Name: "Groups", Description: "Group and role-based access control management"},
@@ -639,6 +690,10 @@ func main() {
 	// Register users module routes
 	log.Printf("   👥 Users module: /users/*")
 	usersModule.RegisterUnifiedRoutes(unifiedAPI, "/users")
+
+	// Register Discord module routes
+	log.Printf("   🔗 Discord module: /discord/*")
+	discordModule.RegisterUnifiedRoutes(unifiedAPI)
 
 	// Register scheduler module routes
 	log.Printf("   ⏰ Scheduler module: /scheduler/*")

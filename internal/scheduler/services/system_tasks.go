@@ -299,6 +299,63 @@ func GetSystemTasks() []*models.Task {
 			UpdatedAt: now,
 			CreatedBy: "system",
 		},
+		{
+			ID:          "system-discord-token-refresh",
+			Name:        "Discord Token Refresh",
+			Description: "Refreshes expired Discord access tokens for users with linked Discord accounts",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 */30 * * * *", // Every 30 minutes
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "discord_token_refresh",
+				"parameters": map[string]interface{}{
+					"batch_size": 50,
+					"timeout":    "10m",
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    3,
+				RetryInterval: models.Duration(5 * time.Minute),
+				Timeout:       models.Duration(15 * time.Minute),
+				Tags:          []string{"system", "discord", "tokens", "refresh"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
+		{
+			ID:          "system-discord-role-sync",
+			Name:        "Discord Role Synchronization",
+			Description: "Synchronizes Discord roles with Go Falcon group memberships for all configured guilds",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 */15 * * * *", // Every 15 minutes
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "discord_role_sync",
+				"parameters": map[string]interface{}{
+					"timeout": "30m",
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: models.Duration(10 * time.Minute),
+				Timeout:       models.Duration(45 * time.Minute),
+				Tags:          []string{"system", "discord", "roles", "synchronization"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
 	}
 }
 
@@ -351,6 +408,20 @@ var SystemTaskDefinitions = map[string]models.SystemTaskDefinition{
 		Description: "Checks if CEOs from enabled corporations have valid EVE Online access tokens",
 		Schedule:    "Every 15 minutes",
 		Purpose:     "Monitors CEO token validity for enabled corporations and identifies expired tokens",
+		Priority:    "Normal",
+	},
+	"system-discord-token-refresh": {
+		Name:        "Discord Token Refresh",
+		Description: "Refreshes expired Discord access tokens for users with linked Discord accounts",
+		Schedule:    "Every 30 minutes",
+		Purpose:     "Maintains Discord authentication by refreshing tokens before they expire",
+		Priority:    "Normal",
+	},
+	"system-discord-role-sync": {
+		Name:        "Discord Role Synchronization",
+		Description: "Synchronizes Discord roles with Go Falcon group memberships for all configured guilds",
+		Schedule:    "Every 15 minutes",
+		Purpose:     "Maintains Discord role consistency by syncing group memberships to Discord roles",
 		Priority:    "Normal",
 	},
 }
