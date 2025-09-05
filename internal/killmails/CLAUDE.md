@@ -278,9 +278,7 @@ huma.Register(api, huma.Operation{
       final_blow: Boolean,         // Achieved killing blow
       security_status: Double      // Attacker sec status
     }
-  ],
-  created_at: ISODate,           // First stored in database
-  updated_at: ISODate            // Last updated in database
+  ]
 }
 ```
 
