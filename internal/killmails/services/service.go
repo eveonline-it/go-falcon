@@ -167,7 +167,6 @@ func (s *Service) GetKillmailStats(ctx context.Context) (map[string]interface{},
 	return map[string]interface{}{
 		"total_killmails": count,
 		"collection":      models.KillmailsCollection,
-		"last_updated":    time.Now(),
 	}, nil
 }
 
@@ -187,30 +186,66 @@ func (s *Service) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
+// toInt64 safely converts interface{} to int64, handling both int64 and float64 types
+func toInt64(v interface{}) int64 {
+	switch val := v.(type) {
+	case float64:
+		return int64(val)
+	case int64:
+		return val
+	case int:
+		return int64(val)
+	case int32:
+		return int64(val)
+	default:
+		return 0
+	}
+}
+
+// toFloat64 safely converts interface{} to float64
+func toFloat64(v interface{}) float64 {
+	switch val := v.(type) {
+	case float64:
+		return val
+	case float32:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case int:
+		return float64(val)
+	default:
+		return 0
+	}
+}
+
 // convertESIDataToModel converts ESI response data to internal model
 func (s *Service) convertESIDataToModel(esiData map[string]any, hash string) *models.Killmail {
 	killmail := &models.Killmail{
-		KillmailID:    int64(esiData["killmail_id"].(float64)),
+		KillmailID:    toInt64(esiData["killmail_id"]),
 		KillmailHash:  hash,
-		SolarSystemID: int64(esiData["solar_system_id"].(float64)),
+		SolarSystemID: toInt64(esiData["solar_system_id"]),
 	}
 
-	// Parse killmail time
-	if timeStr, ok := esiData["killmail_time"].(string); ok {
-		if t, err := time.Parse(time.RFC3339, timeStr); err == nil {
-			killmail.KillmailTime = t
-		}
+	// Parse killmail time - EVE Gateway returns time.Time object, not string
+	if killmailTime, ok := esiData["killmail_time"].(time.Time); ok {
+		killmail.KillmailTime = killmailTime
+	} else {
+		slog.Error("killmail_time not found or invalid type", "value", esiData["killmail_time"], "type", fmt.Sprintf("%T", esiData["killmail_time"]))
 	}
 
 	// Optional fields
-	if moonID, ok := esiData["moon_id"].(float64); ok {
-		moonIDInt := int64(moonID)
-		killmail.MoonID = &moonIDInt
+	if moonID, ok := esiData["moon_id"]; ok {
+		moonIDInt := toInt64(moonID)
+		if moonIDInt != 0 {
+			killmail.MoonID = &moonIDInt
+		}
 	}
 
-	if warID, ok := esiData["war_id"].(float64); ok {
-		warIDInt := int64(warID)
-		killmail.WarID = &warIDInt
+	if warID, ok := esiData["war_id"]; ok {
+		warIDInt := toInt64(warID)
+		if warIDInt != 0 {
+			killmail.WarID = &warIDInt
+		}
 	}
 
 	// Convert victim
@@ -228,34 +263,42 @@ func (s *Service) convertESIDataToModel(esiData map[string]any, hash string) *mo
 
 func (s *Service) convertVictim(data map[string]any) models.Victim {
 	victim := models.Victim{
-		ShipTypeID:  int64(data["ship_type_id"].(float64)),
-		DamageTaken: int64(data["damage_taken"].(float64)),
+		ShipTypeID:  toInt64(data["ship_type_id"]),
+		DamageTaken: toInt64(data["damage_taken"]),
 	}
 
 	// Optional fields
-	if charID, ok := data["character_id"].(float64); ok {
-		charIDInt := int64(charID)
-		victim.CharacterID = &charIDInt
+	if charID, ok := data["character_id"]; ok {
+		charIDInt := toInt64(charID)
+		if charIDInt != 0 {
+			victim.CharacterID = &charIDInt
+		}
 	}
-	if corpID, ok := data["corporation_id"].(float64); ok {
-		corpIDInt := int64(corpID)
-		victim.CorporationID = &corpIDInt
+	if corpID, ok := data["corporation_id"]; ok {
+		corpIDInt := toInt64(corpID)
+		if corpIDInt != 0 {
+			victim.CorporationID = &corpIDInt
+		}
 	}
-	if allianceID, ok := data["alliance_id"].(float64); ok {
-		allianceIDInt := int64(allianceID)
-		victim.AllianceID = &allianceIDInt
+	if allianceID, ok := data["alliance_id"]; ok {
+		allianceIDInt := toInt64(allianceID)
+		if allianceIDInt != 0 {
+			victim.AllianceID = &allianceIDInt
+		}
 	}
-	if factionID, ok := data["faction_id"].(float64); ok {
-		factionIDInt := int64(factionID)
-		victim.FactionID = &factionIDInt
+	if factionID, ok := data["faction_id"]; ok {
+		factionIDInt := toInt64(factionID)
+		if factionIDInt != 0 {
+			victim.FactionID = &factionIDInt
+		}
 	}
 
 	// Convert position
 	if posData, ok := data["position"].(map[string]any); ok {
 		victim.Position = &models.Position{
-			X: posData["x"].(float64),
-			Y: posData["y"].(float64),
-			Z: posData["z"].(float64),
+			X: toFloat64(posData["x"]),
+			Y: toFloat64(posData["y"]),
+			Z: toFloat64(posData["z"]),
 		}
 	}
 
@@ -273,35 +316,47 @@ func (s *Service) convertAttackers(data []any) []models.Attacker {
 	for i, attackerData := range data {
 		if attackerMap, ok := attackerData.(map[string]any); ok {
 			attacker := models.Attacker{
-				DamageDone:     int64(attackerMap["damage_done"].(float64)),
+				DamageDone:     toInt64(attackerMap["damage_done"]),
 				FinalBlow:      attackerMap["final_blow"].(bool),
-				SecurityStatus: attackerMap["security_status"].(float64),
+				SecurityStatus: toFloat64(attackerMap["security_status"]),
 			}
 
 			// Optional fields
-			if charID, ok := attackerMap["character_id"].(float64); ok {
-				charIDInt := int64(charID)
-				attacker.CharacterID = &charIDInt
+			if charID, ok := attackerMap["character_id"]; ok {
+				charIDInt := toInt64(charID)
+				if charIDInt != 0 {
+					attacker.CharacterID = &charIDInt
+				}
 			}
-			if corpID, ok := attackerMap["corporation_id"].(float64); ok {
-				corpIDInt := int64(corpID)
-				attacker.CorporationID = &corpIDInt
+			if corpID, ok := attackerMap["corporation_id"]; ok {
+				corpIDInt := toInt64(corpID)
+				if corpIDInt != 0 {
+					attacker.CorporationID = &corpIDInt
+				}
 			}
-			if allianceID, ok := attackerMap["alliance_id"].(float64); ok {
-				allianceIDInt := int64(allianceID)
-				attacker.AllianceID = &allianceIDInt
+			if allianceID, ok := attackerMap["alliance_id"]; ok {
+				allianceIDInt := toInt64(allianceID)
+				if allianceIDInt != 0 {
+					attacker.AllianceID = &allianceIDInt
+				}
 			}
-			if factionID, ok := attackerMap["faction_id"].(float64); ok {
-				factionIDInt := int64(factionID)
-				attacker.FactionID = &factionIDInt
+			if factionID, ok := attackerMap["faction_id"]; ok {
+				factionIDInt := toInt64(factionID)
+				if factionIDInt != 0 {
+					attacker.FactionID = &factionIDInt
+				}
 			}
-			if shipTypeID, ok := attackerMap["ship_type_id"].(float64); ok {
-				shipTypeIDInt := int64(shipTypeID)
-				attacker.ShipTypeID = &shipTypeIDInt
+			if shipTypeID, ok := attackerMap["ship_type_id"]; ok {
+				shipTypeIDInt := toInt64(shipTypeID)
+				if shipTypeIDInt != 0 {
+					attacker.ShipTypeID = &shipTypeIDInt
+				}
 			}
-			if weaponTypeID, ok := attackerMap["weapon_type_id"].(float64); ok {
-				weaponTypeIDInt := int64(weaponTypeID)
-				attacker.WeaponTypeID = &weaponTypeIDInt
+			if weaponTypeID, ok := attackerMap["weapon_type_id"]; ok {
+				weaponTypeIDInt := toInt64(weaponTypeID)
+				if weaponTypeIDInt != 0 {
+					attacker.WeaponTypeID = &weaponTypeIDInt
+				}
 			}
 
 			attackers[i] = attacker
@@ -317,19 +372,23 @@ func (s *Service) convertItems(data []any) []models.Item {
 	for i, itemData := range data {
 		if itemMap, ok := itemData.(map[string]any); ok {
 			item := models.Item{
-				ItemTypeID: int64(itemMap["item_type_id"].(float64)),
-				Flag:       int64(itemMap["flag"].(float64)),
-				Singleton:  int64(itemMap["singleton"].(float64)),
+				ItemTypeID: toInt64(itemMap["item_type_id"]),
+				Flag:       toInt64(itemMap["flag"]),
+				Singleton:  toInt64(itemMap["singleton"]),
 			}
 
 			// Optional fields
-			if qtyDestroyed, ok := itemMap["quantity_destroyed"].(float64); ok {
-				qtyDestroyedInt := int64(qtyDestroyed)
-				item.QuantityDestroyed = &qtyDestroyedInt
+			if qtyDestroyed, ok := itemMap["quantity_destroyed"]; ok {
+				qtyDestroyedInt := toInt64(qtyDestroyed)
+				if qtyDestroyedInt != 0 {
+					item.QuantityDestroyed = &qtyDestroyedInt
+				}
 			}
-			if qtyDropped, ok := itemMap["quantity_dropped"].(float64); ok {
-				qtyDroppedInt := int64(qtyDropped)
-				item.QuantityDropped = &qtyDroppedInt
+			if qtyDropped, ok := itemMap["quantity_dropped"]; ok {
+				qtyDroppedInt := toInt64(qtyDropped)
+				if qtyDroppedInt != 0 {
+					item.QuantityDropped = &qtyDroppedInt
+				}
 			}
 
 			// Convert nested items

@@ -56,21 +56,20 @@ func (r *Repository) GetByKillmailIDAndHash(ctx context.Context, killmailID int6
 
 // UpsertKillmail inserts or updates a killmail
 func (r *Repository) UpsertKillmail(ctx context.Context, killmail *models.Killmail) error {
-	now := time.Now()
-
-	// Set timestamps
-	if killmail.CreatedAt.IsZero() {
-		killmail.CreatedAt = now
-	}
-	killmail.UpdatedAt = now
-
 	// Use upsert to insert or update
 	filter := bson.M{"killmail_id": killmail.KillmailID}
 	update := bson.M{
-		"$set": killmail,
+		"$set": bson.M{
+			"killmail_hash":   killmail.KillmailHash,
+			"killmail_time":   killmail.KillmailTime,
+			"solar_system_id": killmail.SolarSystemID,
+			"moon_id":         killmail.MoonID,
+			"war_id":          killmail.WarID,
+			"victim":          killmail.Victim,
+			"attackers":       killmail.Attackers,
+		},
 		"$setOnInsert": bson.M{
-			"_id":        primitive.NewObjectID(),
-			"created_at": now,
+			"_id": primitive.NewObjectID(),
 		},
 	}
 
@@ -227,6 +226,25 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 		},
 		{
 			Keys: bson.D{{Key: "attackers.alliance_id", Value: 1}},
+		},
+		// Compound indexes for common query patterns
+		{
+			Keys: bson.D{
+				{Key: "solar_system_id", Value: 1},
+				{Key: "killmail_time", Value: -1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "victim.character_id", Value: 1},
+				{Key: "killmail_time", Value: -1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "attackers.character_id", Value: 1},
+				{Key: "killmail_time", Value: -1},
+			},
 		},
 	}
 
