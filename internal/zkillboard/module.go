@@ -3,6 +3,8 @@ package zkillboard
 import (
 	"context"
 	"log/slog"
+	"os"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -102,10 +104,21 @@ func (m *Module) RegisterRoutes(api huma.API) error {
 func (m *Module) StartBackgroundTasks(ctx context.Context) {
 	slog.Info("Starting ZKillboard background tasks")
 
-	// The consumer will be started/stopped via API endpoints
-	// This allows for manual control of the resource-intensive service
+	// Check if ZKillboard service is enabled
+	enabled := strings.ToLower(os.Getenv("ZKB_ENABLED")) == "true"
 
-	slog.Info("ZKillboard background tasks started (consumer ready for manual start)")
+	if enabled {
+		slog.Info("ZKB_ENABLED=true, auto-starting RedisQ consumer")
+		if err := m.consumer.Start(ctx); err != nil {
+			slog.Error("Failed to auto-start ZKillboard consumer", "error", err)
+		} else {
+			slog.Info("ZKillboard RedisQ consumer auto-started successfully")
+		}
+	} else {
+		slog.Info("ZKB_ENABLED not set to true, consumer ready for manual start via API")
+	}
+
+	slog.Info("ZKillboard background tasks started")
 }
 
 // Start starts the module services (legacy method)

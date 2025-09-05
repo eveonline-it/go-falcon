@@ -100,6 +100,7 @@ func (p *KillmailProcessor) ProcessKillmail(ctx context.Context, pkg *dto.RedisQ
 		NPC:            pkg.ZKB.NPC,
 		Solo:           pkg.ZKB.Solo,
 		Awox:           pkg.ZKB.Awox,
+		Labels:         pkg.ZKB.Labels,
 		Href:           pkg.ZKB.Href,
 		ProcessedAt:    time.Now(),
 		CreatedAt:      time.Now(),
