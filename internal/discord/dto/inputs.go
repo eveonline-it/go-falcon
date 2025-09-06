@@ -33,7 +33,7 @@ type CreateGuildConfigInput struct {
 	Body struct {
 		GuildID   string `json:"guild_id" required:"true" example:"123456789012345678" doc:"Discord guild ID"`
 		GuildName string `json:"guild_name" required:"true" example:"My Discord Server" doc:"Display name for the guild"`
-		BotToken  string `json:"bot_token" required:"true" example:"Bot MTk4NjIyNDgzNDcxOTI1MjQ4.Cl2FMQ.ZnCjm1XVW7vRze4b7Cq4se7kKWs" doc:"Discord bot token"`
+		BotToken  string `json:"bot_token" required:"true" example:"Bot YOUR_DISCORD_BOT_TOKEN_HERE" doc:"Discord bot token"`
 	}
 }
 
@@ -42,7 +42,7 @@ type UpdateGuildConfigInput struct {
 	GuildID string `path:"guild_id" required:"true" example:"123456789012345678" doc:"Discord guild ID"`
 	Body    struct {
 		GuildName *string `json:"guild_name" example:"Updated Server Name" doc:"Updated display name for the guild"`
-		BotToken  *string `json:"bot_token" example:"Bot NewTokenHere" doc:"Updated Discord bot token"`
+		BotToken  *string `json:"bot_token" example:"Bot YOUR_NEW_BOT_TOKEN_HERE" doc:"Updated Discord bot token"`
 		IsEnabled *bool   `json:"is_enabled" example:"true" doc:"Whether role sync is enabled for this guild"`
 	}
 }
