@@ -201,6 +201,31 @@ type ManualSyncResponse struct {
 	EstimatedDuration string `json:"estimated_duration,omitempty" example:"2-5 minutes" doc:"Estimated completion time"`
 }
 
+// Discord Guild Roles Output
+
+// DiscordGuildRolesOutput represents the response for fetching Discord guild roles
+type DiscordGuildRolesOutput struct {
+	Body DiscordGuildRolesResponse
+}
+
+// DiscordGuildRolesResponse contains the Discord roles from a guild
+type DiscordGuildRolesResponse struct {
+	GuildID string                `json:"guild_id" example:"123456789012345678" doc:"Discord guild ID"`
+	Roles   []DiscordRoleResponse `json:"roles" doc:"List of Discord roles in the guild"`
+}
+
+// DiscordRoleResponse represents a Discord role
+type DiscordRoleResponse struct {
+	ID          string `json:"id" example:"987654321098765432" doc:"Discord role ID"`
+	Name        string `json:"name" example:"@everyone" doc:"Discord role name"`
+	Color       int    `json:"color" example:"3066993" doc:"Role color as integer"`
+	Hoist       bool   `json:"hoist" example:"true" doc:"Whether role is displayed separately"`
+	Position    int    `json:"position" example:"1" doc:"Role position in hierarchy"`
+	Permissions string `json:"permissions" example:"104324161" doc:"Role permissions bitfield"`
+	Managed     bool   `json:"managed" example:"false" doc:"Whether role is managed by bot/integration"`
+	Mentionable bool   `json:"mentionable" example:"true" doc:"Whether role can be mentioned"`
+}
+
 // Module Status Output
 
 // DiscordStatusOutput represents the Discord module status response
@@ -218,6 +243,35 @@ type DiscordStatusResponse struct {
 	LastSyncAt        *time.Time `json:"last_sync_at,omitempty" example:"2025-01-10T12:00:00Z" doc:"Last synchronization timestamp"`
 	DatabaseConnected bool       `json:"database_connected" example:"true" doc:"Database connectivity status"`
 	DiscordAPIHealthy bool       `json:"discord_api_healthy" example:"true" doc:"Discord API connectivity status"`
+}
+
+// Auto-Join Outputs
+
+// GuildAutoJoinOutput represents the result of auto-joining guilds
+type GuildAutoJoinOutput struct {
+	Body GuildAutoJoinResponse
+}
+
+// GuildAutoJoinResponse contains the results of auto-joining Discord guilds
+type GuildAutoJoinResponse struct {
+	UserID        string            `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000" doc:"Go Falcon user UUID"`
+	DiscordUserID string            `json:"discord_user_id" example:"123456789012345678" doc:"Discord user ID"`
+	GuildsJoined  []GuildJoinResult `json:"guilds_joined" doc:"Successfully joined guilds"`
+	GuildsFailed  []GuildJoinResult `json:"guilds_failed" doc:"Failed guild join attempts"`
+	TotalGuilds   int               `json:"total_guilds" example:"3" doc:"Total guilds processed"`
+	SuccessCount  int               `json:"success_count" example:"2" doc:"Number of successful joins"`
+	FailureCount  int               `json:"failure_count" example:"1" doc:"Number of failed joins"`
+	ProcessedAt   time.Time         `json:"processed_at" example:"2025-01-10T12:00:00Z" doc:"When processing completed"`
+}
+
+// GuildJoinResult represents the result of attempting to join a specific guild
+type GuildJoinResult struct {
+	GuildID       string   `json:"guild_id" example:"123456789012345678" doc:"Discord guild ID"`
+	GuildName     string   `json:"guild_name" example:"My Discord Server" doc:"Discord guild name"`
+	Status        string   `json:"status" example:"joined" enum:"joined,already_member,failed" doc:"Join status"`
+	RolesAssigned []string `json:"roles_assigned,omitempty" example:"[\"Member\", \"Pilot\"]" doc:"Discord role names assigned"`
+	RoleIDs       []string `json:"role_ids,omitempty" example:"[\"987654321\", \"876543210\"]" doc:"Discord role IDs assigned"`
+	Error         string   `json:"error,omitempty" example:"Bot lacks permission" doc:"Error message if join failed"`
 }
 
 // Error Responses

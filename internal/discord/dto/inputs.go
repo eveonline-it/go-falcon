@@ -73,6 +73,13 @@ type GetGuildConfigInput struct {
 	GuildID       string `path:"guild_id" required:"true" example:"123456789012345678" doc:"Discord guild ID"`
 }
 
+// GetGuildRolesInput represents a request to get Discord guild roles
+type GetGuildRolesInput struct {
+	Authorization string `header:"Authorization" example:"Bearer your-jwt-token" doc:"Bearer token for authentication"`
+	Cookie        string `header:"Cookie" example:"falcon_auth_token=your-token" doc:"Authentication cookie"`
+	GuildID       string `path:"guild_id" required:"true" example:"123456789012345678" doc:"Discord guild ID"`
+}
+
 // ListGuildConfigsInput represents a request to list guild configurations
 type ListGuildConfigsInput struct {
 	Authorization string `header:"Authorization" example:"Bearer your-jwt-token" doc:"Bearer token for authentication"`

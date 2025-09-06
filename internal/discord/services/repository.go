@@ -449,6 +449,33 @@ func (r *Repository) ListRoleMappings(ctx context.Context, filter bson.M, page, 
 	return mappings, total, nil
 }
 
+// GetRoleMappingsByGroupIDs gets role mappings for specific group IDs
+func (r *Repository) GetRoleMappingsByGroupIDs(ctx context.Context, groupIDs []primitive.ObjectID) ([]*models.DiscordRoleMapping, error) {
+	collection := r.db.Collection(models.DiscordRoleMappingsCollection)
+
+	filter := bson.M{
+		"group_id":  bson.M{"$in": groupIDs},
+		"is_active": true,
+	}
+
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find role mappings: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var mappings []*models.DiscordRoleMapping
+	for cursor.Next(ctx) {
+		var mapping models.DiscordRoleMapping
+		if err := cursor.Decode(&mapping); err != nil {
+			return nil, fmt.Errorf("failed to decode role mapping: %w", err)
+		}
+		mappings = append(mappings, &mapping)
+	}
+
+	return mappings, nil
+}
+
 // OAuth State Operations
 
 // CreateOAuthState creates a new OAuth state record

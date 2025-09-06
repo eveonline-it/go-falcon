@@ -416,7 +416,41 @@ func (s *SyncService) syncUser(ctx context.Context, discordUser *models.DiscordU
 	if member == nil {
 		// User is not a member of this guild
 		if len(requiredRoleIDs) > 0 {
-			result.Error = "user is not a member of the guild but should have roles"
+			// User should have roles but isn't in guild - attempt to add them
+			if !dryRun {
+				// Decrypt user's access token for guild join
+				accessToken := s.decryptAccessToken(discordUser.AccessToken)
+				if accessToken == "" {
+					result.Error = "user is not a member of the guild and access token unavailable for auto-join"
+					return result
+				}
+
+				// Attempt to add user to guild with their required roles
+				err := s.botService.AddGuildMember(ctx, guildID, discordUser.DiscordID, accessToken, botToken, requiredRoleIDs)
+				if err != nil {
+					result.Error = fmt.Sprintf("user is not a member of the guild and auto-join failed: %v", err)
+					return result
+				}
+
+				// Record roles as added (since they were assigned during join)
+				for _, roleID := range requiredRoleIDs {
+					result.RolesAdded = append(result.RolesAdded, roleID)
+				}
+
+				slog.InfoContext(ctx, "Auto-joined user to guild during sync",
+					"user_id", discordUser.UserID,
+					"discord_id", discordUser.DiscordID,
+					"guild_id", guildID,
+					"roles_assigned", len(requiredRoleIDs))
+
+				result.Success = true
+				return result
+			} else {
+				// In dry run, just indicate what would happen
+				result.RolesAdded = requiredRoleIDs
+				result.Success = true
+				return result
+			}
 		} else {
 			result.Success = true // User not in guild and doesn't need roles
 		}
@@ -498,6 +532,14 @@ func (s *SyncService) syncUser(ctx context.Context, discordUser *models.DiscordU
 	}
 
 	return result
+}
+
+// decryptAccessToken decrypts a stored access token
+// TODO: Implement proper decryption - currently returns token as-is
+func (s *SyncService) decryptAccessToken(encryptedToken string) string {
+	// For now, return as-is since encryption is not implemented
+	// In production, this should use proper decryption
+	return encryptedToken
 }
 
 // GetSyncStatus gets recent synchronization status

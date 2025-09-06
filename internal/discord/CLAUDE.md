@@ -136,6 +136,32 @@ Sophisticated role synchronization system:
 - **Selective Sync**: Sync specific users, guilds, or role mappings
 - **Dry Run Mode**: Preview changes before execution
 
+### Automatic Guild Joining
+
+**NEW FEATURE**: Automatic Discord server joining based on group role mappings.
+
+#### Auto-Join Process
+1. **Trigger Events**: Auto-join occurs during Discord OAuth authentication or account linking
+2. **Group Analysis**: System fetches user's Go Falcon group memberships
+3. **Role Mapping Resolution**: Determines Discord guilds where user has role mappings
+4. **Guild Addition**: Automatically adds user to mapped guilds with appropriate roles
+5. **Sync Integration**: Role synchronization also handles guild membership during periodic syncs
+
+#### Auto-Join Features
+- **OAuth Integration**: Seamless auto-join during Discord authentication flow
+- **Role Assignment**: Users get appropriate Discord roles upon joining
+- **Graceful Failure**: Auto-join failures don't prevent successful authentication
+- **Sync Recovery**: Periodic role sync will attempt to add users who should be in guilds
+- **Comprehensive Logging**: Detailed audit trail of all auto-join operations
+- **Dry Run Support**: Preview auto-join operations during sync dry runs
+
+#### Technical Implementation
+- Uses Discord API `PUT /guilds/{guild.id}/members/{user.id}` endpoint
+- Requires user's OAuth `access_token` with `guilds.join` scope
+- Leverages existing role mapping configuration - no additional setup needed
+- Respects guild configuration (disabled guilds are skipped)
+- Handles Discord API rate limits and error responses
+
 ## API Endpoints
 
 ### Authentication Support
@@ -418,7 +444,7 @@ DISCORD_REDIRECT_URI=http://localhost:3000/api/discord/auth/callback
 # Note: Bot tokens are stored per-guild in the database, not as environment variables
 
 # Discord OAuth Scopes (space-separated)
-DISCORD_SCOPES=identify guilds
+DISCORD_SCOPES="identify guilds guilds.join"
 
 # Discord Sync Settings
 DISCORD_SYNC_INTERVAL=15m
@@ -441,19 +467,22 @@ DISCORD_TOKEN_REFRESH_THRESHOLD=24h
 |-------|---------|----------|
 | `identify` | Get user profile information | Yes |
 | `guilds` | See user's Discord servers | Yes |
-| `guilds.join` | Add users to servers | Optional |
+| `guilds.join` | Add users to servers (required for auto-join) | Yes |
 | `role_connections.write` | Manage role connections | Optional |
 
 ### Bot Permissions
 
-Required Discord bot permissions for role management:
+Required Discord bot permissions for role management and auto-join:
 
-| Permission | Purpose | Required |
-|------------|---------|----------|
-| `Manage Roles` | Add/remove roles from members | Yes |
-| `View Channels` | Read guild information | Yes |
-| `Send Messages` | Send audit/notification messages | Optional |
-| `Embed Links` | Send rich embed messages | Optional |
+| Permission | Purpose | Required | Auto-Join |
+|------------|---------|----------|-----------|
+| `Manage Roles` | Add/remove roles from members | Yes | Yes |
+| `View Channels` | Read guild information | Yes | No |
+| `Create Instant Invite` | Add members to guild | Yes | **Yes** |
+| `Send Messages` | Send audit/notification messages | Optional | No |
+| `Embed Links` | Send rich embed messages | Optional | No |
+
+**Note for Auto-Join**: The bot must have `Create Instant Invite` permission to add users to the guild using the `AddGuildMember` API. Without this permission, auto-join operations will fail with a 403 Forbidden error.
 
 ## Scheduled Tasks Integration
 
@@ -971,6 +1000,111 @@ grep "discord_sync" /var/log/go-falcon/app.log
 - `go-falcon/pkg/handlers` - HTTP utilities
 - `go-falcon/internal/groups` - Group membership service
 - `go-falcon/internal/auth` - Authentication integration
+
+## Production Deployment Checklist
+
+### Pre-Deployment Requirements
+
+**Discord OAuth Application Configuration:**
+- ✅ Discord application created at https://discord.com/developers/applications
+- ✅ OAuth redirect URI configured: `https://go.eveonline.it/discord/auth/callback`
+- ✅ Required OAuth scopes enabled: `identify`, `guilds`, `guilds.join`
+
+**Environment Configuration:**
+- ✅ `DISCORD_CLIENT_ID` set to Discord application client ID  
+- ✅ `DISCORD_CLIENT_SECRET` set to Discord application client secret
+- ✅ `DISCORD_REDIRECT_URI` matches OAuth app configuration
+- ✅ `DISCORD_SCOPES="identify guilds guilds.join"` includes auto-join scope
+
+**Discord Bot Configuration:**
+- ✅ Discord bot created and added to target guilds
+- ✅ Bot tokens encrypted and stored via guild configuration API
+- ✅ Bot permissions: `Manage Roles` + `Create Instant Invite` (for auto-join)
+- ✅ Role mappings configured between Go Falcon groups and Discord roles
+
+**Database Setup:**
+- ✅ MongoDB collections created and indexed
+- ✅ Redis available for session management
+- ✅ Database migration status verified
+
+### Deployment Verification Steps
+
+**1. OAuth Flow Testing:**
+```bash
+# Test OAuth login URL generation
+curl "https://go.eveonline.it/api/discord/auth/login"
+
+# Verify guilds.join scope is requested in auth_url response
+```
+
+**2. Auto-Join Functionality Testing:**
+```bash
+# Complete OAuth flow and verify auto-join occurs
+# Check application logs for auto-join success/failure messages
+```
+
+**3. Guild Configuration Verification:**
+```bash
+# Verify guild configurations
+curl -H "Authorization: Bearer token" \
+  "https://go.eveonline.it/api/discord/guilds"
+
+# Check bot permissions in each guild
+curl -H "Authorization: Bearer token" \
+  "https://go.eveonline.it/api/discord/guilds/{guild_id}"
+```
+
+**4. Role Mapping Validation:**
+```bash
+# Verify role mappings exist
+curl -H "Authorization: Bearer token" \
+  "https://go.eveonline.it/api/discord/guilds/{guild_id}/role-mappings"
+```
+
+**5. Sync System Testing:**
+```bash
+# Test manual sync including auto-join
+curl -X POST -H "Authorization: Bearer token" \
+  "https://go.eveonline.it/api/discord/sync/user/{user_id}"
+```
+
+### Monitoring & Observability
+
+**Key Metrics to Monitor:**
+- Discord OAuth success/failure rates
+- Auto-join success/failure rates  
+- Discord API rate limiting incidents
+- Bot permission errors
+- Guild membership changes
+
+**Log Analysis:**
+```bash
+# Monitor auto-join logs
+grep "auto-join" /var/log/go-falcon/app.log
+
+# Monitor Discord API errors  
+grep "discord.*error" /var/log/go-falcon/app.log
+
+# Monitor role synchronization
+grep "discord.*sync" /var/log/go-falcon/app.log
+```
+
+**Health Check Endpoints:**
+- `GET /api/discord/status` - Module health status
+- `GET /api/discord/sync/status` - Sync operation status
+
+### Troubleshooting Common Issues
+
+**Auto-Join Failures:**
+1. **"Bot lacks permission to add members"** - Verify bot has `Create Instant Invite` permission
+2. **"User lacks guilds.join scope"** - Verify `DISCORD_SCOPES` environment variable is correct  
+3. **"Guild not found"** - Verify bot is member of target guild
+4. **"Access token expired"** - Token refresh scheduled task should handle this automatically
+
+**OAuth Flow Issues:**
+1. **"Invalid redirect URI"** - Verify Discord app redirect URI matches `DISCORD_REDIRECT_URI` 
+2. **"Invalid client credentials"** - Verify `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`
+3. **"State parameter invalid"** - Check OAuth state expiration settings
 
 ## Future Enhancements
 

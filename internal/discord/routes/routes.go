@@ -152,6 +152,16 @@ func (r *Routes) RegisterUnifiedRoutes(api huma.API) {
 		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
 	}, r.listGuildConfigs)
 
+	huma.Register(api, huma.Operation{
+		OperationID: "getGuildRoles",
+		Method:      http.MethodGet,
+		Path:        "/discord/guilds/{guild_id}/roles",
+		Summary:     "Get Discord guild roles",
+		Description: "Fetch all roles from a Discord guild using the Discord API",
+		Tags:        []string{"Discord Guilds"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.getGuildRoles)
+
 	// Synchronization routes
 	huma.Register(api, huma.Operation{
 		OperationID: "triggerManualSync",
@@ -420,6 +430,15 @@ func (r *Routes) listGuildConfigs(ctx context.Context, input *dto.ListGuildConfi
 	}
 
 	return r.service.ListGuildConfigs(ctx, input)
+}
+
+func (r *Routes) getGuildRoles(ctx context.Context, input *dto.GetGuildRolesInput) (*dto.DiscordGuildRolesOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.service.GetGuildRoles(ctx, input)
 }
 
 // Synchronization handlers

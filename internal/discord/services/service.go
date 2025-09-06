@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -16,10 +17,11 @@ import (
 
 // Service is the main Discord service that coordinates all operations
 type Service struct {
-	repo         *Repository
-	oauthService *OAuthService
-	botService   *BotService
-	syncService  *SyncService
+	repo          *Repository
+	oauthService  *OAuthService
+	botService    *BotService
+	syncService   *SyncService
+	groupsService GroupsServiceInterface
 }
 
 // NewService creates a new Discord service
@@ -30,10 +32,11 @@ func NewService(db *database.MongoDB, groupsService GroupsServiceInterface) *Ser
 	syncService := NewSyncService(repo, botService, groupsService)
 
 	return &Service{
-		repo:         repo,
-		oauthService: oauthService,
-		botService:   botService,
-		syncService:  syncService,
+		repo:          repo,
+		oauthService:  oauthService,
+		botService:    botService,
+		syncService:   syncService,
+		groupsService: groupsService,
 	}
 }
 
@@ -95,9 +98,34 @@ func (s *Service) HandleCallback(ctx context.Context, input *dto.DiscordCallback
 		return nil, "", fmt.Errorf("failed to create/update Discord user: %w", err)
 	}
 
+	// Auto-join user to mapped guilds
+	autoJoinResult, err := s.JoinUserToMappedGuilds(ctx, *targetUserID, userInfo.ID, tokenResponse.AccessToken)
+	if err != nil {
+		// Log error but don't fail the entire OAuth process
+		slog.WarnContext(ctx, "Auto-join to guilds failed, but OAuth linking succeeded",
+			"user_id", *targetUserID,
+			"discord_id", userInfo.ID,
+			"error", err)
+	} else {
+		slog.InfoContext(ctx, "Auto-join to guilds completed",
+			"user_id", *targetUserID,
+			"discord_id", userInfo.ID,
+			"guilds_joined", autoJoinResult.SuccessCount,
+			"guilds_failed", autoJoinResult.FailureCount)
+	}
+
 	message := "Discord account linked successfully"
 	if storedUserID == nil {
 		message = "Discord authentication completed successfully"
+	}
+
+	// Add guild join info to success message if applicable
+	if autoJoinResult != nil && autoJoinResult.SuccessCount > 0 {
+		if autoJoinResult.SuccessCount == 1 {
+			message += fmt.Sprintf(" and automatically joined %d Discord server", autoJoinResult.SuccessCount)
+		} else {
+			message += fmt.Sprintf(" and automatically joined %d Discord servers", autoJoinResult.SuccessCount)
+		}
 	}
 
 	slog.InfoContext(ctx, "Discord OAuth callback completed",
@@ -135,14 +163,40 @@ func (s *Service) LinkAccount(ctx context.Context, input *dto.LinkDiscordAccount
 		return nil, fmt.Errorf("failed to link Discord account: %w", err)
 	}
 
+	// Auto-join user to mapped guilds
+	autoJoinResult, err := s.JoinUserToMappedGuilds(ctx, userID, userInfo.ID, tokenResponse.AccessToken)
+	if err != nil {
+		// Log error but don't fail the entire linking process
+		slog.WarnContext(ctx, "Auto-join to guilds failed, but account linking succeeded",
+			"user_id", userID,
+			"discord_id", userInfo.ID,
+			"error", err)
+	} else {
+		slog.InfoContext(ctx, "Auto-join to guilds completed",
+			"user_id", userID,
+			"discord_id", userInfo.ID,
+			"guilds_joined", autoJoinResult.SuccessCount,
+			"guilds_failed", autoJoinResult.FailureCount)
+	}
+
 	slog.InfoContext(ctx, "Discord account linked via API",
 		"user_id", userID,
 		"discord_id", userInfo.ID,
 		"username", userInfo.Username)
 
+	message := "Discord account linked successfully"
+	// Add guild join info to success message if applicable
+	if autoJoinResult != nil && autoJoinResult.SuccessCount > 0 {
+		if autoJoinResult.SuccessCount == 1 {
+			message += fmt.Sprintf(" and automatically joined %d Discord server", autoJoinResult.SuccessCount)
+		} else {
+			message += fmt.Sprintf(" and automatically joined %d Discord servers", autoJoinResult.SuccessCount)
+		}
+	}
+
 	return &dto.DiscordMessageOutput{
 		Body: dto.DiscordMessageResponse{
-			Message: "Discord account linked successfully",
+			Message: message,
 		},
 	}, nil
 }
@@ -335,7 +389,7 @@ func (s *Service) CreateGuildConfig(ctx context.Context, input *dto.CreateGuildC
 		return nil, fmt.Errorf("failed to check existing guild: %w", err)
 	}
 	if existing != nil {
-		return nil, fmt.Errorf("guild configuration already exists")
+		return nil, huma.Error409Conflict("Guild configuration already exists for this Discord guild")
 	}
 
 	// Create guild configuration
@@ -473,6 +527,49 @@ func (s *Service) ListGuildConfigs(ctx context.Context, input *dto.ListGuildConf
 	}, nil
 }
 
+// GetGuildRoles gets all Discord roles from a guild
+func (s *Service) GetGuildRoles(ctx context.Context, input *dto.GetGuildRolesInput) (*dto.DiscordGuildRolesOutput, error) {
+	// Get guild configuration to retrieve bot token
+	config, err := s.repo.GetGuildConfigByGuildID(ctx, input.GuildID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get guild configuration: %w", err)
+	}
+	if config == nil {
+		return nil, fmt.Errorf("guild configuration not found")
+	}
+
+	// Decrypt bot token
+	botToken := s.botService.DecryptBotToken(config.BotToken)
+
+	// Fetch roles from Discord API
+	discordRoles, err := s.botService.GetGuildRoles(ctx, input.GuildID, botToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch guild roles from Discord: %w", err)
+	}
+
+	// Convert Discord roles to response format
+	roles := make([]dto.DiscordRoleResponse, len(discordRoles))
+	for i, role := range discordRoles {
+		roles[i] = dto.DiscordRoleResponse{
+			ID:          role.ID,
+			Name:        role.Name,
+			Color:       role.Color,
+			Hoist:       role.Hoist,
+			Position:    role.Position,
+			Permissions: role.Permissions,
+			Managed:     role.Managed,
+			Mentionable: role.Mentionable,
+		}
+	}
+
+	return &dto.DiscordGuildRolesOutput{
+		Body: dto.DiscordGuildRolesResponse{
+			GuildID: input.GuildID,
+			Roles:   roles,
+		},
+	}, nil
+}
+
 // Role Mapping Methods
 
 // CreateRoleMapping creates a new Discord role mapping
@@ -503,7 +600,7 @@ func (s *Service) CreateRoleMapping(ctx context.Context, input *dto.CreateRoleMa
 		return nil, fmt.Errorf("failed to check existing role mapping: %w", err)
 	}
 	if len(existingMappings) > 0 {
-		return nil, fmt.Errorf("role mapping already exists for this guild and group")
+		return nil, huma.Error409Conflict("A role mapping already exists for this guild and group combination. Each group can only have one role mapping per Discord guild.")
 	}
 
 	// Create role mapping
@@ -939,4 +1036,161 @@ func (s *Service) PeriodicSync(ctx context.Context) error {
 		"processing_time_ms", stats.ProcessingTime)
 
 	return nil
+}
+
+// Auto-Join Methods
+
+// JoinUserToMappedGuilds automatically joins user to all guilds where they have role mappings
+func (s *Service) JoinUserToMappedGuilds(ctx context.Context, userID, discordUserID, accessToken string) (*dto.GuildAutoJoinResponse, error) {
+	startTime := time.Now()
+
+	slog.InfoContext(ctx, "Starting auto-join process for user",
+		"user_id", userID,
+		"discord_user_id", discordUserID)
+
+	// 1. Get user's Go Falcon groups
+	userGroups, err := s.groupsService.GetUserGroups(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user groups: %w", err)
+	}
+
+	slog.InfoContext(ctx, "Retrieved user groups",
+		"user_id", userID,
+		"group_count", len(userGroups))
+
+	// 2. Convert group IDs to ObjectIDs
+	groupIDs := make([]primitive.ObjectID, len(userGroups))
+	for i, group := range userGroups {
+		groupIDs[i] = group.ID
+	}
+
+	// 3. Get role mappings for user's groups
+	roleMappings, err := s.repo.GetRoleMappingsByGroupIDs(ctx, groupIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role mappings: %w", err)
+	}
+
+	slog.InfoContext(ctx, "Found role mappings",
+		"user_id", userID,
+		"mapping_count", len(roleMappings))
+
+	// 4. Group mappings by guild
+	guildMappings := make(map[string][]string) // guildID -> roleIDs
+	guildNames := make(map[string]string)      // guildID -> guildName
+
+	for _, mapping := range roleMappings {
+		guildMappings[mapping.GuildID] = append(guildMappings[mapping.GuildID], mapping.DiscordRoleID)
+		// Store guild name from first mapping encountered for this guild
+		if _, exists := guildNames[mapping.GuildID]; !exists {
+			// Get guild name from config
+			if guildConfig, err := s.repo.GetGuildConfigByGuildID(ctx, mapping.GuildID); err == nil && guildConfig != nil {
+				guildNames[mapping.GuildID] = guildConfig.GuildName
+			} else {
+				guildNames[mapping.GuildID] = "Unknown Guild"
+			}
+		}
+	}
+
+	// 5. Process each guild
+	var guildsJoined []dto.GuildJoinResult
+	var guildsFailed []dto.GuildJoinResult
+
+	for guildID, roleIDs := range guildMappings {
+		result := s.processGuildJoin(ctx, guildID, guildNames[guildID], discordUserID, accessToken, roleIDs)
+
+		if result.Status == "failed" {
+			guildsFailed = append(guildsFailed, result)
+		} else {
+			guildsJoined = append(guildsJoined, result)
+		}
+	}
+
+	slog.InfoContext(ctx, "Auto-join process completed",
+		"user_id", userID,
+		"total_guilds", len(guildMappings),
+		"successful_joins", len(guildsJoined),
+		"failed_joins", len(guildsFailed),
+		"processing_time_ms", time.Since(startTime).Milliseconds())
+
+	return &dto.GuildAutoJoinResponse{
+		UserID:        userID,
+		DiscordUserID: discordUserID,
+		GuildsJoined:  guildsJoined,
+		GuildsFailed:  guildsFailed,
+		TotalGuilds:   len(guildMappings),
+		SuccessCount:  len(guildsJoined),
+		FailureCount:  len(guildsFailed),
+		ProcessedAt:   time.Now(),
+	}, nil
+}
+
+// processGuildJoin attempts to join a user to a specific guild with their roles
+func (s *Service) processGuildJoin(ctx context.Context, guildID, guildName, discordUserID, accessToken string, roleIDs []string) dto.GuildJoinResult {
+	// Get guild configuration for bot token
+	guildConfig, err := s.repo.GetGuildConfigByGuildID(ctx, guildID)
+	if err != nil {
+		return dto.GuildJoinResult{
+			GuildID:   guildID,
+			GuildName: guildName,
+			Status:    "failed",
+			Error:     fmt.Sprintf("Failed to get guild config: %v", err),
+		}
+	}
+
+	if guildConfig == nil {
+		return dto.GuildJoinResult{
+			GuildID:   guildID,
+			GuildName: guildName,
+			Status:    "failed",
+			Error:     "Guild configuration not found",
+		}
+	}
+
+	if !guildConfig.IsEnabled {
+		return dto.GuildJoinResult{
+			GuildID:   guildID,
+			GuildName: guildName,
+			Status:    "failed",
+			Error:     "Guild sync is disabled",
+		}
+	}
+
+	// Decrypt bot token
+	botToken := s.botService.DecryptBotToken(guildConfig.BotToken)
+
+	// Get role names for display
+	roleNames := make([]string, 0, len(roleIDs))
+	if roles, err := s.botService.GetGuildRoles(ctx, guildID, botToken); err == nil {
+		roleNameMap := make(map[string]string)
+		for _, role := range roles {
+			roleNameMap[role.ID] = role.Name
+		}
+		for _, roleID := range roleIDs {
+			if roleName, exists := roleNameMap[roleID]; exists {
+				roleNames = append(roleNames, roleName)
+			}
+		}
+	}
+
+	// Attempt to add user to guild
+	err = s.botService.AddGuildMember(ctx, guildID, discordUserID, accessToken, botToken, roleIDs)
+	if err != nil {
+		return dto.GuildJoinResult{
+			GuildID:   guildID,
+			GuildName: guildName,
+			Status:    "failed",
+			RoleIDs:   roleIDs,
+			Error:     err.Error(),
+		}
+	}
+
+	// Check if user was added or already a member based on the lack of error
+	// The AddGuildMember method logs whether the user was added or already a member
+	return dto.GuildJoinResult{
+		GuildID:       guildID,
+		GuildName:     guildName,
+		Status:        "joined", // Could be "joined" or "already_member" based on HTTP status
+		RolesAssigned: roleNames,
+		RoleIDs:       roleIDs,
+	}
 }

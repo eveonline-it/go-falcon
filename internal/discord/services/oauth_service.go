@@ -57,7 +57,7 @@ func NewOAuthService(repo *Repository) *OAuthService {
 		ClientID:     config.GetEnv("DISCORD_CLIENT_ID", ""),
 		ClientSecret: config.GetEnv("DISCORD_CLIENT_SECRET", ""),
 		RedirectURI:  config.GetEnv("DISCORD_REDIRECT_URI", "http://localhost:3000/api/discord/auth/callback"),
-		Scopes:       []string{"identify", "guilds"},
+		Scopes:       []string{"identify", "guilds", "guilds.join"},
 	}
 
 	// Override scopes if specified in environment

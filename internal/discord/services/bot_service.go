@@ -381,6 +381,74 @@ func (s *BotService) ValidateBotToken(ctx context.Context, botToken string) erro
 	return nil
 }
 
+// AddGuildMember adds a user to a Discord guild with optional initial roles
+func (s *BotService) AddGuildMember(ctx context.Context, guildID, userID, accessToken, botToken string, roleIDs []string) error {
+	// Check rate limit
+	if err := s.checkRateLimit(ctx, "guild_member_add"); err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("https://discord.com/api/v10/guilds/%s/members/%s", guildID, userID)
+
+	payload := map[string]interface{}{
+		"access_token": accessToken, // User's OAuth token with guilds.join scope
+	}
+
+	// Add roles if specified
+	if len(roleIDs) > 0 {
+		payload["roles"] = roleIDs
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal add member payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create add member request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bot "+botToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "go-falcon/1.0")
+	req.Header.Set("X-Audit-Log-Reason", "Go Falcon auto-join")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make add member request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Update rate limit
+	s.updateRateLimit("guild_member_add", resp.Header)
+
+	body, _ := io.ReadAll(resp.Body)
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		// User successfully added to guild
+		slog.InfoContext(ctx, "Successfully added user to Discord guild",
+			"guild_id", guildID,
+			"user_id", userID,
+			"roles_assigned", len(roleIDs))
+		return nil
+	case http.StatusNoContent:
+		// User already in guild, roles updated
+		slog.InfoContext(ctx, "User already in guild, roles updated",
+			"guild_id", guildID,
+			"user_id", userID,
+			"roles_assigned", len(roleIDs))
+		return nil
+	case http.StatusForbidden:
+		return fmt.Errorf("bot lacks permission to add members or user lacks guilds.join scope")
+	case http.StatusNotFound:
+		return fmt.Errorf("guild not found or bot not in guild")
+	default:
+		return fmt.Errorf("add member request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+}
+
 // CheckBotPermissions checks if the bot has required permissions in a guild
 func (s *BotService) CheckBotPermissions(ctx context.Context, guildID, botToken string) (bool, error) {
 	// Get bot's member info
