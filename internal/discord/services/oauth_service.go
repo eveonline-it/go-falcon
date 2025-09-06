@@ -135,11 +135,15 @@ func (s *OAuthService) HandleCallback(ctx context.Context, code, state string) (
 		return nil, nil, nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Discord OAuth callback processed",
+	var userID string
+	if storedState.UserID != nil {
+		userID = *storedState.UserID
+	}
+
+	slog.InfoContext(ctx, "Discord OAuth callback completed",
+		"user_id", userID,
 		"discord_id", userInfo.ID,
-		"username", userInfo.Username,
-		"user_id", storedState.UserID,
-		"scopes", tokenResponse.Scope)
+		"username", userInfo.Username)
 
 	return userInfo, tokenResponse, storedState.UserID, nil
 }

@@ -50,6 +50,37 @@ func (sa *SitemapAdapter) RequireAuth(ctx context.Context, authHeader, cookieHea
 	return sa.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
 }
 
+// DiscordAdapter provides Discord-specific permission methods
+type DiscordAdapter struct {
+	*ModuleAdapter
+}
+
+// NewDiscordAdapter creates a new Discord adapter
+func NewDiscordAdapter(permissionMiddleware *PermissionMiddleware) *DiscordAdapter {
+	return &DiscordAdapter{
+		ModuleAdapter: NewModuleAdapter(permissionMiddleware),
+	}
+}
+
+// RequireAuth ensures the user is authenticated
+func (da *DiscordAdapter) RequireAuth(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return da.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// RequireDiscordAdmin checks for Discord administration permissions
+func (da *DiscordAdapter) RequireDiscordAdmin(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return da.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, "discord:admin:full")
+}
+
+// RequireDiscordManagement checks for Discord management permissions
+func (da *DiscordAdapter) RequireDiscordManagement(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return da.permissionMiddleware.RequireAnyPermission(ctx, authHeader, cookieHeader, []string{
+		"discord:admin:full",
+		"discord:guilds:manage",
+		"discord:sync:manage",
+	})
+}
+
 // SchedulerAdapter provides scheduler-specific permission methods
 type SchedulerAdapter struct {
 	*ModuleAdapter

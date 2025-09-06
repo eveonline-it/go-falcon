@@ -443,6 +443,23 @@ func (m *Module) getDefaultRoutes() []dto.CreateRouteInput {
 				Icon:        stringPtr("handshake"),
 			},
 		},
+		{
+			Body: dto.CreateRouteBody{
+				RouteID:     "admin-discord",
+				Path:        "/admin/discord",
+				Component:   "DiscordAdmin",
+				Name:        "Discord Bot",
+				Type:        "admin",
+				ParentID:    stringPtr("folder-administration"),
+				NavPosition: "admin",
+				NavOrder:    9,
+				ShowInNav:   true,
+				Title:       "Discord Bot Management",
+				LazyLoad:    true,
+				IsEnabled:   true,
+				Icon:        stringPtr("discord"),
+			},
+		},
 
 		// =============================================================================
 		// ALLIANCE ROUTES (Children of folder-alliance)

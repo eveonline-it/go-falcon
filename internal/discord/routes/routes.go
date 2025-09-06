@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -12,31 +13,25 @@ import (
 	"go-falcon/internal/discord/services"
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/handlers"
+	"go-falcon/pkg/middleware"
 )
 
-// Module represents the Discord routes module
-type Module struct {
-	service    *services.Service
-	middleware MiddlewareInterface
+// Routes represents the Discord routes module
+type Routes struct {
+	service        *services.Service
+	discordAdapter *middleware.DiscordAdapter
 }
 
-// MiddlewareInterface defines the middleware interface for authentication
-type MiddlewareInterface interface {
-	RequireAuth() func(http.Handler) http.Handler
-	OptionalAuth() func(http.Handler) http.Handler
-	GetAuthenticatedUser(r *http.Request) (map[string]interface{}, bool)
-}
-
-// NewModule creates a new Discord routes module
-func NewModule(service *services.Service, middleware MiddlewareInterface) *Module {
-	return &Module{
-		service:    service,
-		middleware: middleware,
+// NewRoutes creates a new Discord routes module
+func NewRoutes(service *services.Service, discordAdapter *middleware.DiscordAdapter) *Routes {
+	return &Routes{
+		service:        service,
+		discordAdapter: discordAdapter,
 	}
 }
 
 // RegisterUnifiedRoutes registers Discord routes on the unified API
-func (m *Module) RegisterUnifiedRoutes(api huma.API) {
+func (r *Routes) RegisterUnifiedRoutes(api huma.API) {
 	// Authentication routes
 	huma.Register(api, huma.Operation{
 		OperationID: "getDiscordAuthURL",
@@ -45,7 +40,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Get Discord OAuth authorization URL",
 		Description: "Generate Discord OAuth authorization URL for user authentication or account linking",
 		Tags:        []string{"Discord Authentication"},
-	}, m.getDiscordAuthURL)
+	}, r.getDiscordAuthURL)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "discordCallback",
@@ -54,7 +49,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Handle Discord OAuth callback",
 		Description: "Process Discord OAuth callback and complete authentication or account linking",
 		Tags:        []string{"Discord Authentication"},
-	}, m.discordCallback)
+	}, r.discordCallback)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "linkDiscordAccount",
@@ -63,8 +58,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Link Discord account to existing user",
 		Description: "Link a Discord account to an existing Go Falcon user using OAuth tokens",
 		Tags:        []string{"Discord Authentication"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.linkDiscordAccount)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.linkDiscordAccount)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "unlinkDiscordAccount",
@@ -73,8 +68,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Unlink Discord account",
 		Description: "Unlink a Discord account from the current Go Falcon user",
 		Tags:        []string{"Discord Authentication"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.unlinkDiscordAccount)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.unlinkDiscordAccount)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "getDiscordAuthStatus",
@@ -83,7 +78,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Get Discord authentication status",
 		Description: "Check if user has Discord accounts linked and get status information",
 		Tags:        []string{"Discord Authentication"},
-	}, m.getDiscordAuthStatus)
+	}, r.getDiscordAuthStatus)
 
 	// User management routes
 	huma.Register(api, huma.Operation{
@@ -93,8 +88,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Get Discord user information",
 		Description: "Get Discord account information for a specific Go Falcon user",
 		Tags:        []string{"Discord Users"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.getDiscordUser)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.getDiscordUser)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "listDiscordUsers",
@@ -103,8 +98,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "List Discord users",
 		Description: "List all Discord users with filtering and pagination",
 		Tags:        []string{"Discord Users"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.listDiscordUsers)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.listDiscordUsers)
 
 	// Guild management routes
 	huma.Register(api, huma.Operation{
@@ -114,8 +109,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Create Discord guild configuration",
 		Description: "Add a new Discord guild configuration with bot token for role management",
 		Tags:        []string{"Discord Guilds"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.createGuildConfig)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.createGuildConfig)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "getGuildConfig",
@@ -124,8 +119,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Get Discord guild configuration",
 		Description: "Get configuration details for a specific Discord guild",
 		Tags:        []string{"Discord Guilds"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.getGuildConfig)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.getGuildConfig)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "updateGuildConfig",
@@ -134,8 +129,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Update Discord guild configuration",
 		Description: "Update configuration for an existing Discord guild",
 		Tags:        []string{"Discord Guilds"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.updateGuildConfig)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.updateGuildConfig)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "deleteGuildConfig",
@@ -144,8 +139,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Delete Discord guild configuration",
 		Description: "Remove a Discord guild configuration and all associated role mappings",
 		Tags:        []string{"Discord Guilds"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.deleteGuildConfig)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.deleteGuildConfig)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "listGuildConfigs",
@@ -154,8 +149,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "List Discord guild configurations",
 		Description: "List all Discord guild configurations with filtering and pagination",
 		Tags:        []string{"Discord Guilds"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.listGuildConfigs)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.listGuildConfigs)
 
 	// Synchronization routes
 	huma.Register(api, huma.Operation{
@@ -165,8 +160,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Trigger manual role synchronization",
 		Description: "Manually trigger Discord role synchronization for all guilds or specific targets",
 		Tags:        []string{"Discord Sync"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.triggerManualSync)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.triggerManualSync)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "syncUser",
@@ -175,8 +170,8 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Synchronize specific user roles",
 		Description: "Synchronize Discord roles for a specific Go Falcon user",
 		Tags:        []string{"Discord Sync"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.syncUser)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.syncUser)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "getSyncStatus",
@@ -185,8 +180,59 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Get synchronization status",
 		Description: "Get current and recent Discord role synchronization status",
 		Tags:        []string{"Discord Sync"},
-		Security:    []map[string][]string{{"bearerAuth": {}}},
-	}, m.getSyncStatus)
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.getSyncStatus)
+
+	// Role mapping routes
+	huma.Register(api, huma.Operation{
+		OperationID: "createRoleMapping",
+		Method:      http.MethodPost,
+		Path:        "/discord/guilds/{guild_id}/role-mappings",
+		Summary:     "Create Discord role mapping",
+		Description: "Create a new mapping between a Go Falcon group and Discord role",
+		Tags:        []string{"Discord Role Mappings"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.createRoleMapping)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "listRoleMappings",
+		Method:      http.MethodGet,
+		Path:        "/discord/guilds/{guild_id}/role-mappings",
+		Summary:     "List Discord role mappings",
+		Description: "List role mappings for a specific Discord guild with filtering",
+		Tags:        []string{"Discord Role Mappings"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.listRoleMappings)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "getRoleMapping",
+		Method:      http.MethodGet,
+		Path:        "/discord/role-mappings/{mapping_id}",
+		Summary:     "Get Discord role mapping",
+		Description: "Get details for a specific Discord role mapping",
+		Tags:        []string{"Discord Role Mappings"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.getRoleMapping)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "updateRoleMapping",
+		Method:      http.MethodPut,
+		Path:        "/discord/role-mappings/{mapping_id}",
+		Summary:     "Update Discord role mapping",
+		Description: "Update an existing Discord role mapping",
+		Tags:        []string{"Discord Role Mappings"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.updateRoleMapping)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "deleteRoleMapping",
+		Method:      http.MethodDelete,
+		Path:        "/discord/role-mappings/{mapping_id}",
+		Summary:     "Delete Discord role mapping",
+		Description: "Delete a Discord role mapping",
+		Tags:        []string{"Discord Role Mappings"},
+		Security:    []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}},
+	}, r.deleteRoleMapping)
 
 	// Module status route
 	huma.Register(api, huma.Operation{
@@ -196,240 +242,290 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API) {
 		Summary:     "Get Discord module status",
 		Description: "Check Discord module health and operational status",
 		Tags:        []string{"Module Status"},
-	}, m.getDiscordStatus)
+	}, r.getDiscordStatus)
 }
 
 // Authentication handlers
 
-func (m *Module) getDiscordAuthURL(ctx context.Context, input *dto.GetDiscordAuthURLInput) (*dto.DiscordAuthURLOutput, error) {
+func (r *Routes) getDiscordAuthURL(ctx context.Context, input *dto.GetDiscordAuthURLInput) (*dto.DiscordAuthURLOutput, error) {
 	// Get current user ID if available (for linking)
 	var userID *string
-	if m.middleware != nil {
-		if r, ok := ctx.Value("request").(*http.Request); ok {
-			if user, authenticated := m.middleware.GetAuthenticatedUser(r); authenticated {
-				if uid, ok := user["user_id"].(string); ok {
-					userID = &uid
-				}
-			}
+
+	// If this is for account linking, require authentication
+	if input.LinkToUser {
+		// For account linking, we need to know which user to link to
+		// This requires authentication
+		if input.Authorization == "" && input.Cookie == "" {
+			return nil, fmt.Errorf("authentication required for account linking")
 		}
+
+		user, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+		userID = &user.UserID
 	}
 
-	return m.service.GetAuthURL(ctx, input, userID)
+	return r.service.GetAuthURL(ctx, input, userID)
 }
 
-func (m *Module) discordCallback(ctx context.Context, input *dto.DiscordCallbackInput) (*dto.DiscordMessageOutput, error) {
-	// Get current user ID if available
+func (r *Routes) discordCallback(ctx context.Context, input *dto.DiscordCallbackInput) (*dto.DiscordCallbackOutput, error) {
+	// Get current user ID if available (optional authentication)
 	var userID *string
-	if m.middleware != nil {
-		if r, ok := ctx.Value("request").(*http.Request); ok {
-			if user, authenticated := m.middleware.GetAuthenticatedUser(r); authenticated {
-				if uid, ok := user["user_id"].(string); ok {
-					userID = &uid
-				}
-			}
+
+	// Try to extract authentication if headers are present
+	if input.Authorization != "" || input.Cookie != "" {
+		if user, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie); err == nil {
+			userID = &user.UserID
 		}
+		// Note: We don't return the error here as authentication is optional for the callback
 	}
 
-	result, linkedUserID, err := m.service.HandleCallback(ctx, input, userID)
+	_, linkedUserID, err := r.service.HandleCallback(ctx, input, userID)
+
+	// Get frontend URL from configuration
+	frontendURL := config.GetFrontendURL()
+
+	if err != nil {
+		// Redirect to frontend with error
+		errorMessage := url.QueryEscape("Discord linking failed. Please try again.")
+		errorURL := fmt.Sprintf("%s/discord/error?message=%s", frontendURL, errorMessage)
+
+		return &dto.DiscordCallbackOutput{
+			Status:   302,
+			Location: errorURL,
+			Body:     nil,
+		}, nil
+	}
+
+	// Redirect to frontend with success
+	var successURL string
+	if userID != nil {
+		// Account linking successful
+		successURL = fmt.Sprintf("%s/discord/success?action=linked", frontendURL)
+	} else if linkedUserID != "" {
+		// New user authentication (future implementation)
+		successURL = fmt.Sprintf("%s/discord/success?action=authenticated&user_id=%s", frontendURL, linkedUserID)
+	} else {
+		// Fallback success
+		successURL = fmt.Sprintf("%s/discord/success", frontendURL)
+	}
+
+	return &dto.DiscordCallbackOutput{
+		Status:   302,
+		Location: successURL,
+		Body:     nil,
+	}, nil
+}
+
+func (r *Routes) linkDiscordAccount(ctx context.Context, input *dto.LinkDiscordAccountInput) (*dto.DiscordMessageOutput, error) {
+	user, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
 		return nil, err
 	}
 
-	// If this was a new user authentication (not linking), redirect to frontend
-	if userID == nil && linkedUserID != "" {
-		// In a real implementation, you might want to set a session cookie here
-		// or redirect to a success page with the user ID
-	}
-
-	return result, nil
+	return r.service.LinkAccount(ctx, input, user.UserID)
 }
 
-func (m *Module) linkDiscordAccount(ctx context.Context, input *dto.LinkDiscordAccountInput) (*dto.DiscordMessageOutput, error) {
-	userID, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) unlinkDiscordAccount(ctx context.Context, input *dto.UnlinkDiscordAccountInput) (*dto.DiscordMessageOutput, error) {
+	user, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.LinkAccount(ctx, input, userID)
+	return r.service.UnlinkAccount(ctx, input, user.UserID)
 }
 
-func (m *Module) unlinkDiscordAccount(ctx context.Context, input *dto.UnlinkDiscordAccountInput) (*dto.DiscordMessageOutput, error) {
-	userID, err := m.getAuthenticatedUserID(ctx)
-	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
-	}
-
-	return m.service.UnlinkAccount(ctx, input, userID)
-}
-
-func (m *Module) getDiscordAuthStatus(ctx context.Context, input *dto.DiscordStatusInput) (*dto.DiscordAuthStatusOutput, error) {
+func (r *Routes) getDiscordAuthStatus(ctx context.Context, input *dto.DiscordStatusInput) (*dto.DiscordAuthStatusOutput, error) {
 	// Get current user ID if available (optional auth)
 	var userID *string
-	if m.middleware != nil {
-		if r, ok := ctx.Value("request").(*http.Request); ok {
-			if user, authenticated := m.middleware.GetAuthenticatedUser(r); authenticated {
-				if uid, ok := user["user_id"].(string); ok {
-					userID = &uid
-				}
-			}
+
+	// Try to authenticate user for enhanced response (but don't require it)
+	if input.Authorization != "" || input.Cookie != "" {
+		if user, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie); err == nil {
+			userID = &user.UserID
 		}
 	}
 
-	return m.service.GetAuthStatus(ctx, userID)
+	return r.service.GetAuthStatus(ctx, userID)
 }
 
 // User management handlers
 
-func (m *Module) getDiscordUser(ctx context.Context, input *dto.GetDiscordUserInput) (*dto.DiscordUserOutput, error) {
+func (r *Routes) getDiscordUser(ctx context.Context, input *dto.GetDiscordUserInput) (*dto.DiscordUserOutput, error) {
 	// Require authentication for user management
-	_, err := m.getAuthenticatedUserID(ctx)
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.GetDiscordUser(ctx, input)
+	return r.service.GetDiscordUser(ctx, input)
 }
 
-func (m *Module) listDiscordUsers(ctx context.Context, input *dto.ListDiscordUsersInput) (*dto.ListDiscordUsersOutput, error) {
+func (r *Routes) listDiscordUsers(ctx context.Context, input *dto.ListDiscordUsersInput) (*dto.ListDiscordUsersOutput, error) {
 	// Require authentication for user management
-	_, err := m.getAuthenticatedUserID(ctx)
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.ListDiscordUsers(ctx, input)
+	return r.service.ListDiscordUsers(ctx, input)
 }
 
 // Guild management handlers
 
-func (m *Module) createGuildConfig(ctx context.Context, input *dto.CreateGuildConfigInput) (*dto.DiscordGuildConfigOutput, error) {
-	_, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) createGuildConfig(ctx context.Context, input *dto.CreateGuildConfigInput) (*dto.DiscordGuildConfigOutput, error) {
+	user, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	// Convert userID to character ID (simplified for now)
-	characterID := int64(0) // TODO: Get character ID from user ID
+	// Use character ID from authenticated user
+	characterID := int64(user.CharacterID)
 
-	return m.service.CreateGuildConfig(ctx, input, characterID)
+	return r.service.CreateGuildConfig(ctx, input, characterID)
 }
 
-func (m *Module) getGuildConfig(ctx context.Context, input *dto.GetGuildConfigInput) (*dto.DiscordGuildConfigOutput, error) {
-	_, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) getGuildConfig(ctx context.Context, input *dto.GetGuildConfigInput) (*dto.DiscordGuildConfigOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.GetGuildConfig(ctx, input)
+	return r.service.GetGuildConfig(ctx, input)
 }
 
-func (m *Module) updateGuildConfig(ctx context.Context, input *dto.UpdateGuildConfigInput) (*dto.DiscordGuildConfigOutput, error) {
-	_, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) updateGuildConfig(ctx context.Context, input *dto.UpdateGuildConfigInput) (*dto.DiscordGuildConfigOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.UpdateGuildConfig(ctx, input)
+	return r.service.UpdateGuildConfig(ctx, input)
 }
 
-func (m *Module) deleteGuildConfig(ctx context.Context, input *dto.DeleteGuildConfigInput) (*dto.DiscordSuccessOutput, error) {
-	_, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) deleteGuildConfig(ctx context.Context, input *dto.DeleteGuildConfigInput) (*dto.DiscordSuccessOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.DeleteGuildConfig(ctx, input)
+	return r.service.DeleteGuildConfig(ctx, input)
 }
 
-func (m *Module) listGuildConfigs(ctx context.Context, input *dto.ListGuildConfigsInput) (*dto.ListDiscordGuildConfigsOutput, error) {
-	_, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) listGuildConfigs(ctx context.Context, input *dto.ListGuildConfigsInput) (*dto.ListDiscordGuildConfigsOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.ListGuildConfigs(ctx, input)
+	return r.service.ListGuildConfigs(ctx, input)
 }
 
 // Synchronization handlers
 
-func (m *Module) triggerManualSync(ctx context.Context, input *dto.ManualSyncInput) (*dto.ManualSyncOutput, error) {
-	_, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) triggerManualSync(ctx context.Context, input *dto.ManualSyncInput) (*dto.ManualSyncOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.TriggerManualSync(ctx, input)
+	return r.service.TriggerManualSync(ctx, input)
 }
 
-func (m *Module) syncUser(ctx context.Context, input *dto.SyncUserInput) (*dto.ManualSyncOutput, error) {
-	_, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) syncUser(ctx context.Context, input *dto.SyncUserInput) (*dto.ManualSyncOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.SyncUser(ctx, input)
+	return r.service.SyncUser(ctx, input)
 }
 
-func (m *Module) getSyncStatus(ctx context.Context, input *dto.GetSyncStatusInput) (*dto.DiscordSyncStatusOutput, error) {
-	_, err := m.getAuthenticatedUserID(ctx)
+func (r *Routes) getSyncStatus(ctx context.Context, input *dto.GetSyncStatusInput) (*dto.DiscordSyncStatusOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
 	if err != nil {
-		return nil, huma.Error401Unauthorized("Authentication required")
+		return nil, err
 	}
 
-	return m.service.GetSyncStatus(ctx, input)
+	return r.service.GetSyncStatus(ctx, input)
+}
+
+// Role mapping handlers
+
+func (r *Routes) createRoleMapping(ctx context.Context, input *dto.CreateRoleMappingInput) (*dto.DiscordRoleMappingOutput, error) {
+	user, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use character ID from authenticated user
+	characterID := int64(user.CharacterID)
+
+	return r.service.CreateRoleMapping(ctx, input, characterID)
+}
+
+func (r *Routes) getRoleMapping(ctx context.Context, input *dto.GetRoleMappingInput) (*dto.DiscordRoleMappingOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.service.GetRoleMapping(ctx, input)
+}
+
+func (r *Routes) updateRoleMapping(ctx context.Context, input *dto.UpdateRoleMappingInput) (*dto.DiscordRoleMappingOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.service.UpdateRoleMapping(ctx, input)
+}
+
+func (r *Routes) deleteRoleMapping(ctx context.Context, input *dto.DeleteRoleMappingInput) (*dto.DiscordSuccessOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.service.DeleteRoleMapping(ctx, input)
+}
+
+func (r *Routes) listRoleMappings(ctx context.Context, input *dto.ListRoleMappingsInput) (*dto.ListDiscordRoleMappingsOutput, error) {
+	_, err := r.discordAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.service.ListRoleMappings(ctx, input)
 }
 
 // Status handler
 
-func (m *Module) getDiscordStatus(ctx context.Context, input *dto.DiscordStatusInput) (*dto.DiscordStatusOutput, error) {
-	status := m.service.GetStatus(ctx)
+func (r *Routes) getDiscordStatus(ctx context.Context, input *dto.DiscordStatusInput) (*dto.DiscordStatusOutput, error) {
+	status := r.service.GetStatus(ctx)
 	return &dto.DiscordStatusOutput{
 		Body: *status,
 	}, nil
 }
 
-// Helper methods
-
-// getAuthenticatedUserID extracts the user ID from the authenticated request
-func (m *Module) getAuthenticatedUserID(ctx context.Context) (string, error) {
-	if m.middleware == nil {
-		return "", fmt.Errorf("middleware not available")
-	}
-
-	r, ok := ctx.Value("request").(*http.Request)
-	if !ok {
-		return "", fmt.Errorf("request not available in context")
-	}
-
-	user, authenticated := m.middleware.GetAuthenticatedUser(r)
-	if !authenticated {
-		return "", fmt.Errorf("user not authenticated")
-	}
-
-	userID, ok := user["user_id"].(string)
-	if !ok {
-		return "", fmt.Errorf("user ID not found in authentication context")
-	}
-
-	return userID, nil
-}
-
 // RegisterRoutes registers Discord routes using Chi router (legacy support)
-func (m *Module) RegisterRoutes(r chi.Router) {
+func (r *Routes) RegisterRoutes(router chi.Router) {
 	// Add basic health check
-	r.Get("/discord/status", func(w http.ResponseWriter, r *http.Request) {
-		status := m.service.GetStatus(r.Context())
+	router.Get("/discord/status", func(w http.ResponseWriter, req *http.Request) {
+		status := r.service.GetStatus(req.Context())
 		handlers.JSONResponse(w, status, http.StatusOK)
 	})
 
 	// OAuth redirect endpoint (for frontend integration)
-	r.Get("/discord/auth/redirect", func(w http.ResponseWriter, r *http.Request) {
+	router.Get("/discord/auth/redirect", func(w http.ResponseWriter, req *http.Request) {
 		// Redirect to frontend after successful OAuth
 		frontendURL := config.GetEnv("FRONTEND_URL", "https://go.eveonline.it")
 		if frontendURL == "" {
 			frontendURL = "http://localhost:3000"
 		}
 
-		http.Redirect(w, r, frontendURL+"/discord/success", http.StatusTemporaryRedirect)
+		http.Redirect(w, req, frontendURL+"/discord/success", http.StatusTemporaryRedirect)
 	})
 }

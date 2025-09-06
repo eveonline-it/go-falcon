@@ -39,6 +39,13 @@ type DiscordAuthURLResponse struct {
 	State   string `json:"state" example:"random_state_string" doc:"OAuth state parameter for CSRF protection"`
 }
 
+// DiscordCallbackOutput represents the output for Discord OAuth callback with redirect
+type DiscordCallbackOutput struct {
+	Status   int                    `json:"-" status:"302" doc:"HTTP status code for redirect"`
+	Location string                 `header:"Location" doc:"Redirect location"`
+	Body     map[string]interface{} `json:"body,omitempty"`
+}
+
 // DiscordAuthStatusOutput represents the Discord authentication status
 type DiscordAuthStatusOutput struct {
 	Body DiscordAuthStatusResponse

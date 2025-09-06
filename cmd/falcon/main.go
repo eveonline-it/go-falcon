@@ -38,6 +38,7 @@ import (
 	"go-falcon/pkg/app"
 	"go-falcon/pkg/config"
 	evegateway "go-falcon/pkg/evegateway"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 	"go-falcon/pkg/permissions"
 	"go-falcon/pkg/version"
@@ -45,7 +46,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -96,7 +97,7 @@ func customLoggerMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Use the default chi logger for all other requests
-		middleware.Logger(next).ServeHTTP(w, r)
+		chimiddleware.Logger(next).ServeHTTP(w, r)
 	})
 }
 
@@ -210,9 +211,9 @@ func main() {
 
 	// Global middleware
 	r.Use(customLoggerMiddleware) // Custom logger that excludes health checks
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.RequestID)
+	r.Use(chimiddleware.RealIP)
 	// Apply timeout middleware but exclude WebSocket endpoints
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -222,7 +223,7 @@ func main() {
 				return
 			}
 			// Apply timeout for all other endpoints
-			middleware.Timeout(60*time.Second)(next).ServeHTTP(w, r)
+			chimiddleware.Timeout(60*time.Second)(next).ServeHTTP(w, r)
 		})
 	})
 	r.Use(corsMiddleware) // Add CORS support for cross-subdomain requests
@@ -427,9 +428,10 @@ func main() {
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule, evegateClient, appCtx.SDEService)
 	usersModule.SetGroupService(groupsModule.GetService())
 
-	// Initialize Discord module with groups service adapter
+	// Initialize Discord module with groups service adapter and permission middleware
 	discordGroupsAdapter := &DiscordGroupsAdapter{groupsService: groupsModule.GetService()}
-	discordModule := discord.NewModule(appCtx.MongoDB, appCtx.Redis, discordGroupsAdapter)
+	discordPermissionMiddleware := middleware.NewPermissionMiddleware(authModule.GetAuthService(), permissionManager)
+	discordModule := discord.NewModule(appCtx.MongoDB, appCtx.Redis, discordGroupsAdapter, discordPermissionMiddleware)
 
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	schedulerModule.SetGroupService(groupsModule.GetService())

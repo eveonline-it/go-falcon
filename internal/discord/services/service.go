@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"go-falcon/internal/discord/dto"
 	"go-falcon/internal/discord/models"
@@ -85,7 +86,7 @@ func (s *Service) HandleCallback(ctx context.Context, input *dto.DiscordCallback
 		targetUserID = currentUserID
 	}
 	if targetUserID == nil {
-		return nil, "", fmt.Errorf("no user specified for Discord account linking")
+		return nil, "", fmt.Errorf("Discord account linking requires authentication. Please log in with your Go Falcon account first, then restart the Discord OAuth flow")
 	}
 
 	// Create or update Discord user record
@@ -472,7 +473,246 @@ func (s *Service) ListGuildConfigs(ctx context.Context, input *dto.ListGuildConf
 	}, nil
 }
 
-// Role Mapping Methods (implementation would continue here with similar patterns)
+// Role Mapping Methods
+
+// CreateRoleMapping creates a new Discord role mapping
+func (s *Service) CreateRoleMapping(ctx context.Context, input *dto.CreateRoleMappingInput, createdBy int64) (*dto.DiscordRoleMappingOutput, error) {
+	// Check if guild exists
+	guildConfig, err := s.repo.GetGuildConfigByGuildID(ctx, input.GuildID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get guild configuration: %w", err)
+	}
+	if guildConfig == nil {
+		return nil, fmt.Errorf("guild configuration not found")
+	}
+
+	// Validate group ID format (MongoDB ObjectID)
+	groupObjectID, err := primitive.ObjectIDFromHex(input.Body.GroupID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid group ID format: %w", err)
+	}
+
+	// Check if role mapping already exists (using ListRoleMappings with filter)
+	filter := bson.M{
+		"guild_id":  input.GuildID,
+		"group_id":  groupObjectID,
+		"is_active": true,
+	}
+	existingMappings, _, err := s.repo.ListRoleMappings(ctx, filter, 1, 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing role mapping: %w", err)
+	}
+	if len(existingMappings) > 0 {
+		return nil, fmt.Errorf("role mapping already exists for this guild and group")
+	}
+
+	// Create role mapping
+	mapping := &models.DiscordRoleMapping{
+		GuildID:         input.GuildID,
+		GroupID:         groupObjectID,
+		GroupName:       "", // Will be resolved later from groups service if needed
+		DiscordRoleID:   input.Body.DiscordRoleID,
+		DiscordRoleName: input.Body.DiscordRoleName,
+		IsActive:        true,
+		CreatedBy:       &createdBy,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	if err := s.repo.CreateRoleMapping(ctx, mapping); err != nil {
+		return nil, fmt.Errorf("failed to create role mapping: %w", err)
+	}
+
+	return &dto.DiscordRoleMappingOutput{
+		Body: dto.DiscordRoleMappingResponse{
+			ID:              mapping.ID.Hex(),
+			GuildID:         mapping.GuildID,
+			GroupID:         mapping.GroupID.Hex(),
+			GroupName:       mapping.GroupName,
+			DiscordRoleID:   mapping.DiscordRoleID,
+			DiscordRoleName: mapping.DiscordRoleName,
+			IsActive:        mapping.IsActive,
+			CreatedBy:       mapping.CreatedBy,
+			CreatedAt:       mapping.CreatedAt,
+			UpdatedAt:       mapping.UpdatedAt,
+		},
+	}, nil
+}
+
+// GetRoleMapping gets a specific role mapping
+func (s *Service) GetRoleMapping(ctx context.Context, input *dto.GetRoleMappingInput) (*dto.DiscordRoleMappingOutput, error) {
+	mappingObjectID, err := primitive.ObjectIDFromHex(input.MappingID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid mapping ID format: %w", err)
+	}
+
+	mapping, err := s.repo.GetRoleMappingByID(ctx, mappingObjectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role mapping: %w", err)
+	}
+	if mapping == nil {
+		return nil, fmt.Errorf("role mapping not found")
+	}
+
+	return &dto.DiscordRoleMappingOutput{
+		Body: dto.DiscordRoleMappingResponse{
+			ID:              mapping.ID.Hex(),
+			GuildID:         mapping.GuildID,
+			GroupID:         mapping.GroupID.Hex(),
+			GroupName:       mapping.GroupName,
+			DiscordRoleID:   mapping.DiscordRoleID,
+			DiscordRoleName: mapping.DiscordRoleName,
+			IsActive:        mapping.IsActive,
+			CreatedBy:       mapping.CreatedBy,
+			CreatedAt:       mapping.CreatedAt,
+			UpdatedAt:       mapping.UpdatedAt,
+		},
+	}, nil
+}
+
+// UpdateRoleMapping updates a role mapping
+func (s *Service) UpdateRoleMapping(ctx context.Context, input *dto.UpdateRoleMappingInput) (*dto.DiscordRoleMappingOutput, error) {
+	mappingObjectID, err := primitive.ObjectIDFromHex(input.MappingID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid mapping ID format: %w", err)
+	}
+
+	// Check if mapping exists
+	existing, err := s.repo.GetRoleMappingByID(ctx, mappingObjectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role mapping: %w", err)
+	}
+	if existing == nil {
+		return nil, fmt.Errorf("role mapping not found")
+	}
+
+	// Build update
+	update := bson.M{"updated_at": time.Now()}
+	if input.Body.DiscordRoleID != nil {
+		update["discord_role_id"] = *input.Body.DiscordRoleID
+	}
+	if input.Body.DiscordRoleName != nil {
+		update["discord_role_name"] = *input.Body.DiscordRoleName
+	}
+	if input.Body.IsActive != nil {
+		update["is_active"] = *input.Body.IsActive
+	}
+
+	if len(update) <= 1 { // Only updated_at
+		return nil, fmt.Errorf("no fields to update")
+	}
+
+	if err := s.repo.UpdateRoleMapping(ctx, mappingObjectID, update); err != nil {
+		return nil, fmt.Errorf("failed to update role mapping: %w", err)
+	}
+
+	// Get updated mapping
+	updated, err := s.repo.GetRoleMappingByID(ctx, mappingObjectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get updated role mapping: %w", err)
+	}
+
+	return &dto.DiscordRoleMappingOutput{
+		Body: dto.DiscordRoleMappingResponse{
+			ID:              updated.ID.Hex(),
+			GuildID:         updated.GuildID,
+			GroupID:         updated.GroupID.Hex(),
+			GroupName:       updated.GroupName,
+			DiscordRoleID:   updated.DiscordRoleID,
+			DiscordRoleName: updated.DiscordRoleName,
+			IsActive:        updated.IsActive,
+			CreatedBy:       updated.CreatedBy,
+			CreatedAt:       updated.CreatedAt,
+			UpdatedAt:       updated.UpdatedAt,
+		},
+	}, nil
+}
+
+// DeleteRoleMapping deletes a role mapping
+func (s *Service) DeleteRoleMapping(ctx context.Context, input *dto.DeleteRoleMappingInput) (*dto.DiscordSuccessOutput, error) {
+	mappingObjectID, err := primitive.ObjectIDFromHex(input.MappingID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid mapping ID format: %w", err)
+	}
+
+	// Check if mapping exists
+	existing, err := s.repo.GetRoleMappingByID(ctx, mappingObjectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role mapping: %w", err)
+	}
+	if existing == nil {
+		return nil, fmt.Errorf("role mapping not found")
+	}
+
+	if err := s.repo.DeleteRoleMapping(ctx, mappingObjectID); err != nil {
+		return nil, fmt.Errorf("failed to delete role mapping: %w", err)
+	}
+
+	return &dto.DiscordSuccessOutput{
+		Body: dto.DiscordSuccessResponse{
+			Message: "Role mapping deleted successfully",
+		},
+	}, nil
+}
+
+// ListRoleMappings lists role mappings for a guild with filtering
+func (s *Service) ListRoleMappings(ctx context.Context, input *dto.ListRoleMappingsInput) (*dto.ListDiscordRoleMappingsOutput, error) {
+	// Build filter
+	filter := bson.M{"guild_id": input.GuildID}
+	if input.IsActive != "" {
+		isActive := input.IsActive == "true"
+		filter["is_active"] = isActive
+	}
+	if input.GroupID != "" {
+		groupObjectID, err := primitive.ObjectIDFromHex(input.GroupID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid group ID format: %w", err)
+		}
+		filter["group_id"] = groupObjectID
+	}
+
+	// Set defaults
+	page := input.Page
+	if page == 0 {
+		page = 1
+	}
+	limit := input.Limit
+	if limit == 0 {
+		limit = 20
+	}
+
+	mappings, total, err := s.repo.ListRoleMappings(ctx, filter, page, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list role mappings: %w", err)
+	}
+
+	// Convert to response format
+	mappingResponses := make([]dto.DiscordRoleMappingResponse, len(mappings))
+	for i, mapping := range mappings {
+		mappingResponses[i] = dto.DiscordRoleMappingResponse{
+			ID:              mapping.ID.Hex(),
+			GuildID:         mapping.GuildID,
+			GroupID:         mapping.GroupID.Hex(),
+			GroupName:       mapping.GroupName,
+			DiscordRoleID:   mapping.DiscordRoleID,
+			DiscordRoleName: mapping.DiscordRoleName,
+			IsActive:        mapping.IsActive,
+			CreatedBy:       mapping.CreatedBy,
+			CreatedAt:       mapping.CreatedAt,
+			UpdatedAt:       mapping.UpdatedAt,
+		}
+	}
+
+	return &dto.ListDiscordRoleMappingsOutput{
+		Body: dto.ListDiscordRoleMappingsResponse{
+			GuildID:  input.GuildID,
+			Mappings: mappingResponses,
+			Total:    total,
+			Page:     page,
+			Limit:    limit,
+		},
+	}, nil
+}
 
 // Sync Methods
 

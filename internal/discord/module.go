@@ -12,14 +12,16 @@ import (
 	"go-falcon/internal/discord/routes"
 	"go-falcon/internal/discord/services"
 	"go-falcon/pkg/database"
+	"go-falcon/pkg/middleware"
 	"go-falcon/pkg/module"
 )
 
 // Module represents the Discord module
 type Module struct {
 	*module.BaseModule
-	service *services.Service
-	routes  *routes.Module
+	service        *services.Service
+	routes         *routes.Routes
+	discordAdapter *middleware.DiscordAdapter
 }
 
 // GroupsService interface for groups module dependency
@@ -28,19 +30,23 @@ type GroupsService interface {
 }
 
 // NewModule creates a new Discord module
-func NewModule(db *database.MongoDB, redis *database.Redis, groupsService GroupsService) *Module {
+func NewModule(db *database.MongoDB, redis *database.Redis, groupsService GroupsService, permissionMiddleware *middleware.PermissionMiddleware) *Module {
 	baseModule := module.NewBaseModule("discord", db, redis)
 
 	// Create service with groups service dependency
 	service := services.NewService(db, groupsService)
 
-	// Create routes module (middleware will be set later)
-	routesModule := routes.NewModule(service, nil)
+	// Create Discord adapter for authentication
+	discordAdapter := middleware.NewDiscordAdapter(permissionMiddleware)
+
+	// Create routes with Discord adapter
+	routesInstance := routes.NewRoutes(service, discordAdapter)
 
 	return &Module{
-		BaseModule: baseModule,
-		service:    service,
-		routes:     routesModule,
+		BaseModule:     baseModule,
+		service:        service,
+		routes:         routesInstance,
+		discordAdapter: discordAdapter,
 	}
 }
 
@@ -97,11 +103,10 @@ func (m *Module) GetService() *services.Service {
 	return m.service
 }
 
-// SetMiddleware updates the Discord module with middleware dependencies
-func (m *Module) SetMiddleware(middleware routes.MiddlewareInterface) {
-	// Recreate routes with the new middleware
-	m.routes = routes.NewModule(m.service, middleware)
-	slog.InfoContext(context.Background(), "Discord module updated with middleware dependencies")
+// SetMiddleware updates the Discord module with middleware dependencies (deprecated - middleware set during construction)
+func (m *Module) SetMiddleware(middleware interface{}) {
+	// This method is deprecated - middleware is now set during module construction
+	slog.WarnContext(context.Background(), "SetMiddleware called on Discord module - this method is deprecated as middleware is set during construction")
 }
 
 // RefreshExpiringTokens refreshes Discord tokens that are expiring soon (for scheduler integration)
