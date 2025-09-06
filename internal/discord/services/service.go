@@ -72,7 +72,7 @@ func (s *Service) GetAuthURL(ctx context.Context, input *dto.GetDiscordAuthURLIn
 }
 
 // HandleCallback handles the Discord OAuth callback
-func (s *Service) HandleCallback(ctx context.Context, input *dto.DiscordCallbackInput, currentUserID *string) (*dto.MessageOutput, string, error) {
+func (s *Service) HandleCallback(ctx context.Context, input *dto.DiscordCallbackInput, currentUserID *string) (*dto.DiscordMessageOutput, string, error) {
 	// Process OAuth callback
 	userInfo, tokenResponse, storedUserID, err := s.oauthService.HandleCallback(ctx, input.Code, input.State)
 	if err != nil {
@@ -104,15 +104,15 @@ func (s *Service) HandleCallback(ctx context.Context, input *dto.DiscordCallback
 		"discord_id", userInfo.ID,
 		"username", userInfo.Username)
 
-	return &dto.MessageOutput{
-		Body: dto.MessageResponse{
+	return &dto.DiscordMessageOutput{
+		Body: dto.DiscordMessageResponse{
 			Message: message,
 		},
 	}, *targetUserID, nil
 }
 
 // LinkAccount links a Discord account to an existing Go Falcon user
-func (s *Service) LinkAccount(ctx context.Context, input *dto.LinkDiscordAccountInput, userID string) (*dto.MessageOutput, error) {
+func (s *Service) LinkAccount(ctx context.Context, input *dto.LinkDiscordAccountInput, userID string) (*dto.DiscordMessageOutput, error) {
 	// Validate Discord access token
 	userInfo, err := s.oauthService.ValidateToken(ctx, input.Body.AccessToken)
 	if err != nil {
@@ -139,15 +139,15 @@ func (s *Service) LinkAccount(ctx context.Context, input *dto.LinkDiscordAccount
 		"discord_id", userInfo.ID,
 		"username", userInfo.Username)
 
-	return &dto.MessageOutput{
-		Body: dto.MessageResponse{
+	return &dto.DiscordMessageOutput{
+		Body: dto.DiscordMessageResponse{
 			Message: "Discord account linked successfully",
 		},
 	}, nil
 }
 
 // UnlinkAccount unlinks a Discord account from a Go Falcon user
-func (s *Service) UnlinkAccount(ctx context.Context, input *dto.UnlinkDiscordAccountInput, userID string) (*dto.MessageOutput, error) {
+func (s *Service) UnlinkAccount(ctx context.Context, input *dto.UnlinkDiscordAccountInput, userID string) (*dto.DiscordMessageOutput, error) {
 	// Get Discord user record
 	discordUser, err := s.repo.GetDiscordUserByDiscordID(ctx, input.DiscordID)
 	if err != nil {
@@ -180,8 +180,8 @@ func (s *Service) UnlinkAccount(ctx context.Context, input *dto.UnlinkDiscordAcc
 		"user_id", userID,
 		"discord_id", input.DiscordID)
 
-	return &dto.MessageOutput{
-		Body: dto.MessageResponse{
+	return &dto.DiscordMessageOutput{
+		Body: dto.DiscordMessageResponse{
 			Message: "Discord account unlinked successfully",
 		},
 	}, nil
@@ -411,7 +411,7 @@ func (s *Service) UpdateGuildConfig(ctx context.Context, input *dto.UpdateGuildC
 }
 
 // DeleteGuildConfig deletes a guild configuration
-func (s *Service) DeleteGuildConfig(ctx context.Context, input *dto.DeleteGuildConfigInput) (*dto.SuccessOutput, error) {
+func (s *Service) DeleteGuildConfig(ctx context.Context, input *dto.DeleteGuildConfigInput) (*dto.DiscordSuccessOutput, error) {
 	// Check if guild exists
 	existing, err := s.repo.GetGuildConfigByGuildID(ctx, input.GuildID)
 	if err != nil {
@@ -425,8 +425,8 @@ func (s *Service) DeleteGuildConfig(ctx context.Context, input *dto.DeleteGuildC
 		return nil, fmt.Errorf("failed to delete guild configuration: %w", err)
 	}
 
-	return &dto.SuccessOutput{
-		Body: dto.SuccessResponse{
+	return &dto.DiscordSuccessOutput{
+		Body: dto.DiscordSuccessResponse{
 			Message: "Guild configuration deleted successfully",
 		},
 	}, nil

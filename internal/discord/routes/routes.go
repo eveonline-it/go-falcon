@@ -217,7 +217,7 @@ func (m *Module) getDiscordAuthURL(ctx context.Context, input *dto.GetDiscordAut
 	return m.service.GetAuthURL(ctx, input, userID)
 }
 
-func (m *Module) discordCallback(ctx context.Context, input *dto.DiscordCallbackInput) (*dto.MessageOutput, error) {
+func (m *Module) discordCallback(ctx context.Context, input *dto.DiscordCallbackInput) (*dto.DiscordMessageOutput, error) {
 	// Get current user ID if available
 	var userID *string
 	if m.middleware != nil {
@@ -244,7 +244,7 @@ func (m *Module) discordCallback(ctx context.Context, input *dto.DiscordCallback
 	return result, nil
 }
 
-func (m *Module) linkDiscordAccount(ctx context.Context, input *dto.LinkDiscordAccountInput) (*dto.MessageOutput, error) {
+func (m *Module) linkDiscordAccount(ctx context.Context, input *dto.LinkDiscordAccountInput) (*dto.DiscordMessageOutput, error) {
 	userID, err := m.getAuthenticatedUserID(ctx)
 	if err != nil {
 		return nil, huma.Error401Unauthorized("Authentication required")
@@ -253,7 +253,7 @@ func (m *Module) linkDiscordAccount(ctx context.Context, input *dto.LinkDiscordA
 	return m.service.LinkAccount(ctx, input, userID)
 }
 
-func (m *Module) unlinkDiscordAccount(ctx context.Context, input *dto.UnlinkDiscordAccountInput) (*dto.MessageOutput, error) {
+func (m *Module) unlinkDiscordAccount(ctx context.Context, input *dto.UnlinkDiscordAccountInput) (*dto.DiscordMessageOutput, error) {
 	userID, err := m.getAuthenticatedUserID(ctx)
 	if err != nil {
 		return nil, huma.Error401Unauthorized("Authentication required")
@@ -332,7 +332,7 @@ func (m *Module) updateGuildConfig(ctx context.Context, input *dto.UpdateGuildCo
 	return m.service.UpdateGuildConfig(ctx, input)
 }
 
-func (m *Module) deleteGuildConfig(ctx context.Context, input *dto.DeleteGuildConfigInput) (*dto.SuccessOutput, error) {
+func (m *Module) deleteGuildConfig(ctx context.Context, input *dto.DeleteGuildConfigInput) (*dto.DiscordSuccessOutput, error) {
 	_, err := m.getAuthenticatedUserID(ctx)
 	if err != nil {
 		return nil, huma.Error401Unauthorized("Authentication required")

@@ -6,23 +6,23 @@ import (
 
 // Standard Response Wrappers
 
-// SuccessOutput represents a successful operation response
-type SuccessOutput struct {
-	Body SuccessResponse
+// DiscordSuccessOutput represents a successful operation response
+type DiscordSuccessOutput struct {
+	Body DiscordSuccessResponse
 }
 
-// SuccessResponse represents the body of a success response
-type SuccessResponse struct {
+// DiscordSuccessResponse represents the body of a success response
+type DiscordSuccessResponse struct {
 	Message string `json:"message" example:"Operation completed successfully"`
 }
 
-// MessageOutput represents a message response
-type MessageOutput struct {
-	Body MessageResponse
+// DiscordMessageOutput represents a message response
+type DiscordMessageOutput struct {
+	Body DiscordMessageResponse
 }
 
-// MessageResponse represents the body of a message response
-type MessageResponse struct {
+// DiscordMessageResponse represents the body of a message response
+type DiscordMessageResponse struct {
 	Message string `json:"message" example:"Discord account linked successfully"`
 }
 
