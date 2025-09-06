@@ -1173,8 +1173,22 @@ func (s *Service) processGuildJoin(ctx context.Context, guildID, guildName, disc
 	}
 
 	// Attempt to add user to guild
+	slog.InfoContext(ctx, "DEBUG: Attempting to add user to Discord guild",
+		"guild_id", guildID,
+		"guild_name", guildName,
+		"discord_user_id", discordUserID,
+		"role_ids", roleIDs,
+		"has_access_token", accessToken != "",
+		"has_bot_token", botToken != "")
+
 	err = s.botService.AddGuildMember(ctx, guildID, discordUserID, accessToken, botToken, roleIDs)
 	if err != nil {
+		slog.ErrorContext(ctx, "DEBUG: Discord auto-join failed",
+			"guild_id", guildID,
+			"guild_name", guildName,
+			"discord_user_id", discordUserID,
+			"error", err.Error(),
+			"role_ids", roleIDs)
 		return dto.GuildJoinResult{
 			GuildID:   guildID,
 			GuildName: guildName,

@@ -311,8 +311,8 @@ func (r *Routes) discordCallback(ctx context.Context, input *dto.DiscordCallback
 	// Redirect to frontend with success
 	var successURL string
 	if userID != nil {
-		// Account linking successful
-		successURL = fmt.Sprintf("%s/discord/success?action=linked", frontendURL)
+		// Account linking successful - redirect to user characters page
+		successURL = fmt.Sprintf("%s/user/characters", frontendURL)
 	} else if linkedUserID != "" {
 		// New user authentication (future implementation)
 		successURL = fmt.Sprintf("%s/discord/success?action=authenticated&user_id=%s", frontendURL, linkedUserID)

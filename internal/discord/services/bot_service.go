@@ -425,6 +425,13 @@ func (s *BotService) AddGuildMember(ctx context.Context, guildID, userID, access
 
 	body, _ := io.ReadAll(resp.Body)
 
+	// DEBUG: Log the raw Discord API response
+	slog.InfoContext(ctx, "DEBUG: Discord API Response",
+		"status_code", resp.StatusCode,
+		"response_body", string(body),
+		"guild_id", guildID,
+		"user_id", userID)
+
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		// User successfully added to guild
@@ -441,9 +448,9 @@ func (s *BotService) AddGuildMember(ctx context.Context, guildID, userID, access
 			"roles_assigned", len(roleIDs))
 		return nil
 	case http.StatusForbidden:
-		return fmt.Errorf("bot lacks permission to add members or user lacks guilds.join scope")
+		return fmt.Errorf("Discord API 403 Forbidden: %s", string(body))
 	case http.StatusNotFound:
-		return fmt.Errorf("guild not found or bot not in guild")
+		return fmt.Errorf("Discord API 404 Not Found: %s", string(body))
 	default:
 		return fmt.Errorf("add member request failed with status %d: %s", resp.StatusCode, string(body))
 	}
