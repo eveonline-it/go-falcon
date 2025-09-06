@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -227,13 +228,31 @@ func (rm *RoomManager) BroadcastToRoom(roomID string, message *models.Message) e
 	members := room.GetMembersCopy()
 	rm.mu.RUnlock()
 
+	// Track stale connections for cleanup
+	var staleConnections []string
+
 	// Broadcast to all members
 	for _, memberID := range members {
 		if rm.connectionMgr != nil {
 			if err := rm.connectionMgr.SendToConnection(memberID, message); err != nil {
-				slog.Error("Failed to send message to room member", "error", err, "room_id", roomID, "connection_id", memberID)
+				// Check if it's a "connection not found" error
+				if strings.Contains(err.Error(), "connection not found") {
+					// This is expected when connections disconnect or are on different instances
+					slog.Debug("Connection not found for room member (expected in distributed setup)",
+						"room_id", roomID, "connection_id", memberID)
+					staleConnections = append(staleConnections, memberID)
+				} else {
+					// Log actual errors at error level
+					slog.Error("Failed to send message to room member",
+						"error", err, "room_id", roomID, "connection_id", memberID)
+				}
 			}
 		}
+	}
+
+	// Clean up stale connections from the room
+	if len(staleConnections) > 0 {
+		go rm.cleanupStaleMembers(roomID, staleConnections)
 	}
 
 	return nil
@@ -247,16 +266,29 @@ func (rm *RoomManager) broadcastToRoomMembers(roomID string, message *models.Mes
 	}
 
 	members := room.GetMembersCopy()
+	var staleConnections []string
 
 	// Broadcast to all members except the excluded one
 	for _, memberID := range members {
 		if memberID != excludeConnectionID {
 			if rm.connectionMgr != nil {
 				if err := rm.connectionMgr.SendToConnection(memberID, message); err != nil {
-					slog.Error("Failed to send message to room member", "error", err, "room_id", roomID, "connection_id", memberID)
+					if strings.Contains(err.Error(), "connection not found") {
+						slog.Debug("Connection not found for room member (expected in distributed setup)",
+							"room_id", roomID, "connection_id", memberID)
+						staleConnections = append(staleConnections, memberID)
+					} else {
+						slog.Error("Failed to send message to room member",
+							"error", err, "room_id", roomID, "connection_id", memberID)
+					}
 				}
 			}
 		}
+	}
+
+	// Clean up stale connections from the room
+	if len(staleConnections) > 0 {
+		go rm.cleanupStaleMembers(roomID, staleConnections)
 	}
 }
 
@@ -324,4 +356,41 @@ func (rm *RoomManager) IsConnectionInRoom(roomID string, connectionID string) bo
 		}
 	}
 	return false
+}
+
+// cleanupStaleMembers removes stale connections from a room
+// This method is called asynchronously to avoid blocking message broadcasting
+func (rm *RoomManager) cleanupStaleMembers(roomID string, staleConnections []string) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	room, exists := rm.rooms[roomID]
+	if !exists {
+		return
+	}
+
+	// Remove stale connections from the room
+	for _, connectionID := range staleConnections {
+		room.RemoveMember(connectionID)
+
+		// Update connection's rooms
+		if rooms, ok := rm.connectionRooms[connectionID]; ok {
+			newRooms := []string{}
+			for _, existingRoomID := range rooms {
+				if existingRoomID != roomID {
+					newRooms = append(newRooms, existingRoomID)
+				}
+			}
+			if len(newRooms) > 0 {
+				rm.connectionRooms[connectionID] = newRooms
+			} else {
+				delete(rm.connectionRooms, connectionID)
+			}
+		}
+	}
+
+	if len(staleConnections) > 0 {
+		slog.Debug("Cleaned up stale connections from room",
+			"room_id", roomID, "count", len(staleConnections))
+	}
 }
