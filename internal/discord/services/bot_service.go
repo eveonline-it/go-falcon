@@ -211,6 +211,10 @@ func (s *BotService) GetGuildRoles(ctx context.Context, guildID, botToken string
 		return nil, fmt.Errorf("failed to read guild roles response: %w", err)
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("guild not found: status %d: %s", resp.StatusCode, string(body))
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("guild roles request failed with status %d: %s", resp.StatusCode, string(body))
 	}

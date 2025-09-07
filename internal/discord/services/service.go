@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -544,6 +545,10 @@ func (s *Service) GetGuildRoles(ctx context.Context, input *dto.GetGuildRolesInp
 	// Fetch roles from Discord API
 	discordRoles, err := s.botService.GetGuildRoles(ctx, input.GuildID, botToken)
 	if err != nil {
+		// Check if this is a "guild not found" error from Discord API
+		if strings.Contains(err.Error(), "guild not found") {
+			return nil, huma.Error404NotFound("Discord guild not found. The guild may not exist or the bot may not have access to it.")
+		}
 		return nil, fmt.Errorf("failed to fetch guild roles from Discord: %w", err)
 	}
 
