@@ -77,14 +77,44 @@ func (a *DiscordGroupsAdapter) GetUserGroups(ctx context.Context, userID string)
 		}
 
 		groups[i] = discordServices.GroupInfo{
-			ID:       objectID,
-			Name:     group.Name,
-			Type:     group.Type,
-			IsActive: group.IsActive,
+			ID:          objectID,
+			Name:        group.Name,
+			Description: group.Description,
+			Type:        group.Type,
+			IsActive:    group.IsActive,
 		}
 	}
 
 	return groups, nil
+}
+
+// GetGroupInfo implements the Discord GroupsServiceInterface
+func (a *DiscordGroupsAdapter) GetGroupInfo(ctx context.Context, groupID string) (*discordServices.GroupInfo, error) {
+	input := &groupsDto.GetGroupInput{
+		ID: groupID,
+	}
+
+	output, err := a.groupsService.GetGroup(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	group := output.Body
+
+	// Convert string ID to primitive.ObjectID
+	objectID, err := primitive.ObjectIDFromHex(group.ID)
+	if err != nil {
+		// If conversion fails, create a new ObjectID (this shouldn't happen in normal operation)
+		objectID = primitive.NewObjectID()
+	}
+
+	return &discordServices.GroupInfo{
+		ID:          objectID,
+		Name:        group.Name,
+		Description: group.Description,
+		Type:        group.Type,
+		IsActive:    group.IsActive,
+	}, nil
 }
 
 // customLoggerMiddleware logs requests but excludes health check endpoints

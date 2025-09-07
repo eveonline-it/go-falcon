@@ -405,7 +405,7 @@ func (s *Service) CreateGuildConfig(ctx context.Context, input *dto.CreateGuildC
 		return nil, fmt.Errorf("failed to create guild configuration: %w", err)
 	}
 
-	return s.guildConfigToOutput(config), nil
+	return s.guildConfigToOutput(ctx, config), nil
 }
 
 // GetGuildConfig gets a guild configuration
@@ -418,7 +418,7 @@ func (s *Service) GetGuildConfig(ctx context.Context, input *dto.GetGuildConfigI
 		return nil, fmt.Errorf("guild configuration not found")
 	}
 
-	return s.guildConfigToOutput(config), nil
+	return s.guildConfigToOutput(ctx, config), nil
 }
 
 // UpdateGuildConfig updates a guild configuration
@@ -462,7 +462,7 @@ func (s *Service) UpdateGuildConfig(ctx context.Context, input *dto.UpdateGuildC
 		return nil, fmt.Errorf("failed to get updated guild configuration: %w", err)
 	}
 
-	return s.guildConfigToOutput(updated), nil
+	return s.guildConfigToOutput(ctx, updated), nil
 }
 
 // DeleteGuildConfig deletes a guild configuration
@@ -514,7 +514,7 @@ func (s *Service) ListGuildConfigs(ctx context.Context, input *dto.ListGuildConf
 	// Convert to response format
 	configResponses := make([]dto.DiscordGuildConfigResponse, len(configs))
 	for i, config := range configs {
-		configResponses[i] = s.guildConfigToOutput(config).Body
+		configResponses[i] = s.guildConfigToOutput(ctx, config).Body
 	}
 
 	return &dto.ListDiscordGuildConfigsOutput{
@@ -620,19 +620,28 @@ func (s *Service) CreateRoleMapping(ctx context.Context, input *dto.CreateRoleMa
 		return nil, fmt.Errorf("failed to create role mapping: %w", err)
 	}
 
+	// Trigger guild sync to assign the new role to users who qualify
+	go func() {
+		syncCtx := context.Background() // Use background context for async operation
+		slog.InfoContext(syncCtx, "Triggering guild sync after role mapping creation",
+			"guild_id", mapping.GuildID,
+			"mapping_id", mapping.ID.Hex(),
+			"role_id", mapping.DiscordRoleID,
+			"role_name", mapping.DiscordRoleName,
+			"group_id", mapping.GroupID.Hex())
+
+		if _, err := s.syncService.SyncGuild(syncCtx, mapping.GuildID, false); err != nil {
+			slog.ErrorContext(syncCtx, "Failed to sync guild after role mapping creation",
+				"guild_id", mapping.GuildID,
+				"error", err)
+		} else {
+			slog.InfoContext(syncCtx, "Successfully synced guild after role mapping creation",
+				"guild_id", mapping.GuildID)
+		}
+	}()
+
 	return &dto.DiscordRoleMappingOutput{
-		Body: dto.DiscordRoleMappingResponse{
-			ID:              mapping.ID.Hex(),
-			GuildID:         mapping.GuildID,
-			GroupID:         mapping.GroupID.Hex(),
-			GroupName:       mapping.GroupName,
-			DiscordRoleID:   mapping.DiscordRoleID,
-			DiscordRoleName: mapping.DiscordRoleName,
-			IsActive:        mapping.IsActive,
-			CreatedBy:       mapping.CreatedBy,
-			CreatedAt:       mapping.CreatedAt,
-			UpdatedAt:       mapping.UpdatedAt,
-		},
+		Body: s.roleMappingToResponse(ctx, mapping),
 	}, nil
 }
 
@@ -652,18 +661,7 @@ func (s *Service) GetRoleMapping(ctx context.Context, input *dto.GetRoleMappingI
 	}
 
 	return &dto.DiscordRoleMappingOutput{
-		Body: dto.DiscordRoleMappingResponse{
-			ID:              mapping.ID.Hex(),
-			GuildID:         mapping.GuildID,
-			GroupID:         mapping.GroupID.Hex(),
-			GroupName:       mapping.GroupName,
-			DiscordRoleID:   mapping.DiscordRoleID,
-			DiscordRoleName: mapping.DiscordRoleName,
-			IsActive:        mapping.IsActive,
-			CreatedBy:       mapping.CreatedBy,
-			CreatedAt:       mapping.CreatedAt,
-			UpdatedAt:       mapping.UpdatedAt,
-		},
+		Body: s.roleMappingToResponse(ctx, mapping),
 	}, nil
 }
 
@@ -709,19 +707,72 @@ func (s *Service) UpdateRoleMapping(ctx context.Context, input *dto.UpdateRoleMa
 		return nil, fmt.Errorf("failed to get updated role mapping: %w", err)
 	}
 
+	// Check what changed to determine appropriate actions
+	wasDisabled := existing.IsActive && !updated.IsActive
+	roleChanged := existing.DiscordRoleID != updated.DiscordRoleID
+
+	// Trigger role updates based on what changed
+	go func() {
+		syncCtx := context.Background() // Use background context for async operation
+
+		if wasDisabled {
+			// Mapping was disabled - explicitly remove this role from all users first
+			slog.InfoContext(syncCtx, "Role mapping disabled - removing role from all users",
+				"guild_id", updated.GuildID,
+				"mapping_id", input.MappingID,
+				"role_id", updated.DiscordRoleID,
+				"role_name", updated.DiscordRoleName)
+
+			// Step 1: Remove the disabled role from all users who have it
+			if err := s.removeRoleFromAllUsers(syncCtx, updated.GuildID, updated.DiscordRoleID, updated.DiscordRoleName); err != nil {
+				slog.ErrorContext(syncCtx, "Failed to remove disabled role from users",
+					"guild_id", updated.GuildID,
+					"role_id", updated.DiscordRoleID,
+					"error", err)
+			}
+		} else if roleChanged && existing.IsActive {
+			// Discord role ID changed for an active mapping - remove old role from all users
+			slog.InfoContext(syncCtx, "Discord role changed - removing old role from all users",
+				"guild_id", updated.GuildID,
+				"mapping_id", input.MappingID,
+				"old_role_id", existing.DiscordRoleID,
+				"old_role_name", existing.DiscordRoleName,
+				"new_role_id", updated.DiscordRoleID,
+				"new_role_name", updated.DiscordRoleName)
+
+			// Step 1: Remove the old role from all users who have it
+			if err := s.removeRoleFromAllUsers(syncCtx, updated.GuildID, existing.DiscordRoleID, existing.DiscordRoleName); err != nil {
+				slog.ErrorContext(syncCtx, "Failed to remove old role from users after role change",
+					"guild_id", updated.GuildID,
+					"old_role_id", existing.DiscordRoleID,
+					"error", err)
+			}
+		}
+
+		// Step 2: Run full guild sync to ensure everything is consistent
+		slog.InfoContext(syncCtx, "Triggering guild sync after role mapping update",
+			"guild_id", updated.GuildID,
+			"mapping_id", input.MappingID,
+			"role_id", updated.DiscordRoleID,
+			"role_name", updated.DiscordRoleName,
+			"is_active", updated.IsActive,
+			"was_disabled", wasDisabled,
+			"role_changed", roleChanged)
+
+		if _, err := s.syncService.SyncGuild(syncCtx, updated.GuildID, false); err != nil {
+			slog.ErrorContext(syncCtx, "Failed to sync guild after role mapping update",
+				"guild_id", updated.GuildID,
+				"error", err)
+		} else {
+			slog.InfoContext(syncCtx, "Successfully completed role update and guild sync",
+				"guild_id", updated.GuildID,
+				"was_disabled", wasDisabled,
+				"role_changed", roleChanged)
+		}
+	}()
+
 	return &dto.DiscordRoleMappingOutput{
-		Body: dto.DiscordRoleMappingResponse{
-			ID:              updated.ID.Hex(),
-			GuildID:         updated.GuildID,
-			GroupID:         updated.GroupID.Hex(),
-			GroupName:       updated.GroupName,
-			DiscordRoleID:   updated.DiscordRoleID,
-			DiscordRoleName: updated.DiscordRoleName,
-			IsActive:        updated.IsActive,
-			CreatedBy:       updated.CreatedBy,
-			CreatedAt:       updated.CreatedAt,
-			UpdatedAt:       updated.UpdatedAt,
-		},
+		Body: s.roleMappingToResponse(ctx, updated),
 	}, nil
 }
 
@@ -741,19 +792,61 @@ func (s *Service) DeleteRoleMapping(ctx context.Context, input *dto.DeleteRoleMa
 		return nil, fmt.Errorf("role mapping not found")
 	}
 
+	// Store details for cleanup and syncing after deletion
+	guildID := existing.GuildID
+	deletedRoleID := existing.DiscordRoleID
+	deletedRoleName := existing.DiscordRoleName
+
 	if err := s.repo.DeleteRoleMapping(ctx, mappingObjectID); err != nil {
 		return nil, fmt.Errorf("failed to delete role mapping: %w", err)
 	}
 
+	// Immediately remove the deleted role from all users in the guild, then trigger full sync
+	go func() {
+		syncCtx := context.Background() // Use background context for async operation
+		slog.InfoContext(syncCtx, "Removing deleted role from all users and triggering guild sync",
+			"guild_id", guildID,
+			"deleted_mapping_id", input.MappingID,
+			"deleted_role_id", deletedRoleID,
+			"deleted_role_name", deletedRoleName)
+
+		// Step 1: Remove the deleted role from all users who have it
+		if err := s.removeRoleFromAllUsers(syncCtx, guildID, deletedRoleID, deletedRoleName); err != nil {
+			slog.ErrorContext(syncCtx, "Failed to remove deleted role from users",
+				"guild_id", guildID,
+				"role_id", deletedRoleID,
+				"error", err)
+		}
+
+		// Step 2: Run full guild sync to ensure everything is consistent
+		if _, err := s.syncService.SyncGuild(syncCtx, guildID, false); err != nil {
+			slog.ErrorContext(syncCtx, "Failed to sync guild after role mapping deletion",
+				"guild_id", guildID,
+				"error", err)
+		} else {
+			slog.InfoContext(syncCtx, "Successfully completed role removal and guild sync",
+				"guild_id", guildID)
+		}
+	}()
+
 	return &dto.DiscordSuccessOutput{
 		Body: dto.DiscordSuccessResponse{
-			Message: "Role mapping deleted successfully",
+			Message: "Role mapping deleted successfully. Role synchronization initiated.",
 		},
 	}, nil
 }
 
 // ListRoleMappings lists role mappings for a guild with filtering
 func (s *Service) ListRoleMappings(ctx context.Context, input *dto.ListRoleMappingsInput) (*dto.ListDiscordRoleMappingsOutput, error) {
+	// Get guild configuration to get guild name
+	guildConfig, err := s.repo.GetGuildConfigByGuildID(ctx, input.GuildID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get guild configuration: %w", err)
+	}
+	if guildConfig == nil {
+		return nil, fmt.Errorf("guild configuration not found")
+	}
+
 	// Build filter
 	filter := bson.M{"guild_id": input.GuildID}
 	if input.IsActive != "" {
@@ -783,30 +876,20 @@ func (s *Service) ListRoleMappings(ctx context.Context, input *dto.ListRoleMappi
 		return nil, fmt.Errorf("failed to list role mappings: %w", err)
 	}
 
-	// Convert to response format
+	// Convert to response format with enriched group information
 	mappingResponses := make([]dto.DiscordRoleMappingResponse, len(mappings))
 	for i, mapping := range mappings {
-		mappingResponses[i] = dto.DiscordRoleMappingResponse{
-			ID:              mapping.ID.Hex(),
-			GuildID:         mapping.GuildID,
-			GroupID:         mapping.GroupID.Hex(),
-			GroupName:       mapping.GroupName,
-			DiscordRoleID:   mapping.DiscordRoleID,
-			DiscordRoleName: mapping.DiscordRoleName,
-			IsActive:        mapping.IsActive,
-			CreatedBy:       mapping.CreatedBy,
-			CreatedAt:       mapping.CreatedAt,
-			UpdatedAt:       mapping.UpdatedAt,
-		}
+		mappingResponses[i] = s.roleMappingToResponse(ctx, mapping)
 	}
 
 	return &dto.ListDiscordRoleMappingsOutput{
 		Body: dto.ListDiscordRoleMappingsResponse{
-			GuildID:  input.GuildID,
-			Mappings: mappingResponses,
-			Total:    total,
-			Page:     page,
-			Limit:    limit,
+			GuildID:   input.GuildID,
+			GuildName: guildConfig.GuildName,
+			Mappings:  mappingResponses,
+			Total:     total,
+			Page:      page,
+			Limit:     limit,
 		},
 	}, nil
 }
@@ -981,22 +1064,11 @@ func (s *Service) GetStatus(ctx context.Context) *dto.DiscordStatusResponse {
 // Helper methods
 
 // guildConfigToOutput converts a guild config model to output DTO
-func (s *Service) guildConfigToOutput(config *models.DiscordGuildConfig) *dto.DiscordGuildConfigOutput {
+func (s *Service) guildConfigToOutput(ctx context.Context, config *models.DiscordGuildConfig) *dto.DiscordGuildConfigOutput {
 	// Convert role mappings
 	roleMappings := make([]dto.DiscordRoleMappingResponse, len(config.RoleMappings))
 	for i, mapping := range config.RoleMappings {
-		roleMappings[i] = dto.DiscordRoleMappingResponse{
-			ID:              mapping.ID.Hex(),
-			GuildID:         mapping.GuildID,
-			GroupID:         mapping.GroupID.Hex(),
-			GroupName:       mapping.GroupName,
-			DiscordRoleID:   mapping.DiscordRoleID,
-			DiscordRoleName: mapping.DiscordRoleName,
-			IsActive:        mapping.IsActive,
-			CreatedBy:       mapping.CreatedBy,
-			CreatedAt:       mapping.CreatedAt,
-			UpdatedAt:       mapping.UpdatedAt,
-		}
+		roleMappings[i] = s.roleMappingToResponse(ctx, &mapping)
 	}
 
 	return &dto.DiscordGuildConfigOutput{
@@ -1207,4 +1279,130 @@ func (s *Service) processGuildJoin(ctx context.Context, guildID, guildName, disc
 		RolesAssigned: roleNames,
 		RoleIDs:       roleIDs,
 	}
+}
+
+// removeRoleFromAllUsers removes a specific Discord role from all users in a guild
+func (s *Service) removeRoleFromAllUsers(ctx context.Context, guildID, roleID, roleName string) error {
+	// Get guild configuration to get bot token
+	guildConfig, err := s.repo.GetGuildConfigByGuildID(ctx, guildID)
+	if err != nil {
+		return fmt.Errorf("failed to get guild configuration: %w", err)
+	}
+	if guildConfig == nil || !guildConfig.IsEnabled {
+		return fmt.Errorf("guild configuration not found or disabled")
+	}
+
+	// Decrypt bot token
+	botToken := s.botService.DecryptBotToken(guildConfig.BotToken)
+	if botToken == "" {
+		return fmt.Errorf("failed to decrypt bot token")
+	}
+
+	// Get all active Discord users
+	filter := map[string]interface{}{
+		"is_active": true,
+	}
+	discordUsers, _, err := s.repo.ListDiscordUsers(ctx, filter, 1, 1000) // Process up to 1000 users
+	if err != nil {
+		return fmt.Errorf("failed to get Discord users: %w", err)
+	}
+
+	removedCount := 0
+	errorCount := 0
+
+	for _, discordUser := range discordUsers {
+		// Get guild member to check current roles
+		member, err := s.botService.GetGuildMember(ctx, guildID, discordUser.DiscordID, botToken)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to get guild member, skipping",
+				"user_id", discordUser.UserID,
+				"discord_id", discordUser.DiscordID,
+				"guild_id", guildID,
+				"error", err)
+			continue
+		}
+
+		if member == nil {
+			// User is not a member of this guild
+			continue
+		}
+
+		// Check if user has the role to be removed
+		hasRole := false
+		for _, memberRoleID := range member.Roles {
+			if memberRoleID == roleID {
+				hasRole = true
+				break
+			}
+		}
+
+		if !hasRole {
+			// User doesn't have this role, skip
+			continue
+		}
+
+		// Remove the role
+		if err := s.botService.RemoveGuildMemberRole(ctx, guildID, discordUser.DiscordID, roleID, botToken); err != nil {
+			slog.ErrorContext(ctx, "Failed to remove role from user",
+				"user_id", discordUser.UserID,
+				"discord_id", discordUser.DiscordID,
+				"guild_id", guildID,
+				"role_id", roleID,
+				"role_name", roleName,
+				"error", err)
+			errorCount++
+			continue
+		}
+
+		removedCount++
+		slog.InfoContext(ctx, "Removed deleted role from user",
+			"user_id", discordUser.UserID,
+			"discord_id", discordUser.DiscordID,
+			"guild_id", guildID,
+			"role_id", roleID,
+			"role_name", roleName)
+
+		// Rate limiting between operations
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	slog.InfoContext(ctx, "Completed role removal from all users",
+		"guild_id", guildID,
+		"role_id", roleID,
+		"role_name", roleName,
+		"users_processed", len(discordUsers),
+		"roles_removed", removedCount,
+		"errors", errorCount)
+
+	if errorCount > 0 {
+		return fmt.Errorf("removed role from %d users but encountered %d errors", removedCount, errorCount)
+	}
+
+	return nil
+}
+
+// Helper method to convert role mapping to response with enriched group data
+func (s *Service) roleMappingToResponse(ctx context.Context, mapping *models.DiscordRoleMapping) dto.DiscordRoleMappingResponse {
+	response := dto.DiscordRoleMappingResponse{
+		ID:              mapping.ID.Hex(),
+		GuildID:         mapping.GuildID,
+		GroupID:         mapping.GroupID.Hex(),
+		GroupName:       mapping.GroupName,
+		DiscordRoleID:   mapping.DiscordRoleID,
+		DiscordRoleName: mapping.DiscordRoleName,
+		IsActive:        mapping.IsActive,
+		CreatedBy:       mapping.CreatedBy,
+		CreatedAt:       mapping.CreatedAt,
+		UpdatedAt:       mapping.UpdatedAt,
+	}
+
+	// Try to get group details including description
+	if s.groupsService != nil {
+		if groupInfo, err := s.groupsService.GetGroupInfo(ctx, mapping.GroupID.Hex()); err == nil && groupInfo != nil {
+			response.GroupName = groupInfo.Name
+			response.GroupDescription = groupInfo.Description
+		}
+	}
+
+	return response
 }

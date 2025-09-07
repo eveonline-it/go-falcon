@@ -132,16 +132,17 @@ type DiscordRoleMappingOutput struct {
 
 // DiscordRoleMappingResponse represents a role mapping between Go Falcon groups and Discord roles
 type DiscordRoleMappingResponse struct {
-	ID              string    `json:"id" example:"507f1f77bcf86cd799439012" doc:"Database record ID"`
-	GuildID         string    `json:"guild_id" example:"123456789012345678" doc:"Discord guild ID"`
-	GroupID         string    `json:"group_id" example:"507f1f77bcf86cd799439011" doc:"Go Falcon group ID"`
-	GroupName       string    `json:"group_name" example:"Fleet Commanders" doc:"Go Falcon group name"`
-	DiscordRoleID   string    `json:"discord_role_id" example:"987654321098765432" doc:"Discord role ID"`
-	DiscordRoleName string    `json:"discord_role_name" example:"FC Role" doc:"Discord role name"`
-	IsActive        bool      `json:"is_active" example:"true" doc:"Whether the mapping is active"`
-	CreatedBy       *int64    `json:"created_by,omitempty" example:"123456789" doc:"Character ID who created the mapping"`
-	CreatedAt       time.Time `json:"created_at" example:"2025-01-10T12:00:00Z" doc:"Creation timestamp"`
-	UpdatedAt       time.Time `json:"updated_at" example:"2025-01-10T12:00:00Z" doc:"Last update timestamp"`
+	ID               string    `json:"id" example:"507f1f77bcf86cd799439012" doc:"Database record ID"`
+	GuildID          string    `json:"guild_id" example:"123456789012345678" doc:"Discord guild ID"`
+	GroupID          string    `json:"group_id" example:"507f1f77bcf86cd799439011" doc:"Go Falcon group ID"`
+	GroupName        string    `json:"group_name" example:"Fleet Commanders" doc:"Go Falcon group name"`
+	GroupDescription string    `json:"group_description,omitempty" example:"Authorized fleet commanders with tactical leadership responsibilities" doc:"Go Falcon group description"`
+	DiscordRoleID    string    `json:"discord_role_id" example:"987654321098765432" doc:"Discord role ID"`
+	DiscordRoleName  string    `json:"discord_role_name" example:"FC Role" doc:"Discord role name"`
+	IsActive         bool      `json:"is_active" example:"true" doc:"Whether the mapping is active"`
+	CreatedBy        *int64    `json:"created_by,omitempty" example:"123456789" doc:"Character ID who created the mapping"`
+	CreatedAt        time.Time `json:"created_at" example:"2025-01-10T12:00:00Z" doc:"Creation timestamp"`
+	UpdatedAt        time.Time `json:"updated_at" example:"2025-01-10T12:00:00Z" doc:"Last update timestamp"`
 }
 
 // ListDiscordRoleMappingsOutput represents a list of role mappings
@@ -151,11 +152,12 @@ type ListDiscordRoleMappingsOutput struct {
 
 // ListDiscordRoleMappingsResponse contains paginated role mappings
 type ListDiscordRoleMappingsResponse struct {
-	GuildID  string                       `json:"guild_id" example:"123456789012345678" doc:"Discord guild ID"`
-	Mappings []DiscordRoleMappingResponse `json:"mappings" doc:"List of role mappings"`
-	Total    int64                        `json:"total" example:"15" doc:"Total number of role mappings"`
-	Page     int                          `json:"page" example:"1" doc:"Current page number"`
-	Limit    int                          `json:"limit" example:"20" doc:"Number of items per page"`
+	GuildID   string                       `json:"guild_id" example:"123456789012345678" doc:"Discord guild ID"`
+	GuildName string                       `json:"guild_name" example:"My Discord Server" doc:"Discord guild name"`
+	Mappings  []DiscordRoleMappingResponse `json:"mappings" doc:"List of role mappings"`
+	Total     int64                        `json:"total" example:"15" doc:"Total number of role mappings"`
+	Page      int                          `json:"page" example:"1" doc:"Current page number"`
+	Limit     int                          `json:"limit" example:"20" doc:"Number of items per page"`
 }
 
 // Synchronization Outputs

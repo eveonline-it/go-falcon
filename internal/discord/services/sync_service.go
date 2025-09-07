@@ -14,14 +14,16 @@ import (
 // GroupsServiceInterface defines the interface for interacting with the groups service
 type GroupsServiceInterface interface {
 	GetUserGroups(ctx context.Context, userID string) ([]GroupInfo, error)
+	GetGroupInfo(ctx context.Context, groupID string) (*GroupInfo, error)
 }
 
 // GroupInfo represents group information from the groups service
 type GroupInfo struct {
-	ID       primitive.ObjectID `json:"id"`
-	Name     string             `json:"name"`
-	Type     string             `json:"type"`
-	IsActive bool               `json:"is_active"`
+	ID          primitive.ObjectID `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Type        string             `json:"type"`
+	IsActive    bool               `json:"is_active"`
 }
 
 // SyncResult represents the result of a role synchronization operation

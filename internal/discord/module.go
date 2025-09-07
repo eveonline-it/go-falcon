@@ -27,6 +27,7 @@ type Module struct {
 // GroupsService interface for groups module dependency
 type GroupsService interface {
 	GetUserGroups(ctx context.Context, userID string) ([]services.GroupInfo, error)
+	GetGroupInfo(ctx context.Context, groupID string) (*services.GroupInfo, error)
 }
 
 // NewModule creates a new Discord module
