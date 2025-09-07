@@ -20,7 +20,9 @@ import (
 	"go-falcon/internal/alliance"
 	"go-falcon/internal/auth"
 	"go-falcon/internal/character"
+	characterDto "go-falcon/internal/character/dto"
 	"go-falcon/internal/corporation"
+	corporationDto "go-falcon/internal/corporation/dto"
 	"go-falcon/internal/discord"
 	discordServices "go-falcon/internal/discord/services"
 	"go-falcon/internal/groups"
@@ -33,6 +35,7 @@ import (
 	"go-falcon/internal/sitemap"
 	sitemapServices "go-falcon/internal/sitemap/services"
 	"go-falcon/internal/users"
+	usersModels "go-falcon/internal/users/models"
 	"go-falcon/internal/websocket"
 	"go-falcon/internal/zkillboard"
 	"go-falcon/pkg/app"
@@ -114,6 +117,72 @@ func (a *DiscordGroupsAdapter) GetGroupInfo(ctx context.Context, groupID string)
 		Description: group.Description,
 		Type:        group.Type,
 		IsActive:    group.IsActive,
+	}, nil
+}
+
+// DiscordCharacterAdapter adapts the character service to the Discord module interface
+type DiscordCharacterAdapter struct {
+	characterService interface {
+		GetCharacterProfile(ctx context.Context, characterID int) (*characterDto.CharacterProfileOutput, error)
+	}
+}
+
+// GetCharacterProfile implements the Discord CharacterServiceInterface
+func (a *DiscordCharacterAdapter) GetCharacterProfile(ctx context.Context, characterID int) (*discordServices.CharacterProfile, error) {
+	profile, err := a.characterService.GetCharacterProfile(ctx, characterID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to Discord interface format
+	return &discordServices.CharacterProfile{
+		CharacterID:   profile.Body.CharacterID,
+		Name:          profile.Body.Name,
+		CorporationID: profile.Body.CorporationID,
+	}, nil
+}
+
+// DiscordCorporationAdapter adapts the corporation service to the Discord module interface
+type DiscordCorporationAdapter struct {
+	corporationService interface {
+		GetCorporationInfo(ctx context.Context, corporationID int) (*corporationDto.CorporationInfoOutput, error)
+	}
+}
+
+// GetCorporationInfo implements the Discord CorporationServiceInterface
+func (a *DiscordCorporationAdapter) GetCorporationInfo(ctx context.Context, corporationID int) (*discordServices.CorporationInfo, error) {
+	corp, err := a.corporationService.GetCorporationInfo(ctx, corporationID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to Discord interface format
+	return &discordServices.CorporationInfo{
+		CorporationID: corporationID, // Use the parameter since CorporationInfo doesn't include the ID
+		Name:          corp.Body.Name,
+		Ticker:        corp.Body.Ticker,
+	}, nil
+}
+
+// DiscordUserAdapter adapts the user service to the Discord module interface
+type DiscordUserAdapter struct {
+	userService interface {
+		GetUserByUserID(ctx context.Context, userID string) (*usersModels.User, error)
+	}
+}
+
+// GetUserByUserID implements the Discord UserServiceInterface
+func (a *DiscordUserAdapter) GetUserByUserID(ctx context.Context, userID string) (*discordServices.UserProfile, error) {
+	user, err := a.userService.GetUserByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to Discord interface format
+	return &discordServices.UserProfile{
+		UserID:        user.UserID,
+		CharacterID:   user.CharacterID,
+		CharacterName: user.CharacterName,
 	}, nil
 }
 
@@ -461,7 +530,13 @@ func main() {
 	// Initialize Discord module with groups service adapter and permission middleware
 	discordGroupsAdapter := &DiscordGroupsAdapter{groupsService: groupsModule.GetService()}
 	discordPermissionMiddleware := middleware.NewPermissionMiddleware(authModule.GetAuthService(), permissionManager)
-	discordModule := discord.NewModule(appCtx.MongoDB, appCtx.Redis, discordGroupsAdapter, discordPermissionMiddleware)
+
+	// Create adapters for character, corporation, and user services needed by Discord nickname updates
+	discordCharacterAdapter := &DiscordCharacterAdapter{characterService: characterModule.GetService()}
+	discordCorporationAdapter := &DiscordCorporationAdapter{corporationService: corporationModule.GetService()}
+	discordUserAdapter := &DiscordUserAdapter{userService: usersModule.GetService()}
+
+	discordModule := discord.NewModule(appCtx.MongoDB, appCtx.Redis, discordGroupsAdapter, discordCharacterAdapter, discordCorporationAdapter, discordUserAdapter, discordPermissionMiddleware)
 
 	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
 	schedulerModule.SetGroupService(groupsModule.GetService())

@@ -44,7 +44,9 @@ ZKillboard RedisQ → Poll → Validate → Deduplicate → Process → Store �
 ### Database Collections
 
 #### `zkb_metadata`
+
 Stores ZKillboard-specific metadata for each killmail:
+
 - `killmail_id`: Reference to main killmail
 - `location_id`: ZKB location data
 - `hash`: ZKB hash
@@ -54,7 +56,9 @@ Stores ZKillboard-specific metadata for each killmail:
 - `href`: ZKB URL
 
 #### `killmail_timeseries`
+
 Aggregated statistics over time:
+
 - `period`: "hour", "day", "month"
 - `timestamp`: Time bucket
 - Dimensional breakdowns: system, region, alliance, corporation, ship type
@@ -62,7 +66,9 @@ Aggregated statistics over time:
 - Top performers: victims, attackers by value/count
 
 #### `zkb_consumer_state`
+
 Consumer service state persistence:
+
 - `queue_id`: Unique queue identifier
 - `state`: Service status (stopped, running, throttled, draining)
 - Performance metrics: polls, nulls, errors, rate limits
@@ -87,6 +93,7 @@ Consumer service state persistence:
 ### 3-Hour Queue Recovery
 
 ZKillboard maintains a 3-hour queue memory, allowing for:
+
 - Service restarts without data loss
 - Intermittent connectivity handling
 - No local queue persistence required
@@ -107,9 +114,11 @@ if nullStreak >= nullThreshold (5) {
 ### Service Control
 
 #### `GET /zkillboard/status`
+
 Returns current service status and metrics.
 
 **Response:**
+
 ```json
 {
   "status": "running",
@@ -139,9 +148,11 @@ Returns current service status and metrics.
 ```
 
 #### `POST /zkillboard/control`
+
 Control service operations (requires authentication).
 
 **Request:**
+
 ```json
 {
   "action": "start|stop|restart",
@@ -150,6 +161,7 @@ Control service operations (requires authentication).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -161,12 +173,15 @@ Control service operations (requires authentication).
 ### Statistics
 
 #### `GET /zkillboard/stats?period=day`
+
 Returns aggregated killmail statistics.
 
 **Parameters:**
+
 - `period`: "hour", "day", "week", "month"
 
 **Response:**
+
 ```json
 {
   "period": "day",
@@ -188,9 +203,11 @@ Returns aggregated killmail statistics.
 ```
 
 #### `GET /zkillboard/recent?limit=20`
+
 Returns recently processed killmails.
 
 **Response:**
+
 ```json
 {
   "killmails": [
@@ -235,18 +252,21 @@ ZKB_TTL_DAYS=90                                # Timeseries data retention (days
 ## Performance Characteristics
 
 ### CPU Efficiency
+
 - **Single goroutine polling**: No concurrency complexity
 - **Batch processing**: Configurable batch sizes (default: 10)
 - **Adaptive polling**: Reduces CPU during quiet periods
 - **Efficient JSON parsing**: Streaming with `json.RawMessage`
 
 ### Memory Management
+
 - **Bounded batches**: Prevents memory growth
 - **Connection pooling**: HTTP/2 keep-alive connections
 - **Garbage collection friendly**: Minimal allocation patterns
 - **TTL cleanup**: Automatic timeseries data expiration
 
 ### Network Optimization
+
 - **HTTP/2 connection pooling**: Reuse connections
 - **Compressed responses**: Reduced bandwidth usage
 - **Minimal request overhead**: Simple GET requests
@@ -311,11 +331,13 @@ New killmails trigger real-time WebSocket events:
 Subscribe to killmail events:
 
 ```javascript
-const websocket = new WebSocket('ws://localhost:3000/websocket');
-websocket.on('killmail:new', (killmail) => {
-    updateKillmailFeed(killmail);
-    showNotification(`New ${killmail.ship_type_name} kill in ${killmail.system_name}`);
-});
+const websocket = new WebSocket("ws://localhost:3000/websocket")
+websocket.on("killmail:new", (killmail) => {
+  updateKillmailFeed(killmail)
+  showNotification(
+    `New ${killmail.ship_type_name} kill in ${killmail.system_name}`
+  )
+})
 ```
 
 ## Security Considerations
@@ -350,12 +372,12 @@ export ZKB_QUEUE_ID=go-falcon-dev-$(whoami)
 export ZKB_BATCH_SIZE=5  # Smaller batches for testing
 
 # Start the service
-curl -X POST http://localhost:3000/api/zkillboard/control \
+curl -X POST http://localhost:3000/zkillboard/control \
   -H "Content-Type: application/json" \
   -d '{"action": "start"}'
 
 # Monitor status
-curl http://localhost:3000/api/zkillboard/status
+curl http://localhost:3000/zkillboard/status
 ```
 
 ### Scaling Considerations
@@ -377,18 +399,21 @@ curl http://localhost:3000/api/zkillboard/status
 ### Troubleshooting
 
 #### Service Won't Start
+
 - Check environment variables
 - Verify database connectivity
 - Ensure unique `queueID`
 - Review logs for specific errors
 
 #### High Error Rate
+
 - Check ZKillboard service status
 - Verify network connectivity
 - Review rate limiting metrics
 - Check ESI client configuration
 
 #### Missing Killmails
+
 - Verify service is running and not throttled
 - Check for duplicate filtering issues
 - Review batch processing logs

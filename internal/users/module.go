@@ -49,6 +49,11 @@ func (m *Module) SetGroupService(groupService *services.Service) {
 	m.service.SetGroupService(groupService)
 }
 
+// GetService returns the users service instance
+func (m *Module) GetService() *usersServices.Service {
+	return m.service
+}
+
 // Routes is kept for compatibility - users now uses Huma v2 routes only
 func (m *Module) Routes(r chi.Router) {
 	// Users module now uses only Huma v2 routes - call RegisterHumaRoutes instead

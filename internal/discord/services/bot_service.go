@@ -577,6 +577,56 @@ func (s *BotService) EncryptBotToken(token string) string {
 	return token
 }
 
+// UpdateGuildMemberNickname updates a guild member's nickname
+func (s *BotService) UpdateGuildMemberNickname(ctx context.Context, guildID, userID, nickname, botToken string) error {
+	// Check rate limit
+	if err := s.checkRateLimit(ctx, "member_modify"); err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("https://discord.com/api/v10/guilds/%s/members/%s", guildID, userID)
+
+	payload := map[string]interface{}{
+		"nick": nickname,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal nickname update payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "PATCH", url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create nickname update request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bot "+botToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "go-falcon/1.0")
+	req.Header.Set("X-Audit-Log-Reason", "Go Falcon corporation ticker nickname update")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make nickname update request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Update rate limit
+	s.updateRateLimit("member_modify", resp.Header)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("nickname update request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	slog.InfoContext(ctx, "Successfully updated Discord member nickname",
+		"guild_id", guildID,
+		"user_id", userID,
+		"nickname", nickname)
+
+	return nil
+}
+
 // DecryptBotToken decrypts a stored bot token (simplified implementation)
 // In production, this should use proper decryption with a secret key
 func (s *BotService) DecryptBotToken(encryptedToken string) string {

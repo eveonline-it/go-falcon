@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -15,6 +16,42 @@ import (
 type GroupsServiceInterface interface {
 	GetUserGroups(ctx context.Context, userID string) ([]GroupInfo, error)
 	GetGroupInfo(ctx context.Context, groupID string) (*GroupInfo, error)
+}
+
+// CharacterServiceInterface defines the interface for interacting with the character service
+type CharacterServiceInterface interface {
+	GetCharacterProfile(ctx context.Context, characterID int) (*CharacterProfile, error)
+}
+
+// CorporationServiceInterface defines the interface for interacting with the corporation service
+type CorporationServiceInterface interface {
+	GetCorporationInfo(ctx context.Context, corporationID int) (*CorporationInfo, error)
+}
+
+// UserServiceInterface defines the interface for interacting with the user service
+type UserServiceInterface interface {
+	GetUserByUserID(ctx context.Context, userID string) (*UserProfile, error)
+}
+
+// CharacterProfile represents character information
+type CharacterProfile struct {
+	CharacterID   int    `json:"character_id"`
+	Name          string `json:"name"`
+	CorporationID int    `json:"corporation_id"`
+}
+
+// CorporationInfo represents corporation information
+type CorporationInfo struct {
+	CorporationID int    `json:"corporation_id"`
+	Name          string `json:"name"`
+	Ticker        string `json:"ticker"`
+}
+
+// UserProfile represents user profile information
+type UserProfile struct {
+	UserID        string `json:"user_id"`
+	CharacterID   int    `json:"character_id"`
+	CharacterName string `json:"character_name"`
 }
 
 // GroupInfo represents group information from the groups service
@@ -53,17 +90,23 @@ type SyncStats struct {
 
 // SyncService handles Discord role synchronization
 type SyncService struct {
-	repo          *Repository
-	botService    *BotService
-	groupsService GroupsServiceInterface
+	repo               *Repository
+	botService         *BotService
+	groupsService      GroupsServiceInterface
+	characterService   CharacterServiceInterface
+	corporationService CorporationServiceInterface
+	userService        UserServiceInterface
 }
 
 // NewSyncService creates a new sync service
-func NewSyncService(repo *Repository, botService *BotService, groupsService GroupsServiceInterface) *SyncService {
+func NewSyncService(repo *Repository, botService *BotService, groupsService GroupsServiceInterface, characterService CharacterServiceInterface, corporationService CorporationServiceInterface, userService UserServiceInterface) *SyncService {
 	return &SyncService{
-		repo:          repo,
-		botService:    botService,
-		groupsService: groupsService,
+		repo:               repo,
+		botService:         botService,
+		groupsService:      groupsService,
+		characterService:   characterService,
+		corporationService: corporationService,
+		userService:        userService,
 	}
 }
 
@@ -521,6 +564,18 @@ func (s *SyncService) syncUser(ctx context.Context, discordUser *models.DiscordU
 		result.RolesRemoved = rolesToRemove
 	}
 
+	// Update nickname with corporation ticker prefix if roles were applied
+	if !dryRun && (len(rolesToAdd) > 0 || len(rolesToRemove) > 0) {
+		if err := s.updateDiscordNicknameWithTicker(ctx, discordUser, guildID, member, botToken); err != nil {
+			// Don't fail the entire sync for nickname update failures, just log the error
+			slog.WarnContext(ctx, "Failed to update Discord nickname with corporation ticker",
+				"user_id", discordUser.UserID,
+				"discord_id", discordUser.DiscordID,
+				"guild_id", guildID,
+				"error", err)
+		}
+	}
+
 	result.Success = true
 
 	if len(rolesToAdd) > 0 || len(rolesToRemove) > 0 {
@@ -547,4 +602,116 @@ func (s *SyncService) decryptAccessToken(encryptedToken string) string {
 // GetSyncStatus gets recent synchronization status
 func (s *SyncService) GetSyncStatus(ctx context.Context, guildID string, limit int) ([]*models.DiscordSyncStatus, error) {
 	return s.repo.GetRecentSyncStatus(ctx, guildID, limit)
+}
+
+// getUserCorporationTicker gets the corporation ticker for a user's main character
+func (s *SyncService) getUserCorporationTicker(ctx context.Context, userID string) (string, error) {
+	// Skip if required services are not available
+	if s.userService == nil || s.characterService == nil || s.corporationService == nil {
+		return "", fmt.Errorf("required services not available")
+	}
+
+	// Get user profile to find main character ID
+	userProfile, err := s.userService.GetUserByUserID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user profile: %w", err)
+	}
+
+	if userProfile == nil {
+		return "", fmt.Errorf("user profile not found")
+	}
+
+	// Get character information to find corporation ID
+	characterProfile, err := s.characterService.GetCharacterProfile(ctx, userProfile.CharacterID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get character profile: %w", err)
+	}
+
+	if characterProfile == nil {
+		return "", fmt.Errorf("character profile not found")
+	}
+
+	// Get corporation information to get ticker
+	corporationInfo, err := s.corporationService.GetCorporationInfo(ctx, characterProfile.CorporationID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get corporation info: %w", err)
+	}
+
+	if corporationInfo == nil {
+		return "", fmt.Errorf("corporation info not found")
+	}
+
+	return corporationInfo.Ticker, nil
+}
+
+// buildNicknameWithTicker builds a Discord nickname with corporation ticker prefix
+func (s *SyncService) buildNicknameWithTicker(originalNickname, ticker string) string {
+	// Remove existing ticker prefix if present (format: [TICK] Name)
+	cleanNickname := originalNickname
+	if len(originalNickname) > 0 && originalNickname[0] == '[' {
+		if endIndex := strings.Index(originalNickname, "] "); endIndex != -1 {
+			cleanNickname = strings.TrimSpace(originalNickname[endIndex+2:])
+		}
+	}
+
+	// If no clean nickname, use character name from user context
+	if cleanNickname == "" {
+		cleanNickname = originalNickname
+	}
+
+	// Build new nickname with ticker prefix
+	return fmt.Sprintf("[%s] %s", ticker, cleanNickname)
+}
+
+// updateDiscordNicknameWithTicker updates a Discord user's nickname with corporation ticker prefix
+func (s *SyncService) updateDiscordNicknameWithTicker(ctx context.Context, discordUser *models.DiscordUser, guildID string, member *DiscordGuildMember, botToken string) error {
+	// Get user's corporation ticker
+	ticker, err := s.getUserCorporationTicker(ctx, discordUser.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to get corporation ticker: %w", err)
+	}
+
+	if ticker == "" {
+		return fmt.Errorf("empty corporation ticker")
+	}
+
+	// Get current nickname (use global name or username as fallback)
+	currentNickname := ""
+	if member.Nick != nil {
+		currentNickname = *member.Nick
+	} else if member.User.GlobalName != nil {
+		currentNickname = *member.User.GlobalName
+	} else {
+		currentNickname = member.User.Username
+	}
+
+	// Build new nickname with ticker
+	newNickname := s.buildNicknameWithTicker(currentNickname, ticker)
+
+	// Only update if the nickname would change
+	if (member.Nick != nil && *member.Nick == newNickname) ||
+		(member.Nick == nil && newNickname == currentNickname) {
+		slog.DebugContext(ctx, "Discord nickname already has correct ticker, skipping update",
+			"user_id", discordUser.UserID,
+			"discord_id", discordUser.DiscordID,
+			"guild_id", guildID,
+			"current_nickname", currentNickname,
+			"ticker", ticker)
+		return nil
+	}
+
+	// Update the nickname
+	if err := s.botService.UpdateGuildMemberNickname(ctx, guildID, discordUser.DiscordID, newNickname, botToken); err != nil {
+		return fmt.Errorf("failed to update Discord nickname: %w", err)
+	}
+
+	slog.InfoContext(ctx, "Updated Discord nickname with corporation ticker",
+		"user_id", discordUser.UserID,
+		"discord_id", discordUser.DiscordID,
+		"guild_id", guildID,
+		"old_nickname", currentNickname,
+		"new_nickname", newNickname,
+		"ticker", ticker)
+
+	return nil
 }

@@ -30,12 +30,27 @@ type GroupsService interface {
 	GetGroupInfo(ctx context.Context, groupID string) (*services.GroupInfo, error)
 }
 
+// CharacterService interface for character module dependency
+type CharacterService interface {
+	GetCharacterProfile(ctx context.Context, characterID int) (*services.CharacterProfile, error)
+}
+
+// CorporationService interface for corporation module dependency
+type CorporationService interface {
+	GetCorporationInfo(ctx context.Context, corporationID int) (*services.CorporationInfo, error)
+}
+
+// UserService interface for user service dependency
+type UserService interface {
+	GetUserByUserID(ctx context.Context, userID string) (*services.UserProfile, error)
+}
+
 // NewModule creates a new Discord module
-func NewModule(db *database.MongoDB, redis *database.Redis, groupsService GroupsService, permissionMiddleware *middleware.PermissionMiddleware) *Module {
+func NewModule(db *database.MongoDB, redis *database.Redis, groupsService GroupsService, characterService CharacterService, corporationService CorporationService, userService UserService, permissionMiddleware *middleware.PermissionMiddleware) *Module {
 	baseModule := module.NewBaseModule("discord", db, redis)
 
-	// Create service with groups service dependency
-	service := services.NewService(db, groupsService)
+	// Create service with all service dependencies
+	service := services.NewService(db, groupsService, characterService, corporationService, userService)
 
 	// Create Discord adapter for authentication
 	discordAdapter := middleware.NewDiscordAdapter(permissionMiddleware)

@@ -18,26 +18,32 @@ import (
 
 // Service is the main Discord service that coordinates all operations
 type Service struct {
-	repo          *Repository
-	oauthService  *OAuthService
-	botService    *BotService
-	syncService   *SyncService
-	groupsService GroupsServiceInterface
+	repo               *Repository
+	oauthService       *OAuthService
+	botService         *BotService
+	syncService        *SyncService
+	groupsService      GroupsServiceInterface
+	characterService   CharacterServiceInterface
+	corporationService CorporationServiceInterface
+	userService        UserServiceInterface
 }
 
 // NewService creates a new Discord service
-func NewService(db *database.MongoDB, groupsService GroupsServiceInterface) *Service {
+func NewService(db *database.MongoDB, groupsService GroupsServiceInterface, characterService CharacterServiceInterface, corporationService CorporationServiceInterface, userService UserServiceInterface) *Service {
 	repo := NewRepository(db)
 	oauthService := NewOAuthService(repo)
 	botService := NewBotService(repo)
-	syncService := NewSyncService(repo, botService, groupsService)
+	syncService := NewSyncService(repo, botService, groupsService, characterService, corporationService, userService)
 
 	return &Service{
-		repo:          repo,
-		oauthService:  oauthService,
-		botService:    botService,
-		syncService:   syncService,
-		groupsService: groupsService,
+		repo:               repo,
+		oauthService:       oauthService,
+		botService:         botService,
+		syncService:        syncService,
+		groupsService:      groupsService,
+		characterService:   characterService,
+		corporationService: corporationService,
+		userService:        userService,
 	}
 }
 
