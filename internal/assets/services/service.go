@@ -37,7 +37,7 @@ func NewAssetService(db *mongo.Database, eveGateway *evegateway.Client, sdeServi
 }
 
 // GetCharacterAssets retrieves character assets
-func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32, token string, locationID *int64, page, pageSize int) ([]*models.Asset, int, error) {
+func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32, token string, locationID *int64) ([]*models.Asset, int, error) {
 	// Try to get assets from database first
 	filter := bson.M{"character_id": characterID}
 	cursor, err := s.db.Collection(models.AssetsCollection).Find(ctx, filter)
@@ -77,22 +77,13 @@ func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32
 		assets = filtered
 	}
 
-	// Paginate
+	// Return all assets without pagination
 	total := len(assets)
-	start := (page - 1) * pageSize
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
-	if start >= total {
-		return []*models.Asset{}, total, nil
-	}
-
-	return assets[start:end], total, nil
+	return assets, total, nil
 }
 
 // GetCorporationAssets retrieves corporation assets
-func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, characterID int32, token string, locationID *int64, division *int, page, pageSize int) ([]*models.Asset, int, error) {
+func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, characterID int32, token string, locationID *int64, division *int) ([]*models.Asset, int, error) {
 	// Try to get assets from database first
 	filter := bson.M{"corporation_id": corporationID}
 	cursor, err := s.db.Collection(models.AssetsCollection).Find(ctx, filter)
@@ -144,18 +135,9 @@ func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, 
 		assets = filtered
 	}
 
-	// Paginate
+	// Return all assets without pagination
 	total := len(assets)
-	start := (page - 1) * pageSize
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
-	if start >= total {
-		return []*models.Asset{}, total, nil
-	}
-
-	return assets[start:end], total, nil
+	return assets, total, nil
 }
 
 // processESIAssets processes raw ESI assets and enriches them with additional data

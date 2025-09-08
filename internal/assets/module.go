@@ -36,6 +36,16 @@ type AuthService interface {
 	GetUserProfileByCharacterID(ctx context.Context, characterID int) (*authModels.UserProfile, error)
 }
 
+// authRepositoryWrapper wraps AuthService to provide Repository interface
+type authRepositoryWrapper struct {
+	authService AuthService
+}
+
+// GetUserProfileByCharacterID implements the required method for AssetRoutes
+func (w *authRepositoryWrapper) GetUserProfileByCharacterID(ctx context.Context, characterID int) (*authModels.UserProfile, error) {
+	return w.authService.GetUserProfileByCharacterID(ctx, characterID)
+}
+
 // NewModule creates a new assets module
 func NewModule(
 	db *database.MongoDB,
@@ -77,7 +87,14 @@ func (m *Module) Routes(r chi.Router) {
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterAssetsRoutes(api, basePath, m.service, m.authMiddleware, m.authService)
+	// Create auth repository wrapper for AssetRoutes
+	authRepo := &authRepositoryWrapper{authService: m.authService}
+
+	// Create routes handler with dependencies
+	assetRoutes := routes.NewAssetRoutes(m.service, m.authMiddleware, authRepo)
+
+	// Register the routes
+	assetRoutes.RegisterRoutes(api)
 }
 
 // GetService returns the asset service

@@ -4,8 +4,6 @@ package dto
 type GetCharacterAssetsRequest struct {
 	CharacterID   int32  `path:"character_id" json:"character_id" minimum:"1" doc:"EVE character ID"`
 	LocationID    int64  `query:"location_id" json:"location_id,omitempty" doc:"Optional: filter by location ID (0 means no filter)"`
-	Page          int    `query:"page" json:"page,omitempty" minimum:"1" default:"1" doc:"Page number"`
-	PageSize      int    `query:"page_size" json:"page_size,omitempty" minimum:"1" maximum:"1000" default:"100" doc:"Items per page"`
 	Authorization string `header:"authorization" json:"-" doc:"Bearer token for authentication"`
 	Cookie        string `header:"cookie" json:"-" doc:"Cookie header for authentication"`
 }
@@ -15,8 +13,6 @@ type GetCorporationAssetsRequest struct {
 	CorporationID int32  `path:"corporation_id" json:"corporation_id" minimum:"1" doc:"EVE corporation ID"`
 	LocationID    int64  `query:"location_id" json:"location_id,omitempty" doc:"Optional: filter by location ID (0 means no filter)"`
 	Division      int    `query:"division" json:"division,omitempty" minimum:"0" maximum:"7" doc:"Optional: filter by division (1-7, 0 means no filter)"`
-	Page          int    `query:"page" json:"page,omitempty" minimum:"1" default:"1" doc:"Page number"`
-	PageSize      int    `query:"page_size" json:"page_size,omitempty" minimum:"1" maximum:"1000" default:"100" doc:"Items per page"`
 	Authorization string `header:"authorization" json:"-" doc:"Bearer token for authentication"`
 	Cookie        string `header:"cookie" json:"-" doc:"Cookie header for authentication"`
 }

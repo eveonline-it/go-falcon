@@ -79,7 +79,7 @@ func RegisterAssetsRoutes(api huma.API, basePath string, service *services.Asset
 		}
 
 		// Get assets from service
-		assets, total, err := service.GetCharacterAssets(ctx, input.CharacterID, token, locationID, input.Page, input.PageSize)
+		assets, total, err := service.GetCharacterAssets(ctx, input.CharacterID, token, locationID)
 		if err != nil {
 			return nil, err
 		}
@@ -97,8 +97,6 @@ func RegisterAssetsRoutes(api huma.API, basePath string, service *services.Asset
 				Assets:      assetResponses,
 				Total:       total,
 				TotalValue:  totalValue,
-				Page:        input.Page,
-				PageSize:    input.PageSize,
 				LastUpdated: time.Now(),
 			},
 		}, nil
@@ -138,7 +136,7 @@ func RegisterAssetsRoutes(api huma.API, basePath string, service *services.Asset
 		}
 
 		// Get assets from service
-		assets, total, err := service.GetCorporationAssets(ctx, input.CorporationID, int32(user.CharacterID), token, locationID, division, input.Page, input.PageSize)
+		assets, total, err := service.GetCorporationAssets(ctx, input.CorporationID, int32(user.CharacterID), token, locationID, division)
 		if err != nil {
 			return nil, err
 		}
@@ -156,8 +154,6 @@ func RegisterAssetsRoutes(api huma.API, basePath string, service *services.Asset
 				Assets:      assetResponses,
 				Total:       total,
 				TotalValue:  totalValue,
-				Page:        input.Page,
-				PageSize:    input.PageSize,
 				LastUpdated: time.Now(),
 			},
 		}, nil

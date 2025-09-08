@@ -34,8 +34,6 @@ type AssetListResponse struct {
 	Assets      []AssetResponse `json:"assets" doc:"List of assets"`
 	Total       int             `json:"total" doc:"Total number of assets"`
 	TotalValue  float64         `json:"total_value,omitempty" doc:"Total value of all assets"`
-	Page        int             `json:"page,omitempty" doc:"Current page"`
-	PageSize    int             `json:"page_size,omitempty" doc:"Page size"`
 	LastUpdated time.Time       `json:"last_updated" doc:"Last update time"`
 }
 
