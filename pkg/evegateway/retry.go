@@ -56,7 +56,11 @@ func (r *DefaultRetryClient) DoWithRetry(ctx context.Context, req *http.Request,
 		}
 
 		// Update error limits from headers
-		r.updateErrorLimits(resp.Header)
+		// All errors except 404 (Not Found) count against the error limit
+		// 403 (Forbidden) DOES count against the limit
+		if resp.StatusCode != 404 {
+			r.updateErrorLimits(resp.Header)
+		}
 
 		// Check if we need to retry based on status code
 		if resp.StatusCode >= 500 || resp.StatusCode == 420 || resp.StatusCode == 429 {

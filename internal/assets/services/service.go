@@ -3,9 +3,12 @@ package services
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"go-falcon/internal/assets/models"
+	structureModels "go-falcon/internal/structures/models"
 	"go-falcon/internal/structures/services"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/sde"
@@ -57,7 +60,7 @@ func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32
 		}
 
 		// Process and save assets
-		assets, err = s.processESIAssets(ctx, esiAssets, characterID, 0)
+		assets, err = s.processESIAssets(ctx, esiAssets, characterID, 0, token)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -112,7 +115,7 @@ func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, 
 		}
 
 		// Process and save assets
-		assets, err = s.processESIAssets(ctx, esiAssets, characterID, corporationID)
+		assets, err = s.processESIAssets(ctx, esiAssets, characterID, corporationID, token)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -156,11 +159,14 @@ func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, 
 }
 
 // processESIAssets processes raw ESI assets and enriches them with additional data
-func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []map[string]any, characterID, corporationID int32) ([]*models.Asset, error) {
+func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []map[string]any, characterID, corporationID int32, token string) ([]*models.Asset, error) {
 	assets := make([]*models.Asset, 0, len(esiAssets))
 
 	// Create a map for container hierarchy
 	containerMap := make(map[int64]*models.Asset)
+
+	// Track structures we've already tried to fetch to avoid repeated 403s
+	failedStructures := make(map[int64]bool)
 
 	// First pass: create all assets and identify containers
 	for _, esiAsset := range esiAssets {
@@ -235,20 +241,89 @@ func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []map[str
 		containerMap[asset.ItemID] = asset
 	}
 
-	// Second pass: establish parent-child relationships and enrich location data
+	// Second pass: establish parent-child relationships
 	for _, asset := range assets {
 		// Check if this item is inside a container
 		if parent, exists := containerMap[asset.LocationID]; exists {
 			asset.ParentItemID = &parent.ItemID
 			asset.LocationID = parent.LocationID // Use parent's location
 		}
+	}
 
-		// Enrich location data
-		s.enrichLocationData(ctx, asset, characterID)
+	// Third pass: Collect unique structures and pre-fetch them
+	uniqueStructures := make(map[int64]bool)
+	for _, asset := range assets {
+		uniqueStructures[asset.LocationID] = true
+	}
 
-		// Get market price
-		// TODO: Implement market price enrichment
-		// s.enrichMarketData(ctx, asset)
+	slog.InfoContext(ctx, "Preparing to enrich assets with structure data",
+		"total_assets", len(assets),
+		"unique_structures", len(uniqueStructures))
+
+	// Pre-fetch structure data with aggressive error limit checking
+	structureCache := make(map[int64]*structureModels.Structure)
+	structuresChecked := 0
+	max403Errors := 20 // Stop after 20 403 errors to protect ESI limits
+
+	for locationID := range uniqueStructures {
+		// Stop if we've hit too many 403 errors
+		if len(failedStructures) >= max403Errors {
+			slog.WarnContext(ctx, "Stopping structure enrichment - too many 403 errors",
+				"failed_structures", len(failedStructures),
+				"max_allowed", max403Errors)
+			break
+		}
+
+		// Check error limits before EVERY structure call
+		if err := s.eveGateway.CheckErrorLimits(); err != nil {
+			slog.WarnContext(ctx, "Stopping structure enrichment due to ESI error limit",
+				"error", err,
+				"structures_checked", structuresChecked,
+				"structures_total", len(uniqueStructures))
+			break
+		}
+
+		// Try to get structure data
+		structure, err := s.structureService.GetStructure(ctx, locationID, token)
+		if err != nil {
+			if strings.Contains(err.Error(), "authentication failed") {
+				return nil, fmt.Errorf("authentication failed during structure fetch: %w", err)
+			}
+			if strings.Contains(err.Error(), "access denied") {
+				failedStructures[locationID] = true
+				// Check if we're getting too many 403s in a row
+				if len(failedStructures) > 10 && float64(len(failedStructures))/float64(structuresChecked) > 0.5 {
+					slog.WarnContext(ctx, "Too many access denied errors, stopping structure enrichment",
+						"failed_structures", len(failedStructures),
+						"structures_checked", structuresChecked)
+					break
+				}
+			}
+			// Continue with next structure
+		} else if structure != nil {
+			structureCache[locationID] = structure
+		}
+		structuresChecked++
+	}
+
+	// Fourth pass: Apply structure data to assets
+	for _, asset := range assets {
+		if structure, exists := structureCache[asset.LocationID]; exists {
+			asset.LocationName = structure.Name
+			asset.SolarSystemID = structure.SolarSystemID
+			asset.SolarSystemName = structure.SolarSystemName
+			asset.RegionID = structure.RegionID
+			asset.RegionName = structure.RegionName
+		}
+		// Assets without structure data will just have the location ID
+	}
+
+	// Log summary of structures we couldn't access
+	if len(failedStructures) > 0 {
+		slog.InfoContext(ctx, "Asset enrichment completed with some structures inaccessible",
+			"total_assets", len(assets),
+			"inaccessible_structures", len(failedStructures),
+			"reason", "Character lacks docking rights (403)")
 	}
 
 	// Save all assets to database
@@ -260,18 +335,33 @@ func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []map[str
 }
 
 // enrichLocationData enriches asset with location information
-func (s *AssetService) enrichLocationData(ctx context.Context, asset *models.Asset, characterID int32) {
-	// TODO: Get actual token for structure access - using placeholder for now
-	token := "placeholder_token"
+func (s *AssetService) enrichLocationData(ctx context.Context, asset *models.Asset, token string) error {
 	// Get structure/station information
 	structure, err := s.structureService.GetStructure(ctx, asset.LocationID, token)
-	if err == nil && structure != nil {
+	if err != nil {
+		// Check if it's an authentication error (401) - these should stop processing
+		if strings.Contains(err.Error(), "authentication failed") {
+			return fmt.Errorf("authentication failed for structure %d: %w", asset.LocationID, err)
+		}
+		// For access denied (403), return the error so caller can track it
+		if strings.Contains(err.Error(), "access denied") {
+			return fmt.Errorf("access denied to structure %d", asset.LocationID)
+		}
+		// For other errors, just log and continue
+		slog.DebugContext(ctx, "Could not fetch structure information",
+			"structure_id", asset.LocationID,
+			"error", err)
+		return nil
+	}
+
+	if structure != nil {
 		asset.LocationName = structure.Name
 		asset.SolarSystemID = structure.SolarSystemID
 		asset.SolarSystemName = structure.SolarSystemName
 		asset.RegionID = structure.RegionID
 		asset.RegionName = structure.RegionName
 	}
+	return nil
 }
 
 // enrichMarketData enriches asset with market price information
@@ -367,6 +457,17 @@ func (s *AssetService) saveAssets(ctx context.Context, assets []*models.Asset) e
 
 // RefreshCharacterAssets forces a refresh of character assets from ESI
 func (s *AssetService) RefreshCharacterAssets(ctx context.Context, characterID int32, token string) (int, int, int, error) {
+	// Check ESI error limits before starting
+	if err := s.eveGateway.CheckErrorLimits(); err != nil {
+		return 0, 0, 0, fmt.Errorf("cannot refresh assets: %w", err)
+	}
+
+	// Log current error limits
+	limits := s.eveGateway.GetErrorLimits()
+	slog.InfoContext(ctx, "Starting asset refresh",
+		"character_id", characterID,
+		"esi_errors_remaining", limits.Remain,
+		"esi_error_reset", limits.Reset)
 	// Get existing assets for statistics before refresh
 	var existingAssets []*models.Asset
 	cursor, err := s.db.Collection(models.AssetsCollection).Find(ctx, bson.M{"character_id": characterID})
@@ -382,7 +483,7 @@ func (s *AssetService) RefreshCharacterAssets(ctx context.Context, characterID i
 	}
 
 	// Process assets in memory (don't save to DB yet)
-	newAssets, err := s.processESIAssetsInMemory(ctx, esiAssets, characterID, 0)
+	newAssets, err := s.processESIAssetsInMemory(ctx, esiAssets, characterID, 0, token)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("failed to process ESI assets: %w", err)
 	}
@@ -434,11 +535,14 @@ func (s *AssetService) RefreshCharacterAssets(ctx context.Context, characterID i
 }
 
 // processESIAssetsInMemory processes raw ESI assets and enriches them with additional data (memory only)
-func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets []map[string]any, characterID, corporationID int32) ([]*models.Asset, error) {
+func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets []map[string]any, characterID, corporationID int32, token string) ([]*models.Asset, error) {
 	assets := make([]*models.Asset, 0, len(esiAssets))
 
 	// Create a map for container hierarchy
 	containerMap := make(map[int64]*models.Asset)
+
+	// Track structures we've already tried to fetch to avoid repeated 403s
+	failedStructures := make(map[int64]bool)
 
 	// First pass: create all assets and identify containers
 	for _, esiAsset := range esiAssets {
@@ -513,20 +617,89 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 		containerMap[asset.ItemID] = asset
 	}
 
-	// Second pass: establish parent-child relationships and enrich location data
+	// Second pass: establish parent-child relationships
 	for _, asset := range assets {
 		// Check if this item is inside a container
 		if parent, exists := containerMap[asset.LocationID]; exists {
 			asset.ParentItemID = &parent.ItemID
 			asset.LocationID = parent.LocationID // Use parent's location
 		}
+	}
 
-		// Enrich location data
-		s.enrichLocationData(ctx, asset, characterID)
+	// Third pass: Collect unique structures and pre-fetch them
+	uniqueStructures := make(map[int64]bool)
+	for _, asset := range assets {
+		uniqueStructures[asset.LocationID] = true
+	}
 
-		// Skip market price enrichment for now
-		// TODO: Implement market price enrichment
-		// s.enrichMarketData(ctx, asset)
+	slog.InfoContext(ctx, "Preparing to enrich assets with structure data",
+		"total_assets", len(assets),
+		"unique_structures", len(uniqueStructures))
+
+	// Pre-fetch structure data with aggressive error limit checking
+	structureCache := make(map[int64]*structureModels.Structure)
+	structuresChecked := 0
+	max403Errors := 20 // Stop after 20 403 errors to protect ESI limits
+
+	for locationID := range uniqueStructures {
+		// Stop if we've hit too many 403 errors
+		if len(failedStructures) >= max403Errors {
+			slog.WarnContext(ctx, "Stopping structure enrichment - too many 403 errors",
+				"failed_structures", len(failedStructures),
+				"max_allowed", max403Errors)
+			break
+		}
+
+		// Check error limits before EVERY structure call
+		if err := s.eveGateway.CheckErrorLimits(); err != nil {
+			slog.WarnContext(ctx, "Stopping structure enrichment due to ESI error limit",
+				"error", err,
+				"structures_checked", structuresChecked,
+				"structures_total", len(uniqueStructures))
+			break
+		}
+
+		// Try to get structure data
+		structure, err := s.structureService.GetStructure(ctx, locationID, token)
+		if err != nil {
+			if strings.Contains(err.Error(), "authentication failed") {
+				return nil, fmt.Errorf("authentication failed during structure fetch: %w", err)
+			}
+			if strings.Contains(err.Error(), "access denied") {
+				failedStructures[locationID] = true
+				// Check if we're getting too many 403s in a row
+				if len(failedStructures) > 10 && float64(len(failedStructures))/float64(structuresChecked) > 0.5 {
+					slog.WarnContext(ctx, "Too many access denied errors, stopping structure enrichment",
+						"failed_structures", len(failedStructures),
+						"structures_checked", structuresChecked)
+					break
+				}
+			}
+			// Continue with next structure
+		} else if structure != nil {
+			structureCache[locationID] = structure
+		}
+		structuresChecked++
+	}
+
+	// Fourth pass: Apply structure data to assets
+	for _, asset := range assets {
+		if structure, exists := structureCache[asset.LocationID]; exists {
+			asset.LocationName = structure.Name
+			asset.SolarSystemID = structure.SolarSystemID
+			asset.SolarSystemName = structure.SolarSystemName
+			asset.RegionID = structure.RegionID
+			asset.RegionName = structure.RegionName
+		}
+		// Assets without structure data will just have the location ID
+	}
+
+	// Log summary of structures we couldn't access
+	if len(failedStructures) > 0 {
+		slog.InfoContext(ctx, "Asset enrichment completed with some structures inaccessible",
+			"total_assets", len(assets),
+			"inaccessible_structures", len(failedStructures),
+			"reason", "Character lacks docking rights (403)")
 	}
 
 	return assets, nil

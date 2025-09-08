@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -154,7 +156,26 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 	// Fetch from ESI
 	esiStructure, err := s.eveGateway.Structures.GetStructure(ctx, structureID, token)
 	if err != nil {
-		// If we have cached data and ESI fails, return cached
+		// Check if it's an authentication error (401) - fail immediately
+		if strings.Contains(err.Error(), "status 401") {
+			return nil, fmt.Errorf("authentication failed for structure %d: %w", structureID, err)
+		}
+
+		// Check if it's a forbidden error (403) - character doesn't have access
+		if strings.Contains(err.Error(), "status 403") {
+			// Log that we're skipping this structure due to access restrictions
+			slog.DebugContext(ctx, "Structure access denied",
+				"structure_id", structureID,
+				"reason", "Character lacks docking rights (403)")
+
+			// For forbidden errors, return cached data if available, otherwise a specific error
+			if structure != nil {
+				return structure, nil
+			}
+			return nil, fmt.Errorf("access denied to structure %d: character lacks docking rights", structureID)
+		}
+
+		// For other errors, if we have cached data, return it
 		if structure != nil {
 			return structure, nil
 		}
@@ -162,27 +183,31 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 	}
 
 	// Parse ESI structure response from map[string]any
+	// The adapter returns int32 values, but we need to handle both int32 and float64 due to JSON unmarshaling
 	name, _ := esiStructure["name"].(string)
 
-	ownerID, _ := esiStructure["owner_id"].(int32)
-	if ownerID == 0 {
-		if ownerIDFloat, ok := esiStructure["owner_id"].(float64); ok {
-			ownerID = int32(ownerIDFloat)
-		}
+	// Handle owner_id - try int32 first (from adapter), then float64 (from JSON)
+	var ownerID int32
+	if val, ok := esiStructure["owner_id"].(int32); ok {
+		ownerID = val
+	} else if val, ok := esiStructure["owner_id"].(float64); ok {
+		ownerID = int32(val)
 	}
 
-	solarSystemID, _ := esiStructure["solar_system_id"].(int32)
-	if solarSystemID == 0 {
-		if systemIDFloat, ok := esiStructure["solar_system_id"].(float64); ok {
-			solarSystemID = int32(systemIDFloat)
-		}
+	// Handle solar_system_id
+	var solarSystemID int32
+	if val, ok := esiStructure["solar_system_id"].(int32); ok {
+		solarSystemID = val
+	} else if val, ok := esiStructure["solar_system_id"].(float64); ok {
+		solarSystemID = int32(val)
 	}
 
-	typeID, _ := esiStructure["type_id"].(int32)
-	if typeID == 0 {
-		if typeIDFloat, ok := esiStructure["type_id"].(float64); ok {
-			typeID = int32(typeIDFloat)
-		}
+	// Handle type_id
+	var typeID int32
+	if val, ok := esiStructure["type_id"].(int32); ok {
+		typeID = val
+	} else if val, ok := esiStructure["type_id"].(float64); ok {
+		typeID = int32(val)
 	}
 
 	// Get type name from SDE
@@ -380,20 +405,24 @@ func (s *StructureService) GetStructuresByOwner(ctx context.Context, ownerID int
 }
 
 // BulkRefreshStructures refreshes multiple structures
-func (s *StructureService) BulkRefreshStructures(ctx context.Context, structureIDs []int64, token string) ([]int64, []int64) {
+func (s *StructureService) BulkRefreshStructures(ctx context.Context, structureIDs []int64, token string) ([]int64, []int64, error) {
 	var refreshed []int64
 	var failed []int64
 
 	for _, structureID := range structureIDs {
 		_, err := s.GetStructure(ctx, structureID, token)
 		if err != nil {
+			// If authentication fails, stop processing immediately
+			if strings.Contains(err.Error(), "authentication failed") {
+				return refreshed, failed, fmt.Errorf("authentication failed during bulk refresh: %w", err)
+			}
 			failed = append(failed, structureID)
 		} else {
 			refreshed = append(refreshed, structureID)
 		}
 	}
 
-	return refreshed, failed
+	return refreshed, failed, nil
 }
 
 // GetCharacterAccessibleStructures returns structures a character has access to

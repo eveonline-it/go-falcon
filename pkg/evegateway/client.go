@@ -134,6 +134,27 @@ type StructuresClient interface {
 	GetStructure(ctx context.Context, structureID int64, token string) (map[string]any, error)
 }
 
+// GetErrorLimits returns the current ESI error limits
+func (c *Client) GetErrorLimits() ESIErrorLimits {
+	c.limitsMutex.RLock()
+	defer c.limitsMutex.RUnlock()
+	return *c.errorLimits
+}
+
+// CheckErrorLimits checks if we're approaching the ESI error limit
+// Returns an error if we should stop making requests
+func (c *Client) CheckErrorLimits() error {
+	c.limitsMutex.RLock()
+	defer c.limitsMutex.RUnlock()
+
+	// If we have less than 10 errors remaining, stop making requests
+	if c.errorLimits.Remain > 0 && c.errorLimits.Remain < 10 {
+		return fmt.Errorf("approaching ESI error limit: only %d errors remaining until %v",
+			c.errorLimits.Remain, c.errorLimits.Reset)
+	}
+	return nil
+}
+
 // NewClient creates a new EVE Online ESI client with in-memory caching
 func NewClient() *Client {
 	var transport http.RoundTripper = http.DefaultTransport
