@@ -2,11 +2,13 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"go-falcon/internal/assets/models"
 	structureModels "go-falcon/internal/structures/models"
 	"go-falcon/internal/structures/services"
@@ -24,15 +26,19 @@ type AssetService struct {
 	eveGateway       *evegateway.Client
 	sdeService       sde.SDEService
 	structureService *services.StructureService
+	redis            *redis.Client
+	structureTracker *StructureAccessTracker
 }
 
 // NewAssetService creates a new asset service
-func NewAssetService(db *mongo.Database, eveGateway *evegateway.Client, sdeService sde.SDEService, structureService *services.StructureService) *AssetService {
+func NewAssetService(db *mongo.Database, eveGateway *evegateway.Client, sdeService sde.SDEService, structureService *services.StructureService, redis *redis.Client) *AssetService {
 	return &AssetService{
 		db:               db,
 		eveGateway:       eveGateway,
 		sdeService:       sdeService,
 		structureService: structureService,
+		redis:            redis,
+		structureTracker: NewStructureAccessTracker(redis),
 	}
 }
 
@@ -147,7 +153,7 @@ func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []map[str
 	// Create a map for container hierarchy
 	containerMap := make(map[int64]*models.Asset)
 
-	// Track structures we've already tried to fetch to avoid repeated 403s
+	// Track structures we've failed to access in this run
 	failedStructures := make(map[int64]bool)
 
 	// First pass: create all assets and identify containers
@@ -608,7 +614,7 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 		}
 	}
 
-	// Third pass: Collect unique structures and pre-fetch them
+	// Third pass: Collect unique structures and intelligently check them
 	uniqueStructures := make(map[int64]bool)
 	for _, asset := range assets {
 		uniqueStructures[asset.LocationID] = true
@@ -618,16 +624,55 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 		"total_assets", len(assets),
 		"unique_structures", len(uniqueStructures))
 
-	// Pre-fetch structure data with aggressive error limit checking
+	// Get known failed structures from Redis tracker
+	knownFailedStructures := make(map[int64]bool)
+	if s.structureTracker != nil {
+		// Get structures to retry based on intelligent selection
+		retryStructures, err := s.structureTracker.GetRetryStructures(ctx, characterID, 10)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to get retry structures from tracker",
+				"error", err)
+		} else if len(retryStructures) > 0 {
+			slog.InfoContext(ctx, "Selected structures for retry",
+				"retry_count", len(retryStructures))
+		}
+
+		// Mark known failed structures (except those selected for retry)
+		for structureID := range uniqueStructures {
+			// Check if this structure is known to be inaccessible
+			key := fmt.Sprintf("falcon:assets:failed_structures:%d:%d", characterID, structureID)
+			if exists, _ := s.redis.Exists(ctx, key).Result(); exists > 0 {
+				// Check if it's selected for retry
+				isRetry := false
+				for _, retryID := range retryStructures {
+					if retryID == structureID {
+						isRetry = true
+						break
+					}
+				}
+				if !isRetry {
+					knownFailedStructures[structureID] = true
+				}
+			}
+		}
+	}
+
+	// Pre-fetch structure data with intelligent filtering
 	structureCache := make(map[int64]*structureModels.Structure)
 	structuresChecked := 0
-	max403Errors := 20 // Stop after 20 403 errors to protect ESI limits
+	new403Errors := 0
+	max403Errors := 20 // Stop after 20 new 403 errors to protect ESI limits
 
 	for locationID := range uniqueStructures {
-		// Stop if we've hit too many 403 errors
-		if len(failedStructures) >= max403Errors {
+		// Skip known failed structures (unless selected for retry)
+		if knownFailedStructures[locationID] {
+			continue
+		}
+
+		// Stop if we've hit too many new 403 errors
+		if new403Errors >= max403Errors {
 			slog.WarnContext(ctx, "Stopping structure enrichment - too many 403 errors",
-				"failed_structures", len(failedStructures),
+				"new_403_errors", new403Errors,
 				"max_allowed", max403Errors)
 			break
 		}
@@ -648,11 +693,22 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 				return nil, fmt.Errorf("authentication failed during structure fetch: %w", err)
 			}
 			if strings.Contains(err.Error(), "access denied") {
+				new403Errors++
 				failedStructures[locationID] = true
+
+				// Record failed access in Redis tracker
+				if s.structureTracker != nil {
+					if err := s.structureTracker.RecordFailedAccess(ctx, characterID, locationID, "403 Forbidden - Access denied"); err != nil {
+						slog.WarnContext(ctx, "Failed to record structure access failure",
+							"structure_id", locationID,
+							"error", err)
+					}
+				}
+
 				// Check if we're getting too many 403s in a row
-				if len(failedStructures) > 10 && float64(len(failedStructures))/float64(structuresChecked) > 0.5 {
+				if new403Errors > 10 && float64(new403Errors)/float64(structuresChecked) > 0.5 {
 					slog.WarnContext(ctx, "Too many access denied errors, stopping structure enrichment",
-						"failed_structures", len(failedStructures),
+						"new_403_errors", new403Errors,
 						"structures_checked", structuresChecked)
 					break
 				}
@@ -660,8 +716,25 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 			// Continue with next structure
 		} else if structure != nil {
 			structureCache[locationID] = structure
+
+			// Record successful access (might have been previously failed)
+			if s.structureTracker != nil {
+				if err := s.structureTracker.RecordSuccessfulAccess(ctx, characterID, locationID); err != nil {
+					slog.WarnContext(ctx, "Failed to record structure access success",
+						"structure_id", locationID,
+						"error", err)
+				}
+			}
 		}
 		structuresChecked++
+	}
+
+	// Update ESI error budget tracker
+	if s.structureTracker != nil && new403Errors > 0 {
+		if err := s.structureTracker.IncrementESIErrors(ctx, new403Errors); err != nil {
+			slog.WarnContext(ctx, "Failed to update ESI error budget",
+				"error", err)
+		}
 	}
 
 	// Fourth pass: Apply structure data to assets
@@ -676,12 +749,19 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 		// Assets without structure data will just have the location ID
 	}
 
-	// Log summary of structures we couldn't access
-	if len(failedStructures) > 0 {
-		slog.InfoContext(ctx, "Asset enrichment completed with some structures inaccessible",
+	// Log summary
+	if len(failedStructures) > 0 || len(knownFailedStructures) > 0 {
+		slog.InfoContext(ctx, "Asset enrichment completed with structure access tracking",
 			"total_assets", len(assets),
-			"inaccessible_structures", len(failedStructures),
+			"new_inaccessible", len(failedStructures),
+			"known_inaccessible", len(knownFailedStructures),
+			"structures_checked", structuresChecked,
 			"reason", "Character lacks docking rights (403)")
+	}
+
+	// Update tracker metrics
+	if s.structureTracker != nil {
+		s.structureTracker.updateMetrics(ctx, "total_structures_checked", structuresChecked)
 	}
 
 	return assets, nil
@@ -824,6 +904,146 @@ func (s *AssetService) GetAssetTracking(ctx context.Context, filter bson.M) ([]*
 	}
 
 	return trackings, nil
+}
+
+// GetStructureAccessStats returns statistics about failed structure access for monitoring
+func (s *AssetService) GetStructureAccessStats(ctx context.Context, characterID *int32) (map[string]interface{}, error) {
+	if s.structureTracker == nil {
+		return nil, fmt.Errorf("structure tracker not initialized")
+	}
+
+	stats := make(map[string]interface{})
+
+	if characterID != nil {
+		// Get stats for specific character
+		charStats, err := s.structureTracker.GetFailedStructureStats(ctx, *characterID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get character stats: %w", err)
+		}
+		stats["character_stats"] = charStats
+		stats["character_id"] = *characterID
+	} else {
+		// Get global stats
+		pattern := "falcon:assets:failed_structures:*"
+		keys, err := s.redis.Keys(ctx, pattern).Result()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get failed structure keys: %w", err)
+		}
+
+		// Aggregate stats
+		characterMap := make(map[int32]int)
+		totalFailed := len(keys)
+
+		for _, key := range keys {
+			var charID int32
+			var structID int64
+			fmt.Sscanf(key, "falcon:assets:failed_structures:%d:%d", &charID, &structID)
+			if charID > 0 {
+				characterMap[charID]++
+			}
+		}
+
+		stats["total_failed_structures"] = totalFailed
+		stats["affected_characters"] = len(characterMap)
+		stats["character_breakdown"] = characterMap
+	}
+
+	// Add current error budget info
+	stats["remaining_error_budget"] = s.structureTracker.GetRemainingErrorBudget(ctx)
+
+	// Get today's metrics
+	date := time.Now().Format("2006-01-02")
+	metricsKey := fmt.Sprintf("falcon:assets:metrics:%s", date)
+	metricsData, err := s.redis.Get(ctx, metricsKey).Result()
+	if err == nil {
+		var metrics map[string]interface{}
+		if err := json.Unmarshal([]byte(metricsData), &metrics); err == nil {
+			stats["today_metrics"] = metrics
+		}
+	}
+
+	return stats, nil
+}
+
+// ProcessStructureAccessRetry processes scheduled retries for failed structure access
+func (s *AssetService) ProcessStructureAccessRetry(ctx context.Context) error {
+	if s.structureTracker == nil {
+		return fmt.Errorf("structure tracker not initialized")
+	}
+
+	slog.InfoContext(ctx, "Starting scheduled structure access retry processing")
+
+	// Get all unique character IDs from failed structures
+	pattern := "falcon:assets:failed_structures:*"
+	keys, err := s.redis.Keys(ctx, pattern).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get failed structure keys: %w", err)
+	}
+
+	// Track unique characters
+	characterMap := make(map[int32]bool)
+	for _, key := range keys {
+		var characterID int32
+		var structureID int64
+		fmt.Sscanf(key, "falcon:assets:failed_structures:%d:%d", &characterID, &structureID)
+		if characterID > 0 {
+			characterMap[characterID] = true
+		}
+	}
+
+	slog.InfoContext(ctx, "Found characters with failed structures",
+		"character_count", len(characterMap),
+		"total_failed_structures", len(keys))
+
+	// Process retries for each character (limit to 5 characters per run)
+	processedCharacters := 0
+	totalRetries := 0
+
+	for characterID := range characterMap {
+		if processedCharacters >= 5 {
+			break // Limit processing to avoid long-running tasks
+		}
+
+		// Get retry candidates for this character
+		retryStructures, err := s.structureTracker.GetRetryStructures(ctx, characterID, 5)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to get retry structures",
+				"character_id", characterID,
+				"error", err)
+			continue
+		}
+
+		if len(retryStructures) == 0 {
+			continue
+		}
+
+		slog.InfoContext(ctx, "Processing structure retries for character",
+			"character_id", characterID,
+			"retry_count", len(retryStructures))
+
+		// Process each retry structure
+		for _, structureID := range retryStructures {
+			totalRetries++
+
+			// Note: Actual retry would happen during next asset refresh
+			// This task just selects and marks structures for retry
+			slog.DebugContext(ctx, "Marked structure for retry",
+				"character_id", characterID,
+				"structure_id", structureID)
+		}
+
+		processedCharacters++
+	}
+
+	// Get and log remaining error budget
+	remainingBudget := s.structureTracker.GetRemainingErrorBudget(ctx)
+
+	slog.InfoContext(ctx, "Completed scheduled structure access retry processing",
+		"characters_processed", processedCharacters,
+		"total_retries_marked", totalRetries,
+		"remaining_error_budget", remainingBudget)
+
+	return nil
 }
 
 // ProcessAssetTracking processes active asset tracking configurations

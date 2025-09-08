@@ -62,6 +62,23 @@ func (s *AssetService) RegisterScheduledTasks(ctx context.Context, schedulerServ
 		return fmt.Errorf("failed to register stale asset refresher: %w", err)
 	}
 
+	// Retry failed structure access every 6 hours
+	_, err = schedulerService.CreateTask(ctx, &schedulerDTO.TaskCreateRequest{
+		Name:        "Retry Failed Structure Access",
+		Description: "Intelligently retries structures that previously returned 403 errors",
+		Type:        schedulerModels.TaskTypeSystem,
+		Schedule:    "0 0 */6 * * *", // Every 6 hours (6-field format)
+		Priority:    schedulerModels.TaskPriorityLow,
+		Enabled:     true,
+		Config: map[string]interface{}{
+			"task_name": "structure_access_retry",
+		},
+		Tags: []string{"assets", "structures", "retry", "system"},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to register structure access retry task: %w", err)
+	}
+
 	return nil
 }
 

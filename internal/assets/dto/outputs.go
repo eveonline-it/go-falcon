@@ -128,6 +128,11 @@ type AssetModuleStatusResponse struct {
 	Message string `json:"message,omitempty" description:"Optional status message or error details"`
 }
 
+// StructureAccessStatsOutput represents the structure access statistics response
+type StructureAccessStatsOutput struct {
+	Body map[string]interface{} `json:"body"`
+}
+
 // ToAssetResponse converts a model to a response DTO
 func ToAssetResponse(asset *models.Asset) AssetResponse {
 	return AssetResponse{

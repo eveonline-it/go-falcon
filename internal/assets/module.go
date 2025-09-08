@@ -49,6 +49,7 @@ func (w *authRepositoryWrapper) GetUserProfileByCharacterID(ctx context.Context,
 // NewModule creates a new assets module
 func NewModule(
 	db *database.MongoDB,
+	redis *database.Redis,
 	eveGateway *evegateway.Client,
 	sdeService sde.SDEService,
 	structureService *structureServices.StructureService,
@@ -56,12 +57,12 @@ func NewModule(
 	schedulerService *schedulerServices.SchedulerService,
 	authService AuthService,
 ) *Module {
-	// Create service
-	service := services.NewAssetService(db.Database, eveGateway, sdeService, structureService)
+	// Create service with Redis client for structure tracking
+	service := services.NewAssetService(db.Database, eveGateway, sdeService, structureService, redis.Client)
 
 	// Create module
 	m := &Module{
-		BaseModule:       module.NewBaseModule("assets", db, nil),
+		BaseModule:       module.NewBaseModule("assets", db, redis),
 		service:          service,
 		routes:           nil,
 		schedulerService: schedulerService,

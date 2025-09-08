@@ -554,7 +554,7 @@ func main() {
 	}
 
 	// Initialize assets module
-	assetsModule := assets.NewModule(appCtx.MongoDB, evegateClient, appCtx.SDEService, structuresModule.GetService(), authMiddleware, schedulerModule.GetSchedulerService(), authModule.GetAuthService())
+	assetsModule := assets.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, structuresModule.GetService(), authMiddleware, schedulerModule.GetSchedulerService(), authModule.GetAuthService())
 	if err := assetsModule.Initialize(ctx); err != nil {
 		log.Printf("❌ Failed to initialize assets module: %v", err)
 	}

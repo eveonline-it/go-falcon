@@ -227,6 +227,48 @@ func (r *AssetRoutes) RegisterRoutes(api huma.API) {
 		}, nil
 	})
 
+	// Structure access monitoring endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "getStructureAccessStats",
+		Method:      "GET",
+		Path:        "/assets/structure-access-stats",
+		Summary:     "Get structure access statistics",
+		Description: "Returns statistics about failed structure access attempts for monitoring purposes",
+		Tags:        []string{"Assets"},
+		Security: []map[string][]string{
+			{"bearerAuth": {}},
+			{"cookieAuth": {}},
+		},
+	}, func(ctx context.Context, input *struct {
+		CharacterID int32 `query:"character_id" doc:"Optional character ID to filter stats, 0 for global stats"`
+	}) (*dto.StructureAccessStatsOutput, error) {
+		// Get authenticated user from context (authentication is handled by API gateway)
+		authData, ok := ctx.Value(AuthDataKey).(*AuthData)
+		if !ok || authData == nil || authData.User == nil {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+
+		// Admin users can view all stats, regular users only their own
+		var queryCharID *int32
+		if input.CharacterID > 0 {
+			// Check if user has permission to view this character's stats
+			if input.CharacterID != int32(authData.User.CharacterID) {
+				// TODO: Add admin check here
+				return nil, huma.Error403Forbidden("not authorized to view this character's statistics")
+			}
+			queryCharID = &input.CharacterID
+		}
+
+		stats, err := r.service.GetStructureAccessStats(ctx, queryCharID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to get structure access stats", err)
+		}
+
+		return &dto.StructureAccessStatsOutput{
+			Body: stats,
+		}, nil
+	})
+
 	// TODO: Add remaining asset endpoints
 	// Corporation assets, tracking endpoints, etc.
 }
