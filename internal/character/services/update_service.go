@@ -17,8 +17,8 @@ const (
 	ESI_BATCH_SIZE = 1000
 	// PROCESSING_BATCH_SIZE is the number of characters to process per cycle
 	PROCESSING_BATCH_SIZE = 5000
-	// PARALLEL_WORKERS is the number of concurrent ESI requests
-	PARALLEL_WORKERS = 3
+	// PARALLEL_WORKERS is the number of concurrent ESI requests (reduced to avoid rate limits)
+	PARALLEL_WORKERS = 1
 )
 
 // UpdateService handles character affiliation updates

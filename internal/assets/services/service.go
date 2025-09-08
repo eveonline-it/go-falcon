@@ -2,11 +2,9 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"go-falcon/internal/assets/models"
 	"go-falcon/internal/structures/services"
 	"go-falcon/pkg/evegateway"
@@ -17,28 +15,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const (
-	// Cache keys
-	assetsCachePrefix      = "c:assets:"
-	assetsCacheTTL         = 30 * time.Minute
-	marketPriceCachePrefix = "marketHub:60003760:" // Jita 4-4
-	marketPriceCacheTTL    = 2 * time.Hour
-)
-
 // AssetService handles asset operations
 type AssetService struct {
 	db               *mongo.Database
-	redis            *redis.Client
 	eveGateway       *evegateway.Client
 	sdeService       sde.SDEService
 	structureService *services.StructureService
 }
 
 // NewAssetService creates a new asset service
-func NewAssetService(db *mongo.Database, redis *redis.Client, eveGateway *evegateway.Client, sdeService sde.SDEService, structureService *services.StructureService) *AssetService {
+func NewAssetService(db *mongo.Database, eveGateway *evegateway.Client, sdeService sde.SDEService, structureService *services.StructureService) *AssetService {
 	return &AssetService{
 		db:               db,
-		redis:            redis,
 		eveGateway:       eveGateway,
 		sdeService:       sdeService,
 		structureService: structureService,
@@ -46,18 +34,24 @@ func NewAssetService(db *mongo.Database, redis *redis.Client, eveGateway *evegat
 }
 
 // GetCharacterAssets retrieves character assets
-func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32, locationID *int64, page, pageSize int) ([]*models.Asset, int, error) {
-	// Try cache first
-	cacheKey := fmt.Sprintf("%schar:%d", assetsCachePrefix, characterID)
-	if locationID != nil {
-		cacheKey = fmt.Sprintf("%s:loc:%d", cacheKey, *locationID)
+func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32, token string, locationID *int64, page, pageSize int) ([]*models.Asset, int, error) {
+	// Try to get assets from database first
+	filter := bson.M{"character_id": characterID}
+	cursor, err := s.db.Collection(models.AssetsCollection).Find(ctx, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query database: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var assets []*models.Asset
+	if err := cursor.All(ctx, &assets); err != nil {
+		return nil, 0, fmt.Errorf("failed to decode assets: %w", err)
 	}
 
-	// Check if we need to refresh from ESI
-	assets, needsRefresh := s.getAssetsFromCache(ctx, cacheKey)
-	if needsRefresh {
+	// If no assets found or data is old, fetch from ESI
+	if len(assets) == 0 || (len(assets) > 0 && time.Since(assets[0].UpdatedAt) > 30*time.Minute) {
 		// Fetch from ESI
-		esiAssets, err := s.eveGateway.GetCharacterAssets(ctx, characterID)
+		esiAssets, err := s.eveGateway.Assets.GetCharacterAssets(ctx, characterID, token)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to fetch assets from ESI: %w", err)
 		}
@@ -67,9 +61,6 @@ func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32
 		if err != nil {
 			return nil, 0, err
 		}
-
-		// Cache the results
-		s.cacheAssets(ctx, cacheKey, assets)
 	}
 
 	// Filter by location if specified
@@ -98,18 +89,24 @@ func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32
 }
 
 // GetCorporationAssets retrieves corporation assets
-func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, characterID int32, locationID *int64, division *int, page, pageSize int) ([]*models.Asset, int, error) {
-	// Try cache first
-	cacheKey := fmt.Sprintf("%scorp:%d", assetsCachePrefix, corporationID)
-	if locationID != nil {
-		cacheKey = fmt.Sprintf("%s:loc:%d", cacheKey, *locationID)
+func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, characterID int32, token string, locationID *int64, division *int, page, pageSize int) ([]*models.Asset, int, error) {
+	// Try to get assets from database first
+	filter := bson.M{"corporation_id": corporationID}
+	cursor, err := s.db.Collection(models.AssetsCollection).Find(ctx, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query database: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var assets []*models.Asset
+	if err := cursor.All(ctx, &assets); err != nil {
+		return nil, 0, fmt.Errorf("failed to decode assets: %w", err)
 	}
 
-	// Check if we need to refresh from ESI
-	assets, needsRefresh := s.getAssetsFromCache(ctx, cacheKey)
-	if needsRefresh {
+	// If no assets found or data is old, fetch from ESI
+	if len(assets) == 0 || (len(assets) > 0 && time.Since(assets[0].UpdatedAt) > 30*time.Minute) {
 		// Fetch from ESI (requires character with appropriate roles)
-		esiAssets, err := s.eveGateway.GetCorporationAssets(ctx, corporationID, characterID)
+		esiAssets, err := s.eveGateway.Assets.GetCorporationAssets(ctx, corporationID, token)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to fetch corporation assets from ESI: %w", err)
 		}
@@ -119,9 +116,6 @@ func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, 
 		if err != nil {
 			return nil, 0, err
 		}
-
-		// Cache the results
-		s.cacheAssets(ctx, cacheKey, assets)
 	}
 
 	// Filter by location if specified
@@ -162,7 +156,7 @@ func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, 
 }
 
 // processESIAssets processes raw ESI assets and enriches them with additional data
-func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []evegateway.Asset, characterID, corporationID int32) ([]*models.Asset, error) {
+func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []map[string]any, characterID, corporationID int32) ([]*models.Asset, error) {
 	assets := make([]*models.Asset, 0, len(esiAssets))
 
 	// Create a map for container hierarchy
@@ -170,16 +164,56 @@ func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []evegate
 
 	// First pass: create all assets and identify containers
 	for _, esiAsset := range esiAssets {
+		// Parse fields from map[string]any
+		itemID, _ := esiAsset["item_id"].(int64)
+		if itemID == 0 {
+			if itemIDFloat, ok := esiAsset["item_id"].(float64); ok {
+				itemID = int64(itemIDFloat)
+			}
+		}
+
+		typeID, _ := esiAsset["type_id"].(int32)
+		if typeID == 0 {
+			if typeIDFloat, ok := esiAsset["type_id"].(float64); ok {
+				typeID = int32(typeIDFloat)
+			}
+		}
+
+		locationID, _ := esiAsset["location_id"].(int64)
+		if locationID == 0 {
+			if locationIDFloat, ok := esiAsset["location_id"].(float64); ok {
+				locationID = int64(locationIDFloat)
+			}
+		}
+
+		locationFlag, _ := esiAsset["location_flag"].(string)
+
+		quantity, _ := esiAsset["quantity"].(int32)
+		if quantity == 0 {
+			if quantityFloat, ok := esiAsset["quantity"].(float64); ok {
+				quantity = int32(quantityFloat)
+			}
+		}
+
+		isSingleton, _ := esiAsset["is_singleton"].(bool)
+
+		var isBlueprintCopy bool
+		if blueprintCopyPtr, ok := esiAsset["is_blueprint_copy"].(*bool); ok && blueprintCopyPtr != nil {
+			isBlueprintCopy = *blueprintCopyPtr
+		} else if blueprintCopyBool, ok := esiAsset["is_blueprint_copy"].(bool); ok {
+			isBlueprintCopy = blueprintCopyBool
+		}
+
 		asset := &models.Asset{
 			CharacterID:     characterID,
 			CorporationID:   corporationID,
-			ItemID:          esiAsset.ItemID,
-			TypeID:          esiAsset.TypeID,
-			LocationID:      esiAsset.LocationID,
-			LocationFlag:    esiAsset.LocationFlag,
-			Quantity:        esiAsset.Quantity,
-			IsSingleton:     esiAsset.IsSingleton,
-			IsBlueprintCopy: esiAsset.IsBlueprintCopy,
+			ItemID:          itemID,
+			TypeID:          typeID,
+			LocationID:      locationID,
+			LocationFlag:    locationFlag,
+			Quantity:        quantity,
+			IsSingleton:     isSingleton,
+			IsBlueprintCopy: isBlueprintCopy,
 			CreatedAt:       time.Now(),
 			UpdatedAt:       time.Now(),
 		}
@@ -213,7 +247,8 @@ func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []evegate
 		s.enrichLocationData(ctx, asset, characterID)
 
 		// Get market price
-		s.enrichMarketData(ctx, asset)
+		// TODO: Implement market price enrichment
+		// s.enrichMarketData(ctx, asset)
 	}
 
 	// Save all assets to database
@@ -226,8 +261,10 @@ func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []evegate
 
 // enrichLocationData enriches asset with location information
 func (s *AssetService) enrichLocationData(ctx context.Context, asset *models.Asset, characterID int32) {
+	// TODO: Get actual token for structure access - using placeholder for now
+	token := "placeholder_token"
 	// Get structure/station information
-	structure, err := s.structureService.GetStructure(ctx, asset.LocationID, characterID)
+	structure, err := s.structureService.GetStructure(ctx, asset.LocationID, token)
 	if err == nil && structure != nil {
 		asset.LocationName = structure.Name
 		asset.SolarSystemID = structure.SolarSystemID
@@ -239,16 +276,11 @@ func (s *AssetService) enrichLocationData(ctx context.Context, asset *models.Ass
 
 // enrichMarketData enriches asset with market price information
 func (s *AssetService) enrichMarketData(ctx context.Context, asset *models.Asset) {
-	// Get market price from cache or external service
-	cacheKey := fmt.Sprintf("%s%d", marketPriceCachePrefix, asset.TypeID)
-	priceStr, err := s.redis.Get(ctx, cacheKey).Result()
-	if err == nil {
-		var price float64
-		if err := json.Unmarshal([]byte(priceStr), &price); err == nil {
-			asset.MarketPrice = price
-			asset.TotalValue = price * float64(asset.Quantity)
-		}
-	}
+	// Market price enrichment removed - this would need to be implemented
+	// with a market data service or external API if needed
+	// For now, set default values
+	asset.MarketPrice = 0
+	asset.TotalValue = 0
 }
 
 // isContainer checks if a type ID is a container
@@ -277,34 +309,6 @@ func (s *AssetService) determineLocationType(locationID int64) string {
 	}
 }
 
-// getAssetsFromCache retrieves assets from cache
-func (s *AssetService) getAssetsFromCache(ctx context.Context, cacheKey string) ([]*models.Asset, bool) {
-	cached, err := s.redis.Get(ctx, cacheKey).Result()
-	if err != nil {
-		return nil, true // needs refresh
-	}
-
-	var assets []*models.Asset
-	if err := json.Unmarshal([]byte(cached), &assets); err != nil {
-		return nil, true // needs refresh
-	}
-
-	// Check if cache is still valid
-	if len(assets) > 0 && time.Since(assets[0].UpdatedAt) > assetsCacheTTL {
-		return assets, true // needs refresh but return cached data
-	}
-
-	return assets, false
-}
-
-// cacheAssets caches assets in Redis
-func (s *AssetService) cacheAssets(ctx context.Context, cacheKey string, assets []*models.Asset) {
-	data, err := json.Marshal(assets)
-	if err == nil {
-		s.redis.Set(ctx, cacheKey, data, assetsCacheTTL)
-	}
-}
-
 // saveAssets saves assets to database
 func (s *AssetService) saveAssets(ctx context.Context, assets []*models.Asset) error {
 	if len(assets) == 0 {
@@ -314,18 +318,44 @@ func (s *AssetService) saveAssets(ctx context.Context, assets []*models.Asset) e
 	// Prepare bulk write operations
 	operations := make([]mongo.WriteModel, len(assets))
 	for i, asset := range assets {
-		if asset.ID.IsZero() {
-			asset.ID = primitive.NewObjectID()
-		}
-
 		filter := bson.M{
 			"character_id": asset.CharacterID,
 			"item_id":      asset.ItemID,
 		}
 
-		operations[i] = mongo.NewReplaceOneModel().
+		// Create update document with all fields except _id
+		update := bson.M{
+			"$set": bson.M{
+				"corporation_id":    asset.CorporationID,
+				"type_id":           asset.TypeID,
+				"type_name":         asset.TypeName,
+				"location_id":       asset.LocationID,
+				"location_type":     asset.LocationType,
+				"location_flag":     asset.LocationFlag,
+				"location_name":     asset.LocationName,
+				"quantity":          asset.Quantity,
+				"is_singleton":      asset.IsSingleton,
+				"is_blueprint_copy": asset.IsBlueprintCopy,
+				"name":              asset.Name,
+				"market_price":      asset.MarketPrice,
+				"total_value":       asset.TotalValue,
+				"solar_system_id":   asset.SolarSystemID,
+				"solar_system_name": asset.SolarSystemName,
+				"region_id":         asset.RegionID,
+				"region_name":       asset.RegionName,
+				"parent_item_id":    asset.ParentItemID,
+				"is_container":      asset.IsContainer,
+				"created_at":        asset.CreatedAt,
+				"updated_at":        asset.UpdatedAt,
+			},
+			"$setOnInsert": bson.M{
+				"_id": primitive.NewObjectID(),
+			},
+		}
+
+		operations[i] = mongo.NewUpdateOneModel().
 			SetFilter(filter).
-			SetReplacement(asset).
+			SetUpdate(update).
 			SetUpsert(true)
 	}
 
@@ -336,12 +366,8 @@ func (s *AssetService) saveAssets(ctx context.Context, assets []*models.Asset) e
 }
 
 // RefreshCharacterAssets forces a refresh of character assets from ESI
-func (s *AssetService) RefreshCharacterAssets(ctx context.Context, characterID int32) (int, int, int, error) {
-	// Clear cache
-	cacheKey := fmt.Sprintf("%schar:%d", assetsCachePrefix, characterID)
-	s.redis.Del(ctx, cacheKey)
-
-	// Get existing assets for comparison
+func (s *AssetService) RefreshCharacterAssets(ctx context.Context, characterID int32, token string) (int, int, int, error) {
+	// Get existing assets for statistics before refresh
 	var existingAssets []*models.Asset
 	cursor, err := s.db.Collection(models.AssetsCollection).Find(ctx, bson.M{"character_id": characterID})
 	if err == nil {
@@ -350,18 +376,18 @@ func (s *AssetService) RefreshCharacterAssets(ctx context.Context, characterID i
 	}
 
 	// Fetch fresh data from ESI
-	esiAssets, err := s.eveGateway.GetCharacterAssets(ctx, characterID)
+	esiAssets, err := s.eveGateway.Assets.GetCharacterAssets(ctx, characterID, token)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("failed to fetch assets from ESI: %w", err)
 	}
 
-	// Process assets
-	newAssets, err := s.processESIAssets(ctx, esiAssets, characterID, 0)
+	// Process assets in memory (don't save to DB yet)
+	newAssets, err := s.processESIAssetsInMemory(ctx, esiAssets, characterID, 0)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, fmt.Errorf("failed to process ESI assets: %w", err)
 	}
 
-	// Calculate changes
+	// Calculate statistics before making changes
 	updated := len(newAssets)
 	newItems := 0
 	removedItems := 0
@@ -387,25 +413,142 @@ func (s *AssetService) RefreshCharacterAssets(ctx context.Context, characterID i
 		}
 	}
 
-	// Remove old assets that no longer exist
-	if removedItems > 0 {
-		itemIDs := make([]int64, 0, removedItems)
-		for _, asset := range existingAssets {
-			if !newMap[asset.ItemID] {
-				itemIDs = append(itemIDs, asset.ItemID)
+	// Atomic replacement: Delete old assets, then insert new ones
+	// 1. Delete all existing character assets
+	_, err = s.db.Collection(models.AssetsCollection).DeleteMany(ctx, bson.M{
+		"character_id": characterID,
+	})
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to delete existing assets: %w", err)
+	}
+
+	// 2. Insert all new assets (if any)
+	if len(newAssets) > 0 {
+		err = s.insertAssets(ctx, newAssets)
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("failed to insert new assets: %w", err)
+		}
+	}
+
+	return updated, newItems, removedItems, nil
+}
+
+// processESIAssetsInMemory processes raw ESI assets and enriches them with additional data (memory only)
+func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets []map[string]any, characterID, corporationID int32) ([]*models.Asset, error) {
+	assets := make([]*models.Asset, 0, len(esiAssets))
+
+	// Create a map for container hierarchy
+	containerMap := make(map[int64]*models.Asset)
+
+	// First pass: create all assets and identify containers
+	for _, esiAsset := range esiAssets {
+		// Parse fields from map[string]any
+		itemID, _ := esiAsset["item_id"].(int64)
+		if itemID == 0 {
+			if itemIDFloat, ok := esiAsset["item_id"].(float64); ok {
+				itemID = int64(itemIDFloat)
 			}
 		}
 
-		s.db.Collection(models.AssetsCollection).DeleteMany(ctx, bson.M{
-			"character_id": characterID,
-			"item_id":      bson.M{"$in": itemIDs},
-		})
+		typeID, _ := esiAsset["type_id"].(int32)
+		if typeID == 0 {
+			if typeIDFloat, ok := esiAsset["type_id"].(float64); ok {
+				typeID = int32(typeIDFloat)
+			}
+		}
+
+		locationID, _ := esiAsset["location_id"].(int64)
+		if locationID == 0 {
+			if locationIDFloat, ok := esiAsset["location_id"].(float64); ok {
+				locationID = int64(locationIDFloat)
+			}
+		}
+
+		locationFlag, _ := esiAsset["location_flag"].(string)
+
+		quantity, _ := esiAsset["quantity"].(int32)
+		if quantity == 0 {
+			if quantityFloat, ok := esiAsset["quantity"].(float64); ok {
+				quantity = int32(quantityFloat)
+			}
+		}
+
+		isSingleton, _ := esiAsset["is_singleton"].(bool)
+
+		var isBlueprintCopy bool
+		if blueprintCopyPtr, ok := esiAsset["is_blueprint_copy"].(*bool); ok && blueprintCopyPtr != nil {
+			isBlueprintCopy = *blueprintCopyPtr
+		} else if blueprintCopyBool, ok := esiAsset["is_blueprint_copy"].(bool); ok {
+			isBlueprintCopy = blueprintCopyBool
+		}
+
+		asset := &models.Asset{
+			CharacterID:     characterID,
+			CorporationID:   corporationID,
+			ItemID:          itemID,
+			TypeID:          typeID,
+			LocationID:      locationID,
+			LocationFlag:    locationFlag,
+			Quantity:        quantity,
+			IsSingleton:     isSingleton,
+			IsBlueprintCopy: isBlueprintCopy,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		}
+
+		// Check if it's a container
+		asset.IsContainer = s.isContainer(asset.TypeID)
+
+		// Determine location type
+		asset.LocationType = s.determineLocationType(asset.LocationID)
+
+		// Get type information from SDE
+		if typeInfo, err := s.sdeService.GetType(fmt.Sprintf("%d", asset.TypeID)); err == nil {
+			if name, ok := typeInfo.Name["en"]; ok {
+				asset.TypeName = name
+			}
+		}
+
+		assets = append(assets, asset)
+		containerMap[asset.ItemID] = asset
 	}
 
-	// Cache the results
-	s.cacheAssets(ctx, cacheKey, newAssets)
+	// Second pass: establish parent-child relationships and enrich location data
+	for _, asset := range assets {
+		// Check if this item is inside a container
+		if parent, exists := containerMap[asset.LocationID]; exists {
+			asset.ParentItemID = &parent.ItemID
+			asset.LocationID = parent.LocationID // Use parent's location
+		}
 
-	return updated, newItems, removedItems, nil
+		// Enrich location data
+		s.enrichLocationData(ctx, asset, characterID)
+
+		// Skip market price enrichment for now
+		// TODO: Implement market price enrichment
+		// s.enrichMarketData(ctx, asset)
+	}
+
+	return assets, nil
+}
+
+// insertAssets performs a bulk insert of assets into the database
+func (s *AssetService) insertAssets(ctx context.Context, assets []*models.Asset) error {
+	if len(assets) == 0 {
+		return nil
+	}
+
+	// Convert to interface slice for InsertMany
+	documents := make([]interface{}, len(assets))
+	for i, asset := range assets {
+		// Ensure each asset has a new ObjectID
+		asset.ID = primitive.NewObjectID()
+		documents[i] = asset
+	}
+
+	// Insert all assets in one operation
+	_, err := s.db.Collection(models.AssetsCollection).InsertMany(ctx, documents)
+	return err
 }
 
 // GetAssetSummary returns a summary of assets

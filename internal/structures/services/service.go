@@ -25,6 +25,22 @@ const (
 	npcStationThreshold = 100000000
 )
 
+// getFloat64FromInterface safely extracts float64 from interface{}
+func getFloat64FromInterface(value interface{}) float64 {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int32:
+		return float64(v)
+	case int64:
+		return float64(v)
+	default:
+		return 0
+	}
+}
+
 // StructureService handles structure operations
 type StructureService struct {
 	db         *mongo.Database
@@ -44,7 +60,7 @@ func NewStructureService(db *mongo.Database, redis *redis.Client, eveGateway *ev
 }
 
 // GetStructure retrieves structure information
-func (s *StructureService) GetStructure(ctx context.Context, structureID int64, characterID int32) (*models.Structure, error) {
+func (s *StructureService) GetStructure(ctx context.Context, structureID int64, token string) (*models.Structure, error) {
 	// Check cache first
 	cacheKey := fmt.Sprintf("%s%d", structureCachePrefix, structureID)
 	cached, err := s.redis.Get(ctx, cacheKey).Result()
@@ -60,7 +76,7 @@ func (s *StructureService) GetStructure(ctx context.Context, structureID int64, 
 		return s.getNPCStation(ctx, structureID)
 	}
 
-	return s.getPlayerStructure(ctx, structureID, characterID)
+	return s.getPlayerStructure(ctx, structureID, token)
 }
 
 // getNPCStation retrieves NPC station information
@@ -125,7 +141,7 @@ func (s *StructureService) getNPCStation(ctx context.Context, stationID int64) (
 }
 
 // getPlayerStructure retrieves player structure information from ESI
-func (s *StructureService) getPlayerStructure(ctx context.Context, structureID int64, characterID int32) (*models.Structure, error) {
+func (s *StructureService) getPlayerStructure(ctx context.Context, structureID int64, token string) (*models.Structure, error) {
 	// Check database first
 	structure, err := s.getStructureFromDB(ctx, structureID)
 	if err == nil && structure != nil {
@@ -136,7 +152,7 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 	}
 
 	// Fetch from ESI
-	esiStructure, err := s.eveGateway.GetStructure(ctx, structureID, characterID)
+	esiStructure, err := s.eveGateway.Structures.GetStructure(ctx, structureID, token)
 	if err != nil {
 		// If we have cached data and ESI fails, return cached
 		if structure != nil {
@@ -145,11 +161,86 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 		return nil, fmt.Errorf("failed to fetch structure from ESI: %w", err)
 	}
 
+	// Parse ESI structure response from map[string]any
+	name, _ := esiStructure["name"].(string)
+
+	ownerID, _ := esiStructure["owner_id"].(int32)
+	if ownerID == 0 {
+		if ownerIDFloat, ok := esiStructure["owner_id"].(float64); ok {
+			ownerID = int32(ownerIDFloat)
+		}
+	}
+
+	solarSystemID, _ := esiStructure["solar_system_id"].(int32)
+	if solarSystemID == 0 {
+		if systemIDFloat, ok := esiStructure["solar_system_id"].(float64); ok {
+			solarSystemID = int32(systemIDFloat)
+		}
+	}
+
+	typeID, _ := esiStructure["type_id"].(int32)
+	if typeID == 0 {
+		if typeIDFloat, ok := esiStructure["type_id"].(float64); ok {
+			typeID = int32(typeIDFloat)
+		}
+	}
+
 	// Get type name from SDE
 	typeName := ""
-	if typeInfo, err := s.sdeService.GetType(fmt.Sprintf("%d", esiStructure.TypeID)); err == nil {
+	if typeInfo, err := s.sdeService.GetType(fmt.Sprintf("%d", typeID)); err == nil {
 		if name, ok := typeInfo.Name["en"]; ok {
 			typeName = name
+		}
+	}
+
+	// Parse position if present
+	var position *models.Position
+	if positionData, ok := esiStructure["position"].(map[string]interface{}); ok {
+		position = &models.Position{
+			X: getFloat64FromInterface(positionData["x"]),
+			Y: getFloat64FromInterface(positionData["y"]),
+			Z: getFloat64FromInterface(positionData["z"]),
+		}
+	}
+
+	// Parse optional string slice fields
+	var services []string
+	if servicesData, ok := esiStructure["services"].([]interface{}); ok {
+		for _, service := range servicesData {
+			if serviceStr, ok := service.(string); ok {
+				services = append(services, serviceStr)
+			}
+		}
+	}
+
+	state, _ := esiStructure["state"].(string)
+
+	// Parse optional time fields
+	var fuelExpires *time.Time
+	if fuelExpiresStr, ok := esiStructure["fuel_expires"].(string); ok {
+		if parsed, err := time.Parse(time.RFC3339, fuelExpiresStr); err == nil {
+			fuelExpires = &parsed
+		}
+	}
+
+	var stateTimerStart *time.Time
+	if timerStartStr, ok := esiStructure["state_timer_start"].(string); ok {
+		if parsed, err := time.Parse(time.RFC3339, timerStartStr); err == nil {
+			stateTimerStart = &parsed
+		}
+	}
+
+	var stateTimerEnd *time.Time
+	if timerEndStr, ok := esiStructure["state_timer_end"].(string); ok {
+		if parsed, err := time.Parse(time.RFC3339, timerEndStr); err == nil {
+			stateTimerEnd = &parsed
+		}
+	}
+
+	var unanchorsAt *time.Time
+	if unanchorsStr, ok := esiStructure["unanchors_at"].(string); ok {
+		if parsed, err := time.Parse(time.RFC3339, unanchorsStr); err == nil {
+			unanchorsAt = &parsed
 		}
 	}
 
@@ -159,28 +250,23 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 	}
 
 	structure.StructureID = structureID
-	structure.CharacterID = characterID
-	structure.Name = esiStructure.Name
-	structure.OwnerID = esiStructure.OwnerID
-	structure.Position = &models.Position{
-		X: esiStructure.Position.X,
-		Y: esiStructure.Position.Y,
-		Z: esiStructure.Position.Z,
-	}
-	structure.SolarSystemID = esiStructure.SolarSystemID
-	structure.TypeID = esiStructure.TypeID
+	structure.Name = name
+	structure.OwnerID = ownerID
+	structure.Position = position
+	structure.SolarSystemID = solarSystemID
+	structure.TypeID = typeID
 	structure.TypeName = typeName
-	structure.IsNPCStation = false
-	structure.Services = esiStructure.Services
-	structure.State = esiStructure.State
-	structure.FuelExpires = esiStructure.FuelExpires
-	structure.StateTimerStart = esiStructure.StateTimerStart
-	structure.StateTimerEnd = esiStructure.StateTimerEnd
-	structure.UnanchorsAt = esiStructure.UnanchorsAt
+	structure.IsNPCStation = structureID < npcStationThreshold
+	structure.Services = services
+	structure.State = state
+	structure.FuelExpires = fuelExpires
+	structure.StateTimerStart = stateTimerStart
+	structure.StateTimerEnd = stateTimerEnd
+	structure.UnanchorsAt = unanchorsAt
 	structure.UpdatedAt = time.Now()
 
 	// Try to get solar system info to determine constellation and region
-	if solarSystem, err := s.sdeService.GetSolarSystem(int(esiStructure.SolarSystemID)); err == nil {
+	if solarSystem, err := s.sdeService.GetSolarSystem(int(solarSystemID)); err == nil {
 		// The SDE solar system doesn't have constellation/region references directly
 		// We would need to enhance the SDE service or maintain a lookup table
 		_ = solarSystem // Suppress unused variable warning
@@ -191,8 +277,7 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 		return nil, err
 	}
 
-	// Update access record
-	s.updateStructureAccess(ctx, structureID, characterID, true)
+	// TODO: Update access record - requires character ID extraction from token
 
 	// Cache the result
 	s.cacheStructure(ctx, structure)
@@ -295,12 +380,12 @@ func (s *StructureService) GetStructuresByOwner(ctx context.Context, ownerID int
 }
 
 // BulkRefreshStructures refreshes multiple structures
-func (s *StructureService) BulkRefreshStructures(ctx context.Context, structureIDs []int64, characterID int32) ([]int64, []int64) {
+func (s *StructureService) BulkRefreshStructures(ctx context.Context, structureIDs []int64, token string) ([]int64, []int64) {
 	var refreshed []int64
 	var failed []int64
 
 	for _, structureID := range structureIDs {
-		_, err := s.GetStructure(ctx, structureID, characterID)
+		_, err := s.GetStructure(ctx, structureID, token)
 		if err != nil {
 			failed = append(failed, structureID)
 		} else {

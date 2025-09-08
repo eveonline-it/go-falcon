@@ -16,9 +16,11 @@ import (
 	"go-falcon/pkg/config"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway/alliance"
+	"go-falcon/pkg/evegateway/assets"
 	"go-falcon/pkg/evegateway/character"
 	"go-falcon/pkg/evegateway/corporation"
 	"go-falcon/pkg/evegateway/killmails"
+	"go-falcon/pkg/evegateway/structures"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -44,6 +46,8 @@ type Client struct {
 	Alliance    AllianceClient
 	Corporation CorporationClient
 	Killmails   KillmailClient
+	Assets      AssetsClient
+	Structures  StructuresClient
 }
 
 // ESIStatusResponse represents the EVE Online server status
@@ -119,6 +123,17 @@ type KillmailClient interface {
 	GetCorporationRecentKillmails(ctx context.Context, corporationID int, token string) ([]map[string]any, error)
 }
 
+// AssetsClient interface for assets operations
+type AssetsClient interface {
+	GetCharacterAssets(ctx context.Context, characterID int32, token string) ([]map[string]any, error)
+	GetCorporationAssets(ctx context.Context, corporationID int32, token string) ([]map[string]any, error)
+}
+
+// StructuresClient interface for structures operations
+type StructuresClient interface {
+	GetStructure(ctx context.Context, structureID int64, token string) (map[string]any, error)
+}
+
 // NewClient creates a new EVE Online ESI client with in-memory caching
 func NewClient() *Client {
 	var transport http.RoundTripper = http.DefaultTransport
@@ -156,6 +171,10 @@ func NewClient() *Client {
 	corporationClient := &corporationClientImpl{client: corporationClientDirect}
 	killmailClientDirect := killmails.NewKillmailClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	killmailClient := &killmailClientImpl{client: killmailClientDirect}
+	assetsClientDirect := assets.NewAssetsClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	assetsClient := &assetsClientImpl{client: assetsClientDirect}
+	structuresClientDirect := structures.NewStructuresClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	structuresClient := &structuresClientImpl{client: structuresClientDirect}
 
 	return &Client{
 		httpClient:   httpClient,
@@ -171,6 +190,8 @@ func NewClient() *Client {
 		Alliance:     allianceClient,
 		Corporation:  corporationClient,
 		Killmails:    killmailClient,
+		Assets:       assetsClient,
+		Structures:   structuresClient,
 	}
 }
 
@@ -212,6 +233,10 @@ func NewClientWithRedis(redisClient *database.Redis) *Client {
 	corporationClient := &corporationClientImpl{client: corporationClientDirect}
 	killmailClientDirect := killmails.NewKillmailClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	killmailClient := &killmailClientImpl{client: killmailClientDirect}
+	assetsClientDirect := assets.NewAssetsClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	assetsClient := &assetsClientImpl{client: assetsClientDirect}
+	structuresClientDirect := structures.NewStructuresClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
+	structuresClient := &structuresClientImpl{client: structuresClientDirect}
 
 	return &Client{
 		httpClient:   httpClient,
@@ -227,6 +252,8 @@ func NewClientWithRedis(redisClient *database.Redis) *Client {
 		Alliance:     allianceClient,
 		Corporation:  corporationClient,
 		Killmails:    killmailClient,
+		Assets:       assetsClient,
+		Structures:   structuresClient,
 	}
 }
 
@@ -539,6 +566,14 @@ type universeClientImpl struct {
 	userAgent    string
 }
 
+type assetsClientImpl struct {
+	client assets.Client
+}
+
+type structuresClientImpl struct {
+	client structures.Client
+}
+
 // StatusClient implementation
 func (s *statusClientImpl) GetServerStatus(ctx context.Context) (*ESIStatusResponse, error) {
 	// Delegate to the existing GetServerStatus method logic - for backward compatibility
@@ -846,6 +881,98 @@ func (k *killmailClientImpl) GetCorporationRecentKillmails(ctx context.Context, 
 			"killmail_hash": km.KillmailHash,
 		}
 	}
+	return result, nil
+}
+
+// Assets client adapter
+func (a *assetsClientImpl) GetCharacterAssets(ctx context.Context, characterID int32, token string) ([]map[string]any, error) {
+	assets, err := a.client.GetCharacterAssets(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to []map[string]any for backward compatibility
+	result := make([]map[string]any, len(assets))
+	for i, asset := range assets {
+		result[i] = map[string]any{
+			"item_id":       asset.ItemID,
+			"type_id":       asset.TypeID,
+			"location_id":   asset.LocationID,
+			"location_flag": asset.LocationFlag,
+			"quantity":      asset.Quantity,
+			"is_singleton":  asset.IsSingleton,
+		}
+		if asset.IsBlueprintCopy != nil {
+			result[i]["is_blueprint_copy"] = *asset.IsBlueprintCopy
+		}
+	}
+	return result, nil
+}
+
+func (a *assetsClientImpl) GetCorporationAssets(ctx context.Context, corporationID int32, token string) ([]map[string]any, error) {
+	assets, err := a.client.GetCorporationAssets(ctx, corporationID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to []map[string]any for backward compatibility
+	result := make([]map[string]any, len(assets))
+	for i, asset := range assets {
+		result[i] = map[string]any{
+			"item_id":       asset.ItemID,
+			"type_id":       asset.TypeID,
+			"location_id":   asset.LocationID,
+			"location_flag": asset.LocationFlag,
+			"quantity":      asset.Quantity,
+			"is_singleton":  asset.IsSingleton,
+		}
+		if asset.IsBlueprintCopy != nil {
+			result[i]["is_blueprint_copy"] = *asset.IsBlueprintCopy
+		}
+	}
+	return result, nil
+}
+
+// Structures client adapter
+func (s *structuresClientImpl) GetStructure(ctx context.Context, structureID int64, token string) (map[string]any, error) {
+	structure, err := s.client.GetStructure(ctx, structureID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to map[string]any for backward compatibility
+	result := map[string]any{
+		"name":            structure.Name,
+		"owner_id":        structure.OwnerID,
+		"solar_system_id": structure.SolarSystemID,
+		"type_id":         structure.TypeID,
+		"position": map[string]any{
+			"x": structure.Position.X,
+			"y": structure.Position.Y,
+			"z": structure.Position.Z,
+		},
+	}
+
+	// Add optional fields if they exist
+	if len(structure.Services) > 0 {
+		result["services"] = structure.Services
+	}
+	if structure.State != "" {
+		result["state"] = structure.State
+	}
+	if structure.StateTimerStart != nil {
+		result["state_timer_start"] = structure.StateTimerStart
+	}
+	if structure.StateTimerEnd != nil {
+		result["state_timer_end"] = structure.StateTimerEnd
+	}
+	if structure.FuelExpires != nil {
+		result["fuel_expires"] = structure.FuelExpires
+	}
+	if structure.UnanchorsAt != nil {
+		result["unanchors_at"] = structure.UnanchorsAt
+	}
+
 	return result, nil
 }
 

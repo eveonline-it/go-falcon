@@ -40,8 +40,8 @@ func NewModule(db *database.MongoDB, redis *database.Redis, eveGateway *evegatew
 }
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
-func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterStructuresRoutes(api, basePath, m.service, nil)
+func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, authService routes.AuthService, structuresAdapter *middleware.PermissionMiddleware) {
+	routes.RegisterStructuresRoutes(api, basePath, m.service, structuresAdapter, authService)
 }
 
 // GetService returns the structure service

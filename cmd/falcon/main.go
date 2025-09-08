@@ -554,7 +554,7 @@ func main() {
 	}
 
 	// Initialize assets module
-	assetsModule := assets.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, structuresModule.GetService(), authMiddleware, schedulerModule.GetSchedulerService())
+	assetsModule := assets.NewModule(appCtx.MongoDB, evegateClient, appCtx.SDEService, structuresModule.GetService(), authMiddleware, schedulerModule.GetSchedulerService(), authModule.GetAuthService())
 	if err := assetsModule.Initialize(ctx); err != nil {
 		log.Printf("❌ Failed to initialize assets module: %v", err)
 	}
@@ -863,7 +863,7 @@ func main() {
 
 	// Register structures module routes
 	log.Printf("   🏗️  Structures module: /structures/*")
-	structuresModule.RegisterUnifiedRoutes(unifiedAPI, "/structures")
+	structuresModule.RegisterUnifiedRoutes(unifiedAPI, "/structures", authModule.GetAuthService(), authMiddleware)
 
 	// Register assets module routes
 	log.Printf("   📦 Assets module: /assets/*")

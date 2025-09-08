@@ -8,6 +8,7 @@ import (
 	"go-falcon/internal/assets/models"
 	"go-falcon/internal/assets/routes"
 	"go-falcon/internal/assets/services"
+	authModels "go-falcon/internal/auth/models"
 	schedulerServices "go-falcon/internal/scheduler/services"
 	structureServices "go-falcon/internal/structures/services"
 	"go-falcon/pkg/database"
@@ -26,30 +27,36 @@ type Module struct {
 	service          *services.AssetService
 	routes           *routes.AssetRoutes
 	schedulerService *schedulerServices.SchedulerService
+	authMiddleware   *middleware.PermissionMiddleware
+	authService      AuthService
+}
+
+// AuthService interface for auth operations we need
+type AuthService interface {
+	GetUserProfileByCharacterID(ctx context.Context, characterID int) (*authModels.UserProfile, error)
 }
 
 // NewModule creates a new assets module
 func NewModule(
 	db *database.MongoDB,
-	redis *database.Redis,
 	eveGateway *evegateway.Client,
 	sdeService sde.SDEService,
 	structureService *structureServices.StructureService,
 	authMiddleware *middleware.PermissionMiddleware,
 	schedulerService *schedulerServices.SchedulerService,
+	authService AuthService,
 ) *Module {
 	// Create service
-	service := services.NewAssetService(db.Database, redis.Client, eveGateway, sdeService, structureService)
-
-	// Create routes
-	assetRoutes := routes.NewAssetRoutes(service, authMiddleware)
+	service := services.NewAssetService(db.Database, eveGateway, sdeService, structureService)
 
 	// Create module
 	m := &Module{
-		BaseModule:       module.NewBaseModule("assets", db, redis),
+		BaseModule:       module.NewBaseModule("assets", db, nil),
 		service:          service,
-		routes:           assetRoutes,
+		routes:           nil,
 		schedulerService: schedulerService,
+		authMiddleware:   authMiddleware,
+		authService:      authService,
 	}
 
 	// Register scheduled tasks if scheduler is available
@@ -70,7 +77,7 @@ func (m *Module) Routes(r chi.Router) {
 
 // RegisterUnifiedRoutes registers routes on the shared Huma API
 func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
-	routes.RegisterAssetsRoutes(api, basePath, m.service, nil)
+	routes.RegisterAssetsRoutes(api, basePath, m.service, m.authMiddleware, m.authService)
 }
 
 // GetService returns the asset service

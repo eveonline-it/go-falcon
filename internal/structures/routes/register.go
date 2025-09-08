@@ -5,13 +5,33 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"go-falcon/internal/auth/models"
 	"go-falcon/internal/structures/dto"
 	"go-falcon/internal/structures/services"
 	"go-falcon/pkg/middleware"
 )
 
+// AuthService interface for auth operations we need
+type AuthService interface {
+	GetUserProfileByCharacterID(ctx context.Context, characterID int) (*models.UserProfile, error)
+}
+
+// getTokenFromUserProfile retrieves the EVE SSO access token from user profile
+func getTokenFromUserProfile(ctx context.Context, authService AuthService, characterID int) (string, error) {
+	profile, err := authService.GetUserProfileByCharacterID(ctx, characterID)
+	if err != nil {
+		return "", huma.Error500InternalServerError("Failed to get user profile")
+	}
+
+	if profile.AccessToken == "" {
+		return "", huma.Error401Unauthorized("No valid EVE SSO token found")
+	}
+
+	return profile.AccessToken, nil
+}
+
 // RegisterStructuresRoutes registers structure routes on a shared Huma API
-func RegisterStructuresRoutes(api huma.API, basePath string, service *services.StructureService, structuresAdapter *middleware.PermissionMiddleware) {
+func RegisterStructuresRoutes(api huma.API, basePath string, service *services.StructureService, structuresAdapter *middleware.PermissionMiddleware, authService AuthService) {
 	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
 		OperationID: "structures-get-status",
@@ -39,12 +59,20 @@ func RegisterStructuresRoutes(api huma.API, basePath string, service *services.S
 		Description: "Retrieves detailed information about a specific structure",
 		Tags:        []string{"Structures"},
 	}, func(ctx context.Context, input *dto.GetStructureRequest) (*dto.StructureOutput, error) {
-		// TODO: Get authenticated character ID from context/middleware
-		// For now, using a placeholder character ID
-		characterID := int32(90000001)
+		// Authenticate user with JWT middleware
+		user, err := structuresAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get actual EVE SSO access token from user profile
+		token, err := getTokenFromUserProfile(ctx, authService, user.CharacterID)
+		if err != nil {
+			return nil, err
+		}
 
 		// Get structure from service
-		structure, err := service.GetStructure(ctx, input.StructureID, characterID)
+		structure, err := service.GetStructure(ctx, input.StructureID, token)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +91,13 @@ func RegisterStructuresRoutes(api huma.API, basePath string, service *services.S
 		Description: "Retrieves all known structures in a solar system",
 		Tags:        []string{"Structures"},
 	}, func(ctx context.Context, input *dto.GetStructuresBySystemRequest) (*dto.StructureListOutput, error) {
-		// Get structures from service
+		// Authenticate user with JWT middleware
+		_, err := structuresAdapter.RequireAuth(ctx, input.Authorization, input.Cookie)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get structures from service (this uses database data, not ESI)
 		structures, err := service.GetStructuresBySystem(ctx, input.SolarSystemID)
 		if err != nil {
 			return nil, err
