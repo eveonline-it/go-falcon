@@ -54,6 +54,16 @@ type StatusOutput struct {
 	Body StructureModuleStatusResponse `json:"body"`
 }
 
+// StructureOutput represents a single structure response
+type StructureOutput struct {
+	Body StructureResponse `json:"body"`
+}
+
+// StructureListOutput represents a list of structures response
+type StructureListOutput struct {
+	Body StructureListResponse `json:"body"`
+}
+
 // StructureModuleStatusResponse represents the actual status response data
 type StructureModuleStatusResponse struct {
 	Module  string `json:"module" description:"Module name"`

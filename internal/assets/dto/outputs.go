@@ -108,6 +108,21 @@ type StatusOutput struct {
 	Body AssetModuleStatusResponse `json:"body"`
 }
 
+// AssetListOutput represents the asset list response
+type AssetListOutput struct {
+	Body AssetListResponse `json:"body"`
+}
+
+// AssetSummaryOutput represents the asset summary response
+type AssetSummaryOutput struct {
+	Body AssetSummaryResponse `json:"body"`
+}
+
+// RefreshAssetsOutput represents the refresh assets response
+type RefreshAssetsOutput struct {
+	Body RefreshAssetsResponse `json:"body"`
+}
+
 // AssetModuleStatusResponse represents the actual status response data
 type AssetModuleStatusResponse struct {
 	Module  string `json:"module" description:"Module name"`

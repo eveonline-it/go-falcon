@@ -30,7 +30,56 @@ func RegisterStructuresRoutes(api huma.API, basePath string, service *services.S
 		}, nil
 	})
 
-	// TODO: Add authenticated endpoints here
-	// Structure info, bulk refresh, system/owner queries, etc.
-	// Use structuresAdapter for authentication when implementing full endpoints
+	// Get structure by ID endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "structures-get-structure",
+		Method:      http.MethodGet,
+		Path:        basePath + "/{structure_id}",
+		Summary:     "Get structure information",
+		Description: "Retrieves detailed information about a specific structure",
+		Tags:        []string{"Structures"},
+	}, func(ctx context.Context, input *dto.GetStructureRequest) (*dto.StructureOutput, error) {
+		// TODO: Get authenticated character ID from context/middleware
+		// For now, using a placeholder character ID
+		characterID := int32(90000001)
+
+		// Get structure from service
+		structure, err := service.GetStructure(ctx, input.StructureID, characterID)
+		if err != nil {
+			return nil, err
+		}
+
+		return &dto.StructureOutput{
+			Body: dto.ToStructureResponse(structure),
+		}, nil
+	})
+
+	// Get structures by solar system endpoint
+	huma.Register(api, huma.Operation{
+		OperationID: "structures-get-by-system",
+		Method:      http.MethodGet,
+		Path:        basePath + "/system/{solar_system_id}",
+		Summary:     "Get structures by solar system",
+		Description: "Retrieves all known structures in a solar system",
+		Tags:        []string{"Structures"},
+	}, func(ctx context.Context, input *dto.GetStructuresBySystemRequest) (*dto.StructureListOutput, error) {
+		// Get structures from service
+		structures, err := service.GetStructuresBySystem(ctx, input.SolarSystemID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Convert to response DTOs
+		structureResponses := make([]dto.StructureResponse, len(structures))
+		for i, structure := range structures {
+			structureResponses[i] = dto.ToStructureResponse(structure)
+		}
+
+		return &dto.StructureListOutput{
+			Body: dto.StructureListResponse{
+				Structures: structureResponses,
+				Total:      len(structures),
+			},
+		}, nil
+	})
 }
