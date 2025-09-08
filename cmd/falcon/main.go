@@ -18,6 +18,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"go-falcon/internal/alliance"
+	"go-falcon/internal/assets"
 	"go-falcon/internal/auth"
 	"go-falcon/internal/character"
 	characterDto "go-falcon/internal/character/dto"
@@ -34,6 +35,7 @@ import (
 	"go-falcon/internal/site_settings"
 	"go-falcon/internal/sitemap"
 	sitemapServices "go-falcon/internal/sitemap/services"
+	"go-falcon/internal/structures"
 	"go-falcon/internal/users"
 	usersModels "go-falcon/internal/users/models"
 	"go-falcon/internal/websocket"
@@ -542,6 +544,21 @@ func main() {
 	schedulerModule.SetGroupService(groupsModule.GetService())
 	sdeAdminModule := sde_admin.New(appCtx.MongoDB, appCtx.Redis, authModule, permissionManager, appCtx.SDEService)
 
+	// Create auth middleware for new modules
+	authMiddleware := middleware.NewPermissionMiddleware(authModule.GetAuthService(), permissionManager)
+
+	// Initialize structures module (required by assets module)
+	structuresModule := structures.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, authMiddleware)
+	if err := structuresModule.Initialize(ctx); err != nil {
+		log.Printf("❌ Failed to initialize structures module: %v", err)
+	}
+
+	// Initialize assets module
+	assetsModule := assets.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, structuresModule.GetService(), authMiddleware, schedulerModule.GetSchedulerService())
+	if err := assetsModule.Initialize(ctx); err != nil {
+		log.Printf("❌ Failed to initialize assets module: %v", err)
+	}
+
 	// 8. Initialize WebSocket module
 	log.Printf("🔌 Initializing WebSocket module")
 	websocketModule, err := websocket.NewModule(appCtx.MongoDB.Database, appCtx.Redis.Client, authModule.GetAuthService())
@@ -649,7 +666,7 @@ func main() {
 	// Update site settings with auth, groups services, and permission manager
 	siteSettingsModule.SetDependenciesWithPermissions(authModule.GetAuthService(), groupsModule.GetService(), permissionManager)
 
-	modules = append(modules, authModule, usersModule, discordModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, zkillboardModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule)
+	modules = append(modules, authModule, usersModule, discordModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, zkillboardModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule, structuresModule, assetsModule)
 
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
@@ -843,6 +860,14 @@ func main() {
 	// Register SDE admin module routes
 	log.Printf("   📊 SDE Admin module: /sde/*")
 	sdeAdminModule.RegisterUnifiedRoutes(unifiedAPI, "/sde")
+
+	// Register structures module routes
+	log.Printf("   🏗️  Structures module: /structures/*")
+	structuresModule.RegisterUnifiedRoutes(unifiedAPI, "/structures")
+
+	// Register assets module routes
+	log.Printf("   📦 Assets module: /assets/*")
+	assetsModule.RegisterUnifiedRoutes(unifiedAPI, "/assets")
 
 	// Register WebSocket module routes
 	log.Printf("   🔌 WebSocket module: /websocket/*")
