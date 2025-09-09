@@ -380,6 +380,11 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 	execution.WorkerID = workerID
 	execution.Status = models.TaskStatusRunning
 
+	slog.Info("Worker processing execution",
+		slog.String("execution_id", execution.ID),
+		slog.String("task_id", execution.TaskID),
+		slog.String("worker_id", workerID))
+
 	// Create cancellable context for this execution
 	executionCtx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
@@ -422,6 +427,12 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 	// Update task status
 	e.repository.UpdateTaskStatus(parentCtx, task.ID, models.TaskStatusRunning)
 
+	slog.Info("Starting task execution",
+		slog.String("task_id", task.ID),
+		slog.String("task_name", task.Name),
+		slog.String("task_type", string(task.Type)),
+		slog.String("execution_id", execution.ID))
+
 	// Execute the task with cancellable context
 	result := e.executeTask(executionCtx, task)
 
@@ -450,6 +461,14 @@ func (e *EngineService) processExecution(parentCtx context.Context, execution *m
 			execution.Status = models.TaskStatusFailed
 		}
 	}
+
+	slog.Info("Task execution completed",
+		slog.String("task_id", task.ID),
+		slog.String("task_name", task.Name),
+		slog.String("execution_id", execution.ID),
+		slog.String("status", string(execution.Status)),
+		slog.String("duration", result.Duration.String()),
+		slog.String("output", execution.Output))
 
 	// Finish execution
 	e.finishExecution(parentCtx, execution)

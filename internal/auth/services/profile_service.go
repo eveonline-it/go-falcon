@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"go-falcon/internal/auth/models"
-	"go-falcon/pkg/config"
 	"go-falcon/pkg/evegateway"
 
 	"github.com/google/uuid"
@@ -35,7 +34,7 @@ func NewProfileService(repository *Repository, eveService *EVEService, esiClient
 }
 
 // CreateOrUpdateProfile creates or updates a user profile
-func (s *ProfileService) CreateOrUpdateProfile(ctx context.Context, charInfo *models.EVECharacterInfo, userID, accessToken, refreshToken string) (*models.UserProfile, error) {
+func (s *ProfileService) CreateOrUpdateProfile(ctx context.Context, charInfo *models.EVECharacterInfo, userID, accessToken, refreshToken string, expiresIn int) (*models.UserProfile, error) {
 	tracer := otel.Tracer("go-falcon/auth")
 	ctx, span := tracer.Start(ctx, "auth.profile_service.create_or_update")
 	defer span.End()
@@ -52,8 +51,8 @@ func (s *ProfileService) CreateOrUpdateProfile(ctx context.Context, charInfo *mo
 		userID = uuid.New().String()
 	}
 
-	// Use COOKIE_DURATION for token expiry to match JWT expiry
-	tokenExpiry := time.Now().Add(config.GetCookieDuration())
+	// Use actual EVE token expiry (typically ~20 minutes)
+	tokenExpiry := time.Now().Add(time.Duration(expiresIn) * time.Second)
 
 	// Create profile model
 	profile := &models.UserProfile{
@@ -235,8 +234,8 @@ func (s *ProfileService) refreshSingleToken(ctx context.Context, characterID int
 		return fmt.Errorf("failed to refresh token: %w", err)
 	}
 
-	// Use COOKIE_DURATION for token expiry to match JWT expiry
-	expiresAt := time.Now().Add(config.GetCookieDuration())
+	// Use actual EVE token expiry from the refresh response
+	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 
 	// Update tokens in database
 	err = s.repository.UpdateProfileTokens(ctx, characterID, tokenResp.AccessToken, tokenResp.RefreshToken, expiresAt)

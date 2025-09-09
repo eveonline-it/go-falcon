@@ -344,7 +344,7 @@ func (s *AuthService) HandleEVECallbackWithUserID(ctx context.Context, code, sta
 	}
 
 	// Create or update user profile
-	profile, err := s.profileService.CreateOrUpdateProfile(ctx, charInfo, userID, tokenResp.AccessToken, tokenResp.RefreshToken)
+	profile, err := s.profileService.CreateOrUpdateProfile(ctx, charInfo, userID, tokenResp.AccessToken, tokenResp.RefreshToken, tokenResp.ExpiresIn)
 	if err != nil {
 		span.RecordError(err)
 		return "", nil, fmt.Errorf("failed to create/update profile: %w", err)
@@ -414,8 +414,16 @@ func (s *AuthService) ExchangeEVEToken(ctx context.Context, req *dto.EVETokenExc
 		return nil, fmt.Errorf("failed to verify EVE token: %w", err)
 	}
 
+	// Calculate ExpiresIn from ExpiresOn timestamp
+	expiresOn, err := time.Parse("2006-01-02T15:04:05Z", charInfo.ExpiresOn)
+	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("failed to parse token expiry: %w", err)
+	}
+	expiresIn := int(time.Until(expiresOn).Seconds())
+
 	// Create or update user profile
-	profile, err := s.profileService.CreateOrUpdateProfile(ctx, charInfo, "", req.AccessToken, req.RefreshToken)
+	profile, err := s.profileService.CreateOrUpdateProfile(ctx, charInfo, "", req.AccessToken, req.RefreshToken, expiresIn)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to create/update profile: %w", err)

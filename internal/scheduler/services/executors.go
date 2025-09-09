@@ -253,6 +253,9 @@ func (e *SystemExecutor) executeTokenRefresh(ctx context.Context, config *models
 		batchSize = params
 	}
 
+	slog.Info("Starting EVE token refresh system task",
+		slog.Int("batch_size", batchSize))
+
 	// Execute token refresh
 	successCount, failureCount, err := e.authModule.RefreshExpiringTokens(ctx, batchSize)
 	if err != nil {
@@ -265,6 +268,12 @@ func (e *SystemExecutor) executeTokenRefresh(ctx context.Context, config *models
 
 	output := fmt.Sprintf("Processed %d tokens: %d successful, %d failed",
 		successCount+failureCount, successCount, failureCount)
+
+	slog.Info("EVE token refresh system task completed",
+		slog.Int("total_processed", successCount+failureCount),
+		slog.Int("successful", successCount),
+		slog.Int("failed", failureCount),
+		slog.String("duration", time.Since(start).String()))
 
 	return &models.TaskResult{
 		Success:  true,
