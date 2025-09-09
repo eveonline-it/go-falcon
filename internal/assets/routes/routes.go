@@ -86,13 +86,26 @@ func (r *AssetRoutes) RegisterRoutes(api huma.API) {
 			return nil, err
 		}
 
-		// Check ownership - user can only view their own assets
+		// Check ownership OR super admin permissions
+		isSuperAdmin := false
 		if int32(user.CharacterID) != input.CharacterID {
-			return nil, huma.Error403Forbidden("You can only view your own assets")
+			// Check if user is super admin
+			_, err := r.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, huma.Error403Forbidden("You can only view your own assets")
+			}
+			isSuperAdmin = true
 		}
 
-		// Get user profile to retrieve EVE access token
-		profile, err := r.authRepository.GetUserProfileByCharacterID(ctx, user.CharacterID)
+		// Get the appropriate user profile and token
+		var profile *models.UserProfile
+		if isSuperAdmin {
+			// Use target character's token for ESI calls
+			profile, err = r.authRepository.GetUserProfileByCharacterID(ctx, int(input.CharacterID))
+		} else {
+			// Use requester's token
+			profile, err = r.authRepository.GetUserProfileByCharacterID(ctx, user.CharacterID)
+		}
 		if err != nil {
 			return nil, huma.Error500InternalServerError("failed to retrieve user profile", err)
 		}
@@ -173,13 +186,26 @@ func (r *AssetRoutes) RegisterRoutes(api huma.API) {
 			return nil, err
 		}
 
-		// Check ownership - user can only refresh their own assets
+		// Check ownership OR super admin permissions
+		isSuperAdmin := false
 		if int32(user.CharacterID) != input.CharacterID {
-			return nil, huma.Error403Forbidden("You can only refresh your own assets")
+			// Check if user is super admin
+			_, err := r.middleware.RequireSuperAdmin(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, huma.Error403Forbidden("You can only refresh your own assets")
+			}
+			isSuperAdmin = true
 		}
 
-		// Get user profile to retrieve EVE access token
-		profile, err := r.authRepository.GetUserProfileByCharacterID(ctx, user.CharacterID)
+		// Get the appropriate user profile and token
+		var profile *models.UserProfile
+		if isSuperAdmin {
+			// Use target character's token for ESI calls
+			profile, err = r.authRepository.GetUserProfileByCharacterID(ctx, int(input.CharacterID))
+		} else {
+			// Use requester's token
+			profile, err = r.authRepository.GetUserProfileByCharacterID(ctx, user.CharacterID)
+		}
 		if err != nil {
 			return nil, huma.Error500InternalServerError("failed to retrieve user profile", err)
 		}
