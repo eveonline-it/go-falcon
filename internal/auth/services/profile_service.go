@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"go-falcon/internal/auth/models"
+	"go-falcon/pkg/config"
 	"go-falcon/pkg/evegateway"
 
 	"github.com/google/uuid"
@@ -51,18 +52,8 @@ func (s *ProfileService) CreateOrUpdateProfile(ctx context.Context, charInfo *mo
 		userID = uuid.New().String()
 	}
 
-	// Calculate token expiry from ExpiresOn
-	var tokenExpiry time.Time
-	if charInfo.ExpiresOn != "" {
-		if parsed, err := time.Parse(time.RFC3339, charInfo.ExpiresOn); err == nil {
-			tokenExpiry = parsed
-		} else {
-			// Fallback to 20 minutes from now
-			tokenExpiry = time.Now().Add(20 * time.Minute)
-		}
-	} else {
-		tokenExpiry = time.Now().Add(20 * time.Minute)
-	}
+	// Use COOKIE_DURATION for token expiry to match JWT expiry
+	tokenExpiry := time.Now().Add(config.GetCookieDuration())
 
 	// Create profile model
 	profile := &models.UserProfile{
@@ -244,8 +235,8 @@ func (s *ProfileService) refreshSingleToken(ctx context.Context, characterID int
 		return fmt.Errorf("failed to refresh token: %w", err)
 	}
 
-	// Calculate new expiry time
-	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+	// Use COOKIE_DURATION for token expiry to match JWT expiry
+	expiresAt := time.Now().Add(config.GetCookieDuration())
 
 	// Update tokens in database
 	err = s.repository.UpdateProfileTokens(ctx, characterID, tokenResp.AccessToken, tokenResp.RefreshToken, expiresAt)
