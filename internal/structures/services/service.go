@@ -21,7 +21,7 @@ import (
 const (
 	// Cache keys
 	structureCachePrefix = "c:structure:"
-	structureCacheTTL    = 2 * time.Hour
+	structureCacheTTL    = 7 * 24 * time.Hour // 1 week cache for structures
 
 	// NPC station threshold
 	npcStationThreshold = 100000000
@@ -131,12 +131,8 @@ func (s *StructureService) getNPCStation(ctx context.Context, stationID int64) (
 		_ = region // Suppress unused variable warning
 	}
 
-	// Save to database
-	if err := s.saveStructure(ctx, structure); err != nil {
-		return nil, err
-	}
-
-	// Cache the result
+	// Don't save NPC stations to database - they're already in SDE memory
+	// Just cache in Redis for quick access
 	s.cacheStructure(ctx, structure)
 
 	return structure, nil
@@ -310,7 +306,8 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 	return structure, nil
 }
 
-// getStructureFromDB retrieves structure from database
+// getStructureFromDB retrieves structure from database (player structures only, ID >= 100000000)
+// NPC stations (ID < 100000000) are not stored in database as they're available from SDE
 func (s *StructureService) getStructureFromDB(ctx context.Context, structureID int64) (*models.Structure, error) {
 	var structure models.Structure
 	err := s.db.Collection(models.StructuresCollection).FindOne(ctx, bson.M{"structure_id": structureID}).Decode(&structure)
@@ -323,8 +320,13 @@ func (s *StructureService) getStructureFromDB(ctx context.Context, structureID i
 	return &structure, nil
 }
 
-// saveStructure saves or updates a structure in the database
+// saveStructure saves or updates a structure in the database (player structures only)
 func (s *StructureService) saveStructure(ctx context.Context, structure *models.Structure) error {
+	// Safety check: Never save NPC stations to database
+	if structure.StructureID < npcStationThreshold {
+		return fmt.Errorf("attempted to save NPC station %d to database - NPC stations should only exist in SDE", structure.StructureID)
+	}
+
 	if structure.ID.IsZero() {
 		structure.ID = primitive.NewObjectID()
 		structure.CreatedAt = time.Now()
@@ -346,6 +348,7 @@ func (s *StructureService) cacheStructure(ctx context.Context, structure *models
 	cacheKey := fmt.Sprintf("%s%d", structureCachePrefix, structure.StructureID)
 	data, err := json.Marshal(structure)
 	if err == nil {
+		// Cache all structures for 1 week (both NPC stations and player structures)
 		s.redis.Set(ctx, cacheKey, data, structureCacheTTL)
 	}
 }
