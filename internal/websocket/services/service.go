@@ -126,9 +126,13 @@ func (ws *WebSocketService) GetIntegrationService() *IntegrationService {
 // CreateConnection creates a new WebSocket connection with automatic room assignment
 func (ws *WebSocketService) CreateConnection(conn *models.Connection) error {
 	// Add connection to manager first (fast operation)
-	if _, err := ws.connectionMgr.AddConnection(conn.Conn, conn.UserID, conn.CharacterID, conn.CharacterName); err != nil {
+	actualConn, err := ws.connectionMgr.AddConnection(conn.Conn, conn.UserID, conn.CharacterID, conn.CharacterName)
+	if err != nil {
 		return err
 	}
+
+	// Update the connection reference to use the one from the manager
+	*conn = *actualConn
 
 	// Assign to appropriate rooms asynchronously to prevent blocking the WebSocket upgrade
 	go func() {
