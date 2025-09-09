@@ -189,7 +189,7 @@ Backend-controlled frontend routing with permission-based access and dual-struct
 | **Character**      | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md)     | Character information, portraits, background affiliation updates                                    |
 | **Corporation**    | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management, automated ESI updates                                       |
 | **Alliance**       | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md)       | Alliance information, member corporations, relationship data                                        |
-| **Structures**     | [`internal/structures/CLAUDE.md`](internal/structures/CLAUDE.md)   | NPC stations and player structures, access tracking, location hierarchy                             |
+| **Structures**     | [`internal/structures/CLAUDE.md`](internal/structures/CLAUDE.md)   | NPC stations and player structures with authentication, shared Redis error tracking, location hierarchy |
 | **Assets**         | [`internal/assets/CLAUDE.md`](internal/assets/CLAUDE.md)           | Character/corporation assets, valuation, tracking, container hierarchy                              |
 
 ### Shared Package Quick Reference
@@ -215,7 +215,7 @@ Comprehensive EVE integration with automated updates:
 - **Character**: 30-minute affiliation updates ([details](internal/character/CLAUDE.md))
 - **Corporation**: Daily 4 AM refresh ([details](internal/corporation/CLAUDE.md))
 - **Alliance**: Complete sync ([details](internal/alliance/CLAUDE.md))
-- **Structures**: NPC stations and player structures with access tracking ([details](internal/structures/CLAUDE.md))
+- **Structures**: NPC stations and player structures with authenticated access and shared Redis error tracking ([details](internal/structures/CLAUDE.md))
 - **Assets**: Character/corporation asset tracking with valuation ([details](internal/assets/CLAUDE.md))
 - **Universe**: 113 regions, 1,175 constellations, 8,437 systems in memory ([details](internal/sde_admin/CLAUDE.md))
 

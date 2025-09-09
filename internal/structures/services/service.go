@@ -27,6 +27,12 @@ const (
 	npcStationThreshold = 100000000
 )
 
+// StructureAccessTracker interface for tracking structure access failures
+type StructureAccessTracker interface {
+	RecordFailedAccess(ctx context.Context, characterID int32, structureID int64, errorMsg string) error
+	RecordSuccessfulAccess(ctx context.Context, characterID int32, structureID int64) error
+}
+
 // getFloat64FromInterface safely extracts float64 from interface{}
 func getFloat64FromInterface(value interface{}) float64 {
 	switch v := value.(type) {
@@ -45,24 +51,26 @@ func getFloat64FromInterface(value interface{}) float64 {
 
 // StructureService handles structure operations
 type StructureService struct {
-	db         *mongo.Database
-	redis      *redis.Client
-	eveGateway *evegateway.Client
-	sdeService sde.SDEService
+	db               *mongo.Database
+	redis            *redis.Client
+	eveGateway       *evegateway.Client
+	sdeService       sde.SDEService
+	structureTracker StructureAccessTracker
 }
 
 // NewStructureService creates a new structure service
-func NewStructureService(db *mongo.Database, redis *redis.Client, eveGateway *evegateway.Client, sdeService sde.SDEService) *StructureService {
+func NewStructureService(db *mongo.Database, redis *redis.Client, eveGateway *evegateway.Client, sdeService sde.SDEService, structureTracker StructureAccessTracker) *StructureService {
 	return &StructureService{
-		db:         db,
-		redis:      redis,
-		eveGateway: eveGateway,
-		sdeService: sdeService,
+		db:               db,
+		redis:            redis,
+		eveGateway:       eveGateway,
+		sdeService:       sdeService,
+		structureTracker: structureTracker,
 	}
 }
 
 // GetStructure retrieves structure information
-func (s *StructureService) GetStructure(ctx context.Context, structureID int64, token string) (*models.Structure, error) {
+func (s *StructureService) GetStructure(ctx context.Context, structureID int64, characterID int32, token string) (*models.Structure, error) {
 	// Check cache first
 	cacheKey := fmt.Sprintf("%s%d", structureCachePrefix, structureID)
 	cached, err := s.redis.Get(ctx, cacheKey).Result()
@@ -78,7 +86,7 @@ func (s *StructureService) GetStructure(ctx context.Context, structureID int64, 
 		return s.getNPCStation(ctx, structureID)
 	}
 
-	return s.getPlayerStructure(ctx, structureID, token)
+	return s.getPlayerStructure(ctx, structureID, characterID, token)
 }
 
 // getNPCStation retrieves NPC station information
@@ -139,7 +147,7 @@ func (s *StructureService) getNPCStation(ctx context.Context, stationID int64) (
 }
 
 // getPlayerStructure retrieves player structure information from ESI
-func (s *StructureService) getPlayerStructure(ctx context.Context, structureID int64, token string) (*models.Structure, error) {
+func (s *StructureService) getPlayerStructure(ctx context.Context, structureID int64, characterID int32, token string) (*models.Structure, error) {
 	// Check database first
 	structure, err := s.getStructureFromDB(ctx, structureID)
 	if err == nil && structure != nil {
@@ -152,16 +160,26 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 	// Fetch from ESI
 	esiStructure, err := s.eveGateway.Structures.GetStructure(ctx, structureID, token)
 	if err != nil {
-		// Check if it's an authentication error (401) - fail immediately
+		// Check if it's an authentication error (401) - record and fail immediately
 		if strings.Contains(err.Error(), "status 401") {
+			// Record the failed access in Redis using the shared tracker
+			if s.structureTracker != nil {
+				s.structureTracker.RecordFailedAccess(ctx, characterID, structureID, err.Error())
+			}
 			return nil, fmt.Errorf("authentication failed for structure %d: %w", structureID, err)
 		}
 
 		// Check if it's a forbidden error (403) - character doesn't have access
 		if strings.Contains(err.Error(), "status 403") {
+			// Record the failed access in Redis using the shared tracker
+			if s.structureTracker != nil {
+				s.structureTracker.RecordFailedAccess(ctx, characterID, structureID, "Access denied (403)")
+			}
+
 			// Log that we're skipping this structure due to access restrictions
 			slog.DebugContext(ctx, "Structure access denied",
 				"structure_id", structureID,
+				"character_id", characterID,
 				"reason", "Character lacks docking rights (403)")
 
 			// For forbidden errors, return cached data if available, otherwise a specific error
@@ -271,6 +289,7 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 	}
 
 	structure.StructureID = structureID
+	structure.CharacterID = characterID // Save the character_id that successfully accessed the structure
 	structure.Name = name
 	structure.OwnerID = ownerID
 	structure.Position = position
@@ -298,7 +317,10 @@ func (s *StructureService) getPlayerStructure(ctx context.Context, structureID i
 		return nil, err
 	}
 
-	// TODO: Update access record - requires character ID extraction from token
+	// Record successful access in Redis using the shared tracker
+	if s.structureTracker != nil {
+		s.structureTracker.RecordSuccessfulAccess(ctx, characterID, structureID)
+	}
 
 	// Cache the result
 	s.cacheStructure(ctx, structure)
@@ -408,12 +430,12 @@ func (s *StructureService) GetStructuresByOwner(ctx context.Context, ownerID int
 }
 
 // BulkRefreshStructures refreshes multiple structures
-func (s *StructureService) BulkRefreshStructures(ctx context.Context, structureIDs []int64, token string) ([]int64, []int64, error) {
+func (s *StructureService) BulkRefreshStructures(ctx context.Context, structureIDs []int64, characterID int32, token string) ([]int64, []int64, error) {
 	var refreshed []int64
 	var failed []int64
 
 	for _, structureID := range structureIDs {
-		_, err := s.GetStructure(ctx, structureID, token)
+		_, err := s.GetStructure(ctx, structureID, characterID, token)
 		if err != nil {
 			// If authentication fails, stop processing immediately
 			if strings.Contains(err.Error(), "authentication failed") {

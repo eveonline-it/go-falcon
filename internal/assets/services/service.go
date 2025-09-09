@@ -389,7 +389,7 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 		}
 
 		// Try to get structure data
-		structure, err := s.structureService.GetStructure(ctx, locationID, token)
+		structure, err := s.structureService.GetStructure(ctx, locationID, characterID, token)
 		if err != nil {
 			if strings.Contains(err.Error(), "authentication failed") {
 				return nil, fmt.Errorf("authentication failed during structure fetch: %w", err)
@@ -841,4 +841,9 @@ func (s *AssetService) ProcessAssetTracking(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// GetStructureAccessTracker returns the structure access tracker for use by other modules
+func (s *AssetService) GetStructureAccessTracker() *StructureAccessTracker {
+	return s.structureTracker
 }

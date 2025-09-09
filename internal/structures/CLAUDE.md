@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Structures module manages EVE Online structure and station data, providing a unified interface for accessing information about both NPC stations and player-owned structures (Citadels, Engineering Complexes, etc.). It handles caching, access tracking, and location hierarchy resolution.
+The Structures module manages EVE Online structure and station data, providing a unified interface for accessing information about both NPC stations and player-owned structures (Citadels, Engineering Complexes, etc.). It handles caching, access tracking, location hierarchy resolution, and shared Redis-based error tracking with the Assets module for failed structure access attempts.
 
 ## Architecture
 
@@ -71,10 +71,16 @@ Returns module health status.
 ### Authenticated Endpoints
 
 #### `GET /structures/{structure_id}`
-Retrieves detailed information about a specific structure.
+Retrieves detailed information about a specific structure. **Requires authentication** with valid EVE SSO token.
 
 **Request Parameters:**
 - `structure_id` (path): EVE structure ID
+- `Authorization` (header): Bearer token or Cookie authentication
+
+**Authentication:**
+- Character ID is automatically extracted from authenticated user context
+- Character's EVE SSO access token is used for ESI calls to player structures
+- Token expiration is validated before ESI requests
 
 **Response:**
 ```json
@@ -126,7 +132,7 @@ The main service provides these key methods:
 
 ```go
 // Get structure by ID (handles both NPC and player structures)
-GetStructure(ctx, structureID, characterID) (*Structure, error)
+GetStructure(ctx, structureID, characterID, token) (*Structure, error)
 
 // Get structures by location
 GetStructuresBySystem(ctx, solarSystemID) ([]*Structure, error)
@@ -135,7 +141,7 @@ GetStructuresBySystem(ctx, solarSystemID) ([]*Structure, error)
 GetStructuresByOwner(ctx, ownerID) ([]*Structure, error)
 
 // Bulk refresh structures
-BulkRefreshStructures(ctx, structureIDs, characterID) (refreshed, failed []int64)
+BulkRefreshStructures(ctx, structureIDs, characterID, token) (refreshed, failed []int64)
 
 // Get character accessible structures
 GetCharacterAccessibleStructures(ctx, characterID) ([]*Structure, error)
@@ -150,6 +156,26 @@ GetCharacterAccessibleStructures(ctx, characterID) ([]*Structure, error)
 - Manual refresh via API endpoint
 - Automatic refresh when data is older than 1 hour for player structures
 
+### Redis Error Tracking Integration
+
+The module integrates with the Assets module's `StructureAccessTracker` for intelligent error handling:
+
+**Shared Redis Keys:**
+- Failed access tracking: `falcon:assets:failed_structures:{character_id}:{structure_id}`
+- Retry candidates: `falcon:assets:retry_candidates`
+- ESI error budget: `falcon:assets:esi_errors:{date}`
+
+**Error Handling Behavior:**
+- **401 Authentication Errors**: Recorded in Redis with failure details
+- **403 Access Denied**: Tracked with tier-based retry logic
+- **Successful Access**: Clears any existing failure records for the character/structure pair
+- **Character ID Storage**: Successful ESI calls save character_id to structure document
+
+**Retry Logic:**
+- Tier-based retry system with decreasing probability over time
+- Daily error budget to prevent ESI abuse
+- Intelligent structure selection for retry attempts
+
 ## Database Schema
 
 ### Structures Collection
@@ -158,7 +184,7 @@ GetCharacterAccessibleStructures(ctx, characterID) ([]*Structure, error)
 {
   _id: ObjectId,
   structure_id: Number,        // EVE structure ID
-  character_id: Number,        // Character with access (optional)
+  character_id: Number,        // Character who successfully accessed structure (saved on ESI success)
   name: String,                // Structure name
   owner_id: Number,            // Corporation ID
   position: {                  // Optional for player structures
@@ -211,16 +237,22 @@ GetCharacterAccessibleStructures(ctx, characterID) ([]*Structure, error)
 
 ### Dependencies
 
-1. **EVE Gateway Service**
+1. **Assets Module StructureAccessTracker**
+   - Provides shared Redis-based error tracking infrastructure
+   - Handles 401/403 error recording and retry logic
+   - Manages ESI error budgets and failure statistics
+
+2. **EVE Gateway Service**
    - Fetches player structure data from ESI
    - Handles OAuth token management
 
-2. **SDE Service**
+3. **SDE Service**
    - Provides static data for NPC stations
    - Resolves type names and system hierarchy
 
-3. **Redis**
+4. **Redis**
    - Caches structure data for performance
+   - Stores shared structure access failure tracking
    - Reduces ESI API calls
 
 ### Used By
@@ -235,12 +267,26 @@ GetCharacterAccessibleStructures(ctx, characterID) ([]*Structure, error)
 
 ## Error Handling
 
-The module handles various error scenarios:
+The module handles various error scenarios with intelligent Redis-based tracking:
 
 1. **Structure Not Found**: Returns 404 when structure doesn't exist
-2. **Access Denied**: Returns 403 when character lacks access to player structure
-3. **ESI Errors**: Falls back to cached data when ESI is unavailable
-4. **Invalid Structure ID**: Validates ID format and range
+2. **Access Denied (403)**: 
+   - Returns 403 to client
+   - Records failure in shared Redis tracking system
+   - Implements tier-based retry logic
+3. **Authentication Failed (401)**:
+   - Returns 401 to client  
+   - Records failure details in Redis
+   - Prevents repeated ESI calls with invalid tokens
+4. **ESI Errors**: Falls back to cached data when ESI is unavailable
+5. **Invalid Structure ID**: Validates ID format and range
+6. **Token Expiry**: Validates EVE SSO token expiration before ESI calls
+
+**Redis Error Tracking:**
+- Failed access attempts are stored with character_id and structure_id
+- Implements intelligent retry selection with decreasing probability
+- Maintains daily error budgets to prevent ESI abuse
+- Successful access clears any existing failure records
 
 ## Performance Considerations
 
@@ -251,10 +297,15 @@ The module handles various error scenarios:
 
 ## Security
 
-1. **Access Control**: Character must have docking rights for player structures
-2. **Data Isolation**: Characters only see structures they have access to
-3. **Rate Limiting**: Respects ESI rate limits
-4. **Token Validation**: Ensures valid OAuth tokens for ESI calls
+1. **Authentication Required**: All structure access requires valid EVE SSO authentication
+2. **Access Control**: Character must have docking rights for player structures
+3. **Token Validation**: 
+   - Validates JWT authentication tokens
+   - Checks EVE SSO token expiration before ESI calls
+   - Uses character's own access token for ESI requests
+4. **Data Isolation**: Characters only see structures they have access to
+5. **Rate Limiting**: Respects ESI rate limits with intelligent error budget management
+6. **Failure Tracking**: Redis-based tracking prevents abuse of failed access attempts
 
 ## Future Enhancements
 
@@ -279,37 +330,62 @@ The module handles various error scenarios:
 
 ### Manual Testing
 ```bash
-# Get structure information
-curl -H "Authorization: Bearer $TOKEN" \
+# Get structure information (requires authentication)
+curl -H "Authorization: Bearer $JWT_TOKEN" \
   http://localhost:3000/api/structures/60003760
 
-# Refresh structure data
-curl -X POST -H "Authorization: Bearer $TOKEN" \
-  http://localhost:3000/api/structures/60003760/refresh
+# Alternative: Using cookie authentication (development)
+curl -H "Cookie: $(cat ./tmp/cookie.txt)" \
+  http://localhost:3000/api/structures/60003760
 
-# Get structures in Jita
-curl -H "Authorization: Bearer $TOKEN" \
+# Test with player structure (requires character access)
+curl -H "Authorization: Bearer $JWT_TOKEN" \
+  http://localhost:3000/api/structures/1035466617946
+
+# Get structures in Jita (authenticated)
+curl -H "Authorization: Bearer $JWT_TOKEN" \
   http://localhost:3000/api/structures/system/30000142
 ```
+
+**Authentication Notes:**
+- All structure endpoints require valid authentication
+- Character ID is extracted from authenticated user context
+- Player structures require character to have docking access
+- Failed access attempts (401/403) are tracked in Redis
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **"Structure not found"**
-   - Verify structure ID is correct
-   - Check character has docking access
-   - Ensure ESI token has required scopes
+1. **"Authentication required" (401)**
+   - Verify JWT token is valid and not expired
+   - Check EVE SSO access token hasn't expired
+   - Ensure proper Authorization header or Cookie
+   - Re-authenticate if tokens are expired
 
-2. **Stale Data**
-   - Use refresh endpoint to force update
+2. **"Structure not found" (404)**
+   - Verify structure ID is correct
+   - Check structure still exists in EVE Online
+
+3. **"Access denied to structure" (403)**
+   - Verify character has docking access to player structure
+   - Check if structure allows public access
+   - Access failure is recorded in Redis tracking system
+
+4. **Stale Data**
    - Check Redis cache TTL settings
    - Verify ESI connectivity
+   - Review structure access failure logs
 
-3. **Missing Location Data**
+5. **Missing Location Data**
    - Ensure SDE service is initialized
    - Check universe data is loaded
    - Verify system/constellation/region IDs
+
+**Debugging Redis Error Tracking:**
+- Check Redis keys: `falcon:assets:failed_structures:{character_id}:{structure_id}`
+- Review daily error budget: `falcon:assets:esi_errors:{date}`
+- Monitor retry candidates: `falcon:assets:retry_candidates`
 
 ## Module Status
 

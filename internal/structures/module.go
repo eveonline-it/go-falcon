@@ -6,7 +6,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
 	"go-falcon/internal/structures/routes"
-	"go-falcon/internal/structures/services"
+	structureservices "go-falcon/internal/structures/services"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
 	"go-falcon/pkg/middleware"
@@ -17,17 +17,17 @@ import (
 // Module implements the structures module
 type Module struct {
 	*module.BaseModule
-	service *services.StructureService
+	service *structureservices.StructureService
 	routes  *routes.StructureRoutes
 }
 
 // NewModule creates a new structures module
-func NewModule(db *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client, sdeService sde.SDEService, authMiddleware *middleware.PermissionMiddleware) *Module {
+func NewModule(db *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client, sdeService sde.SDEService, authMiddleware *middleware.PermissionMiddleware, structureTracker structureservices.StructureAccessTracker, authRepository routes.AuthRepository) *Module {
 	// Create service
-	service := services.NewStructureService(db.Database, redis.Client, eveGateway, sdeService)
+	service := structureservices.NewStructureService(db.Database, redis.Client, eveGateway, sdeService, structureTracker)
 
 	// Create routes
-	structureRoutes := routes.NewStructureRoutes(service, authMiddleware)
+	structureRoutes := routes.NewStructureRoutes(service, authMiddleware, authRepository)
 
 	// Create module
 	m := &Module{
@@ -45,7 +45,7 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string, authServic
 }
 
 // GetService returns the structure service
-func (m *Module) GetService() *services.StructureService {
+func (m *Module) GetService() *structureservices.StructureService {
 	return m.service
 }
 

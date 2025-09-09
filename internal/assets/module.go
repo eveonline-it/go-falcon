@@ -103,6 +103,11 @@ func (m *Module) GetService() *services.AssetService {
 	return m.service
 }
 
+// GetStructureAccessTracker returns the structure access tracker
+func (m *Module) GetStructureAccessTracker() *services.StructureAccessTracker {
+	return m.service.GetStructureAccessTracker()
+}
+
 // Initialize initializes the module
 func (m *Module) Initialize(ctx context.Context) error {
 	// Create indexes

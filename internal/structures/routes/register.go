@@ -71,8 +71,8 @@ func RegisterStructuresRoutes(api huma.API, basePath string, service *services.S
 			return nil, err
 		}
 
-		// Get structure from service
-		structure, err := service.GetStructure(ctx, input.StructureID, token)
+		// Get structure from service (convert int to int32 for characterID)
+		structure, err := service.GetStructure(ctx, input.StructureID, int32(user.CharacterID), token)
 		if err != nil {
 			return nil, err
 		}

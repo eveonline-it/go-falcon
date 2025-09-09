@@ -547,14 +547,20 @@ func main() {
 	// Create auth middleware for new modules
 	authMiddleware := middleware.NewPermissionMiddleware(authModule.GetAuthService(), permissionManager)
 
-	// Initialize structures module (required by assets module)
-	structuresModule := structures.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, authMiddleware)
+	// Initialize assets module first (to get structure tracker)
+	assetsModule := assets.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, nil, authMiddleware, schedulerModule.GetSchedulerService(), authModule.GetAuthService())
+	if err := assetsModule.Initialize(ctx); err != nil {
+		log.Printf("❌ Failed to initialize assets module: %v", err)
+	}
+
+	// Initialize structures module with assets structure tracker and auth service
+	structuresModule := structures.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, authMiddleware, assetsModule.GetStructureAccessTracker(), authModule.GetAuthService())
 	if err := structuresModule.Initialize(ctx); err != nil {
 		log.Printf("❌ Failed to initialize structures module: %v", err)
 	}
 
-	// Initialize assets module
-	assetsModule := assets.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, structuresModule.GetService(), authMiddleware, schedulerModule.GetSchedulerService(), authModule.GetAuthService())
+	// Update assets module with structures service
+	assetsModule = assets.NewModule(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService, structuresModule.GetService(), authMiddleware, schedulerModule.GetSchedulerService(), authModule.GetAuthService())
 	if err := assetsModule.Initialize(ctx); err != nil {
 		log.Printf("❌ Failed to initialize assets module: %v", err)
 	}
