@@ -17,7 +17,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // AssetService handles asset operations
@@ -42,10 +41,14 @@ func NewAssetService(db *mongo.Database, eveGateway *evegateway.Client, sdeServi
 	}
 }
 
-// GetCharacterAssets retrieves character assets
+// GetCharacterAssets retrieves character assets from database only
 func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32, token string, locationID *int64) ([]*models.Asset, int, error) {
-	// Try to get assets from database first
+	// Get assets from database only - no ESI queries
 	filter := bson.M{"character_id": characterID}
+	if locationID != nil {
+		filter["location_id"] = *locationID
+	}
+
 	cursor, err := s.db.Collection(models.AssetsCollection).Find(ctx, filter)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query database: %w", err)
@@ -57,41 +60,22 @@ func (s *AssetService) GetCharacterAssets(ctx context.Context, characterID int32
 		return nil, 0, fmt.Errorf("failed to decode assets: %w", err)
 	}
 
-	// If no assets found or data is old, fetch from ESI
-	if len(assets) == 0 || (len(assets) > 0 && time.Since(assets[0].UpdatedAt) > 30*time.Minute) {
-		// Fetch from ESI
-		esiAssets, err := s.eveGateway.Assets.GetCharacterAssets(ctx, characterID, token)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to fetch assets from ESI: %w", err)
-		}
-
-		// Process and save assets
-		assets, err = s.processESIAssets(ctx, esiAssets, characterID, 0, token)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-
-	// Filter by location if specified
-	if locationID != nil {
-		filtered := make([]*models.Asset, 0)
-		for _, asset := range assets {
-			if asset.LocationID == *locationID {
-				filtered = append(filtered, asset)
-			}
-		}
-		assets = filtered
-	}
-
 	// Return all assets without pagination
 	total := len(assets)
 	return assets, total, nil
 }
 
-// GetCorporationAssets retrieves corporation assets
+// GetCorporationAssets retrieves corporation assets from database only
 func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, characterID int32, token string, locationID *int64, division *int) ([]*models.Asset, int, error) {
-	// Try to get assets from database first
+	// Get assets from database only - no ESI queries
 	filter := bson.M{"corporation_id": corporationID}
+	if locationID != nil {
+		filter["location_id"] = *locationID
+	}
+	if division != nil {
+		filter["location_flag"] = fmt.Sprintf("CorpSAG%d", *division)
+	}
+
 	cursor, err := s.db.Collection(models.AssetsCollection).Find(ctx, filter)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query database: %w", err)
@@ -103,262 +87,9 @@ func (s *AssetService) GetCorporationAssets(ctx context.Context, corporationID, 
 		return nil, 0, fmt.Errorf("failed to decode assets: %w", err)
 	}
 
-	// If no assets found or data is old, fetch from ESI
-	if len(assets) == 0 || (len(assets) > 0 && time.Since(assets[0].UpdatedAt) > 30*time.Minute) {
-		// Fetch from ESI (requires character with appropriate roles)
-		esiAssets, err := s.eveGateway.Assets.GetCorporationAssets(ctx, corporationID, token)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to fetch corporation assets from ESI: %w", err)
-		}
-
-		// Process and save assets
-		assets, err = s.processESIAssets(ctx, esiAssets, characterID, corporationID, token)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-
-	// Filter by location if specified
-	if locationID != nil {
-		filtered := make([]*models.Asset, 0)
-		for _, asset := range assets {
-			if asset.LocationID == *locationID {
-				filtered = append(filtered, asset)
-			}
-		}
-		assets = filtered
-	}
-
-	// Filter by division if specified
-	if division != nil {
-		divisionFlag := fmt.Sprintf("CorpSAG%d", *division)
-		filtered := make([]*models.Asset, 0)
-		for _, asset := range assets {
-			if asset.LocationFlag == divisionFlag {
-				filtered = append(filtered, asset)
-			}
-		}
-		assets = filtered
-	}
-
 	// Return all assets without pagination
 	total := len(assets)
 	return assets, total, nil
-}
-
-// processESIAssets processes raw ESI assets and enriches them with additional data
-func (s *AssetService) processESIAssets(ctx context.Context, esiAssets []map[string]any, characterID, corporationID int32, token string) ([]*models.Asset, error) {
-	assets := make([]*models.Asset, 0, len(esiAssets))
-
-	// Create a map for container hierarchy
-	containerMap := make(map[int64]*models.Asset)
-
-	// Track structures we've failed to access in this run
-	failedStructures := make(map[int64]bool)
-
-	// First pass: create all assets and identify containers
-	for _, esiAsset := range esiAssets {
-		// Parse fields from map[string]any
-		itemID, _ := esiAsset["item_id"].(int64)
-		if itemID == 0 {
-			if itemIDFloat, ok := esiAsset["item_id"].(float64); ok {
-				itemID = int64(itemIDFloat)
-			}
-		}
-
-		typeID, _ := esiAsset["type_id"].(int32)
-		if typeID == 0 {
-			if typeIDFloat, ok := esiAsset["type_id"].(float64); ok {
-				typeID = int32(typeIDFloat)
-			}
-		}
-
-		locationID, _ := esiAsset["location_id"].(int64)
-		if locationID == 0 {
-			if locationIDFloat, ok := esiAsset["location_id"].(float64); ok {
-				locationID = int64(locationIDFloat)
-			}
-		}
-
-		locationFlag, _ := esiAsset["location_flag"].(string)
-
-		quantity, _ := esiAsset["quantity"].(int32)
-		if quantity == 0 {
-			if quantityFloat, ok := esiAsset["quantity"].(float64); ok {
-				quantity = int32(quantityFloat)
-			}
-		}
-
-		isSingleton, _ := esiAsset["is_singleton"].(bool)
-
-		var isBlueprintCopy bool
-		if blueprintCopyPtr, ok := esiAsset["is_blueprint_copy"].(*bool); ok && blueprintCopyPtr != nil {
-			isBlueprintCopy = *blueprintCopyPtr
-		} else if blueprintCopyBool, ok := esiAsset["is_blueprint_copy"].(bool); ok {
-			isBlueprintCopy = blueprintCopyBool
-		}
-
-		asset := &models.Asset{
-			CharacterID:     characterID,
-			CorporationID:   corporationID,
-			ItemID:          itemID,
-			TypeID:          typeID,
-			LocationID:      locationID,
-			LocationFlag:    locationFlag,
-			Quantity:        quantity,
-			IsSingleton:     isSingleton,
-			IsBlueprintCopy: isBlueprintCopy,
-			CreatedAt:       time.Now(),
-			UpdatedAt:       time.Now(),
-		}
-
-		// Check if it's a container
-		asset.IsContainer = s.isContainer(asset.TypeID)
-
-		// Determine location type
-		asset.LocationType = s.determineLocationType(asset.LocationID)
-
-		// Get type information from SDE
-		if typeInfo, err := s.sdeService.GetType(fmt.Sprintf("%d", asset.TypeID)); err == nil {
-			if name, ok := typeInfo.Name["en"]; ok {
-				asset.TypeName = name
-			}
-		}
-
-		assets = append(assets, asset)
-		containerMap[asset.ItemID] = asset
-	}
-
-	// Second pass: establish parent-child relationships
-	for _, asset := range assets {
-		// Check if this item is inside a container
-		if parent, exists := containerMap[asset.LocationID]; exists {
-			asset.ParentItemID = &parent.ItemID
-			asset.LocationID = parent.LocationID // Use parent's location
-		}
-	}
-
-	// Third pass: Collect unique structures and pre-fetch them
-	uniqueStructures := make(map[int64]bool)
-	for _, asset := range assets {
-		uniqueStructures[asset.LocationID] = true
-	}
-
-	slog.InfoContext(ctx, "Preparing to enrich assets with structure data",
-		"total_assets", len(assets),
-		"unique_structures", len(uniqueStructures))
-
-	// Pre-fetch structure data with aggressive error limit checking
-	structureCache := make(map[int64]*structureModels.Structure)
-	structuresChecked := 0
-	max403Errors := 20 // Stop after 20 403 errors to protect ESI limits
-
-	for locationID := range uniqueStructures {
-		// Stop if we've hit too many 403 errors
-		if len(failedStructures) >= max403Errors {
-			slog.WarnContext(ctx, "Stopping structure enrichment - too many 403 errors",
-				"failed_structures", len(failedStructures),
-				"max_allowed", max403Errors)
-			break
-		}
-
-		// Check error limits before EVERY structure call
-		if err := s.eveGateway.CheckErrorLimits(); err != nil {
-			slog.WarnContext(ctx, "Stopping structure enrichment due to ESI error limit",
-				"error", err,
-				"structures_checked", structuresChecked,
-				"structures_total", len(uniqueStructures))
-			break
-		}
-
-		// Try to get structure data
-		structure, err := s.structureService.GetStructure(ctx, locationID, token)
-		if err != nil {
-			if strings.Contains(err.Error(), "authentication failed") {
-				return nil, fmt.Errorf("authentication failed during structure fetch: %w", err)
-			}
-			if strings.Contains(err.Error(), "access denied") {
-				failedStructures[locationID] = true
-				// Check if we're getting too many 403s in a row
-				if len(failedStructures) > 10 && float64(len(failedStructures))/float64(structuresChecked) > 0.5 {
-					slog.WarnContext(ctx, "Too many access denied errors, stopping structure enrichment",
-						"failed_structures", len(failedStructures),
-						"structures_checked", structuresChecked)
-					break
-				}
-			}
-			// Continue with next structure
-		} else if structure != nil {
-			structureCache[locationID] = structure
-		}
-		structuresChecked++
-	}
-
-	// Fourth pass: Apply structure data to assets
-	for _, asset := range assets {
-		if structure, exists := structureCache[asset.LocationID]; exists {
-			asset.LocationName = structure.Name
-			asset.SolarSystemID = structure.SolarSystemID
-			asset.SolarSystemName = structure.SolarSystemName
-			asset.RegionID = structure.RegionID
-			asset.RegionName = structure.RegionName
-		}
-		// Assets without structure data will just have the location ID
-	}
-
-	// Log summary of structures we couldn't access
-	if len(failedStructures) > 0 {
-		slog.InfoContext(ctx, "Asset enrichment completed with some structures inaccessible",
-			"total_assets", len(assets),
-			"inaccessible_structures", len(failedStructures),
-			"reason", "Character lacks docking rights (403)")
-	}
-
-	// Save all assets to database
-	if err := s.saveAssets(ctx, assets); err != nil {
-		return nil, err
-	}
-
-	return assets, nil
-}
-
-// enrichLocationData enriches asset with location information
-func (s *AssetService) enrichLocationData(ctx context.Context, asset *models.Asset, token string) error {
-	// Get structure/station information
-	structure, err := s.structureService.GetStructure(ctx, asset.LocationID, token)
-	if err != nil {
-		// Check if it's an authentication error (401) - these should stop processing
-		if strings.Contains(err.Error(), "authentication failed") {
-			return fmt.Errorf("authentication failed for structure %d: %w", asset.LocationID, err)
-		}
-		// For access denied (403), return the error so caller can track it
-		if strings.Contains(err.Error(), "access denied") {
-			return fmt.Errorf("access denied to structure %d", asset.LocationID)
-		}
-		// For other errors, just log and continue
-		slog.DebugContext(ctx, "Could not fetch structure information",
-			"structure_id", asset.LocationID,
-			"error", err)
-		return nil
-	}
-
-	if structure != nil {
-		asset.LocationName = structure.Name
-		asset.SolarSystemID = structure.SolarSystemID
-		asset.SolarSystemName = structure.SolarSystemName
-		asset.RegionID = structure.RegionID
-		asset.RegionName = structure.RegionName
-	}
-	return nil
-}
-
-// enrichMarketData enriches asset with market price information
-func (s *AssetService) enrichMarketData(ctx context.Context, asset *models.Asset) {
-	// Market price enrichment removed - this would need to be implemented
-	// with a market data service or external API if needed
-	// For now, set default values
-	asset.MarketPrice = 0
-	asset.TotalValue = 0
 }
 
 // isContainer checks if a type ID is a container
@@ -385,62 +116,6 @@ func (s *AssetService) determineLocationType(locationID int64) string {
 	} else {
 		return models.LocationTypeOther
 	}
-}
-
-// saveAssets saves assets to database
-func (s *AssetService) saveAssets(ctx context.Context, assets []*models.Asset) error {
-	if len(assets) == 0 {
-		return nil
-	}
-
-	// Prepare bulk write operations
-	operations := make([]mongo.WriteModel, len(assets))
-	for i, asset := range assets {
-		filter := bson.M{
-			"character_id": asset.CharacterID,
-			"item_id":      asset.ItemID,
-		}
-
-		// Create update document with all fields except _id
-		update := bson.M{
-			"$set": bson.M{
-				"corporation_id":    asset.CorporationID,
-				"type_id":           asset.TypeID,
-				"type_name":         asset.TypeName,
-				"location_id":       asset.LocationID,
-				"location_type":     asset.LocationType,
-				"location_flag":     asset.LocationFlag,
-				"location_name":     asset.LocationName,
-				"quantity":          asset.Quantity,
-				"is_singleton":      asset.IsSingleton,
-				"is_blueprint_copy": asset.IsBlueprintCopy,
-				"name":              asset.Name,
-				"market_price":      asset.MarketPrice,
-				"total_value":       asset.TotalValue,
-				"solar_system_id":   asset.SolarSystemID,
-				"solar_system_name": asset.SolarSystemName,
-				"region_id":         asset.RegionID,
-				"region_name":       asset.RegionName,
-				"parent_item_id":    asset.ParentItemID,
-				"is_container":      asset.IsContainer,
-				"created_at":        asset.CreatedAt,
-				"updated_at":        asset.UpdatedAt,
-			},
-			"$setOnInsert": bson.M{
-				"_id": primitive.NewObjectID(),
-			},
-		}
-
-		operations[i] = mongo.NewUpdateOneModel().
-			SetFilter(filter).
-			SetUpdate(update).
-			SetUpsert(true)
-	}
-
-	// Execute bulk write
-	opts := options.BulkWrite().SetOrdered(false)
-	_, err := s.db.Collection(models.AssetsCollection).BulkWrite(ctx, operations, opts)
-	return err
 }
 
 // RefreshCharacterAssets forces a refresh of character assets from ESI
@@ -633,15 +308,21 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 			slog.WarnContext(ctx, "Failed to get retry structures from tracker",
 				"error", err)
 		} else if len(retryStructures) > 0 {
-			slog.InfoContext(ctx, "Selected structures for retry",
-				"retry_count", len(retryStructures))
+			slog.DebugContext(ctx, "Selected structures for retry",
+				"character_id", characterID,
+				"retry_count", len(retryStructures),
+				"retry_structure_ids", retryStructures)
 		}
 
 		// Mark known failed structures (except those selected for retry)
+		checkedInRedis := 0
+		foundInRedis := 0
 		for structureID := range uniqueStructures {
 			// Check if this structure is known to be inaccessible
 			key := fmt.Sprintf("falcon:assets:failed_structures:%d:%d", characterID, structureID)
+			checkedInRedis++
 			if exists, _ := s.redis.Exists(ctx, key).Result(); exists > 0 {
+				foundInRedis++
 				// Check if it's selected for retry
 				isRetry := false
 				for _, retryID := range retryStructures {
@@ -652,8 +333,25 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 				}
 				if !isRetry {
 					knownFailedStructures[structureID] = true
+					slog.DebugContext(ctx, "Structure marked as known forbidden (will skip)",
+						"character_id", characterID,
+						"structure_id", structureID,
+						"redis_key", key)
+				} else {
+					slog.DebugContext(ctx, "Forbidden structure selected for retry",
+						"character_id", characterID,
+						"structure_id", structureID,
+						"redis_key", key)
 				}
 			}
+		}
+
+		if foundInRedis > 0 {
+			slog.DebugContext(ctx, "Redis forbidden structure check summary",
+				"character_id", characterID,
+				"structures_checked", checkedInRedis,
+				"forbidden_found", foundInRedis,
+				"will_skip", len(knownFailedStructures))
 		}
 	}
 
@@ -666,6 +364,10 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 	for locationID := range uniqueStructures {
 		// Skip known failed structures (unless selected for retry)
 		if knownFailedStructures[locationID] {
+			slog.DebugContext(ctx, "Skipping known forbidden structure",
+				"character_id", characterID,
+				"structure_id", locationID,
+				"reason", "Previously failed with 403, not selected for retry")
 			continue
 		}
 
@@ -696,12 +398,23 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 				new403Errors++
 				failedStructures[locationID] = true
 
+				slog.DebugContext(ctx, "New forbidden structure encountered (403)",
+					"character_id", characterID,
+					"structure_id", locationID,
+					"new_403_count", new403Errors,
+					"error", err.Error())
+
 				// Record failed access in Redis tracker
 				if s.structureTracker != nil {
 					if err := s.structureTracker.RecordFailedAccess(ctx, characterID, locationID, "403 Forbidden - Access denied"); err != nil {
 						slog.WarnContext(ctx, "Failed to record structure access failure",
 							"structure_id", locationID,
 							"error", err)
+					} else {
+						slog.DebugContext(ctx, "Recorded forbidden structure in Redis",
+							"character_id", characterID,
+							"structure_id", locationID,
+							"redis_key", fmt.Sprintf("falcon:assets:failed_structures:%d:%d", characterID, locationID))
 					}
 				}
 
@@ -757,6 +470,27 @@ func (s *AssetService) processESIAssetsInMemory(ctx context.Context, esiAssets [
 			"known_inaccessible", len(knownFailedStructures),
 			"structures_checked", structuresChecked,
 			"reason", "Character lacks docking rights (403)")
+
+		// Debug log with more details
+		if len(failedStructures) > 0 {
+			failedIDs := make([]int64, 0, len(failedStructures))
+			for id := range failedStructures {
+				failedIDs = append(failedIDs, id)
+			}
+			slog.DebugContext(ctx, "New forbidden structures encountered in this refresh",
+				"character_id", characterID,
+				"structure_ids", failedIDs)
+		}
+
+		if len(knownFailedStructures) > 0 {
+			skippedIDs := make([]int64, 0, len(knownFailedStructures))
+			for id := range knownFailedStructures {
+				skippedIDs = append(skippedIDs, id)
+			}
+			slog.DebugContext(ctx, "Known forbidden structures skipped in this refresh",
+				"character_id", characterID,
+				"structure_ids", skippedIDs)
+		}
 	}
 
 	// Update tracker metrics

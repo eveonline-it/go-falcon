@@ -4,17 +4,17 @@ This file provides guidance to Go Falcon - Monolithic API Gateway when working w
 
 ## AI Guidance
 
-* Ignore GEMINI.md and GEMINI-*.md files
-* To save main context space, for code searches, inspections, troubleshooting or analysis, use code-searcher subagent where appropriate - giving the subagent full context background for the task(s) you assign it.
-* After receiving tool results, carefully reflect on their quality and determine optimal next steps before proceeding. Use your thinking to plan and iterate based on this new information, and then take the best next action.
-* For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
-* Before you finish, please verify your solution
-* Do what has been asked; nothing more, nothing less.
-* NEVER create files unless they're absolutely necessary for achieving your goal.
-* ALWAYS prefer editing an existing file to creating a new one.
-* NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-* When you update or modify core context files, also update markdown documentation and memory bank
-* When asked to commit changes, exclude CLAUDE.md and CLAUDE-*.md referenced memory bank system files from any commits. Never delete these files.
+- Ignore GEMINI.md and GEMINI-\*.md files
+- To save main context space, for code searches, inspections, troubleshooting or analysis, use code-searcher subagent where appropriate - giving the subagent full context background for the task(s) you assign it.
+- After receiving tool results, carefully reflect on their quality and determine optimal next steps before proceeding. Use your thinking to plan and iterate based on this new information, and then take the best next action.
+- For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
+- Before you finish, please verify your solution
+- Do what has been asked; nothing more, nothing less.
+- NEVER create files unless they're absolutely necessary for achieving your goal.
+- ALWAYS prefer editing an existing file to creating a new one.
+- NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
+- When you update or modify core context files, also update markdown documentation and memory bank
+- When asked to commit changes, exclude CLAUDE.md and CLAUDE-\*.md referenced memory bank system files from any commits. Never delete these files.
 
 ## Memory Bank System
 
@@ -22,16 +22,16 @@ This project uses a structured memory bank system with specialized context files
 
 ### Core Context Files
 
-* **CLAUDE-activeContext.md** - Current session state, goals, and progress
-* **CLAUDE-patterns.md** - Established code patterns and conventions
-* **CLAUDE-decisions.md** - Architecture decisions and rationale
+- **CLAUDE-activeContext.md** - Current session state, goals, and progress
+- **CLAUDE-patterns.md** - Established code patterns and conventions
+- **CLAUDE-decisions.md** - Architecture decisions and rationale
 
 **Important:** Always reference the active context file first to understand what's currently being worked on and maintain session continuity.
 
 ### Archive System
 
-* **archive/README.md** - Index of archived historical documentation
-* **archive/historical-work-2025-08.md** - Historical development work (August 2025)
+- **archive/README.md** - Index of archived historical documentation
+- **archive/historical-work-2025-08.md** - Historical development work (August 2025)
 
 Historical content is archived to reduce active context usage while preserving implementation history for reference.
 
@@ -105,18 +105,21 @@ Multi-stage Docker builds, hot reload, graceful shutdown, distributed locking, d
 ### Environment Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/your-org/go-falcon.git
    cd go-falcon
    ```
 
 2. **Configure environment**
+
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
 
 3. **Start services**
+
    ```bash
    docker-compose up -d
    ```
@@ -131,7 +134,7 @@ Multi-stage Docker builds, hot reload, graceful shutdown, distributed locking, d
 ```bash
 HOST="0.0.0.0"                 # Host interface
 PORT="3000"                    # Server port
-API_PREFIX="/api"              # API route prefix
+API_PREFIX=                    # API route prefix
 JWT_SECRET="your-secret-key"   # JWT signing key
 EVE_CLIENT_ID="your-client-id" # EVE OAuth
 EVE_CLIENT_SECRET="your-secret" # EVE OAuth
@@ -145,6 +148,7 @@ See `.env.example` for complete configuration options.
 ### 1. Modular Architecture
 
 Each module in `internal/` is self-contained with:
+
 - Dedicated routes and handlers
 - Service-specific business logic
 - Independent database collections
@@ -175,38 +179,39 @@ Backend-controlled frontend routing with permission-based access and dual-struct
 
 ### Core Modules with Detailed Documentation
 
-| Module | Location | Description |
-|--------|----------|-------------|
-| **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md) | EVE SSO integration, JWT management, user profiles |
-| **Scheduler** | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md) | Task scheduling, cron jobs, distributed execution, character/corporation/alliance automated updates |
-| **Users** | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md) | User management and profile operations |
-| **Groups** | [`internal/groups/CLAUDE.md`](internal/groups/CLAUDE.md) | Group and role-based access control, character name resolution |
-| **Sitemap** | [`internal/sitemap/CLAUDE.md`](internal/sitemap/CLAUDE.md) | Backend-managed dynamic routing with flat routes array and hierarchical navigation tree |
-| **Character** | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md) | Character information, portraits, background affiliation updates |
-| **Corporation** | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management, automated ESI updates |
-| **Alliance** | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md) | Alliance information, member corporations, relationship data |
-| **Structures** | [`internal/structures/CLAUDE.md`](internal/structures/CLAUDE.md) | NPC stations and player structures, access tracking, location hierarchy |
-| **Assets** | [`internal/assets/CLAUDE.md`](internal/assets/CLAUDE.md) | Character/corporation assets, valuation, tracking, container hierarchy |
+| Module             | Location                                                           | Description                                                                                         |
+| ------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| **Authentication** | [`internal/auth/CLAUDE.md`](internal/auth/CLAUDE.md)               | EVE SSO integration, JWT management, user profiles                                                  |
+| **Scheduler**      | [`internal/scheduler/CLAUDE.md`](internal/scheduler/CLAUDE.md)     | Task scheduling, cron jobs, distributed execution, character/corporation/alliance automated updates |
+| **Users**          | [`internal/users/CLAUDE.md`](internal/users/CLAUDE.md)             | User management and profile operations                                                              |
+| **Groups**         | [`internal/groups/CLAUDE.md`](internal/groups/CLAUDE.md)           | Group and role-based access control, character name resolution                                      |
+| **Sitemap**        | [`internal/sitemap/CLAUDE.md`](internal/sitemap/CLAUDE.md)         | Backend-managed dynamic routing with flat routes array and hierarchical navigation tree             |
+| **Character**      | [`internal/character/CLAUDE.md`](internal/character/CLAUDE.md)     | Character information, portraits, background affiliation updates                                    |
+| **Corporation**    | [`internal/corporation/CLAUDE.md`](internal/corporation/CLAUDE.md) | Corporation data and member management, automated ESI updates                                       |
+| **Alliance**       | [`internal/alliance/CLAUDE.md`](internal/alliance/CLAUDE.md)       | Alliance information, member corporations, relationship data                                        |
+| **Structures**     | [`internal/structures/CLAUDE.md`](internal/structures/CLAUDE.md)   | NPC stations and player structures, access tracking, location hierarchy                             |
+| **Assets**         | [`internal/assets/CLAUDE.md`](internal/assets/CLAUDE.md)           | Character/corporation assets, valuation, tracking, container hierarchy                              |
 
 ### Shared Package Quick Reference
 
-| Package | Purpose | Key Features |
-|---------|---------|--------------|
-| **App** | Application lifecycle | Graceful shutdown, telemetry management |
-| **Config** | Environment configuration | Cookie duration, days support |
-| **Database** | MongoDB/Redis utilities | Connection pooling, health checks |
-| **EVE Gateway** | ESI client library | Rate limiting, caching, OAuth |
-| **Handlers** | HTTP response utilities | StandardResponse, JSON utilities, health checks |
-| **Logging** | OpenTelemetry integration | Conditional telemetry (ENABLE_TELEMETRY), trace correlation |
-| **Middleware** | Request processing | Centralized authentication, permission checking, tracing middleware |
-| **Module** | Module system base | BaseModule interface, shared dependencies |
-| **SDE Service** | In-memory data service | EVE static data + complete universe, O(1) lookups, thread-safe |
+| Package         | Purpose                   | Key Features                                                        |
+| --------------- | ------------------------- | ------------------------------------------------------------------- |
+| **App**         | Application lifecycle     | Graceful shutdown, telemetry management                             |
+| **Config**      | Environment configuration | Cookie duration, days support                                       |
+| **Database**    | MongoDB/Redis utilities   | Connection pooling, health checks                                   |
+| **EVE Gateway** | ESI client library        | Rate limiting, caching, OAuth                                       |
+| **Handlers**    | HTTP response utilities   | StandardResponse, JSON utilities, health checks                     |
+| **Logging**     | OpenTelemetry integration | Conditional telemetry (ENABLE_TELEMETRY), trace correlation         |
+| **Middleware**  | Request processing        | Centralized authentication, permission checking, tracing middleware |
+| **Module**      | Module system base        | BaseModule interface, shared dependencies                           |
+| **SDE Service** | In-memory data service    | EVE static data + complete universe, O(1) lookups, thread-safe      |
 
-*For detailed implementation, see individual `pkg/[package]/CLAUDE.md` files*
+_For detailed implementation, see individual `pkg/[package]/CLAUDE.md` files_
 
 ## 🚀 EVE Online Integration
 
 Comprehensive EVE integration with automated updates:
+
 - **Character**: 30-minute affiliation updates ([details](internal/character/CLAUDE.md))
 - **Corporation**: Daily 4 AM refresh ([details](internal/corporation/CLAUDE.md))
 - **Alliance**: Complete sync ([details](internal/alliance/CLAUDE.md))
@@ -223,14 +228,16 @@ Follows [CCP ESI guidelines](https://developers.eveonline.com/docs/services/esi/
 Go Falcon uses a comprehensive migration system for version-controlled database schema management:
 
 **Features:**
+
 - Version-controlled schema changes with Git integration
 - Atomic operations with MongoDB transaction support
-- Rollback capability for safe deployments  
+- Rollback capability for safe deployments
 - Migration status tracking and integrity checks
 - Dry-run mode for previewing changes
 - Auto-generation of migration templates
 
 **Migration Commands:**
+
 ```bash
 make migrate-up        # Run pending migrations
 make migrate-status    # Check status
@@ -249,7 +256,7 @@ Each module in `internal/` **MUST** follow this standardized structure:
 ```
 internal/modulename/
 ├── dto/           # Data Transfer Objects (inputs.go, outputs.go, validators.go)
-├── routes/        # Route definitions (routes.go, health.go, api.go)  
+├── routes/        # Route definitions (routes.go, health.go, api.go)
 ├── services/      # Business logic (service.go, repository.go)
 ├── models/        # Database models (models.go)
 ├── module.go      # Module initialization
@@ -270,6 +277,7 @@ See individual module CLAUDE.md files for detailed implementation examples and p
 ### Module Status Endpoint Standard
 
 Every module **MUST** implement `GET /{module}/status` endpoint:
+
 - Public endpoint returning module health status
 - Response: `{module: string, status: "healthy|unhealthy", message?: string}`
 - Use `Tags: ["Module Status"]` for consistent OpenAPI grouping
@@ -286,9 +294,10 @@ Every module **MUST** implement `GET /{module}/status` endpoint:
 ### Testing Authenticated Endpoints
 
 For testing authenticated endpoints during development:
-- **Authentication Cookie**: Use the cookie stored in `/tmp/cookie.txt`
-- **curl Example**: `curl -H "Cookie: $(cat /tmp/cookie.txt)" http://localhost:3000/api/endpoint`
-- **Postman/Bruno**: Import cookie from `/tmp/cookie.txt` file
+
+- **Authentication Cookie**: Use the cookie stored in `./tmp/cookie.txt`
+- **curl Example**: `curl -H "Cookie: $(cat ./tmp/cookie.txt)" http://localhost:3000/endpoint`
+- **Postman/Bruno**: Import cookie from `./tmp/cookie.txt` file
 - **Session Management**: Cookie is automatically updated during EVE SSO authentication flow
 
 ### Best Practices
@@ -315,13 +324,14 @@ For testing authenticated endpoints during development:
 
 Control the API prefix via `API_PREFIX` environment variable:
 
-- `API_PREFIX=""` → `/auth/health`
+- `API_PREFIX=` → `/auth/health`
 - `API_PREFIX="/api"` → `/api/auth/health`
 - `API_PREFIX="/v1"` → `/v1/auth/health`
 
 ### Unified OpenAPI 3.1.1 Specification
 
 **Single comprehensive OpenAPI spec** documenting all modules:
+
 - Default: `http://localhost:3000/openapi.json`
 - With prefix: `http://localhost:3000/api/openapi.json`
 
@@ -336,6 +346,7 @@ All endpoints under configurable `API_PREFIX`. See `/openapi.json` for complete 
 ## 🔧 Observability
 
 **OpenTelemetry Integration** (`ENABLE_TELEMETRY=true`):
+
 - Structured JSON logging with trace correlation
 - Request/response tracking, performance metrics, error tracking
 - Follows OpenTelemetry Specification 1.47.0
