@@ -22,6 +22,7 @@ type Repository struct {
 	collection           *mongo.Collection
 	attributesCollection *mongo.Collection
 	skillQueueCollection *mongo.Collection
+	skillsCollection     *mongo.Collection
 }
 
 // NewRepository creates a new repository instance
@@ -31,6 +32,7 @@ func NewRepository(mongodb *database.MongoDB) *Repository {
 		collection:           mongodb.Database.Collection("characters"),
 		attributesCollection: mongodb.Database.Collection("character_attributes"),
 		skillQueueCollection: mongodb.Database.Collection("character_skill_queues"),
+		skillsCollection:     mongodb.Database.Collection("character_skills"),
 	}
 }
 
@@ -400,6 +402,23 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 	}
 
 	_, err = r.skillQueueCollection.Indexes().CreateMany(ctx, skillQueueIndexModels)
+	if err != nil {
+		return err
+	}
+
+	// Create indexes for character_skills collection
+	skillsIndexModels := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "character_id", Value: 1}},
+			Options: options.Index().SetUnique(true).SetBackground(true),
+		},
+		{
+			Keys:    bson.D{{Key: "updated_at", Value: -1}},
+			Options: options.Index().SetBackground(true),
+		},
+	}
+
+	_, err = r.skillsCollection.Indexes().CreateMany(ctx, skillsIndexModels)
 	return err
 }
 
@@ -476,5 +495,43 @@ func (r *Repository) SaveCharacterSkillQueue(ctx context.Context, skillQueue *mo
 func (r *Repository) DeleteCharacterSkillQueue(ctx context.Context, characterID int) error {
 	filter := bson.M{"character_id": characterID}
 	_, err := r.skillQueueCollection.DeleteOne(ctx, filter)
+	return err
+}
+
+// GetCharacterSkills retrieves character skills by character ID
+func (r *Repository) GetCharacterSkills(ctx context.Context, characterID int) (*models.CharacterSkills, error) {
+	filter := bson.M{"character_id": characterID}
+
+	var skills models.CharacterSkills
+	err := r.skillsCollection.FindOne(ctx, filter).Decode(&skills)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // Not found is not an error
+		}
+		return nil, err
+	}
+
+	return &skills, nil
+}
+
+// SaveCharacterSkills saves or updates character skills
+func (r *Repository) SaveCharacterSkills(ctx context.Context, skills *models.CharacterSkills) error {
+	skills.UpdatedAt = time.Now()
+	if skills.CreatedAt.IsZero() {
+		skills.CreatedAt = time.Now()
+	}
+
+	filter := bson.M{"character_id": skills.CharacterID}
+	update := bson.M{"$set": skills}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := r.skillsCollection.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// DeleteCharacterSkills deletes character skills by character ID
+func (r *Repository) DeleteCharacterSkills(ctx context.Context, characterID int) error {
+	filter := bson.M{"character_id": characterID}
+	_, err := r.skillsCollection.DeleteOne(ctx, filter)
 	return err
 }

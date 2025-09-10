@@ -112,3 +112,25 @@ type CharacterSkillQueue struct {
 type CharacterSkillQueueOutput struct {
 	Body CharacterSkillQueue `json:"body"`
 }
+
+// Skill represents a single trained skill
+type Skill struct {
+	SkillID            int `json:"skill_id" doc:"Skill type ID"`
+	SkillpointsInSkill int `json:"skillpoints_in_skill" doc:"Total skill points in this skill"`
+	TrainedSkillLevel  int `json:"trained_skill_level" doc:"Trained skill level"`
+	ActiveSkillLevel   int `json:"active_skill_level" doc:"Active skill level"`
+}
+
+// CharacterSkills represents the character's complete skills
+type CharacterSkills struct {
+	CharacterID   int       `json:"character_id" doc:"EVE Online character ID"`
+	Skills        []Skill   `json:"skills" doc:"List of trained skills"`
+	TotalSP       int64     `json:"total_sp" doc:"Total skill points"`
+	UnallocatedSP *int      `json:"unallocated_sp,omitempty" doc:"Unallocated skill points"`
+	UpdatedAt     time.Time `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterSkillsOutput represents the skills response (Huma wrapper)
+type CharacterSkillsOutput struct {
+	Body CharacterSkills `json:"body"`
+}

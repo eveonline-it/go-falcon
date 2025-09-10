@@ -76,3 +76,27 @@ type SkillQueueItem struct {
 func (csq *CharacterSkillQueue) CollectionName() string {
 	return "character_skill_queues"
 }
+
+// CharacterSkills represents the character's trained skills in the database
+type CharacterSkills struct {
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CharacterID   int                `bson:"character_id" json:"character_id"`
+	Skills        []Skill            `bson:"skills" json:"skills"`
+	TotalSP       int64              `bson:"total_sp" json:"total_sp"`
+	UnallocatedSP *int               `bson:"unallocated_sp,omitempty" json:"unallocated_sp,omitempty"`
+	CreatedAt     time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt     time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+// Skill represents a single trained skill
+type Skill struct {
+	SkillID            int `bson:"skill_id" json:"skill_id"`
+	SkillpointsInSkill int `bson:"skillpoints_in_skill" json:"skillpoints_in_skill"`
+	TrainedSkillLevel  int `bson:"trained_skill_level" json:"trained_skill_level"`
+	ActiveSkillLevel   int `bson:"active_skill_level" json:"active_skill_level"`
+}
+
+// CollectionName returns the MongoDB collection name for character skills
+func (cs *CharacterSkills) CollectionName() string {
+	return "character_skills"
+}

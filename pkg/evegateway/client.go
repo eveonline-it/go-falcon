@@ -69,6 +69,7 @@ type CharacterClient interface {
 	GetCharactersAffiliation(ctx context.Context, characterIDs []int) ([]map[string]interface{}, error)
 	GetCharacterAttributes(ctx context.Context, characterID int, token string) (map[string]any, error)
 	GetCharacterSkillQueue(ctx context.Context, characterID int, token string) ([]map[string]any, error)
+	GetCharacterSkills(ctx context.Context, characterID int, token string) (map[string]any, error)
 }
 
 // UniverseClient interface for universe operations
@@ -738,6 +739,35 @@ func (c *characterClientImpl) GetCharacterSkillQueue(ctx context.Context, charac
 		}
 
 		result[i] = skillMap
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterSkills(ctx context.Context, characterID int, token string) (map[string]any, error) {
+	skills, err := c.client.GetCharacterSkills(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	skillsList := make([]map[string]any, len(skills.Skills))
+	for i, skill := range skills.Skills {
+		skillsList[i] = map[string]any{
+			"skill_id":             skill.SkillID,
+			"skillpoints_in_skill": skill.SkillpointsInSkill,
+			"trained_skill_level":  skill.TrainedSkillLevel,
+			"active_skill_level":   skill.ActiveSkillLevel,
+		}
+	}
+
+	result := map[string]any{
+		"skills":   skillsList,
+		"total_sp": skills.TotalSP,
+	}
+
+	if skills.UnallocatedSP != nil {
+		result["unallocated_sp"] = *skills.UnallocatedSP
 	}
 
 	return result, nil

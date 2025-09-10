@@ -47,6 +47,8 @@ type Client interface {
 	GetCharacterAttributesWithCache(ctx context.Context, characterID int, token string) (*CharacterAttributesResult, error)
 	GetCharacterSkillQueue(ctx context.Context, characterID int, token string) ([]SkillQueueItem, error)
 	GetCharacterSkillQueueWithCache(ctx context.Context, characterID int, token string) (*SkillQueueResult, error)
+	GetCharacterSkills(ctx context.Context, characterID int, token string) (*CharacterSkillsResponse, error)
+	GetCharacterSkillsWithCache(ctx context.Context, characterID int, token string) (*CharacterSkillsResult, error)
 }
 
 // CharacterInfoResponse represents character public information
@@ -107,6 +109,27 @@ type SkillQueueItem struct {
 type SkillQueueResult struct {
 	Data  []SkillQueueItem `json:"data"`
 	Cache CacheInfo        `json:"cache"`
+}
+
+// Skill represents a single trained skill
+type Skill struct {
+	SkillID            int `json:"skill_id"`
+	SkillpointsInSkill int `json:"skillpoints_in_skill"`
+	TrainedSkillLevel  int `json:"trained_skill_level"`
+	ActiveSkillLevel   int `json:"active_skill_level"`
+}
+
+// CharacterSkillsResponse represents character skills information
+type CharacterSkillsResponse struct {
+	Skills        []Skill `json:"skills"`
+	TotalSP       int64   `json:"total_sp"`
+	UnallocatedSP *int    `json:"unallocated_sp,omitempty"`
+}
+
+// CharacterSkillsResult contains skills and cache information
+type CharacterSkillsResult struct {
+	Data  *CharacterSkillsResponse `json:"data"`
+	Cache CacheInfo                `json:"cache"`
 }
 
 // CharacterClient implements character-related ESI operations
@@ -872,6 +895,183 @@ func (c *CharacterClient) GetCharacterSkillQueueWithCache(ctx context.Context, c
 	}
 
 	return &SkillQueueResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
+// GetCharacterSkills retrieves character skills from ESI
+func (c *CharacterClient) GetCharacterSkills(ctx context.Context, characterID int, token string) (*CharacterSkillsResponse, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/skills/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterSkills")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "character.skills"),
+			attribute.Int("esi.character_id", characterID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+			attribute.Bool("auth.required", true),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting character skills from ESI", "character_id", characterID)
+
+	// Check cache first
+	if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		var skills CharacterSkillsResponse
+		if err := json.Unmarshal(cachedData, &skills); err == nil {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached character skills", "character_id", characterID)
+			return &skills, nil
+		}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+endpoint, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to create request")
+		}
+		slog.ErrorContext(ctx, "Failed to create character skills request", "error", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	// Add conditional headers if we have cached data
+	c.cacheManager.SetConditionalHeaders(req, cacheKey)
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.String("http.method", req.Method),
+			attribute.String("http.url", req.URL.String()),
+		)
+	}
+
+	// Use retry mechanism
+	resp, err := c.retryClient.DoWithRetry(ctx, req, 3)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to call ESI")
+		}
+		slog.ErrorContext(ctx, "Failed to call ESI character skills endpoint", "error", err)
+		return nil, fmt.Errorf("failed to call ESI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.status_code", resp.StatusCode),
+			attribute.String("http.status_text", resp.Status),
+		)
+	}
+
+	// Handle 304 Not Modified
+	if resp.StatusCode == http.StatusNotModified {
+		// Use GetForNotModified which returns cached data even if expired
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit - not modified")
+			}
+			slog.InfoContext(ctx, "Character skills not modified, using cached data")
+
+			// Refresh the expiry since ESI confirmed data is still valid
+			c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+
+			var skills CharacterSkillsResponse
+			if err := json.Unmarshal(cachedData, &skills); err != nil {
+				return nil, fmt.Errorf("failed to parse cached response: %w", err)
+			}
+			return &skills, nil
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "character_id", characterID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for character %d skills", characterID)
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetStatus(codes.Error, "ESI returned error status")
+		}
+		slog.ErrorContext(ctx, "ESI character skills endpoint returned error", "status_code", resp.StatusCode)
+		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to read response")
+		}
+		slog.ErrorContext(ctx, "Failed to read character skills response", "error", err)
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.response_size", len(body)),
+			attribute.Bool("cache.hit", false),
+		)
+	}
+
+	// Update cache
+	c.cacheManager.Set(cacheKey, body, resp.Header)
+
+	var skills CharacterSkillsResponse
+	if err := json.Unmarshal(body, &skills); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to parse response")
+		}
+		slog.ErrorContext(ctx, "Failed to parse character skills response", "error", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("skills.count", len(skills.Skills)),
+			attribute.Int64("skills.total_sp", skills.TotalSP),
+		)
+		span.SetStatus(codes.Ok, "success")
+	}
+
+	slog.InfoContext(ctx, "Successfully fetched character skills from ESI", "character_id", characterID, "skill_count", len(skills.Skills))
+	return &skills, nil
+}
+
+// GetCharacterSkillsWithCache retrieves character skills with cache information
+func (c *CharacterClient) GetCharacterSkillsWithCache(ctx context.Context, characterID int, token string) (*CharacterSkillsResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/skills/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Check if data is cached and get expiry
+	_, cached, cacheExpiry, _ := c.cacheManager.GetWithExpiry(cacheKey)
+
+	data, err := c.GetCharacterSkills(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CharacterSkillsResult{
 		Data:  data,
 		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
 	}, nil

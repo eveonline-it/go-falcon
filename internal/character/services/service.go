@@ -257,6 +257,186 @@ func (s *Service) skillQueueModelToDTO(model *models.CharacterSkillQueue) *dto.C
 	}
 }
 
+// GetCharacterSkills retrieves character skills following cache → DB → ESI flow
+func (s *Service) GetCharacterSkills(ctx context.Context, characterID int, token string) (*dto.CharacterSkillsOutput, error) {
+	// 1. Check Redis cache first
+	cacheKey := fmt.Sprintf("c:character:skills:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterSkills
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character skills found in cache for character_id: %d", characterID)
+				return &dto.CharacterSkillsOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Check database
+	dbSkills, err := s.repository.GetCharacterSkills(ctx, characterID)
+	if err != nil {
+		log.Printf("Error fetching character skills from DB: %v", err)
+		// Continue to ESI even if DB error
+	} else if dbSkills != nil {
+		// Found in database, convert to DTO
+		result := s.skillsModelToDTO(dbSkills)
+
+		// Update cache
+		if s.redis != nil {
+			if data, err := json.Marshal(result); err == nil {
+				// Cache for 30 minutes (skills don't change often but are important)
+				_ = s.redis.Set(ctx, cacheKey, string(data), 30*time.Minute)
+			}
+		}
+
+		log.Printf("Character skills found in database for character_id: %d", characterID)
+		return &dto.CharacterSkillsOutput{Body: *result}, nil
+	}
+
+	// 3. Fetch from ESI
+	log.Printf("Fetching character skills from ESI for character_id: %d", characterID)
+	esiSkills, err := s.eveGateway.Character.GetCharacterSkills(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character skills from ESI: %w", err)
+	}
+
+	// Convert ESI response to model
+	dbModel := s.parseESISkills(esiSkills, characterID)
+
+	// 4. Save to database
+	if err := s.repository.SaveCharacterSkills(ctx, dbModel); err != nil {
+		log.Printf("Failed to save character skills to DB: %v", err)
+		// Continue even if save fails
+	}
+
+	// Convert to DTO
+	result := s.skillsModelToDTO(dbModel)
+
+	// 5. Save to cache
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 30 minutes
+			_ = s.redis.Set(ctx, cacheKey, string(data), 30*time.Minute)
+		}
+	}
+
+	log.Printf("Successfully fetched and saved character skills for character_id: %d", characterID)
+	return &dto.CharacterSkillsOutput{Body: *result}, nil
+}
+
+// parseESISkills converts ESI response to database model
+func (s *Service) parseESISkills(esiSkills map[string]any, characterID int) *models.CharacterSkills {
+	skills := &models.CharacterSkills{
+		CharacterID: characterID,
+		Skills:      []models.Skill{},
+	}
+
+	// Parse total_sp
+	if val, ok := esiSkills["total_sp"].(float64); ok {
+		skills.TotalSP = int64(val)
+	} else if val, ok := esiSkills["total_sp"].(int64); ok {
+		skills.TotalSP = val
+	}
+
+	// Parse unallocated_sp
+	if val, ok := esiSkills["unallocated_sp"].(float64); ok {
+		intVal := int(val)
+		skills.UnallocatedSP = &intVal
+	} else if val, ok := esiSkills["unallocated_sp"].(int); ok {
+		skills.UnallocatedSP = &val
+	}
+
+	// Parse skills array - handle both []interface{} and []map[string]any
+	if skillsList, ok := esiSkills["skills"].([]interface{}); ok {
+		for _, skillItem := range skillsList {
+			if skillMap, ok := skillItem.(map[string]interface{}); ok {
+				skill := models.Skill{}
+
+				if val, ok := skillMap["skill_id"].(float64); ok {
+					skill.SkillID = int(val)
+				} else if val, ok := skillMap["skill_id"].(int); ok {
+					skill.SkillID = val
+				}
+
+				if val, ok := skillMap["skillpoints_in_skill"].(float64); ok {
+					skill.SkillpointsInSkill = int(val)
+				} else if val, ok := skillMap["skillpoints_in_skill"].(int); ok {
+					skill.SkillpointsInSkill = val
+				}
+
+				if val, ok := skillMap["trained_skill_level"].(float64); ok {
+					skill.TrainedSkillLevel = int(val)
+				} else if val, ok := skillMap["trained_skill_level"].(int); ok {
+					skill.TrainedSkillLevel = val
+				}
+
+				if val, ok := skillMap["active_skill_level"].(float64); ok {
+					skill.ActiveSkillLevel = int(val)
+				} else if val, ok := skillMap["active_skill_level"].(int); ok {
+					skill.ActiveSkillLevel = val
+				}
+
+				skills.Skills = append(skills.Skills, skill)
+			}
+		}
+	} else if skillsList, ok := esiSkills["skills"].([]map[string]any); ok {
+		// Handle []map[string]any type from the wrapper
+		for _, skillMap := range skillsList {
+			skill := models.Skill{}
+
+			if val, ok := skillMap["skill_id"].(float64); ok {
+				skill.SkillID = int(val)
+			} else if val, ok := skillMap["skill_id"].(int); ok {
+				skill.SkillID = val
+			}
+
+			if val, ok := skillMap["skillpoints_in_skill"].(float64); ok {
+				skill.SkillpointsInSkill = int(val)
+			} else if val, ok := skillMap["skillpoints_in_skill"].(int); ok {
+				skill.SkillpointsInSkill = val
+			}
+
+			if val, ok := skillMap["trained_skill_level"].(float64); ok {
+				skill.TrainedSkillLevel = int(val)
+			} else if val, ok := skillMap["trained_skill_level"].(int); ok {
+				skill.TrainedSkillLevel = val
+			}
+
+			if val, ok := skillMap["active_skill_level"].(float64); ok {
+				skill.ActiveSkillLevel = int(val)
+			} else if val, ok := skillMap["active_skill_level"].(int); ok {
+				skill.ActiveSkillLevel = val
+			}
+
+			skills.Skills = append(skills.Skills, skill)
+		}
+	}
+
+	return skills
+}
+
+// skillsModelToDTO converts database model to DTO
+func (s *Service) skillsModelToDTO(model *models.CharacterSkills) *dto.CharacterSkills {
+	skills := make([]dto.Skill, 0, len(model.Skills))
+	for _, skill := range model.Skills {
+		skills = append(skills, dto.Skill{
+			SkillID:            skill.SkillID,
+			SkillpointsInSkill: skill.SkillpointsInSkill,
+			TrainedSkillLevel:  skill.TrainedSkillLevel,
+			ActiveSkillLevel:   skill.ActiveSkillLevel,
+		})
+	}
+
+	return &dto.CharacterSkills{
+		CharacterID:   model.CharacterID,
+		Skills:        skills,
+		TotalSP:       model.TotalSP,
+		UnallocatedSP: model.UnallocatedSP,
+		UpdatedAt:     model.UpdatedAt,
+	}
+}
+
 // parseESIAttributes converts ESI response map to DTO
 func (s *Service) parseESIAttributes(attributes map[string]any) *dto.CharacterAttributes {
 	result := &dto.CharacterAttributes{}
