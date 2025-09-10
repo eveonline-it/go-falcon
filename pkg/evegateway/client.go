@@ -70,6 +70,8 @@ type CharacterClient interface {
 	GetCharacterAttributes(ctx context.Context, characterID int, token string) (map[string]any, error)
 	GetCharacterSkillQueue(ctx context.Context, characterID int, token string) ([]map[string]any, error)
 	GetCharacterSkills(ctx context.Context, characterID int, token string) (map[string]any, error)
+	GetCharacterCorporationHistory(ctx context.Context, characterID int) ([]map[string]any, error)
+	GetCharacterClones(ctx context.Context, characterID int, token string) (map[string]any, error)
 }
 
 // UniverseClient interface for universe operations
@@ -768,6 +770,65 @@ func (c *characterClientImpl) GetCharacterSkills(ctx context.Context, characterI
 
 	if skills.UnallocatedSP != nil {
 		result["unallocated_sp"] = *skills.UnallocatedSP
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterCorporationHistory(ctx context.Context, characterID int) ([]map[string]any, error) {
+	history, err := c.client.GetCharacterCorporationHistory(ctx, characterID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := make([]map[string]any, len(history))
+	for i, entry := range history {
+		result[i] = map[string]any{
+			"corporation_id": entry.CorporationID,
+			"is_deleted":     entry.IsDeleted,
+			"record_id":      entry.RecordID,
+			"start_date":     entry.StartDate,
+		}
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterClones(ctx context.Context, characterID int, token string) (map[string]any, error) {
+	clones, err := c.client.GetCharacterClones(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{}
+
+	if clones.HomeLocation != nil {
+		result["home_location"] = map[string]any{
+			"location_id":   clones.HomeLocation.LocationID,
+			"location_type": clones.HomeLocation.LocationType,
+		}
+	}
+
+	jumpClones := make([]map[string]any, len(clones.JumpClones))
+	for i, clone := range clones.JumpClones {
+		jumpClones[i] = map[string]any{
+			"implants":      clone.Implants,
+			"jump_clone_id": clone.JumpCloneID,
+			"location_id":   clone.LocationID,
+			"location_type": clone.LocationType,
+			"name":          clone.Name,
+		}
+	}
+	result["jump_clones"] = jumpClones
+
+	if clones.LastCloneJumpDate != nil {
+		result["last_clone_jump_date"] = *clones.LastCloneJumpDate
+	}
+
+	if clones.LastStationChangeDate != nil {
+		result["last_station_change_date"] = *clones.LastStationChangeDate
 	}
 
 	return result, nil

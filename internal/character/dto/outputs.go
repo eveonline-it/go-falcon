@@ -134,3 +134,53 @@ type CharacterSkills struct {
 type CharacterSkillsOutput struct {
 	Body CharacterSkills `json:"body"`
 }
+
+// CorporationHistoryEntry represents a single corporation history entry
+type CorporationHistoryEntry struct {
+	CorporationID int       `json:"corporation_id" doc:"Corporation ID"`
+	IsDeleted     bool      `json:"is_deleted,omitempty" doc:"True if the corporation is deleted"`
+	RecordID      int       `json:"record_id" doc:"Unique record ID"`
+	StartDate     time.Time `json:"start_date" doc:"Date the character joined the corporation"`
+}
+
+// CharacterCorporationHistory represents the character's complete corporation history
+type CharacterCorporationHistory struct {
+	CharacterID int                       `json:"character_id" doc:"EVE Online character ID"`
+	History     []CorporationHistoryEntry `json:"history" doc:"List of corporation history entries"`
+	UpdatedAt   time.Time                 `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterCorporationHistoryOutput represents the corporation history response (Huma wrapper)
+type CharacterCorporationHistoryOutput struct {
+	Body CharacterCorporationHistory `json:"body"`
+}
+
+// HomeLocation represents the character's home location
+type HomeLocation struct {
+	LocationID   int64  `json:"location_id" doc:"Location ID of the home location"`
+	LocationType string `json:"location_type" doc:"Type of location (station or structure)"`
+}
+
+// JumpClone represents a single jump clone
+type JumpClone struct {
+	Implants     []int  `json:"implants" doc:"List of implant type IDs"`
+	JumpCloneID  int    `json:"jump_clone_id" doc:"Unique jump clone ID"`
+	LocationID   int64  `json:"location_id" doc:"Location ID of the jump clone"`
+	LocationType string `json:"location_type" doc:"Type of location (station or structure)"`
+	Name         string `json:"name,omitempty" doc:"Optional name for the jump clone"`
+}
+
+// CharacterClones represents the character's clone information
+type CharacterClones struct {
+	CharacterID           int           `json:"character_id" doc:"EVE Online character ID"`
+	HomeLocation          *HomeLocation `json:"home_location,omitempty" doc:"Home location details"`
+	JumpClones            []JumpClone   `json:"jump_clones" doc:"List of jump clones"`
+	LastCloneJumpDate     *time.Time    `json:"last_clone_jump_date,omitempty" doc:"Last clone jump timestamp"`
+	LastStationChangeDate *time.Time    `json:"last_station_change_date,omitempty" doc:"Last station change timestamp"`
+	UpdatedAt             time.Time     `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterClonesOutput represents the clones response (Huma wrapper)
+type CharacterClonesOutput struct {
+	Body CharacterClones `json:"body"`
+}

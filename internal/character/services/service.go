@@ -101,6 +101,295 @@ func (s *Service) GetCharacterAttributes(ctx context.Context, characterID int, t
 	return &dto.CharacterAttributesOutput{Body: *result}, nil
 }
 
+// GetCharacterCorporationHistory retrieves character corporation history following cache → DB → ESI flow
+func (s *Service) GetCharacterCorporationHistory(ctx context.Context, characterID int) (*dto.CharacterCorporationHistoryOutput, error) {
+	// 1. Check Redis cache first
+	cacheKey := fmt.Sprintf("c:character:corphistory:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterCorporationHistory
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character corporation history found in cache for character_id: %d", characterID)
+				return &dto.CharacterCorporationHistoryOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Check database
+	dbHistory, err := s.repository.GetCharacterCorporationHistory(ctx, characterID)
+	if err != nil {
+		log.Printf("Error fetching character corporation history from DB: %v", err)
+		// Continue to ESI even if DB error
+	} else if dbHistory != nil && len(dbHistory.History) > 0 {
+		// Found in database, convert to DTO
+		dtoHistory := make([]dto.CorporationHistoryEntry, len(dbHistory.History))
+		for i, entry := range dbHistory.History {
+			dtoHistory[i] = dto.CorporationHistoryEntry{
+				CorporationID: entry.CorporationID,
+				IsDeleted:     entry.IsDeleted,
+				RecordID:      entry.RecordID,
+				StartDate:     entry.StartDate,
+			}
+		}
+		result := &dto.CharacterCorporationHistory{
+			CharacterID: characterID,
+			History:     dtoHistory,
+			UpdatedAt:   dbHistory.UpdatedAt,
+		}
+
+		// Update cache
+		if s.redis != nil {
+			if data, err := json.Marshal(result); err == nil {
+				// Cache for 24 hours as corporation history rarely changes
+				_ = s.redis.Set(ctx, cacheKey, string(data), 24*time.Hour)
+			}
+		}
+
+		log.Printf("Character corporation history found in database for character_id: %d", characterID)
+		return &dto.CharacterCorporationHistoryOutput{Body: *result}, nil
+	}
+
+	// 3. Fetch from ESI
+	log.Printf("Fetching character corporation history from ESI for character_id: %d", characterID)
+	esiHistory, err := s.eveGateway.Character.GetCharacterCorporationHistory(ctx, characterID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character corporation history from ESI: %w", err)
+	}
+
+	// Convert ESI response to DTO
+	historyEntries := make([]dto.CorporationHistoryEntry, len(esiHistory))
+	for i, entry := range esiHistory {
+		// Parse the date string from ESI
+		startDateStr, _ := entry["start_date"].(string)
+		startDate, _ := time.Parse(time.RFC3339, startDateStr)
+
+		corpID, _ := entry["corporation_id"].(int)
+		isDeleted, _ := entry["is_deleted"].(bool)
+		recordID, _ := entry["record_id"].(int)
+
+		historyEntries[i] = dto.CorporationHistoryEntry{
+			CorporationID: corpID,
+			IsDeleted:     isDeleted,
+			RecordID:      recordID,
+			StartDate:     startDate,
+		}
+	}
+
+	result := &dto.CharacterCorporationHistory{
+		CharacterID: characterID,
+		History:     historyEntries,
+		UpdatedAt:   time.Now(),
+	}
+
+	// 4. Save to database
+	// Convert DTO entries to model entries
+	modelHistory := make([]models.CorporationHistoryEntry, len(historyEntries))
+	for i, entry := range historyEntries {
+		modelHistory[i] = models.CorporationHistoryEntry{
+			CorporationID: entry.CorporationID,
+			IsDeleted:     entry.IsDeleted,
+			RecordID:      entry.RecordID,
+			StartDate:     entry.StartDate,
+		}
+	}
+
+	dbModel := &models.CharacterCorporationHistory{
+		CharacterID: characterID,
+		History:     modelHistory,
+		UpdatedAt:   time.Now(),
+	}
+	if err := s.repository.SaveCharacterCorporationHistory(ctx, dbModel); err != nil {
+		log.Printf("Failed to save character corporation history to DB: %v", err)
+		// Continue even if save fails
+	}
+
+	// 5. Save to cache
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 24 hours
+			_ = s.redis.Set(ctx, cacheKey, string(data), 24*time.Hour)
+		}
+	}
+
+	log.Printf("Successfully fetched and saved character corporation history for character_id: %d", characterID)
+	return &dto.CharacterCorporationHistoryOutput{Body: *result}, nil
+}
+
+// GetCharacterClones retrieves character clones following cache → DB → ESI flow
+func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token string) (*dto.CharacterClonesOutput, error) {
+	// 1. Check Redis cache first
+	cacheKey := fmt.Sprintf("c:character:clones:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterClones
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character clones found in cache for character_id: %d", characterID)
+				return &dto.CharacterClonesOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Check database
+	dbClones, err := s.repository.GetCharacterClones(ctx, characterID)
+	if err != nil {
+		log.Printf("Error fetching character clones from DB: %v", err)
+		// Continue to ESI even if DB error
+	} else if dbClones != nil {
+		// Found in database, convert to DTO
+		dtoClones := &dto.CharacterClones{
+			CharacterID:           characterID,
+			LastCloneJumpDate:     dbClones.LastCloneJumpDate,
+			LastStationChangeDate: dbClones.LastStationChangeDate,
+			UpdatedAt:             dbClones.UpdatedAt,
+		}
+
+		// Convert home location
+		if dbClones.HomeLocation != nil {
+			dtoClones.HomeLocation = &dto.HomeLocation{
+				LocationID:   dbClones.HomeLocation.LocationID,
+				LocationType: dbClones.HomeLocation.LocationType,
+			}
+		}
+
+		// Convert jump clones
+		dtoClones.JumpClones = make([]dto.JumpClone, len(dbClones.JumpClones))
+		for i, clone := range dbClones.JumpClones {
+			dtoClones.JumpClones[i] = dto.JumpClone{
+				Implants:     clone.Implants,
+				JumpCloneID:  clone.JumpCloneID,
+				LocationID:   clone.LocationID,
+				LocationType: clone.LocationType,
+				Name:         clone.Name,
+			}
+		}
+
+		// Update cache
+		if s.redis != nil {
+			if data, err := json.Marshal(dtoClones); err == nil {
+				// Cache for 1 hour
+				_ = s.redis.Set(ctx, cacheKey, string(data), 1*time.Hour)
+			}
+		}
+
+		log.Printf("Character clones found in database for character_id: %d", characterID)
+		return &dto.CharacterClonesOutput{Body: *dtoClones}, nil
+	}
+
+	// 3. Fetch from ESI
+	log.Printf("Fetching character clones from ESI for character_id: %d", characterID)
+	esiClones, err := s.eveGateway.Character.GetCharacterClones(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character clones from ESI: %w", err)
+	}
+
+	// Convert ESI response to DTO
+	result := &dto.CharacterClones{
+		CharacterID: characterID,
+		UpdatedAt:   time.Now(),
+	}
+
+	// Parse the map response
+	if homeLocation, ok := esiClones["home_location"].(map[string]any); ok {
+		locationID, _ := homeLocation["location_id"].(float64)
+		locationType, _ := homeLocation["location_type"].(string)
+		result.HomeLocation = &dto.HomeLocation{
+			LocationID:   int64(locationID),
+			LocationType: locationType,
+		}
+	}
+
+	if jumpClonesRaw, ok := esiClones["jump_clones"].([]any); ok {
+		result.JumpClones = make([]dto.JumpClone, len(jumpClonesRaw))
+		for i, cloneRaw := range jumpClonesRaw {
+			if clone, ok := cloneRaw.(map[string]any); ok {
+				jumpCloneID, _ := clone["jump_clone_id"].(float64)
+				locationID, _ := clone["location_id"].(float64)
+				locationType, _ := clone["location_type"].(string)
+				name, _ := clone["name"].(string)
+
+				// Handle implants
+				var implants []int
+				if implantsRaw, ok := clone["implants"].([]any); ok {
+					implants = make([]int, len(implantsRaw))
+					for j, implantRaw := range implantsRaw {
+						if implant, ok := implantRaw.(float64); ok {
+							implants[j] = int(implant)
+						}
+					}
+				}
+
+				result.JumpClones[i] = dto.JumpClone{
+					Implants:     implants,
+					JumpCloneID:  int(jumpCloneID),
+					LocationID:   int64(locationID),
+					LocationType: locationType,
+					Name:         name,
+				}
+			}
+		}
+	}
+
+	if lastJumpDate, ok := esiClones["last_clone_jump_date"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, lastJumpDate); err == nil {
+			result.LastCloneJumpDate = &t
+		}
+	}
+
+	if lastStationDate, ok := esiClones["last_station_change_date"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, lastStationDate); err == nil {
+			result.LastStationChangeDate = &t
+		}
+	}
+
+	// 4. Save to database
+	dbModel := &models.CharacterClones{
+		CharacterID:           characterID,
+		LastCloneJumpDate:     result.LastCloneJumpDate,
+		LastStationChangeDate: result.LastStationChangeDate,
+		UpdatedAt:             time.Now(),
+	}
+
+	// Convert DTO to model for home location
+	if result.HomeLocation != nil {
+		dbModel.HomeLocation = &models.HomeLocation{
+			LocationID:   result.HomeLocation.LocationID,
+			LocationType: result.HomeLocation.LocationType,
+		}
+	}
+
+	// Convert DTO to model for jump clones
+	dbModel.JumpClones = make([]models.JumpClone, len(result.JumpClones))
+	for i, clone := range result.JumpClones {
+		dbModel.JumpClones[i] = models.JumpClone{
+			Implants:     clone.Implants,
+			JumpCloneID:  clone.JumpCloneID,
+			LocationID:   clone.LocationID,
+			LocationType: clone.LocationType,
+			Name:         clone.Name,
+		}
+	}
+
+	if err := s.repository.SaveCharacterClones(ctx, dbModel); err != nil {
+		log.Printf("Failed to save character clones to DB: %v", err)
+		// Continue even if save fails
+	}
+
+	// 5. Save to cache
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 1 hour
+			_ = s.redis.Set(ctx, cacheKey, string(data), 1*time.Hour)
+		}
+	}
+
+	log.Printf("Successfully fetched and saved character clones for character_id: %d", characterID)
+	return &dto.CharacterClonesOutput{Body: *result}, nil
+}
+
 // GetCharacterSkillQueue retrieves character skill queue following cache → DB → ESI flow
 func (s *Service) GetCharacterSkillQueue(ctx context.Context, characterID int, token string) (*dto.CharacterSkillQueueOutput, error) {
 	// 1. Check Redis cache first

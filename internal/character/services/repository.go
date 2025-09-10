@@ -18,21 +18,25 @@ import (
 
 // Repository handles data persistence for characters
 type Repository struct {
-	mongodb              *database.MongoDB
-	collection           *mongo.Collection
-	attributesCollection *mongo.Collection
-	skillQueueCollection *mongo.Collection
-	skillsCollection     *mongo.Collection
+	mongodb               *database.MongoDB
+	collection            *mongo.Collection
+	attributesCollection  *mongo.Collection
+	skillQueueCollection  *mongo.Collection
+	skillsCollection      *mongo.Collection
+	corpHistoryCollection *mongo.Collection
+	clonesCollection      *mongo.Collection
 }
 
 // NewRepository creates a new repository instance
 func NewRepository(mongodb *database.MongoDB) *Repository {
 	return &Repository{
-		mongodb:              mongodb,
-		collection:           mongodb.Database.Collection("characters"),
-		attributesCollection: mongodb.Database.Collection("character_attributes"),
-		skillQueueCollection: mongodb.Database.Collection("character_skill_queues"),
-		skillsCollection:     mongodb.Database.Collection("character_skills"),
+		mongodb:               mongodb,
+		collection:            mongodb.Database.Collection("characters"),
+		attributesCollection:  mongodb.Database.Collection("character_attributes"),
+		skillQueueCollection:  mongodb.Database.Collection("character_skill_queues"),
+		skillsCollection:      mongodb.Database.Collection("character_skills"),
+		corpHistoryCollection: mongodb.Database.Collection("character_corporation_history"),
+		clonesCollection:      mongodb.Database.Collection("character_clones"),
 	}
 }
 
@@ -533,5 +537,67 @@ func (r *Repository) SaveCharacterSkills(ctx context.Context, skills *models.Cha
 func (r *Repository) DeleteCharacterSkills(ctx context.Context, characterID int) error {
 	filter := bson.M{"character_id": characterID}
 	_, err := r.skillsCollection.DeleteOne(ctx, filter)
+	return err
+}
+
+// GetCharacterCorporationHistory retrieves character corporation history by character ID
+func (r *Repository) GetCharacterCorporationHistory(ctx context.Context, characterID int) (*models.CharacterCorporationHistory, error) {
+	filter := bson.M{"character_id": characterID}
+
+	var history models.CharacterCorporationHistory
+	err := r.corpHistoryCollection.FindOne(ctx, filter).Decode(&history)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // Not found is not an error
+		}
+		return nil, err
+	}
+
+	return &history, nil
+}
+
+// SaveCharacterCorporationHistory saves or updates character corporation history
+func (r *Repository) SaveCharacterCorporationHistory(ctx context.Context, history *models.CharacterCorporationHistory) error {
+	history.UpdatedAt = time.Now()
+	if history.CreatedAt.IsZero() {
+		history.CreatedAt = time.Now()
+	}
+
+	filter := bson.M{"character_id": history.CharacterID}
+	update := bson.M{"$set": history}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := r.corpHistoryCollection.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// GetCharacterClones retrieves character clones by character ID
+func (r *Repository) GetCharacterClones(ctx context.Context, characterID int) (*models.CharacterClones, error) {
+	filter := bson.M{"character_id": characterID}
+
+	var clones models.CharacterClones
+	err := r.clonesCollection.FindOne(ctx, filter).Decode(&clones)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // Not found is not an error
+		}
+		return nil, err
+	}
+
+	return &clones, nil
+}
+
+// SaveCharacterClones saves or updates character clones
+func (r *Repository) SaveCharacterClones(ctx context.Context, clones *models.CharacterClones) error {
+	clones.UpdatedAt = time.Now()
+	if clones.CreatedAt.IsZero() {
+		clones.CreatedAt = time.Now()
+	}
+
+	filter := bson.M{"character_id": clones.CharacterID}
+	update := bson.M{"$set": clones}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := r.clonesCollection.UpdateOne(ctx, filter, update, opts)
 	return err
 }

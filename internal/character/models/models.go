@@ -100,3 +100,57 @@ type Skill struct {
 func (cs *CharacterSkills) CollectionName() string {
 	return "character_skills"
 }
+
+// CorporationHistoryEntry represents a single corporation history entry in the database
+type CorporationHistoryEntry struct {
+	CorporationID int       `bson:"corporation_id" json:"corporation_id"`
+	IsDeleted     bool      `bson:"is_deleted,omitempty" json:"is_deleted,omitempty"`
+	RecordID      int       `bson:"record_id" json:"record_id"`
+	StartDate     time.Time `bson:"start_date" json:"start_date"`
+}
+
+// CharacterCorporationHistory represents the corporation history for a character in the database
+type CharacterCorporationHistory struct {
+	ID          primitive.ObjectID        `bson:"_id,omitempty" json:"id,omitempty"`
+	CharacterID int                       `bson:"character_id" json:"character_id"`
+	History     []CorporationHistoryEntry `bson:"history" json:"history"`
+	CreatedAt   time.Time                 `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time                 `bson:"updated_at" json:"updated_at"`
+}
+
+// CollectionName returns the MongoDB collection name for character corporation history
+func (cch *CharacterCorporationHistory) CollectionName() string {
+	return "character_corporation_history"
+}
+
+// HomeLocation represents the character's home location in the database
+type HomeLocation struct {
+	LocationID   int64  `bson:"location_id" json:"location_id"`
+	LocationType string `bson:"location_type" json:"location_type"`
+}
+
+// JumpClone represents a single jump clone in the database
+type JumpClone struct {
+	Implants     []int  `bson:"implants" json:"implants"`
+	JumpCloneID  int    `bson:"jump_clone_id" json:"jump_clone_id"`
+	LocationID   int64  `bson:"location_id" json:"location_id"`
+	LocationType string `bson:"location_type" json:"location_type"`
+	Name         string `bson:"name,omitempty" json:"name,omitempty"`
+}
+
+// CharacterClones represents the character's clone information in the database
+type CharacterClones struct {
+	ID                    primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CharacterID           int                `bson:"character_id" json:"character_id"`
+	HomeLocation          *HomeLocation      `bson:"home_location,omitempty" json:"home_location,omitempty"`
+	JumpClones            []JumpClone        `bson:"jump_clones" json:"jump_clones"`
+	LastCloneJumpDate     *time.Time         `bson:"last_clone_jump_date,omitempty" json:"last_clone_jump_date,omitempty"`
+	LastStationChangeDate *time.Time         `bson:"last_station_change_date,omitempty" json:"last_station_change_date,omitempty"`
+	CreatedAt             time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt             time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+// CollectionName returns the MongoDB collection name for character clones
+func (cc *CharacterClones) CollectionName() string {
+	return "character_clones"
+}

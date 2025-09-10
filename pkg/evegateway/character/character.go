@@ -49,6 +49,10 @@ type Client interface {
 	GetCharacterSkillQueueWithCache(ctx context.Context, characterID int, token string) (*SkillQueueResult, error)
 	GetCharacterSkills(ctx context.Context, characterID int, token string) (*CharacterSkillsResponse, error)
 	GetCharacterSkillsWithCache(ctx context.Context, characterID int, token string) (*CharacterSkillsResult, error)
+	GetCharacterCorporationHistory(ctx context.Context, characterID int) ([]CorporationHistoryEntry, error)
+	GetCharacterCorporationHistoryWithCache(ctx context.Context, characterID int) (*CorporationHistoryResult, error)
+	GetCharacterClones(ctx context.Context, characterID int, token string) (*ClonesResponse, error)
+	GetCharacterClonesWithCache(ctx context.Context, characterID int, token string) (*ClonesResult, error)
 }
 
 // CharacterInfoResponse represents character public information
@@ -1074,5 +1078,285 @@ func (c *CharacterClient) GetCharacterSkillsWithCache(ctx context.Context, chara
 	return &CharacterSkillsResult{
 		Data:  data,
 		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
+// CorporationHistoryEntry represents a single corporation history entry
+type CorporationHistoryEntry struct {
+	CorporationID int    `json:"corporation_id"`
+	IsDeleted     bool   `json:"is_deleted,omitempty"`
+	RecordID      int    `json:"record_id"`
+	StartDate     string `json:"start_date"`
+}
+
+// CorporationHistoryResult represents the result of a corporation history request with cache info
+type CorporationHistoryResult struct {
+	Data  []CorporationHistoryEntry
+	Cache CacheInfo
+}
+
+// GetCharacterCorporationHistory retrieves the character's corporation history from ESI
+func (c *CharacterClient) GetCharacterCorporationHistory(ctx context.Context, characterID int) ([]CorporationHistoryEntry, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/corporationhistory/", characterID)
+
+	// Create an absolute URL
+	absoluteURL := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+
+	// Start tracing if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterCorporationHistory")
+		defer span.End()
+	}
+
+	// Create a GET request
+	req, err := http.NewRequestWithContext(ctx, "GET", absoluteURL, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to create request")
+		}
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	req.Header.Set("Accept", "application/json")
+	if c.userAgent != "" {
+		req.Header.Set("User-Agent", c.userAgent)
+	}
+
+	// Execute the request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to execute request")
+		}
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
+			span.SetStatus(codes.Error, fmt.Sprintf("Unexpected status code: %d", resp.StatusCode))
+		}
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response body
+	var history []CorporationHistoryEntry
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&history); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to decode response")
+		}
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Cache the response if caching is enabled
+	if c.cacheManager != nil && len(history) > 0 {
+		cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+		if cacheData, err := json.Marshal(history); err == nil {
+			// Use the response headers for caching
+			c.cacheManager.Set(cacheKey, cacheData, resp.Header)
+		}
+	}
+
+	if span != nil {
+		span.SetAttributes(attribute.Int("corporation_history.count", len(history)))
+		span.SetStatus(codes.Ok, "Successfully retrieved corporation history")
+	}
+
+	return history, nil
+}
+
+// GetCharacterCorporationHistoryWithCache retrieves character corporation history with cache information
+func (c *CharacterClient) GetCharacterCorporationHistoryWithCache(ctx context.Context, characterID int) (*CorporationHistoryResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/corporationhistory/", characterID)
+	cacheKey := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+
+	// Check if data is cached and get expiry
+	cachedData, cached, cacheExpiry, err := c.cacheManager.GetWithExpiry(cacheKey)
+
+	// If cached and no error, try to use it
+	if err == nil && cached {
+		var history []CorporationHistoryEntry
+		if err := json.Unmarshal(cachedData, &history); err == nil {
+			return &CorporationHistoryResult{
+				Data:  history,
+				Cache: CacheInfo{Cached: true, ExpiresAt: cacheExpiry},
+			}, nil
+		}
+	}
+
+	// Fetch from ESI
+	data, err := c.GetCharacterCorporationHistory(ctx, characterID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate expiry time (24 hours from now as default)
+	expiryTime := time.Now().Add(24 * time.Hour)
+	return &CorporationHistoryResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: false, ExpiresAt: &expiryTime},
+	}, nil
+}
+
+// ClonesResponse represents the character's clone information from ESI
+type ClonesResponse struct {
+	HomeLocation          *HomeLocation `json:"home_location,omitempty"`
+	JumpClones            []JumpClone   `json:"jump_clones"`
+	LastCloneJumpDate     *time.Time    `json:"last_clone_jump_date,omitempty"`
+	LastStationChangeDate *time.Time    `json:"last_station_change_date,omitempty"`
+}
+
+// HomeLocation represents the character's home location
+type HomeLocation struct {
+	LocationID   int64  `json:"location_id"`
+	LocationType string `json:"location_type"`
+}
+
+// JumpClone represents a single jump clone
+type JumpClone struct {
+	Implants     []int  `json:"implants"`
+	JumpCloneID  int    `json:"jump_clone_id"`
+	LocationID   int64  `json:"location_id"`
+	LocationType string `json:"location_type"`
+	Name         string `json:"name,omitempty"`
+}
+
+// ClonesResult represents the result of a clones request with cache info
+type ClonesResult struct {
+	Data  *ClonesResponse
+	Cache CacheInfo
+}
+
+// GetCharacterClones retrieves the character's clone information from ESI
+func (c *CharacterClient) GetCharacterClones(ctx context.Context, characterID int, token string) (*ClonesResponse, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/clones/", characterID)
+
+	// Create an absolute URL
+	absoluteURL := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+
+	// Start tracing if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterClones")
+		defer span.End()
+	}
+
+	// Create a GET request
+	req, err := http.NewRequestWithContext(ctx, "GET", absoluteURL, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to create request")
+		}
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	if c.userAgent != "" {
+		req.Header.Set("User-Agent", c.userAgent)
+	}
+
+	// Execute the request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to execute request")
+		}
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
+			span.SetStatus(codes.Error, fmt.Sprintf("Unexpected status code: %d", resp.StatusCode))
+		}
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response body
+	var clones ClonesResponse
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&clones); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to decode response")
+		}
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Cache the response if caching is enabled
+	if c.cacheManager != nil {
+		cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+		if cacheData, err := json.Marshal(clones); err == nil {
+			// Use the response headers for caching
+			c.cacheManager.Set(cacheKey, cacheData, resp.Header)
+		}
+	}
+
+	if span != nil {
+		span.SetAttributes(attribute.Int("jump_clones.count", len(clones.JumpClones)))
+		span.SetStatus(codes.Ok, "Successfully retrieved character clones")
+	}
+
+	return &clones, nil
+}
+
+// GetCharacterClonesWithCache retrieves character clones with cache information
+func (c *CharacterClient) GetCharacterClonesWithCache(ctx context.Context, characterID int, token string) (*ClonesResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/clones/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Check if data is cached and get expiry
+	cachedData, cached, cacheExpiry, err := c.cacheManager.GetWithExpiry(cacheKey)
+
+	// If cached and no error, try to use it
+	if err == nil && cached {
+		var clones ClonesResponse
+		if err := json.Unmarshal(cachedData, &clones); err == nil {
+			return &ClonesResult{
+				Data:  &clones,
+				Cache: CacheInfo{Cached: true, ExpiresAt: cacheExpiry},
+			}, nil
+		}
+	}
+
+	// Fetch from ESI
+	data, err := c.GetCharacterClones(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate expiry time (1 hour from now as default)
+	expiryTime := time.Now().Add(1 * time.Hour)
+	return &ClonesResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: false, ExpiresAt: &expiryTime},
 	}, nil
 }
