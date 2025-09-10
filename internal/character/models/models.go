@@ -154,3 +154,17 @@ type CharacterClones struct {
 func (cc *CharacterClones) CollectionName() string {
 	return "character_clones"
 }
+
+// CharacterImplants represents the character's active implants in the database
+type CharacterImplants struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CharacterID int                `bson:"character_id" json:"character_id"`
+	Implants    []int              `bson:"implants" json:"implants"`
+	CreatedAt   time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+// CollectionName returns the MongoDB collection name for character implants
+func (ci *CharacterImplants) CollectionName() string {
+	return "character_implants"
+}

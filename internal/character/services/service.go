@@ -390,6 +390,84 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 	return &dto.CharacterClonesOutput{Body: *result}, nil
 }
 
+// GetCharacterImplants retrieves character implants following cache → DB → ESI flow
+func (s *Service) GetCharacterImplants(ctx context.Context, characterID int, token string) (*dto.CharacterImplantsOutput, error) {
+	// 1. Check Redis cache first
+	cacheKey := fmt.Sprintf("c:character:implants:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterImplants
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character implants found in cache for character_id: %d", characterID)
+				return &dto.CharacterImplantsOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Check database
+	dbImplants, err := s.repository.GetCharacterImplants(ctx, characterID)
+	if err != nil {
+		log.Printf("Error fetching character implants from DB: %v", err)
+		// Continue to ESI even if DB error
+	} else if dbImplants != nil {
+		// Found in database, convert to DTO
+		result := &dto.CharacterImplants{
+			CharacterID: characterID,
+			Implants:    dbImplants.Implants,
+			UpdatedAt:   dbImplants.UpdatedAt,
+		}
+
+		// Update cache
+		if s.redis != nil {
+			if data, err := json.Marshal(result); err == nil {
+				// Cache for 1 hour
+				_ = s.redis.Set(ctx, cacheKey, string(data), 1*time.Hour)
+			}
+		}
+
+		log.Printf("Character implants found in database for character_id: %d", characterID)
+		return &dto.CharacterImplantsOutput{Body: *result}, nil
+	}
+
+	// 3. Fetch from ESI
+	log.Printf("Fetching character implants from ESI for character_id: %d", characterID)
+	esiImplants, err := s.eveGateway.Character.GetCharacterImplants(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character implants from ESI: %w", err)
+	}
+
+	result := &dto.CharacterImplants{
+		CharacterID: characterID,
+		Implants:    esiImplants,
+		UpdatedAt:   time.Now(),
+	}
+
+	// 4. Save to database
+	dbModel := &models.CharacterImplants{
+		CharacterID: characterID,
+		Implants:    esiImplants,
+		UpdatedAt:   time.Now(),
+	}
+
+	if err := s.repository.SaveCharacterImplants(ctx, dbModel); err != nil {
+		log.Printf("Failed to save character implants to DB: %v", err)
+		// Continue even if save fails
+	}
+
+	// 5. Save to cache
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 1 hour
+			_ = s.redis.Set(ctx, cacheKey, string(data), 1*time.Hour)
+		}
+	}
+
+	log.Printf("Successfully fetched and saved character implants for character_id: %d", characterID)
+	return &dto.CharacterImplantsOutput{Body: *result}, nil
+}
+
 // GetCharacterSkillQueue retrieves character skill queue following cache → DB → ESI flow
 func (s *Service) GetCharacterSkillQueue(ctx context.Context, characterID int, token string) (*dto.CharacterSkillQueueOutput, error) {
 	// 1. Check Redis cache first

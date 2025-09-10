@@ -72,6 +72,7 @@ type CharacterClient interface {
 	GetCharacterSkills(ctx context.Context, characterID int, token string) (map[string]any, error)
 	GetCharacterCorporationHistory(ctx context.Context, characterID int) ([]map[string]any, error)
 	GetCharacterClones(ctx context.Context, characterID int, token string) (map[string]any, error)
+	GetCharacterImplants(ctx context.Context, characterID int, token string) ([]int, error)
 }
 
 // UniverseClient interface for universe operations
@@ -832,6 +833,16 @@ func (c *characterClientImpl) GetCharacterClones(ctx context.Context, characterI
 	}
 
 	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterImplants(ctx context.Context, characterID int, token string) ([]int, error) {
+	implants, err := c.client.GetCharacterImplants(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return the implants directly as they're already a simple []int
+	return implants, nil
 }
 
 // UniverseClient implementation

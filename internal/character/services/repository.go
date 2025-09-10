@@ -25,6 +25,7 @@ type Repository struct {
 	skillsCollection      *mongo.Collection
 	corpHistoryCollection *mongo.Collection
 	clonesCollection      *mongo.Collection
+	implantsCollection    *mongo.Collection
 }
 
 // NewRepository creates a new repository instance
@@ -37,6 +38,7 @@ func NewRepository(mongodb *database.MongoDB) *Repository {
 		skillsCollection:      mongodb.Database.Collection("character_skills"),
 		corpHistoryCollection: mongodb.Database.Collection("character_corporation_history"),
 		clonesCollection:      mongodb.Database.Collection("character_clones"),
+		implantsCollection:    mongodb.Database.Collection("character_implants"),
 	}
 }
 
@@ -599,5 +601,36 @@ func (r *Repository) SaveCharacterClones(ctx context.Context, clones *models.Cha
 	opts := options.Update().SetUpsert(true)
 
 	_, err := r.clonesCollection.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// GetCharacterImplants retrieves character implants by character ID
+func (r *Repository) GetCharacterImplants(ctx context.Context, characterID int) (*models.CharacterImplants, error) {
+	filter := bson.M{"character_id": characterID}
+
+	var implants models.CharacterImplants
+	err := r.implantsCollection.FindOne(ctx, filter).Decode(&implants)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // Not found is not an error
+		}
+		return nil, err
+	}
+
+	return &implants, nil
+}
+
+// SaveCharacterImplants saves or updates character implants
+func (r *Repository) SaveCharacterImplants(ctx context.Context, implants *models.CharacterImplants) error {
+	implants.UpdatedAt = time.Now()
+	if implants.CreatedAt.IsZero() {
+		implants.CreatedAt = time.Now()
+	}
+
+	filter := bson.M{"character_id": implants.CharacterID}
+	update := bson.M{"$set": implants}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := r.implantsCollection.UpdateOne(ctx, filter, update, opts)
 	return err
 }

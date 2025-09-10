@@ -184,3 +184,15 @@ type CharacterClones struct {
 type CharacterClonesOutput struct {
 	Body CharacterClones `json:"body"`
 }
+
+// CharacterImplants represents the character's active implants
+type CharacterImplants struct {
+	CharacterID int       `json:"character_id" doc:"EVE Online character ID"`
+	Implants    []int     `json:"implants" doc:"List of implant type IDs"`
+	UpdatedAt   time.Time `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterImplantsOutput represents the implants response (Huma wrapper)
+type CharacterImplantsOutput struct {
+	Body CharacterImplants `json:"body"`
+}
