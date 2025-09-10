@@ -2,7 +2,9 @@ package routes
 
 import (
 	"context"
+	"time"
 
+	"go-falcon/internal/auth/models"
 	"go-falcon/internal/character/dto"
 	"go-falcon/internal/character/services"
 	"go-falcon/pkg/middleware"
@@ -10,8 +12,13 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
+// AuthRepository interface for auth operations
+type AuthRepository interface {
+	GetUserProfileByCharacterID(ctx context.Context, characterID int) (*models.UserProfile, error)
+}
+
 // RegisterCharacterRoutes registers character routes on a shared Huma API
-func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Service, characterAdapter *middleware.CharacterAdapter) {
+func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Service, characterAdapter *middleware.CharacterAdapter, authRepository AuthRepository) {
 	// Status endpoint (public, no auth required)
 	huma.Register(api, huma.Operation{
 		OperationID: "character-get-status",
@@ -72,6 +79,61 @@ func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Se
 		result, err := service.SearchCharactersByName(ctx, input.Name)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("Failed to search characters", err)
+		}
+		return result, nil
+	})
+
+	// Get character attributes endpoint (authenticated, requires ESI token)
+	huma.Register(api, huma.Operation{
+		OperationID: "character-get-attributes",
+		Method:      "GET",
+		Path:        basePath + "/{character_id}/attributes",
+		Summary:     "Get character attributes",
+		Description: "Get character attributes from EVE ESI. Requires authentication and esi-skills.read_skills.v1 scope for the character.",
+		Tags:        []string{"Character"},
+	}, func(ctx context.Context, input *dto.GetCharacterAttributesInput) (*dto.CharacterAttributesOutput, error) {
+		// Require authentication
+		var user *models.AuthenticatedUser
+		if characterAdapter != nil {
+			authUser, err := characterAdapter.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+			user = authUser
+		}
+
+		// Check if the user is requesting their own attributes or if they have permission
+		if user == nil || user.CharacterID != input.CharacterID {
+			return nil, huma.Error403Forbidden("You can only view your own character attributes")
+		}
+
+		// Get the user profile to retrieve the ESI access token
+		if authRepository == nil {
+			return nil, huma.Error500InternalServerError("Authentication service not available")
+		}
+
+		profile, err := authRepository.GetUserProfileByCharacterID(ctx, input.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to retrieve user profile", err)
+		}
+		if profile == nil {
+			return nil, huma.Error404NotFound("User profile not found")
+		}
+
+		// Check if access token is expired
+		if time.Now().After(profile.TokenExpiry) {
+			return nil, huma.Error401Unauthorized("EVE access token expired, please re-authenticate")
+		}
+
+		// Use the ESI access token from the profile
+		token := profile.AccessToken
+		if token == "" {
+			return nil, huma.Error401Unauthorized("No EVE access token available")
+		}
+
+		result, err := service.GetCharacterAttributes(ctx, input.CharacterID, token)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get character attributes", err)
 		}
 		return result, nil
 	})

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"runtime"
@@ -17,19 +18,162 @@ import (
 type Service struct {
 	repository *Repository
 	eveGateway *evegateway.Client
+	redis      *database.Redis
 }
 
 // NewService creates a new service instance
-func NewService(mongodb *database.MongoDB, eveGateway *evegateway.Client) *Service {
+func NewService(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client) *Service {
 	return &Service{
 		repository: NewRepository(mongodb),
 		eveGateway: eveGateway,
+		redis:      redis,
 	}
 }
 
 // CreateIndexes creates database indexes for optimal performance
 func (s *Service) CreateIndexes(ctx context.Context) error {
 	return s.repository.CreateIndexes(ctx)
+}
+
+// GetCharacterAttributes retrieves character attributes following cache → DB → ESI flow
+func (s *Service) GetCharacterAttributes(ctx context.Context, characterID int, token string) (*dto.CharacterAttributesOutput, error) {
+	// 1. Check Redis cache first
+	cacheKey := fmt.Sprintf("character:attributes:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterAttributes
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character attributes found in cache for character_id: %d", characterID)
+				return &dto.CharacterAttributesOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Check database
+	dbAttributes, err := s.repository.GetCharacterAttributes(ctx, characterID)
+	if err != nil {
+		log.Printf("Error fetching character attributes from DB: %v", err)
+		// Continue to ESI even if DB error
+	} else if dbAttributes != nil {
+		// Found in database, convert to DTO
+		result := s.modelToDTO(dbAttributes)
+
+		// Update cache
+		if s.redis != nil {
+			if data, err := json.Marshal(result); err == nil {
+				// Cache for 30 minutes
+				_ = s.redis.Set(ctx, cacheKey, string(data), 30*time.Minute)
+			}
+		}
+
+		log.Printf("Character attributes found in database for character_id: %d", characterID)
+		return &dto.CharacterAttributesOutput{Body: *result}, nil
+	}
+
+	// 3. Fetch from ESI
+	log.Printf("Fetching character attributes from ESI for character_id: %d", characterID)
+	esiAttributes, err := s.eveGateway.Character.GetCharacterAttributes(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character attributes from ESI: %w", err)
+	}
+
+	// Convert ESI response to DTO
+	result := s.parseESIAttributes(esiAttributes)
+
+	// 4. Save to database
+	dbModel := s.dtoToModel(result, characterID)
+	if err := s.repository.SaveCharacterAttributes(ctx, dbModel); err != nil {
+		log.Printf("Failed to save character attributes to DB: %v", err)
+		// Continue even if save fails
+	}
+
+	// 5. Save to cache
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 30 minutes
+			_ = s.redis.Set(ctx, cacheKey, string(data), 30*time.Minute)
+		}
+	}
+
+	log.Printf("Successfully fetched and saved character attributes for character_id: %d", characterID)
+	return &dto.CharacterAttributesOutput{Body: *result}, nil
+}
+
+// parseESIAttributes converts ESI response map to DTO
+func (s *Service) parseESIAttributes(attributes map[string]any) *dto.CharacterAttributes {
+	result := &dto.CharacterAttributes{}
+
+	// Helper function to safely convert to int
+	toInt := func(v interface{}) int {
+		switch val := v.(type) {
+		case float64:
+			return int(val)
+		case int:
+			return val
+		default:
+			return 0
+		}
+	}
+
+	result.Charisma = toInt(attributes["charisma"])
+	result.Intelligence = toInt(attributes["intelligence"])
+	result.Memory = toInt(attributes["memory"])
+	result.Perception = toInt(attributes["perception"])
+	result.Willpower = toInt(attributes["willpower"])
+
+	// Handle optional fields
+	if val, ok := attributes["accrued_remap_cooldown_date"]; ok && val != nil {
+		if t, ok := val.(*time.Time); ok {
+			result.AccruedRemapCooldownDate = t
+		}
+	}
+	if val, ok := attributes["bonus_remaps"]; ok && val != nil {
+		switch v := val.(type) {
+		case float64:
+			intVal := int(v)
+			result.BonusRemaps = &intVal
+		case int:
+			result.BonusRemaps = &v
+		}
+	}
+	if val, ok := attributes["last_remap_date"]; ok && val != nil {
+		if t, ok := val.(*time.Time); ok {
+			result.LastRemapDate = t
+		}
+	}
+
+	return result
+}
+
+// modelToDTO converts database model to DTO
+func (s *Service) modelToDTO(model *models.CharacterAttributes) *dto.CharacterAttributes {
+	return &dto.CharacterAttributes{
+		Charisma:                 model.Charisma,
+		Intelligence:             model.Intelligence,
+		Memory:                   model.Memory,
+		Perception:               model.Perception,
+		Willpower:                model.Willpower,
+		AccruedRemapCooldownDate: model.AccruedRemapCooldownDate,
+		BonusRemaps:              model.BonusRemaps,
+		LastRemapDate:            model.LastRemapDate,
+	}
+}
+
+// dtoToModel converts DTO to database model
+func (s *Service) dtoToModel(dto *dto.CharacterAttributes, characterID int) *models.CharacterAttributes {
+	return &models.CharacterAttributes{
+		CharacterID:              characterID,
+		Charisma:                 dto.Charisma,
+		Intelligence:             dto.Intelligence,
+		Memory:                   dto.Memory,
+		Perception:               dto.Perception,
+		Willpower:                dto.Willpower,
+		AccruedRemapCooldownDate: dto.AccruedRemapCooldownDate,
+		BonusRemaps:              dto.BonusRemaps,
+		LastRemapDate:            dto.LastRemapDate,
+	}
 }
 
 // GetCharacterProfile retrieves character profile from DB or ESI if not found

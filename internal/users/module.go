@@ -32,7 +32,7 @@ type Module struct {
 
 // New creates a new users module instance
 func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, eveGateway *evegateway.Client, sdeService sde.SDEService) *Module {
-	service := usersServices.NewService(mongodb, eveGateway, sdeService)
+	service := usersServices.NewService(mongodb, redis, eveGateway, sdeService)
 
 	return &Module{
 		BaseModule:   module.NewBaseModule("users", mongodb, redis),

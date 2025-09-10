@@ -67,6 +67,7 @@ type CharacterClient interface {
 	GetCharacterInfo(ctx context.Context, characterID int) (map[string]any, error)
 	GetCharacterPortrait(ctx context.Context, characterID int) (map[string]any, error)
 	GetCharactersAffiliation(ctx context.Context, characterIDs []int) ([]map[string]interface{}, error)
+	GetCharacterAttributes(ctx context.Context, characterID int, token string) (map[string]any, error)
 }
 
 // UniverseClient interface for universe operations
@@ -670,6 +671,35 @@ func (c *characterClientImpl) GetCharactersAffiliation(ctx context.Context, char
 		if aff.FactionID != 0 {
 			result[i]["faction_id"] = aff.FactionID
 		}
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterAttributes(ctx context.Context, characterID int, token string) (map[string]any, error) {
+	attributes, err := c.client.GetCharacterAttributes(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{
+		"charisma":     attributes.Charisma,
+		"intelligence": attributes.Intelligence,
+		"memory":       attributes.Memory,
+		"perception":   attributes.Perception,
+		"willpower":    attributes.Willpower,
+	}
+
+	// Add optional fields if they exist
+	if attributes.AccruedRemapCooldownDate != nil {
+		result["accrued_remap_cooldown_date"] = attributes.AccruedRemapCooldownDate
+	}
+	if attributes.BonusRemaps != nil {
+		result["bonus_remaps"] = *attributes.BonusRemaps
+	}
+	if attributes.LastRemapDate != nil {
+		result["last_remap_date"] = attributes.LastRemapDate
 	}
 
 	return result, nil

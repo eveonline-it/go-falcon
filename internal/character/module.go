@@ -31,7 +31,7 @@ type Module struct {
 
 // New creates a new character module instance
 func New(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client, authModule *auth.Module) *Module {
-	service := services.NewService(mongodb, eveGateway)
+	service := services.NewService(mongodb, redis, eveGateway)
 	updateService := services.NewUpdateService(mongodb, eveGateway)
 
 	return &Module{
@@ -112,7 +112,13 @@ func (m *Module) RegisterUnifiedRoutes(api huma.API, basePath string) {
 		}
 	}
 
-	routes.RegisterCharacterRoutes(api, basePath, m.service, characterAdapter)
+	// Get auth service for ESI token access
+	var authService routes.AuthRepository
+	if m.authModule != nil {
+		authService = m.authModule.GetAuthService()
+	}
+
+	routes.RegisterCharacterRoutes(api, basePath, m.service, characterAdapter, authService)
 	log.Printf("Character module unified routes registered at %s", basePath)
 }
 

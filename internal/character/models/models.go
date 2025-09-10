@@ -29,3 +29,24 @@ type Character struct {
 func (c *Character) CollectionName() string {
 	return "characters"
 }
+
+// CharacterAttributes represents character attributes in the database
+type CharacterAttributes struct {
+	ID                       primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CharacterID              int                `bson:"character_id" json:"character_id"`
+	Charisma                 int                `bson:"charisma" json:"charisma"`
+	Intelligence             int                `bson:"intelligence" json:"intelligence"`
+	Memory                   int                `bson:"memory" json:"memory"`
+	Perception               int                `bson:"perception" json:"perception"`
+	Willpower                int                `bson:"willpower" json:"willpower"`
+	AccruedRemapCooldownDate *time.Time         `bson:"accrued_remap_cooldown_date,omitempty" json:"accrued_remap_cooldown_date,omitempty"`
+	BonusRemaps              *int               `bson:"bonus_remaps,omitempty" json:"bonus_remaps,omitempty"`
+	LastRemapDate            *time.Time         `bson:"last_remap_date,omitempty" json:"last_remap_date,omitempty"`
+	CreatedAt                time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt                time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+// CollectionName returns the MongoDB collection name for character attributes
+func (ca *CharacterAttributes) CollectionName() string {
+	return "character_attributes"
+}

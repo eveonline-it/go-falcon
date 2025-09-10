@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	authModels "go-falcon/internal/auth/models"
 	groupsModels "go-falcon/internal/groups/models"
@@ -50,16 +51,17 @@ func (is *IntegrationService) AssignUserToRooms(ctx context.Context, connection 
 	if err != nil {
 		slog.Error("Failed to get user groups", "error", err, "character_id", connection.CharacterID)
 		// Don't return error - personal room is enough for basic functionality
-	} else {
-		// 3. Join group rooms
-		for _, group := range groups {
-			groupRoomID := fmt.Sprintf("group:%s", group.ID)
-			if err := is.roomManager.JoinGroupRoom(group.ID, group.Name, connection.ID); err != nil {
-				slog.Error("Failed to join group room", "error", err, "group_id", group.ID, "connection_id", connection.ID)
-			} else {
-				connection.AddRoom(groupRoomID)
-				slog.Info("Connection joined group room", "connection_id", connection.ID, "group_id", group.ID, "group_name", group.Name)
-			}
+		return nil
+	}
+
+	// 3. Join group rooms
+	for _, group := range groups {
+		groupRoomID := fmt.Sprintf("group:%s", group.ID)
+		if err := is.roomManager.JoinGroupRoom(group.ID, group.Name, connection.ID); err != nil {
+			slog.Error("Failed to join group room", "error", err, "group_id", group.ID, "connection_id", connection.ID)
+		} else {
+			connection.AddRoom(groupRoomID)
+			slog.Info("Connection joined group room", "connection_id", connection.ID, "group_id", group.ID, "group_name", group.Name)
 		}
 	}
 
@@ -68,6 +70,10 @@ func (is *IntegrationService) AssignUserToRooms(ctx context.Context, connection 
 
 // getUserGroups retrieves all groups a character belongs to
 func (is *IntegrationService) getUserGroups(ctx context.Context, characterID int64) ([]GroupInfo, error) {
+	// Add explicit timeout for MongoDB operations to prevent hanging
+	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Get group memberships for the character
 	membershipCollection := is.db.Collection(groupsModels.MembershipsCollection)
 
@@ -76,14 +82,14 @@ func (is *IntegrationService) getUserGroups(ctx context.Context, characterID int
 		"is_active":    true,
 	}
 
-	cursor, err := membershipCollection.Find(ctx, filter)
+	cursor, err := membershipCollection.Find(queryCtx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find group memberships: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer cursor.Close(queryCtx)
 
 	var memberships []groupsModels.GroupMembership
-	if err := cursor.All(ctx, &memberships); err != nil {
+	if err := cursor.All(queryCtx, &memberships); err != nil {
 		return nil, fmt.Errorf("failed to decode group memberships: %w", err)
 	}
 
@@ -104,14 +110,14 @@ func (is *IntegrationService) getUserGroups(ctx context.Context, characterID int
 		"is_active": true,
 	}
 
-	groupCursor, err := groupCollection.Find(ctx, groupFilter)
+	groupCursor, err := groupCollection.Find(queryCtx, groupFilter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find groups: %w", err)
 	}
-	defer groupCursor.Close(ctx)
+	defer groupCursor.Close(queryCtx)
 
 	var groups []groupsModels.Group
-	if err := groupCursor.All(ctx, &groups); err != nil {
+	if err := groupCursor.All(queryCtx, &groups); err != nil {
 		return nil, fmt.Errorf("failed to decode groups: %w", err)
 	}
 

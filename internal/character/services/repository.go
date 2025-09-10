@@ -18,15 +18,17 @@ import (
 
 // Repository handles data persistence for characters
 type Repository struct {
-	mongodb    *database.MongoDB
-	collection *mongo.Collection
+	mongodb              *database.MongoDB
+	collection           *mongo.Collection
+	attributesCollection *mongo.Collection
 }
 
 // NewRepository creates a new repository instance
 func NewRepository(mongodb *database.MongoDB) *Repository {
 	return &Repository{
-		mongodb:    mongodb,
-		collection: mongodb.Database.Collection("characters"),
+		mongodb:              mongodb,
+		collection:           mongodb.Database.Collection("characters"),
+		attributesCollection: mongodb.Database.Collection("character_attributes"),
 	}
 }
 
@@ -362,5 +364,60 @@ func (r *Repository) CreateIndexes(ctx context.Context) error {
 	}
 
 	_, err := r.collection.Indexes().CreateMany(ctx, indexModels)
+	if err != nil {
+		return err
+	}
+
+	// Create indexes for character_attributes collection
+	attributesIndexModels := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "character_id", Value: 1}},
+			Options: options.Index().SetUnique(true).SetBackground(true),
+		},
+		{
+			Keys:    bson.D{{Key: "updated_at", Value: -1}},
+			Options: options.Index().SetBackground(true),
+		},
+	}
+
+	_, err = r.attributesCollection.Indexes().CreateMany(ctx, attributesIndexModels)
+	return err
+}
+
+// GetCharacterAttributes retrieves character attributes by character ID
+func (r *Repository) GetCharacterAttributes(ctx context.Context, characterID int) (*models.CharacterAttributes, error) {
+	filter := bson.M{"character_id": characterID}
+
+	var attributes models.CharacterAttributes
+	err := r.attributesCollection.FindOne(ctx, filter).Decode(&attributes)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // Not found is not an error
+		}
+		return nil, err
+	}
+
+	return &attributes, nil
+}
+
+// SaveCharacterAttributes saves or updates character attributes
+func (r *Repository) SaveCharacterAttributes(ctx context.Context, attributes *models.CharacterAttributes) error {
+	attributes.UpdatedAt = time.Now()
+	if attributes.CreatedAt.IsZero() {
+		attributes.CreatedAt = time.Now()
+	}
+
+	filter := bson.M{"character_id": attributes.CharacterID}
+	update := bson.M{"$set": attributes}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := r.attributesCollection.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// DeleteCharacterAttributes deletes character attributes by character ID
+func (r *Repository) DeleteCharacterAttributes(ctx context.Context, characterID int) error {
+	filter := bson.M{"character_id": characterID}
+	_, err := r.attributesCollection.DeleteOne(ctx, filter)
 	return err
 }

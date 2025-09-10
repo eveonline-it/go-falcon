@@ -71,3 +71,20 @@ type CharacterMetrics struct {
 	MemoryUsage           float64 `json:"memory_usage_mb" description:"Memory usage in MB"`
 	LastAffiliationUpdate string  `json:"last_affiliation_update,omitempty" description:"Last background affiliation update"`
 }
+
+// CharacterAttributes represents character attribute data
+type CharacterAttributes struct {
+	Charisma                 int        `json:"charisma" doc:"Charisma attribute value"`
+	Intelligence             int        `json:"intelligence" doc:"Intelligence attribute value"`
+	Memory                   int        `json:"memory" doc:"Memory attribute value"`
+	Perception               int        `json:"perception" doc:"Perception attribute value"`
+	Willpower                int        `json:"willpower" doc:"Willpower attribute value"`
+	AccruedRemapCooldownDate *time.Time `json:"accrued_remap_cooldown_date,omitempty" doc:"Date when remap cooldown ends"`
+	BonusRemaps              *int       `json:"bonus_remaps,omitempty" doc:"Number of bonus remaps available"`
+	LastRemapDate            *time.Time `json:"last_remap_date,omitempty" doc:"Date of last attribute remap"`
+}
+
+// CharacterAttributesOutput represents the character attributes response (Huma wrapper)
+type CharacterAttributesOutput struct {
+	Body CharacterAttributes `json:"body"`
+}
