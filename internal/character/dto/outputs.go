@@ -88,3 +88,27 @@ type CharacterAttributes struct {
 type CharacterAttributesOutput struct {
 	Body CharacterAttributes `json:"body"`
 }
+
+// SkillQueueItem represents a single skill in the character's skill queue
+type SkillQueueItem struct {
+	SkillID         int        `json:"skill_id" doc:"Skill type ID"`
+	FinishedLevel   int        `json:"finished_level" doc:"Level this skill will complete to"`
+	QueuePosition   int        `json:"queue_position" doc:"Position in the skill queue"`
+	StartDate       *time.Time `json:"start_date,omitempty" doc:"Start date of training"`
+	FinishDate      *time.Time `json:"finish_date,omitempty" doc:"Completion date of training"`
+	TrainingStartSP *int       `json:"training_start_sp,omitempty" doc:"Skill points at training start"`
+	LevelEndSP      *int       `json:"level_end_sp,omitempty" doc:"Skill points at level completion"`
+	LevelStartSP    *int       `json:"level_start_sp,omitempty" doc:"Skill points at level start"`
+}
+
+// CharacterSkillQueue represents the character's complete skill queue
+type CharacterSkillQueue struct {
+	CharacterID int              `json:"character_id" doc:"EVE Online character ID"`
+	Skills      []SkillQueueItem `json:"skills" doc:"List of skills in the queue"`
+	UpdatedAt   time.Time        `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterSkillQueueOutput represents the skill queue response (Huma wrapper)
+type CharacterSkillQueueOutput struct {
+	Body CharacterSkillQueue `json:"body"`
+}

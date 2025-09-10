@@ -45,6 +45,8 @@ type Client interface {
 	GetCharactersAffiliationWithCache(ctx context.Context, characterIDs []int) (*CharacterAffiliationResult, error)
 	GetCharacterAttributes(ctx context.Context, characterID int, token string) (*CharacterAttributesResponse, error)
 	GetCharacterAttributesWithCache(ctx context.Context, characterID int, token string) (*CharacterAttributesResult, error)
+	GetCharacterSkillQueue(ctx context.Context, characterID int, token string) ([]SkillQueueItem, error)
+	GetCharacterSkillQueueWithCache(ctx context.Context, characterID int, token string) (*SkillQueueResult, error)
 }
 
 // CharacterInfoResponse represents character public information
@@ -87,6 +89,24 @@ type CharacterAttributesResponse struct {
 type CharacterAttributesResult struct {
 	Data  *CharacterAttributesResponse `json:"data"`
 	Cache CacheInfo                    `json:"cache"`
+}
+
+// SkillQueueItem represents a single skill in the character's skill queue
+type SkillQueueItem struct {
+	SkillID         int        `json:"skill_id"`
+	FinishedLevel   int        `json:"finished_level"`
+	QueuePosition   int        `json:"queue_position"`
+	StartDate       *time.Time `json:"start_date,omitempty"`
+	FinishDate      *time.Time `json:"finish_date,omitempty"`
+	TrainingStartSP *int       `json:"training_start_sp,omitempty"`
+	LevelEndSP      *int       `json:"level_end_sp,omitempty"`
+	LevelStartSP    *int       `json:"level_start_sp,omitempty"`
+}
+
+// SkillQueueResult contains skill queue and cache information
+type SkillQueueResult struct {
+	Data  []SkillQueueItem `json:"data"`
+	Cache CacheInfo        `json:"cache"`
 }
 
 // CharacterClient implements character-related ESI operations
@@ -676,6 +696,182 @@ func (c *CharacterClient) GetCharacterAttributesWithCache(ctx context.Context, c
 	}
 
 	return &CharacterAttributesResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
+// GetCharacterSkillQueue retrieves character skill queue from ESI
+func (c *CharacterClient) GetCharacterSkillQueue(ctx context.Context, characterID int, token string) ([]SkillQueueItem, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/skillqueue/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterSkillQueue")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "character.skillqueue"),
+			attribute.Int("esi.character_id", characterID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+			attribute.Bool("auth.required", true),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting character skill queue from ESI", "character_id", characterID)
+
+	// Check cache first
+	if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		var skillQueue []SkillQueueItem
+		if err := json.Unmarshal(cachedData, &skillQueue); err == nil {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached character skill queue", "character_id", characterID)
+			return skillQueue, nil
+		}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+endpoint, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to create request")
+		}
+		slog.ErrorContext(ctx, "Failed to create character skill queue request", "error", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	// Add conditional headers if we have cached data
+	c.cacheManager.SetConditionalHeaders(req, cacheKey)
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.String("http.method", req.Method),
+			attribute.String("http.url", req.URL.String()),
+		)
+	}
+
+	// Use retry mechanism
+	resp, err := c.retryClient.DoWithRetry(ctx, req, 3)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to call ESI")
+		}
+		slog.ErrorContext(ctx, "Failed to call ESI character skill queue endpoint", "error", err)
+		return nil, fmt.Errorf("failed to call ESI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.status_code", resp.StatusCode),
+			attribute.String("http.status_text", resp.Status),
+		)
+	}
+
+	// Handle 304 Not Modified
+	if resp.StatusCode == http.StatusNotModified {
+		// Use GetForNotModified which returns cached data even if expired
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit - not modified")
+			}
+			slog.InfoContext(ctx, "Character skill queue not modified, using cached data")
+
+			// Refresh the expiry since ESI confirmed data is still valid
+			c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+
+			var skillQueue []SkillQueueItem
+			if err := json.Unmarshal(cachedData, &skillQueue); err != nil {
+				return nil, fmt.Errorf("failed to parse cached response: %w", err)
+			}
+			return skillQueue, nil
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "character_id", characterID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for character %d skill queue", characterID)
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetStatus(codes.Error, "ESI returned error status")
+		}
+		slog.ErrorContext(ctx, "ESI character skill queue endpoint returned error", "status_code", resp.StatusCode)
+		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to read response")
+		}
+		slog.ErrorContext(ctx, "Failed to read character skill queue response", "error", err)
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.response_size", len(body)),
+			attribute.Bool("cache.hit", false),
+		)
+	}
+
+	// Update cache
+	c.cacheManager.Set(cacheKey, body, resp.Header)
+
+	var skillQueue []SkillQueueItem
+	if err := json.Unmarshal(body, &skillQueue); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to parse response")
+		}
+		slog.ErrorContext(ctx, "Failed to parse character skill queue response", "error", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("skill_queue.length", len(skillQueue)),
+		)
+		span.SetStatus(codes.Ok, "success")
+	}
+
+	slog.InfoContext(ctx, "Successfully fetched character skill queue from ESI", "character_id", characterID, "queue_length", len(skillQueue))
+	return skillQueue, nil
+}
+
+// GetCharacterSkillQueueWithCache retrieves character skill queue with cache information
+func (c *CharacterClient) GetCharacterSkillQueueWithCache(ctx context.Context, characterID int, token string) (*SkillQueueResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/skillqueue/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Check if data is cached and get expiry
+	_, cached, cacheExpiry, _ := c.cacheManager.GetWithExpiry(cacheKey)
+
+	data, err := c.GetCharacterSkillQueue(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SkillQueueResult{
 		Data:  data,
 		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
 	}, nil

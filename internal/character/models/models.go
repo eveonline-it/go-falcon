@@ -50,3 +50,29 @@ type CharacterAttributes struct {
 func (ca *CharacterAttributes) CollectionName() string {
 	return "character_attributes"
 }
+
+// CharacterSkillQueue represents the skill queue for a character in the database
+type CharacterSkillQueue struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CharacterID int                `bson:"character_id" json:"character_id"`
+	Skills      []SkillQueueItem   `bson:"skills" json:"skills"`
+	CreatedAt   time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+// SkillQueueItem represents a single skill in the queue
+type SkillQueueItem struct {
+	SkillID         int        `bson:"skill_id" json:"skill_id"`
+	FinishedLevel   int        `bson:"finished_level" json:"finished_level"`
+	QueuePosition   int        `bson:"queue_position" json:"queue_position"`
+	StartDate       *time.Time `bson:"start_date,omitempty" json:"start_date,omitempty"`
+	FinishDate      *time.Time `bson:"finish_date,omitempty" json:"finish_date,omitempty"`
+	TrainingStartSP *int       `bson:"training_start_sp,omitempty" json:"training_start_sp,omitempty"`
+	LevelEndSP      *int       `bson:"level_end_sp,omitempty" json:"level_end_sp,omitempty"`
+	LevelStartSP    *int       `bson:"level_start_sp,omitempty" json:"level_start_sp,omitempty"`
+}
+
+// CollectionName returns the MongoDB collection name for character skill queues
+func (csq *CharacterSkillQueue) CollectionName() string {
+	return "character_skill_queues"
+}

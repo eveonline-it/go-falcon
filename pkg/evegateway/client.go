@@ -68,6 +68,7 @@ type CharacterClient interface {
 	GetCharacterPortrait(ctx context.Context, characterID int) (map[string]any, error)
 	GetCharactersAffiliation(ctx context.Context, characterIDs []int) ([]map[string]interface{}, error)
 	GetCharacterAttributes(ctx context.Context, characterID int, token string) (map[string]any, error)
+	GetCharacterSkillQueue(ctx context.Context, characterID int, token string) ([]map[string]any, error)
 }
 
 // UniverseClient interface for universe operations
@@ -700,6 +701,43 @@ func (c *characterClientImpl) GetCharacterAttributes(ctx context.Context, charac
 	}
 	if attributes.LastRemapDate != nil {
 		result["last_remap_date"] = attributes.LastRemapDate
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterSkillQueue(ctx context.Context, characterID int, token string) ([]map[string]any, error) {
+	skillQueue, err := c.client.GetCharacterSkillQueue(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := make([]map[string]any, len(skillQueue))
+	for i, skill := range skillQueue {
+		skillMap := map[string]any{
+			"skill_id":       skill.SkillID,
+			"finished_level": skill.FinishedLevel,
+			"queue_position": skill.QueuePosition,
+		}
+
+		if skill.StartDate != nil {
+			skillMap["start_date"] = *skill.StartDate
+		}
+		if skill.FinishDate != nil {
+			skillMap["finish_date"] = *skill.FinishDate
+		}
+		if skill.TrainingStartSP != nil {
+			skillMap["training_start_sp"] = *skill.TrainingStartSP
+		}
+		if skill.LevelEndSP != nil {
+			skillMap["level_end_sp"] = *skill.LevelEndSP
+		}
+		if skill.LevelStartSP != nil {
+			skillMap["level_start_sp"] = *skill.LevelStartSP
+		}
+
+		result[i] = skillMap
 	}
 
 	return result, nil

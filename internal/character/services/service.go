@@ -38,7 +38,7 @@ func (s *Service) CreateIndexes(ctx context.Context) error {
 // GetCharacterAttributes retrieves character attributes following cache → DB → ESI flow
 func (s *Service) GetCharacterAttributes(ctx context.Context, characterID int, token string) (*dto.CharacterAttributesOutput, error) {
 	// 1. Check Redis cache first
-	cacheKey := fmt.Sprintf("character:attributes:%d", characterID)
+	cacheKey := fmt.Sprintf("c:character:attributes:%d", characterID)
 	if s.redis != nil {
 		cachedData, err := s.redis.Get(ctx, cacheKey)
 		if err == nil && cachedData != "" {
@@ -99,6 +99,162 @@ func (s *Service) GetCharacterAttributes(ctx context.Context, characterID int, t
 
 	log.Printf("Successfully fetched and saved character attributes for character_id: %d", characterID)
 	return &dto.CharacterAttributesOutput{Body: *result}, nil
+}
+
+// GetCharacterSkillQueue retrieves character skill queue following cache → DB → ESI flow
+func (s *Service) GetCharacterSkillQueue(ctx context.Context, characterID int, token string) (*dto.CharacterSkillQueueOutput, error) {
+	// 1. Check Redis cache first
+	cacheKey := fmt.Sprintf("c:character:skillqueue:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterSkillQueue
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character skill queue found in cache for character_id: %d", characterID)
+				return &dto.CharacterSkillQueueOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Check database
+	dbSkillQueue, err := s.repository.GetCharacterSkillQueue(ctx, characterID)
+	if err != nil {
+		log.Printf("Error fetching character skill queue from DB: %v", err)
+		// Continue to ESI even if DB error
+	} else if dbSkillQueue != nil {
+		// Found in database, convert to DTO
+		result := s.skillQueueModelToDTO(dbSkillQueue)
+
+		// Update cache
+		if s.redis != nil {
+			if data, err := json.Marshal(result); err == nil {
+				// Cache for 5 minutes (skill queue changes frequently)
+				_ = s.redis.Set(ctx, cacheKey, string(data), 5*time.Minute)
+			}
+		}
+
+		log.Printf("Character skill queue found in database for character_id: %d", characterID)
+		return &dto.CharacterSkillQueueOutput{Body: *result}, nil
+	}
+
+	// 3. Fetch from ESI
+	log.Printf("Fetching character skill queue from ESI for character_id: %d", characterID)
+	esiSkillQueue, err := s.eveGateway.Character.GetCharacterSkillQueue(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character skill queue from ESI: %w", err)
+	}
+
+	// Convert ESI response to model
+	dbModel := s.parseESISkillQueue(esiSkillQueue, characterID)
+
+	// 4. Save to database
+	if err := s.repository.SaveCharacterSkillQueue(ctx, dbModel); err != nil {
+		log.Printf("Failed to save character skill queue to DB: %v", err)
+		// Continue even if save fails
+	}
+
+	// Convert to DTO
+	result := s.skillQueueModelToDTO(dbModel)
+
+	// 5. Save to cache
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 5 minutes (skill queue changes frequently)
+			_ = s.redis.Set(ctx, cacheKey, string(data), 5*time.Minute)
+		}
+	}
+
+	log.Printf("Successfully fetched and saved character skill queue for character_id: %d", characterID)
+	return &dto.CharacterSkillQueueOutput{Body: *result}, nil
+}
+
+// parseESISkillQueue converts ESI response to database model
+func (s *Service) parseESISkillQueue(esiQueue []map[string]any, characterID int) *models.CharacterSkillQueue {
+	skillQueue := &models.CharacterSkillQueue{
+		CharacterID: characterID,
+		Skills:      make([]models.SkillQueueItem, 0, len(esiQueue)),
+	}
+
+	for _, skill := range esiQueue {
+		item := models.SkillQueueItem{}
+
+		// Parse required fields
+		if val, ok := skill["skill_id"].(float64); ok {
+			item.SkillID = int(val)
+		} else if val, ok := skill["skill_id"].(int); ok {
+			item.SkillID = val
+		}
+
+		if val, ok := skill["finished_level"].(float64); ok {
+			item.FinishedLevel = int(val)
+		} else if val, ok := skill["finished_level"].(int); ok {
+			item.FinishedLevel = val
+		}
+
+		if val, ok := skill["queue_position"].(float64); ok {
+			item.QueuePosition = int(val)
+		} else if val, ok := skill["queue_position"].(int); ok {
+			item.QueuePosition = val
+		}
+
+		// Parse optional time fields
+		if val, ok := skill["start_date"].(time.Time); ok {
+			item.StartDate = &val
+		}
+		if val, ok := skill["finish_date"].(time.Time); ok {
+			item.FinishDate = &val
+		}
+
+		// Parse optional SP fields
+		if val, ok := skill["training_start_sp"].(float64); ok {
+			intVal := int(val)
+			item.TrainingStartSP = &intVal
+		} else if val, ok := skill["training_start_sp"].(int); ok {
+			item.TrainingStartSP = &val
+		}
+
+		if val, ok := skill["level_end_sp"].(float64); ok {
+			intVal := int(val)
+			item.LevelEndSP = &intVal
+		} else if val, ok := skill["level_end_sp"].(int); ok {
+			item.LevelEndSP = &val
+		}
+
+		if val, ok := skill["level_start_sp"].(float64); ok {
+			intVal := int(val)
+			item.LevelStartSP = &intVal
+		} else if val, ok := skill["level_start_sp"].(int); ok {
+			item.LevelStartSP = &val
+		}
+
+		skillQueue.Skills = append(skillQueue.Skills, item)
+	}
+
+	return skillQueue
+}
+
+// skillQueueModelToDTO converts database model to DTO
+func (s *Service) skillQueueModelToDTO(model *models.CharacterSkillQueue) *dto.CharacterSkillQueue {
+	skills := make([]dto.SkillQueueItem, 0, len(model.Skills))
+	for _, skill := range model.Skills {
+		skills = append(skills, dto.SkillQueueItem{
+			SkillID:         skill.SkillID,
+			FinishedLevel:   skill.FinishedLevel,
+			QueuePosition:   skill.QueuePosition,
+			StartDate:       skill.StartDate,
+			FinishDate:      skill.FinishDate,
+			TrainingStartSP: skill.TrainingStartSP,
+			LevelEndSP:      skill.LevelEndSP,
+			LevelStartSP:    skill.LevelStartSP,
+		})
+	}
+
+	return &dto.CharacterSkillQueue{
+		CharacterID: model.CharacterID,
+		Skills:      skills,
+		UpdatedAt:   model.UpdatedAt,
+	}
 }
 
 // parseESIAttributes converts ESI response map to DTO
