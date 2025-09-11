@@ -210,3 +210,46 @@ type CharacterLocation struct {
 type CharacterLocationOutput struct {
 	Body CharacterLocation `json:"body"`
 }
+
+// CharacterFatigue represents the character's jump fatigue information
+type CharacterFatigue struct {
+	CharacterID           int        `json:"character_id" doc:"EVE Online character ID"`
+	JumpFatigueExpireDate *time.Time `json:"jump_fatigue_expire_date,omitempty" doc:"Date when jump fatigue expires"`
+	LastJumpDate          *time.Time `json:"last_jump_date,omitempty" doc:"Date of last jump"`
+	LastUpdateDate        *time.Time `json:"last_update_date,omitempty" doc:"Date when this information was last updated"`
+	UpdatedAt             time.Time  `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterFatigueOutput represents the fatigue response (Huma wrapper)
+type CharacterFatigueOutput struct {
+	Body CharacterFatigue `json:"body"`
+}
+
+// CharacterOnline represents the character's online status information
+type CharacterOnline struct {
+	CharacterID int        `json:"character_id" doc:"EVE Online character ID"`
+	Online      bool       `json:"online" doc:"True if character is currently online"`
+	LastLogin   *time.Time `json:"last_login,omitempty" doc:"Date and time when character last logged in"`
+	LastLogout  *time.Time `json:"last_logout,omitempty" doc:"Date and time when character last logged out"`
+	LoginsToday *int       `json:"logins" doc:"Total number of times the character has logged in today"`
+	UpdatedAt   time.Time  `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterOnlineOutput represents the online status response (Huma wrapper)
+type CharacterOnlineOutput struct {
+	Body CharacterOnline `json:"body"`
+}
+
+// CharacterShip represents the character's current ship information
+type CharacterShip struct {
+	CharacterID int       `json:"character_id" doc:"EVE Online character ID"`
+	ShipItemID  int64     `json:"ship_item_id" doc:"Item ID of the current ship"`
+	ShipName    string    `json:"ship_name" doc:"Name of the current ship"`
+	ShipTypeID  int       `json:"ship_type_id" doc:"Type ID of the current ship"`
+	UpdatedAt   time.Time `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterShipOutput represents the ship response (Huma wrapper)
+type CharacterShipOutput struct {
+	Body CharacterShip `json:"body"`
+}

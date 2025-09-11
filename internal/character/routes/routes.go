@@ -439,4 +439,169 @@ func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Se
 		}
 		return result, nil
 	})
+
+	// Get character fatigue endpoint (authenticated, requires ESI token)
+	huma.Register(api, huma.Operation{
+		OperationID: "character-get-fatigue",
+		Method:      "GET",
+		Path:        basePath + "/{character_id}/fatigue",
+		Summary:     "Get character fatigue",
+		Description: "Get character's jump fatigue information including fatigue timers and jump history. Requires authentication and esi-universe.read_structures.v1 scope for the character.",
+		Tags:        []string{"Character"},
+	}, func(ctx context.Context, input *dto.GetCharacterFatigueInput) (*dto.CharacterFatigueOutput, error) {
+		// Require authentication
+		var user *models.AuthenticatedUser
+		if characterAdapter != nil {
+			authUser, err := characterAdapter.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+			user = authUser
+		}
+
+		// Check if the user is requesting their own fatigue or if they have permission
+		if user == nil || user.CharacterID != input.CharacterID {
+			return nil, huma.Error403Forbidden("You can only view your own character fatigue")
+		}
+
+		// Get the user profile to retrieve the ESI access token
+		if authRepository == nil {
+			return nil, huma.Error500InternalServerError("Authentication service not available")
+		}
+
+		profile, err := authRepository.GetUserProfileByCharacterID(ctx, input.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to retrieve user profile", err)
+		}
+		if profile == nil {
+			return nil, huma.Error404NotFound("User profile not found")
+		}
+
+		// Check if access token is expired
+		if time.Now().After(profile.TokenExpiry) {
+			return nil, huma.Error401Unauthorized("EVE access token expired, please re-authenticate")
+		}
+
+		// Use the ESI access token from the profile
+		token := profile.AccessToken
+		if token == "" {
+			return nil, huma.Error401Unauthorized("No EVE access token available")
+		}
+
+		result, err := service.GetCharacterFatigue(ctx, input.CharacterID, token)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get character fatigue", err)
+		}
+		return result, nil
+	})
+
+	// Get character online status endpoint (authenticated, requires ESI token)
+	huma.Register(api, huma.Operation{
+		OperationID: "character-get-online",
+		Method:      "GET",
+		Path:        basePath + "/{character_id}/online",
+		Summary:     "Get character online status",
+		Description: "Get character's online status information including login/logout times and today's login count. Requires authentication and esi-location.read_online.v1 scope for the character.",
+		Tags:        []string{"Character"},
+	}, func(ctx context.Context, input *dto.GetCharacterOnlineInput) (*dto.CharacterOnlineOutput, error) {
+		// Require authentication
+		var user *models.AuthenticatedUser
+		if characterAdapter != nil {
+			authUser, err := characterAdapter.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+			user = authUser
+		}
+
+		// Check if the user is requesting their own online status or if they have permission
+		if user == nil || user.CharacterID != input.CharacterID {
+			return nil, huma.Error403Forbidden("You can only view your own character online status")
+		}
+
+		// Get the user profile to retrieve the ESI access token
+		if authRepository == nil {
+			return nil, huma.Error500InternalServerError("Authentication service not available")
+		}
+
+		profile, err := authRepository.GetUserProfileByCharacterID(ctx, input.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to retrieve user profile", err)
+		}
+		if profile == nil {
+			return nil, huma.Error404NotFound("User profile not found")
+		}
+
+		// Check if access token is expired
+		if time.Now().After(profile.TokenExpiry) {
+			return nil, huma.Error401Unauthorized("EVE access token expired, please re-authenticate")
+		}
+
+		// Use the ESI access token from the profile
+		token := profile.AccessToken
+		if token == "" {
+			return nil, huma.Error401Unauthorized("No EVE access token available")
+		}
+
+		result, err := service.GetCharacterOnline(ctx, input.CharacterID, token)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get character online status", err)
+		}
+		return result, nil
+	})
+
+	// Get character current ship endpoint (authenticated, requires ESI token)
+	huma.Register(api, huma.Operation{
+		OperationID: "character-get-ship",
+		Method:      "GET",
+		Path:        basePath + "/{character_id}/ship",
+		Summary:     "Get character current ship",
+		Description: "Get character's current ship information including ship name, type, and item ID. Requires authentication and esi-location.read_ship_type.v1 scope for the character.",
+		Tags:        []string{"Character"},
+	}, func(ctx context.Context, input *dto.GetCharacterShipInput) (*dto.CharacterShipOutput, error) {
+		// Require authentication
+		var user *models.AuthenticatedUser
+		if characterAdapter != nil {
+			authUser, err := characterAdapter.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+			user = authUser
+		}
+
+		// Check if the user is requesting their own ship or if they have permission
+		if user == nil || user.CharacterID != input.CharacterID {
+			return nil, huma.Error403Forbidden("You can only view your own character ship")
+		}
+
+		// Get the user profile to retrieve the ESI access token
+		if authRepository == nil {
+			return nil, huma.Error500InternalServerError("Authentication service not available")
+		}
+
+		profile, err := authRepository.GetUserProfileByCharacterID(ctx, input.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to retrieve user profile", err)
+		}
+		if profile == nil {
+			return nil, huma.Error404NotFound("User profile not found")
+		}
+
+		// Check if access token is expired
+		if time.Now().After(profile.TokenExpiry) {
+			return nil, huma.Error401Unauthorized("EVE access token expired, please re-authenticate")
+		}
+
+		// Use the ESI access token from the profile
+		token := profile.AccessToken
+		if token == "" {
+			return nil, huma.Error401Unauthorized("No EVE access token available")
+		}
+
+		result, err := service.GetCharacterShip(ctx, input.CharacterID, token)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get character ship", err)
+		}
+		return result, nil
+	})
 }

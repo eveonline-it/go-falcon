@@ -1,18 +1,21 @@
 # EVE Gateway Package (pkg/evegateway)
 
 ## Overview
-Complete EVE Online ESI client library with intelligent caching, rate limiting, and CCP compliance. 
+
+Complete EVE Online ESI client library with intelligent caching, rate limiting, and CCP compliance.
 Provides type-safe access to all EVE Online APIs with proper error handling and performance optimization.
 
 ## Core Features
+
 - **CCP Compliance**: Proper User-Agent headers and rate limiting
 - **Intelligent Caching**: Respects ESI expires headers and ETags
 - **Modern Pagination**: Support for both legacy offset-based and new token-based pagination
 - **Error Limit Tracking**: Monitors ESI error limits to prevent blocking
-- **Retry Logic**: Exponential backoff with configurable retry policies  
+- **Retry Logic**: Exponential backoff with configurable retry policies
 - **Type Safety**: Structured Go types for all ESI responses
 
 ## ESI Client Categories
+
 - **Alliance**: Alliance information, corporations, icons (✅ Fully implemented with proper ESI integration)
 - **Character**: Character data, portraits, skills, assets (✅ Fully implemented with proper ESI integration)
 - **Corporation**: Corporation information, members, structures (✅ Fully implemented with proper ESI integration)
@@ -21,13 +24,17 @@ Provides type-safe access to all EVE Online APIs with proper error handling and 
 - **And many more**: Complete ESI API coverage planned
 
 ## Cache Management
+
 - **Redis Cache Manager**: Persistent Redis-based caching (recommended for production)
 - **In-Memory Cache Manager**: Default fallback for development/testing
 - **Cache Keys**: URL-based with `esi:cache:` prefix for Redis namespace consistency
 - **Conditional Requests**: If-None-Match and If-Modified-Since headers
 - **Cache Metadata**: Expiration tracking and hit/miss analytics with JSON serialization
 
+**CRITICAL REQUIREMENT**: This module MUST strictly follow the official EVE Online ESI OpenAPI specification at https://esi.evetech.net/meta/openapi.json for all data structures, field names, and API interactions.
+
 ## Rate Limiting & Compliance
+
 ```go
 // Required User-Agent format
 "go-falcon/1.0.0 (contact@example.com) +https://github.com/org/repo"
@@ -40,6 +47,7 @@ type ESIErrorLimits struct {
 ```
 
 ## Usage Examples
+
 ```go
 // Initialize client with Redis caching (recommended for production)
 redisClient, _ := database.NewRedis(ctx)
@@ -64,12 +72,12 @@ portrait, err := client.GetCharacterPortrait(ctx, characterID)
 alliances, err := client.Alliance.GetAlliances(ctx)
 // Returns []int64 with 3,476+ alliance IDs
 
-// Get specific alliance information  
+// Get specific alliance information
 allianceInfo, err := client.Alliance.GetAllianceInfo(ctx, 933731581)
 // Returns map[string]any with alliance data from ESI
 
 // Get alliance member corporations
-corporations, err := client.Alliance.GetAllianceCorporations(ctx, 933731581) 
+corporations, err := client.Alliance.GetAllianceCorporations(ctx, 933731581)
 // Returns []int64 with corporation IDs
 
 // Direct access to typed clients
@@ -78,6 +86,7 @@ result, err := client.Character.GetCharacterInfoWithCache(ctx, characterID)
 ```
 
 ## Key Interfaces
+
 - `Client`: Main ESI client interface with unified access to all categories
 - `CacheManager`: Cache storage and retrieval with intelligent expiration
 - `RetryClient`: Request retry and error handling with exponential backoff
@@ -88,20 +97,24 @@ result, err := client.Character.GetCharacterInfoWithCache(ctx, characterID)
   - `status.Client`: Server status and maintenance information
 
 ## Client Architecture
+
 The EVE Gateway uses a layered architecture:
 
 ### Main Client Layer
+
 - Provides backward-compatible `map[string]any` responses
 - Handles legacy API consumers seamlessly
 - Unified interface for all ESI categories
 
-### Typed Client Layer  
+### Typed Client Layer
+
 - Individual packages (`character`, `alliance`, `corporation`, etc.)
 - Structured Go types with proper validation
 - Full cache integration with metadata
 - Direct ESI API communication with retry logic
 
 ### Implementation Pattern
+
 ```go
 // Wrapper implementation for backward compatibility
 type characterClientImpl struct {
@@ -114,7 +127,7 @@ func (c *characterClientImpl) GetCharacterInfo(ctx context.Context, characterID 
     if err != nil {
         return nil, err
     }
-    
+
     // Convert to map for legacy compatibility
     return map[string]any{
         "character_id": charInfo.CharacterID,
@@ -125,6 +138,7 @@ func (c *characterClientImpl) GetCharacterInfo(ctx context.Context, characterID 
 ```
 
 ## Best Practices
+
 - **ESI Specification Compliance**: Always follow the official EVE Online ESI OpenAPI specification at https://esi.evetech.net/meta/openapi.json
 - Always check cache before API calls
 - Monitor error limit headers
@@ -138,15 +152,18 @@ func (c *characterClientImpl) GetCharacterInfo(ctx context.Context, characterID 
 ## ESI Pagination Support
 
 ### Token-Based Pagination (Future Implementation)
+
 **Note**: CCP has announced a new token-based pagination system for improved performance and consistency. This is documented here for future implementation planning:
 
 #### Key Features
+
 - **Token-Based Navigation**: Uses opaque `before` and `after` tokens instead of numeric offsets
 - **Time-Ordered Data**: Datasets sorted by "last modified" time for consistency
 - **Bidirectional Crawling**: Navigate forwards and backwards through datasets
 - **Long-Term Tokens**: Tokens remain valid for hours or weeks
 
 #### Implementation Details
+
 ```go
 // Token-based pagination parameters
 type PaginationParams struct {
@@ -164,6 +181,7 @@ type PaginatedResponse struct {
 ```
 
 #### Usage Patterns (Future Implementation)
+
 ```go
 // Example implementation for future token-based endpoints:
 // Initial request (get most recent data)
@@ -187,6 +205,7 @@ if resp.After != nil {
 ```
 
 #### Best Practices
+
 1. **Treat Tokens as Opaque**: Never attempt to validate or interpret token contents
 2. **Full Dataset Scanning**: Use `before` token to crawl through entire dataset once
 3. **Change Monitoring**: Use `after` token to monitor for new/updated entries
@@ -194,12 +213,14 @@ if resp.After != nil {
 5. **Empty Results**: Empty response indicates reaching dataset boundary
 6. **Token Persistence**: Store tokens for resuming pagination sessions later
 
-#### Migration Strategy (When Implemented)  
+#### Migration Strategy (When Implemented)
+
 - **New Endpoints**: Corporation Projects and future endpoints will use token-based pagination
 - **Legacy Endpoints**: Existing routes will continue using offset-based pagination
 - **Gradual Rollout**: CCP plans to migrate endpoints progressively over time
 
-### Current Offset-Based Pagination  
+### Current Offset-Based Pagination
+
 Traditional pagination currently used by existing endpoints:
 
 ```go
@@ -214,13 +235,16 @@ members, err := client.Corporation.GetCorporationMembers(ctx, corporationID, tok
 ```
 
 ### Endpoint-Specific Pagination Status
+
 Current pagination support across ESI endpoints:
+
 - **Corporation Projects**: Will use token-based pagination (future)
 - **Corporation Members**: Single response (no pagination)
 - **Market Orders**: Offset-based pagination (current)
 - **Character Assets**: Single response with potential foldering
 
 ## Performance
+
 - **Redis Cache Hit**: ~400µs response time (persistent, shared across instances)
 - **In-Memory Cache Hit**: <1ms response time (process-specific)
 - **Cache Miss**: Network latency + ESI response time

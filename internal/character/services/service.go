@@ -1233,3 +1233,182 @@ func (s *Service) GetStatus(ctx context.Context) *dto.CharacterStatusResponse {
 		LastChecked:  now.Format(time.RFC3339),
 	}
 }
+
+// GetCharacterFatigue retrieves character jump fatigue following cache → ESI flow (fatigue is volatile, no DB)
+func (s *Service) GetCharacterFatigue(ctx context.Context, characterID int, token string) (*dto.CharacterFatigueOutput, error) {
+	// 1. Check Redis cache first (5 minutes for fatigue data)
+	cacheKey := fmt.Sprintf("c:character:fatigue:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterFatigue
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character fatigue found in cache for character_id: %d", characterID)
+				return &dto.CharacterFatigueOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Fetch from ESI (no database storage for volatile fatigue data)
+	log.Printf("Fetching character fatigue from ESI for character_id: %d", characterID)
+	esiFatigue, err := s.eveGateway.Character.GetCharacterFatigue(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character fatigue from ESI: %w", err)
+	}
+
+	// Parse the map response
+	result := &dto.CharacterFatigue{
+		CharacterID: characterID,
+		UpdatedAt:   time.Now(),
+	}
+
+	// Parse optional time fields
+	if expireDate, ok := esiFatigue["jump_fatigue_expire_date"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, expireDate); err == nil {
+			result.JumpFatigueExpireDate = &t
+		}
+	}
+
+	if lastJumpDate, ok := esiFatigue["last_jump_date"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, lastJumpDate); err == nil {
+			result.LastJumpDate = &t
+		}
+	}
+
+	if lastUpdateDate, ok := esiFatigue["last_update_date"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, lastUpdateDate); err == nil {
+			result.LastUpdateDate = &t
+		}
+	}
+
+	// 3. Update cache (5 minutes for fatigue data)
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 5 minutes (moderately volatile data)
+			_ = s.redis.Set(ctx, cacheKey, string(data), 5*time.Minute)
+		}
+	}
+
+	log.Printf("Character fatigue fetched from ESI for character_id: %d", characterID)
+	return &dto.CharacterFatigueOutput{Body: *result}, nil
+}
+
+// GetCharacterOnline retrieves character online status following cache → ESI flow (online status is very volatile, minimal cache)
+func (s *Service) GetCharacterOnline(ctx context.Context, characterID int, token string) (*dto.CharacterOnlineOutput, error) {
+	// 1. Check Redis cache first (30 seconds for highly volatile online status)
+	cacheKey := fmt.Sprintf("c:character:online:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterOnline
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character online status found in cache for character_id: %d", characterID)
+				return &dto.CharacterOnlineOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Fetch from ESI (no database storage for highly volatile online status)
+	log.Printf("Fetching character online status from ESI for character_id: %d", characterID)
+	esiOnline, err := s.eveGateway.Character.GetCharacterOnline(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character online status from ESI: %w", err)
+	}
+
+	// Parse the map response
+	result := &dto.CharacterOnline{
+		CharacterID: characterID,
+		UpdatedAt:   time.Now(),
+	}
+
+	// Parse required online field
+	if online, ok := esiOnline["online"].(bool); ok {
+		result.Online = online
+	}
+
+	// Parse optional time fields
+	if lastLogin, ok := esiOnline["last_login"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, lastLogin); err == nil {
+			result.LastLogin = &t
+		}
+	}
+
+	if lastLogout, ok := esiOnline["last_logout"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, lastLogout); err == nil {
+			result.LastLogout = &t
+		}
+	}
+
+	// Parse optional logins count
+	if logins, ok := esiOnline["logins"].(float64); ok {
+		loginsInt := int(logins)
+		result.LoginsToday = &loginsInt
+	}
+
+	// 3. Update cache (30 seconds for highly volatile online status)
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 30 seconds (very volatile data)
+			_ = s.redis.Set(ctx, cacheKey, string(data), 30*time.Second)
+		}
+	}
+
+	log.Printf("Character online status fetched from ESI for character_id: %d", characterID)
+	return &dto.CharacterOnlineOutput{Body: *result}, nil
+}
+
+// GetCharacterShip retrieves character current ship following cache → ESI flow (ship data is moderately volatile)
+func (s *Service) GetCharacterShip(ctx context.Context, characterID int, token string) (*dto.CharacterShipOutput, error) {
+	// 1. Check Redis cache first (2 minutes for ship data - can change when docking/undocking)
+	cacheKey := fmt.Sprintf("c:character:ship:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterShip
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character ship found in cache for character_id: %d", characterID)
+				return &dto.CharacterShipOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Fetch from ESI (no database storage for volatile ship data)
+	log.Printf("Fetching character ship from ESI for character_id: %d", characterID)
+	esiShip, err := s.eveGateway.Character.GetCharacterShip(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character ship from ESI: %w", err)
+	}
+
+	// Parse the map response
+	result := &dto.CharacterShip{
+		CharacterID: characterID,
+		UpdatedAt:   time.Now(),
+	}
+
+	// Parse required fields
+	if shipItemID, ok := esiShip["ship_item_id"].(float64); ok {
+		result.ShipItemID = int64(shipItemID)
+	}
+
+	if shipName, ok := esiShip["ship_name"].(string); ok {
+		result.ShipName = shipName
+	}
+
+	if shipTypeID, ok := esiShip["ship_type_id"].(float64); ok {
+		result.ShipTypeID = int(shipTypeID)
+	}
+
+	// 3. Update cache (2 minutes for moderately volatile ship data)
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 2 minutes (moderately volatile data - can change when switching ships)
+			_ = s.redis.Set(ctx, cacheKey, string(data), 2*time.Minute)
+		}
+	}
+
+	log.Printf("Character ship fetched from ESI for character_id: %d", characterID)
+	return &dto.CharacterShipOutput{Body: *result}, nil
+}

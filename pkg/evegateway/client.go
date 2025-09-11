@@ -74,6 +74,9 @@ type CharacterClient interface {
 	GetCharacterClones(ctx context.Context, characterID int, token string) (map[string]any, error)
 	GetCharacterImplants(ctx context.Context, characterID int, token string) ([]int, error)
 	GetCharacterLocation(ctx context.Context, characterID int, token string) (map[string]any, error)
+	GetCharacterFatigue(ctx context.Context, characterID int, token string) (map[string]any, error)
+	GetCharacterOnline(ctx context.Context, characterID int, token string) (map[string]any, error)
+	GetCharacterShip(ctx context.Context, characterID int, token string) (map[string]any, error)
 }
 
 // UniverseClient interface for universe operations
@@ -869,6 +872,72 @@ func (c *characterClientImpl) GetCharacterLocation(ctx context.Context, characte
 
 	if location.StructureID != nil {
 		result["structure_id"] = *location.StructureID
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterFatigue(ctx context.Context, characterID int, token string) (map[string]any, error) {
+	fatigue, err := c.client.GetCharacterFatigue(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{}
+
+	if fatigue.JumpFatigueExpireDate != nil {
+		result["jump_fatigue_expire_date"] = fatigue.JumpFatigueExpireDate.Format(time.RFC3339)
+	}
+
+	if fatigue.LastJumpDate != nil {
+		result["last_jump_date"] = fatigue.LastJumpDate.Format(time.RFC3339)
+	}
+
+	if fatigue.LastUpdateDate != nil {
+		result["last_update_date"] = fatigue.LastUpdateDate.Format(time.RFC3339)
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterOnline(ctx context.Context, characterID int, token string) (map[string]any, error) {
+	online, err := c.client.GetCharacterOnline(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{
+		"online": online.Online,
+	}
+
+	if online.LastLogin != nil {
+		result["last_login"] = online.LastLogin.Format(time.RFC3339)
+	}
+
+	if online.LastLogout != nil {
+		result["last_logout"] = online.LastLogout.Format(time.RFC3339)
+	}
+
+	if online.LoginsToday != nil {
+		result["logins"] = *online.LoginsToday
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterShip(ctx context.Context, characterID int, token string) (map[string]any, error) {
+	ship, err := c.client.GetCharacterShip(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{
+		"ship_item_id": ship.ShipItemID,
+		"ship_name":    ship.ShipName,
+		"ship_type_id": ship.ShipTypeID,
 	}
 
 	return result, nil

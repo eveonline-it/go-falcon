@@ -72,3 +72,24 @@ type GetCharacterLocationInput struct {
 	Authorization string `header:"Authorization" doc:"JWT Bearer token for authentication"`
 	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
+
+// GetCharacterFatigueInput represents the authenticated input for getting character fatigue
+type GetCharacterFatigueInput struct {
+	CharacterID   int    `path:"character_id" validate:"required" minimum:"90000000" maximum:"2147483647" doc:"EVE Online character ID"`
+	Authorization string `header:"Authorization" doc:"JWT Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
+}
+
+// GetCharacterOnlineInput represents the authenticated input for getting character online status
+type GetCharacterOnlineInput struct {
+	CharacterID   int    `path:"character_id" validate:"required" minimum:"90000000" maximum:"2147483647" doc:"EVE Online character ID"`
+	Authorization string `header:"Authorization" doc:"JWT Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
+}
+
+// GetCharacterShipInput represents the authenticated input for getting character current ship
+type GetCharacterShipInput struct {
+	CharacterID   int    `path:"character_id" validate:"required" minimum:"90000000" maximum:"2147483647" doc:"EVE Online character ID"`
+	Authorization string `header:"Authorization" doc:"JWT Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
+}

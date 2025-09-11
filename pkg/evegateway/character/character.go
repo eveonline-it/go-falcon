@@ -57,6 +57,12 @@ type Client interface {
 	GetCharacterImplantsWithCache(ctx context.Context, characterID int, token string) (*ImplantsResult, error)
 	GetCharacterLocation(ctx context.Context, characterID int, token string) (*LocationResponse, error)
 	GetCharacterLocationWithCache(ctx context.Context, characterID int, token string) (*LocationResult, error)
+	GetCharacterFatigue(ctx context.Context, characterID int, token string) (*FatigueResponse, error)
+	GetCharacterFatigueWithCache(ctx context.Context, characterID int, token string) (*FatigueResult, error)
+	GetCharacterOnline(ctx context.Context, characterID int, token string) (*OnlineResponse, error)
+	GetCharacterOnlineWithCache(ctx context.Context, characterID int, token string) (*OnlineResult, error)
+	GetCharacterShip(ctx context.Context, characterID int, token string) (*ShipResponse, error)
+	GetCharacterShipWithCache(ctx context.Context, characterID int, token string) (*ShipResult, error)
 }
 
 // CharacterInfoResponse represents character public information
@@ -1560,6 +1566,46 @@ type LocationResult struct {
 	Cache CacheInfo
 }
 
+// FatigueResponse represents the character's jump fatigue information
+type FatigueResponse struct {
+	JumpFatigueExpireDate *time.Time `json:"jump_fatigue_expire_date,omitempty"`
+	LastJumpDate          *time.Time `json:"last_jump_date,omitempty"`
+	LastUpdateDate        *time.Time `json:"last_update_date,omitempty"`
+}
+
+// FatigueResult represents the result of a fatigue request with cache info
+type FatigueResult struct {
+	Data  *FatigueResponse
+	Cache CacheInfo
+}
+
+// OnlineResponse represents the character's online status information
+type OnlineResponse struct {
+	Online      bool       `json:"online"`
+	LastLogin   *time.Time `json:"last_login,omitempty"`
+	LastLogout  *time.Time `json:"last_logout,omitempty"`
+	LoginsToday *int       `json:"logins,omitempty"`
+}
+
+// OnlineResult represents the result of an online status request with cache info
+type OnlineResult struct {
+	Data  *OnlineResponse
+	Cache CacheInfo
+}
+
+// ShipResponse represents the character's current ship information
+type ShipResponse struct {
+	ShipItemID int64  `json:"ship_item_id"`
+	ShipName   string `json:"ship_name"`
+	ShipTypeID int    `json:"ship_type_id"`
+}
+
+// ShipResult represents the result of a ship request with cache info
+type ShipResult struct {
+	Data  *ShipResponse
+	Cache CacheInfo
+}
+
 // GetCharacterLocation retrieves the character's current location from ESI
 func (c *CharacterClient) GetCharacterLocation(ctx context.Context, characterID int, token string) (*LocationResponse, error) {
 	var span trace.Span
@@ -1675,5 +1721,531 @@ func (c *CharacterClient) GetCharacterLocationWithCache(ctx context.Context, cha
 	return &LocationResult{
 		Data:  data,
 		Cache: CacheInfo{Cached: false, ExpiresAt: &now},
+	}, nil
+}
+
+// GetCharacterFatigue retrieves the character's jump fatigue information from ESI
+func (c *CharacterClient) GetCharacterFatigue(ctx context.Context, characterID int, token string) (*FatigueResponse, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/fatigue/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterFatigue")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "character.fatigue"),
+			attribute.Int("esi.character_id", characterID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+			attribute.Bool("auth.required", true),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting character fatigue from ESI", "character_id", characterID)
+
+	// Check cache first
+	if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		var fatigue FatigueResponse
+		if err := json.Unmarshal(cachedData, &fatigue); err == nil {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached character fatigue", "character_id", characterID)
+			return &fatigue, nil
+		}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+endpoint, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to create request")
+		}
+		slog.ErrorContext(ctx, "Failed to create character fatigue request", "error", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	// Add conditional headers if we have cached data
+	c.cacheManager.SetConditionalHeaders(req, cacheKey)
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.String("http.method", req.Method),
+			attribute.String("http.url", req.URL.String()),
+		)
+	}
+
+	// Use retry mechanism
+	resp, err := c.retryClient.DoWithRetry(ctx, req, 3)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to call ESI")
+		}
+		slog.ErrorContext(ctx, "Failed to call ESI character fatigue endpoint", "error", err)
+		return nil, fmt.Errorf("failed to call ESI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.status_code", resp.StatusCode),
+			attribute.String("http.status_text", resp.Status),
+		)
+	}
+
+	// Handle 304 Not Modified
+	if resp.StatusCode == http.StatusNotModified {
+		// Use GetForNotModified which returns cached data even if expired
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit - not modified")
+			}
+			slog.InfoContext(ctx, "Character fatigue not modified, using cached data")
+
+			// Refresh the expiry since ESI confirmed data is still valid
+			c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+
+			var fatigue FatigueResponse
+			if err := json.Unmarshal(cachedData, &fatigue); err != nil {
+				return nil, fmt.Errorf("failed to parse cached response: %w", err)
+			}
+			return &fatigue, nil
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "character_id", characterID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for character %d fatigue", characterID)
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetStatus(codes.Error, "ESI returned error status")
+		}
+		slog.ErrorContext(ctx, "ESI character fatigue endpoint returned error", "status_code", resp.StatusCode)
+		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to read response")
+		}
+		slog.ErrorContext(ctx, "Failed to read character fatigue response", "error", err)
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.response_size", len(body)),
+			attribute.Bool("cache.hit", false),
+		)
+	}
+
+	// Update cache
+	c.cacheManager.Set(cacheKey, body, resp.Header)
+
+	var fatigue FatigueResponse
+	if err := json.Unmarshal(body, &fatigue); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to parse response")
+		}
+		slog.ErrorContext(ctx, "Failed to parse character fatigue response", "error", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if span != nil {
+		span.SetStatus(codes.Ok, "success")
+	}
+
+	slog.InfoContext(ctx, "Successfully fetched character fatigue from ESI", "character_id", characterID)
+	return &fatigue, nil
+}
+
+// GetCharacterFatigueWithCache retrieves character fatigue with cache information
+func (c *CharacterClient) GetCharacterFatigueWithCache(ctx context.Context, characterID int, token string) (*FatigueResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/fatigue/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Check if data is cached and get expiry
+	_, cached, cacheExpiry, _ := c.cacheManager.GetWithExpiry(cacheKey)
+
+	data, err := c.GetCharacterFatigue(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FatigueResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
+// GetCharacterOnline retrieves the character's online status information from ESI
+func (c *CharacterClient) GetCharacterOnline(ctx context.Context, characterID int, token string) (*OnlineResponse, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/online/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterOnline")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "character.online"),
+			attribute.Int("esi.character_id", characterID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+			attribute.Bool("auth.required", true),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting character online status from ESI", "character_id", characterID)
+
+	// Check cache first
+	if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		var online OnlineResponse
+		if err := json.Unmarshal(cachedData, &online); err == nil {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached character online status", "character_id", characterID)
+			return &online, nil
+		}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+endpoint, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to create request")
+		}
+		slog.ErrorContext(ctx, "Failed to create character online request", "error", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	// Add conditional headers if we have cached data
+	c.cacheManager.SetConditionalHeaders(req, cacheKey)
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.String("http.method", req.Method),
+			attribute.String("http.url", req.URL.String()),
+		)
+	}
+
+	// Use retry mechanism
+	resp, err := c.retryClient.DoWithRetry(ctx, req, 3)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to call ESI")
+		}
+		slog.ErrorContext(ctx, "Failed to call ESI character online endpoint", "error", err)
+		return nil, fmt.Errorf("failed to call ESI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.status_code", resp.StatusCode),
+			attribute.String("http.status_text", resp.Status),
+		)
+	}
+
+	// Handle 304 Not Modified
+	if resp.StatusCode == http.StatusNotModified {
+		// Use GetForNotModified which returns cached data even if expired
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit - not modified")
+			}
+			slog.InfoContext(ctx, "Character online status not modified, using cached data")
+
+			// Refresh the expiry since ESI confirmed data is still valid
+			c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+
+			var online OnlineResponse
+			if err := json.Unmarshal(cachedData, &online); err != nil {
+				return nil, fmt.Errorf("failed to parse cached response: %w", err)
+			}
+			return &online, nil
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "character_id", characterID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for character %d online status", characterID)
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetStatus(codes.Error, "ESI returned error status")
+		}
+		slog.ErrorContext(ctx, "ESI character online endpoint returned error", "status_code", resp.StatusCode)
+		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to read response")
+		}
+		slog.ErrorContext(ctx, "Failed to read character online response", "error", err)
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.response_size", len(body)),
+			attribute.Bool("cache.hit", false),
+		)
+	}
+
+	// Update cache
+	c.cacheManager.Set(cacheKey, body, resp.Header)
+
+	var online OnlineResponse
+	if err := json.Unmarshal(body, &online); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to parse response")
+		}
+		slog.ErrorContext(ctx, "Failed to parse character online response", "error", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Bool("online.status", online.Online),
+		)
+		span.SetStatus(codes.Ok, "success")
+	}
+
+	slog.InfoContext(ctx, "Successfully fetched character online status from ESI", "character_id", characterID, "online", online.Online)
+	return &online, nil
+}
+
+// GetCharacterOnlineWithCache retrieves character online status with cache information
+func (c *CharacterClient) GetCharacterOnlineWithCache(ctx context.Context, characterID int, token string) (*OnlineResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/online/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Check if data is cached and get expiry
+	_, cached, cacheExpiry, _ := c.cacheManager.GetWithExpiry(cacheKey)
+
+	data, err := c.GetCharacterOnline(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OnlineResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
+// GetCharacterShip retrieves the character's current ship information from ESI
+func (c *CharacterClient) GetCharacterShip(ctx context.Context, characterID int, token string) (*ShipResponse, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/ship/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterShip")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "character.ship"),
+			attribute.Int("esi.character_id", characterID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+			attribute.Bool("auth.required", true),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting character ship from ESI", "character_id", characterID)
+
+	// Check cache first
+	if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		var ship ShipResponse
+		if err := json.Unmarshal(cachedData, &ship); err == nil {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached character ship", "character_id", characterID)
+			return &ship, nil
+		}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+endpoint, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to create request")
+		}
+		slog.ErrorContext(ctx, "Failed to create character ship request", "error", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	// Add conditional headers if we have cached data
+	c.cacheManager.SetConditionalHeaders(req, cacheKey)
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.String("http.method", req.Method),
+			attribute.String("http.url", req.URL.String()),
+		)
+	}
+
+	// Use retry mechanism
+	resp, err := c.retryClient.DoWithRetry(ctx, req, 3)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to call ESI")
+		}
+		slog.ErrorContext(ctx, "Failed to call ESI character ship endpoint", "error", err)
+		return nil, fmt.Errorf("failed to call ESI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.status_code", resp.StatusCode),
+			attribute.String("http.status_text", resp.Status),
+		)
+	}
+
+	// Handle 304 Not Modified
+	if resp.StatusCode == http.StatusNotModified {
+		// Use GetForNotModified which returns cached data even if expired
+		if cachedData, found, err := c.cacheManager.GetForNotModified(cacheKey); err == nil && found {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit - not modified")
+			}
+			slog.InfoContext(ctx, "Character ship not modified, using cached data")
+
+			// Refresh the expiry since ESI confirmed data is still valid
+			c.cacheManager.RefreshExpiry(cacheKey, resp.Header)
+
+			var ship ShipResponse
+			if err := json.Unmarshal(cachedData, &ship); err != nil {
+				return nil, fmt.Errorf("failed to parse cached response: %w", err)
+			}
+			return &ship, nil
+		} else {
+			// 304 but no cached data - this shouldn't happen, but handle gracefully
+			if span != nil {
+				span.SetStatus(codes.Error, "304 response but no cached data available")
+			}
+			slog.WarnContext(ctx, "Received 304 Not Modified but no cached data available", "character_id", characterID)
+			return nil, fmt.Errorf("ESI returned 304 Not Modified but no cached data is available for character %d ship", characterID)
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetStatus(codes.Error, "ESI returned error status")
+		}
+		slog.ErrorContext(ctx, "ESI character ship endpoint returned error", "status_code", resp.StatusCode)
+		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to read response")
+		}
+		slog.ErrorContext(ctx, "Failed to read character ship response", "error", err)
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.response_size", len(body)),
+			attribute.Bool("cache.hit", false),
+		)
+	}
+
+	// Update cache
+	c.cacheManager.Set(cacheKey, body, resp.Header)
+
+	var ship ShipResponse
+	if err := json.Unmarshal(body, &ship); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to parse response")
+		}
+		slog.ErrorContext(ctx, "Failed to parse character ship response", "error", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.String("ship.name", ship.ShipName),
+			attribute.Int("ship.type_id", ship.ShipTypeID),
+		)
+		span.SetStatus(codes.Ok, "success")
+	}
+
+	slog.InfoContext(ctx, "Successfully fetched character ship from ESI", "character_id", characterID, "ship_name", ship.ShipName)
+	return &ship, nil
+}
+
+// GetCharacterShipWithCache retrieves character ship with cache information
+func (c *CharacterClient) GetCharacterShipWithCache(ctx context.Context, characterID int, token string) (*ShipResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/ship/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Check if data is cached and get expiry
+	_, cached, cacheExpiry, _ := c.cacheManager.GetWithExpiry(cacheKey)
+
+	data, err := c.GetCharacterShip(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ShipResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
 	}, nil
 }
