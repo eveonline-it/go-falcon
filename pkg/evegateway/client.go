@@ -77,6 +77,7 @@ type CharacterClient interface {
 	GetCharacterFatigue(ctx context.Context, characterID int, token string) (map[string]any, error)
 	GetCharacterOnline(ctx context.Context, characterID int, token string) (map[string]any, error)
 	GetCharacterShip(ctx context.Context, characterID int, token string) (map[string]any, error)
+	GetCharacterWallet(ctx context.Context, characterID int, token string) (map[string]any, error)
 }
 
 // UniverseClient interface for universe operations
@@ -938,6 +939,20 @@ func (c *characterClientImpl) GetCharacterShip(ctx context.Context, characterID 
 		"ship_item_id": ship.ShipItemID,
 		"ship_name":    ship.ShipName,
 		"ship_type_id": ship.ShipTypeID,
+	}
+
+	return result, nil
+}
+
+func (c *characterClientImpl) GetCharacterWallet(ctx context.Context, characterID int, token string) (map[string]any, error) {
+	wallet, err := c.client.GetCharacterWallet(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{
+		"balance": wallet.Balance,
 	}
 
 	return result, nil

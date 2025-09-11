@@ -63,6 +63,8 @@ type Client interface {
 	GetCharacterOnlineWithCache(ctx context.Context, characterID int, token string) (*OnlineResult, error)
 	GetCharacterShip(ctx context.Context, characterID int, token string) (*ShipResponse, error)
 	GetCharacterShipWithCache(ctx context.Context, characterID int, token string) (*ShipResult, error)
+	GetCharacterWallet(ctx context.Context, characterID int, token string) (*WalletResponse, error)
+	GetCharacterWalletWithCache(ctx context.Context, characterID int, token string) (*WalletResult, error)
 }
 
 // CharacterInfoResponse represents character public information
@@ -1600,9 +1602,20 @@ type ShipResponse struct {
 	ShipTypeID int    `json:"ship_type_id"`
 }
 
+// WalletResponse represents the character wallet balance
+type WalletResponse struct {
+	Balance float64 `json:"balance"`
+}
+
 // ShipResult represents the result of a ship request with cache info
 type ShipResult struct {
 	Data  *ShipResponse
+	Cache CacheInfo
+}
+
+// WalletResult represents the result of a wallet request with cache info
+type WalletResult struct {
+	Data  *WalletResponse
 	Cache CacheInfo
 }
 
@@ -2245,6 +2258,144 @@ func (c *CharacterClient) GetCharacterShipWithCache(ctx context.Context, charact
 	}
 
 	return &ShipResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
+// GetCharacterWallet retrieves character wallet balance from ESI
+func (c *CharacterClient) GetCharacterWallet(ctx context.Context, characterID int, token string) (*WalletResponse, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/wallet/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Only create spans if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterWallet")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("esi.endpoint", "character.wallet"),
+			attribute.Int("esi.character_id", characterID),
+			attribute.String("esi.base_url", c.baseURL),
+			attribute.String("cache.key", cacheKey),
+			attribute.Bool("auth.required", true),
+		)
+	}
+
+	slog.InfoContext(ctx, "Requesting character wallet from ESI", "character_id", characterID)
+
+	// Check cache first
+	if cachedData, found, err := c.cacheManager.Get(cacheKey); err == nil && found {
+		var wallet WalletResponse
+		if err := json.Unmarshal(cachedData, &wallet); err == nil {
+			if span != nil {
+				span.SetAttributes(attribute.Bool("cache.hit", true))
+				span.SetStatus(codes.Ok, "cache hit")
+			}
+			slog.InfoContext(ctx, "Using cached character wallet", "character_id", characterID)
+			return &wallet, nil
+		}
+	}
+
+	// Make ESI request
+	url := c.baseURL + endpoint
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to create request")
+		}
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("User-Agent", c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "http request failed")
+		}
+		slog.ErrorContext(ctx, "Failed to fetch character wallet from ESI", "error", err)
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if span != nil {
+		span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetStatus(codes.Error, fmt.Sprintf("http %d", resp.StatusCode))
+		}
+		body, _ := io.ReadAll(resp.Body)
+		slog.ErrorContext(ctx, "ESI returned error for character wallet", "status_code", resp.StatusCode, "body", string(body))
+		return nil, fmt.Errorf("ESI returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to read response")
+		}
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Int("http.response_size", len(body)),
+			attribute.Bool("cache.hit", false),
+		)
+	}
+
+	// Update cache
+	c.cacheManager.Set(cacheKey, body, resp.Header)
+
+	// Parse response - ESI wallet endpoint returns just the balance as a number
+	var balance float64
+	if err := json.Unmarshal(body, &balance); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to parse response")
+		}
+		slog.ErrorContext(ctx, "Failed to parse character wallet response", "error", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	wallet := &WalletResponse{
+		Balance: balance,
+	}
+
+	if span != nil {
+		span.SetAttributes(
+			attribute.Float64("wallet.balance", balance),
+		)
+		span.SetStatus(codes.Ok, "success")
+	}
+
+	slog.InfoContext(ctx, "Successfully fetched character wallet from ESI", "character_id", characterID, "balance", balance)
+	return wallet, nil
+}
+
+// GetCharacterWalletWithCache retrieves character wallet with cache information
+func (c *CharacterClient) GetCharacterWalletWithCache(ctx context.Context, characterID int, token string) (*WalletResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/wallet/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Check if data is cached and get expiry
+	_, cached, cacheExpiry, _ := c.cacheManager.GetWithExpiry(cacheKey)
+
+	data, err := c.GetCharacterWallet(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &WalletResult{
 		Data:  data,
 		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
 	}, nil

@@ -253,3 +253,15 @@ type CharacterShip struct {
 type CharacterShipOutput struct {
 	Body CharacterShip `json:"body"`
 }
+
+// CharacterWallet represents the character's wallet balance information
+type CharacterWallet struct {
+	CharacterID int       `json:"character_id" doc:"EVE Online character ID"`
+	Balance     float64   `json:"balance" doc:"Current wallet balance in ISK"`
+	UpdatedAt   time.Time `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterWalletOutput represents the wallet response (Huma wrapper)
+type CharacterWalletOutput struct {
+	Body CharacterWallet `json:"body"`
+}

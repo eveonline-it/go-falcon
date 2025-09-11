@@ -1412,3 +1412,49 @@ func (s *Service) GetCharacterShip(ctx context.Context, characterID int, token s
 	log.Printf("Character ship fetched from ESI for character_id: %d", characterID)
 	return &dto.CharacterShipOutput{Body: *result}, nil
 }
+
+// GetCharacterWallet retrieves character wallet balance following cache → ESI flow (wallet data is volatile)
+func (s *Service) GetCharacterWallet(ctx context.Context, characterID int, token string) (*dto.CharacterWalletOutput, error) {
+	// 1. Check Redis cache first (1 minute for wallet balance - can change frequently with transactions)
+	cacheKey := fmt.Sprintf("c:character:wallet:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterWallet
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character wallet found in cache for character_id: %d", characterID)
+				return &dto.CharacterWalletOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Fetch from ESI (no database storage for volatile wallet data)
+	log.Printf("Fetching character wallet from ESI for character_id: %d", characterID)
+	esiWallet, err := s.eveGateway.Character.GetCharacterWallet(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character wallet from ESI: %w", err)
+	}
+
+	// Parse the map response
+	result := &dto.CharacterWallet{
+		CharacterID: characterID,
+		UpdatedAt:   time.Now(),
+	}
+
+	// Parse wallet balance - the EVE Gateway returns it wrapped in a WalletResponse
+	if balance, ok := esiWallet["balance"].(float64); ok {
+		result.Balance = balance
+	}
+
+	// 3. Update cache (1 minute for volatile wallet data)
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 1 minute (volatile data - can change with transactions)
+			_ = s.redis.Set(ctx, cacheKey, string(data), 1*time.Minute)
+		}
+	}
+
+	log.Printf("Character wallet fetched from ESI for character_id: %d (balance: %.2f ISK)", characterID, result.Balance)
+	return &dto.CharacterWalletOutput{Body: *result}, nil
+}
