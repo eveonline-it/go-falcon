@@ -118,6 +118,18 @@ func (m *Module) runStateCleanup(ctx context.Context) {
 
 // runTokenRefresh periodically refreshes expiring tokens (optional background task)
 func (m *Module) runTokenRefresh(ctx context.Context) {
+	// Trigger immediate token refresh on startup to handle any tokens that expired while server was down
+	slog.Info("Triggering immediate token refresh on server startup")
+	success, failed, err := m.authService.RefreshExpiringTokens(ctx, 100)
+	if err != nil {
+		slog.Error("Failed to refresh expiring tokens on startup", "error", err)
+	} else {
+		slog.Info("Startup token refresh completed",
+			"success", success,
+			"failed", failed,
+		)
+	}
+
 	ticker := time.NewTicker(15 * time.Minute)
 	defer ticker.Stop()
 
