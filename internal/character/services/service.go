@@ -535,6 +535,67 @@ func (s *Service) GetCharacterImplants(ctx context.Context, characterID int, tok
 	return &dto.CharacterImplantsOutput{Body: *result}, nil
 }
 
+// GetCharacterLocation retrieves character location following cache → ESI flow (location is volatile, no DB)
+func (s *Service) GetCharacterLocation(ctx context.Context, characterID int, token string) (*dto.CharacterLocationOutput, error) {
+	// 1. Check Redis cache first (5 seconds for location data)
+	cacheKey := fmt.Sprintf("c:character:location:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.CharacterLocation
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Character location found in cache for character_id: %d", characterID)
+				return &dto.CharacterLocationOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Fetch from ESI (no database storage for volatile location data)
+	log.Printf("Fetching character location from ESI for character_id: %d", characterID)
+	esiLocation, err := s.eveGateway.Character.GetCharacterLocation(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character location from ESI: %w", err)
+	}
+
+	// Parse the map response
+	result := &dto.CharacterLocation{
+		CharacterID: characterID,
+		UpdatedAt:   time.Now(),
+	}
+
+	if solarSystemID, ok := esiLocation["solar_system_id"].(float64); ok {
+		result.SolarSystemID = int(solarSystemID)
+	} else if solarSystemID, ok := esiLocation["solar_system_id"].(int); ok {
+		result.SolarSystemID = solarSystemID
+	}
+
+	if stationID, ok := esiLocation["station_id"].(float64); ok {
+		sid := int(stationID)
+		result.StationID = &sid
+	} else if stationID, ok := esiLocation["station_id"].(int); ok {
+		result.StationID = &stationID
+	}
+
+	if structureID, ok := esiLocation["structure_id"].(float64); ok {
+		sid := int64(structureID)
+		result.StructureID = &sid
+	} else if structureID, ok := esiLocation["structure_id"].(int64); ok {
+		result.StructureID = &structureID
+	}
+
+	// 3. Update cache (5 seconds for location data)
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 5 seconds (volatile data)
+			_ = s.redis.Set(ctx, cacheKey, string(data), 5*time.Second)
+		}
+	}
+
+	log.Printf("Character location fetched from ESI for character_id: %d, system: %d", characterID, result.SolarSystemID)
+	return &dto.CharacterLocationOutput{Body: *result}, nil
+}
+
 // GetCharacterSkillQueue retrieves character skill queue following cache → DB → ESI flow
 func (s *Service) GetCharacterSkillQueue(ctx context.Context, characterID int, token string) (*dto.CharacterSkillQueueOutput, error) {
 	// 1. Check Redis cache first

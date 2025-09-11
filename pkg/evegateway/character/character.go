@@ -55,6 +55,8 @@ type Client interface {
 	GetCharacterClonesWithCache(ctx context.Context, characterID int, token string) (*ClonesResult, error)
 	GetCharacterImplants(ctx context.Context, characterID int, token string) ([]int, error)
 	GetCharacterImplantsWithCache(ctx context.Context, characterID int, token string) (*ImplantsResult, error)
+	GetCharacterLocation(ctx context.Context, characterID int, token string) (*LocationResponse, error)
+	GetCharacterLocationWithCache(ctx context.Context, characterID int, token string) (*LocationResult, error)
 }
 
 // CharacterInfoResponse represents character public information
@@ -1542,5 +1544,136 @@ func (c *CharacterClient) GetCharacterImplantsWithCache(ctx context.Context, cha
 	return &ImplantsResult{
 		Data:  data,
 		Cache: CacheInfo{Cached: cached, ExpiresAt: cacheExpiry},
+	}, nil
+}
+
+// LocationResponse represents the character's current location
+type LocationResponse struct {
+	SolarSystemID int    `json:"solar_system_id"`
+	StationID     *int   `json:"station_id,omitempty"`
+	StructureID   *int64 `json:"structure_id,omitempty"`
+}
+
+// LocationResult represents the result of a location request with cache info
+type LocationResult struct {
+	Data  *LocationResponse
+	Cache CacheInfo
+}
+
+// GetCharacterLocation retrieves the character's current location from ESI
+func (c *CharacterClient) GetCharacterLocation(ctx context.Context, characterID int, token string) (*LocationResponse, error) {
+	var span trace.Span
+	endpoint := fmt.Sprintf("/characters/%d/location/", characterID)
+
+	// Create an absolute URL
+	absoluteURL := fmt.Sprintf("%s%s", c.baseURL, endpoint)
+
+	// Start tracing if telemetry is enabled
+	if config.GetBoolEnv("ENABLE_TELEMETRY", false) {
+		tracer := otel.Tracer("go-falcon/evegate/character")
+		ctx, span = tracer.Start(ctx, "character.GetCharacterLocation")
+		defer span.End()
+	}
+
+	// Create a GET request
+	req, err := http.NewRequestWithContext(ctx, "GET", absoluteURL, nil)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to create request")
+		}
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	if c.userAgent != "" {
+		req.Header.Set("User-Agent", c.userAgent)
+	}
+
+	// Execute the request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to execute request")
+		}
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		if span != nil {
+			span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
+			span.SetStatus(codes.Error, fmt.Sprintf("Unexpected status code: %d", resp.StatusCode))
+		}
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response body
+	var location LocationResponse
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&location); err != nil {
+		if span != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "Failed to decode response")
+		}
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Cache the response if caching is enabled
+	if c.cacheManager != nil {
+		cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+		if cacheData, err := json.Marshal(location); err == nil {
+			// Use the response headers for caching (5 seconds for location)
+			c.cacheManager.Set(cacheKey, cacheData, resp.Header)
+		}
+	}
+
+	if span != nil {
+		span.SetAttributes(attribute.Int("solar_system_id", location.SolarSystemID))
+		span.SetStatus(codes.Ok, "Successfully retrieved character location")
+	}
+
+	return &location, nil
+}
+
+// GetCharacterLocationWithCache retrieves character location with cache information
+func (c *CharacterClient) GetCharacterLocationWithCache(ctx context.Context, characterID int, token string) (*LocationResult, error) {
+	endpoint := fmt.Sprintf("/characters/%d/location/", characterID)
+	cacheKey := fmt.Sprintf("%s%s:%s", c.baseURL, endpoint, token)
+
+	// Check if data is cached and get expiry
+	cachedData, cached, cacheExpiry, err := c.cacheManager.GetWithExpiry(cacheKey)
+
+	// If cached and no error, try to use it
+	if err == nil && cached {
+		var location LocationResponse
+		if err := json.Unmarshal(cachedData, &location); err == nil {
+			return &LocationResult{
+				Data:  &location,
+				Cache: CacheInfo{Cached: true, ExpiresAt: cacheExpiry},
+			}, nil
+		}
+	}
+
+	// Fetch from ESI
+	data, err := c.GetCharacterLocation(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	return &LocationResult{
+		Data:  data,
+		Cache: CacheInfo{Cached: false, ExpiresAt: &now},
 	}, nil
 }

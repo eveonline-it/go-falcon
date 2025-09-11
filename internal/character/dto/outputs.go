@@ -196,3 +196,17 @@ type CharacterImplants struct {
 type CharacterImplantsOutput struct {
 	Body CharacterImplants `json:"body"`
 }
+
+// CharacterLocation represents the character's current location
+type CharacterLocation struct {
+	CharacterID   int       `json:"character_id" doc:"EVE Online character ID"`
+	SolarSystemID int       `json:"solar_system_id" doc:"Current solar system ID"`
+	StationID     *int      `json:"station_id,omitempty" doc:"Current station ID if docked at station"`
+	StructureID   *int64    `json:"structure_id,omitempty" doc:"Current structure ID if docked at structure"`
+	UpdatedAt     time.Time `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// CharacterLocationOutput represents the location response (Huma wrapper)
+type CharacterLocationOutput struct {
+	Body CharacterLocation `json:"body"`
+}

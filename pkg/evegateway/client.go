@@ -73,6 +73,7 @@ type CharacterClient interface {
 	GetCharacterCorporationHistory(ctx context.Context, characterID int) ([]map[string]any, error)
 	GetCharacterClones(ctx context.Context, characterID int, token string) (map[string]any, error)
 	GetCharacterImplants(ctx context.Context, characterID int, token string) ([]int, error)
+	GetCharacterLocation(ctx context.Context, characterID int, token string) (map[string]any, error)
 }
 
 // UniverseClient interface for universe operations
@@ -849,6 +850,28 @@ func (c *characterClientImpl) GetCharacterImplants(ctx context.Context, characte
 
 	// Return the implants directly as they're already a simple []int
 	return implants, nil
+}
+
+func (c *characterClientImpl) GetCharacterLocation(ctx context.Context, characterID int, token string) (map[string]any, error) {
+	location, err := c.client.GetCharacterLocation(ctx, characterID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert structured response to map for backward compatibility
+	result := map[string]any{
+		"solar_system_id": location.SolarSystemID,
+	}
+
+	if location.StationID != nil {
+		result["station_id"] = *location.StationID
+	}
+
+	if location.StructureID != nil {
+		result["structure_id"] = *location.StructureID
+	}
+
+	return result, nil
 }
 
 // UniverseClient implementation

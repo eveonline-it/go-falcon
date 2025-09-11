@@ -384,4 +384,59 @@ func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Se
 		}
 		return result, nil
 	})
+
+	// Get character location endpoint (authenticated, requires ESI token)
+	huma.Register(api, huma.Operation{
+		OperationID: "character-get-location",
+		Method:      "GET",
+		Path:        basePath + "/{character_id}/location",
+		Summary:     "Get character location",
+		Description: "Get character's current location including solar system, station or structure. Requires authentication and esi-location.read_location.v1 scope for the character.",
+		Tags:        []string{"Character"},
+	}, func(ctx context.Context, input *dto.GetCharacterLocationInput) (*dto.CharacterLocationOutput, error) {
+		// Require authentication
+		var user *models.AuthenticatedUser
+		if characterAdapter != nil {
+			authUser, err := characterAdapter.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+			user = authUser
+		}
+
+		// Check if the user is requesting their own location or if they have permission
+		if user == nil || user.CharacterID != input.CharacterID {
+			return nil, huma.Error403Forbidden("You can only view your own character location")
+		}
+
+		// Get the user profile to retrieve the ESI access token
+		if authRepository == nil {
+			return nil, huma.Error500InternalServerError("Authentication service not available")
+		}
+
+		profile, err := authRepository.GetUserProfileByCharacterID(ctx, input.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to retrieve user profile", err)
+		}
+		if profile == nil {
+			return nil, huma.Error404NotFound("User profile not found")
+		}
+
+		// Check if access token is expired
+		if time.Now().After(profile.TokenExpiry) {
+			return nil, huma.Error401Unauthorized("EVE access token expired, please re-authenticate")
+		}
+
+		// Use the ESI access token from the profile
+		token := profile.AccessToken
+		if token == "" {
+			return nil, huma.Error401Unauthorized("No EVE access token available")
+		}
+
+		result, err := service.GetCharacterLocation(ctx, input.CharacterID, token)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get character location", err)
+		}
+		return result, nil
+	})
 }
