@@ -294,43 +294,110 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 
 	// Parse the map response
 	if homeLocation, ok := esiClones["home_location"].(map[string]any); ok {
-		locationID, _ := homeLocation["location_id"].(float64)
+		var locationID int64
+		if lid, ok := homeLocation["location_id"].(int64); ok {
+			locationID = lid
+		} else if lid, ok := homeLocation["location_id"].(float64); ok {
+			locationID = int64(lid)
+		}
 		locationType, _ := homeLocation["location_type"].(string)
 		result.HomeLocation = &dto.HomeLocation{
-			LocationID:   int64(locationID),
+			LocationID:   locationID,
 			LocationType: locationType,
 		}
 	}
 
-	if jumpClonesRaw, ok := esiClones["jump_clones"].([]any); ok {
+	// Try multiple type assertions for jump_clones
+	if jumpClonesRaw, ok := esiClones["jump_clones"].([]map[string]any); ok {
+		result.JumpClones = make([]dto.JumpClone, len(jumpClonesRaw))
+		for i, clone := range jumpClonesRaw {
+			var jumpCloneID int
+			if jid, ok := clone["jump_clone_id"].(int); ok {
+				jumpCloneID = jid
+			} else if jid, ok := clone["jump_clone_id"].(float64); ok {
+				jumpCloneID = int(jid)
+			}
+
+			var locationID int64
+			if lid, ok := clone["location_id"].(int64); ok {
+				locationID = lid
+			} else if lid, ok := clone["location_id"].(float64); ok {
+				locationID = int64(lid)
+			}
+
+			locationType, _ := clone["location_type"].(string)
+			name, _ := clone["name"].(string)
+
+			// Handle implants
+			var implants []int
+			if implantsRaw, ok := clone["implants"].([]int); ok {
+				implants = implantsRaw
+			} else if implantsRaw, ok := clone["implants"].([]any); ok {
+				implants = make([]int, len(implantsRaw))
+				for j, implantRaw := range implantsRaw {
+					if implant, ok := implantRaw.(float64); ok {
+						implants[j] = int(implant)
+					} else if implant, ok := implantRaw.(int); ok {
+						implants[j] = implant
+					}
+				}
+			}
+
+			result.JumpClones[i] = dto.JumpClone{
+				Implants:     implants,
+				JumpCloneID:  jumpCloneID,
+				LocationID:   locationID,
+				LocationType: locationType,
+				Name:         name,
+			}
+		}
+	} else if jumpClonesRaw, ok := esiClones["jump_clones"].([]any); ok {
 		result.JumpClones = make([]dto.JumpClone, len(jumpClonesRaw))
 		for i, cloneRaw := range jumpClonesRaw {
 			if clone, ok := cloneRaw.(map[string]any); ok {
-				jumpCloneID, _ := clone["jump_clone_id"].(float64)
-				locationID, _ := clone["location_id"].(float64)
+				var jumpCloneID int
+				if jid, ok := clone["jump_clone_id"].(int); ok {
+					jumpCloneID = jid
+				} else if jid, ok := clone["jump_clone_id"].(float64); ok {
+					jumpCloneID = int(jid)
+				}
+
+				var locationID int64
+				if lid, ok := clone["location_id"].(int64); ok {
+					locationID = lid
+				} else if lid, ok := clone["location_id"].(float64); ok {
+					locationID = int64(lid)
+				}
+
 				locationType, _ := clone["location_type"].(string)
 				name, _ := clone["name"].(string)
 
 				// Handle implants
 				var implants []int
-				if implantsRaw, ok := clone["implants"].([]any); ok {
+				if implantsRaw, ok := clone["implants"].([]int); ok {
+					implants = implantsRaw
+				} else if implantsRaw, ok := clone["implants"].([]any); ok {
 					implants = make([]int, len(implantsRaw))
 					for j, implantRaw := range implantsRaw {
 						if implant, ok := implantRaw.(float64); ok {
 							implants[j] = int(implant)
+						} else if implant, ok := implantRaw.(int); ok {
+							implants[j] = implant
 						}
 					}
 				}
 
 				result.JumpClones[i] = dto.JumpClone{
 					Implants:     implants,
-					JumpCloneID:  int(jumpCloneID),
-					LocationID:   int64(locationID),
+					JumpCloneID:  jumpCloneID,
+					LocationID:   locationID,
 					LocationType: locationType,
 					Name:         name,
 				}
 			}
 		}
+	} else {
+		result.JumpClones = []dto.JumpClone{} // Initialize as empty array instead of nil
 	}
 
 	if lastJumpDate, ok := esiClones["last_clone_jump_date"].(string); ok {

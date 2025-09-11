@@ -812,24 +812,30 @@ func (c *characterClientImpl) GetCharacterClones(ctx context.Context, characterI
 		}
 	}
 
-	jumpClones := make([]map[string]any, len(clones.JumpClones))
-	for i, clone := range clones.JumpClones {
-		jumpClones[i] = map[string]any{
-			"implants":      clone.Implants,
-			"jump_clone_id": clone.JumpCloneID,
-			"location_id":   clone.LocationID,
-			"location_type": clone.LocationType,
-			"name":          clone.Name,
+	if len(clones.JumpClones) > 0 {
+		jumpClones := make([]map[string]any, len(clones.JumpClones))
+		for i, clone := range clones.JumpClones {
+			jumpClones[i] = map[string]any{
+				"implants":      clone.Implants,
+				"jump_clone_id": clone.JumpCloneID,
+				"location_id":   clone.LocationID,
+				"location_type": clone.LocationType,
+			}
+			if clone.Name != "" {
+				jumpClones[i]["name"] = clone.Name
+			}
 		}
+		result["jump_clones"] = jumpClones
+	} else {
+		result["jump_clones"] = []map[string]any{}
 	}
-	result["jump_clones"] = jumpClones
 
 	if clones.LastCloneJumpDate != nil {
-		result["last_clone_jump_date"] = *clones.LastCloneJumpDate
+		result["last_clone_jump_date"] = clones.LastCloneJumpDate.Format(time.RFC3339)
 	}
 
 	if clones.LastStationChangeDate != nil {
-		result["last_station_change_date"] = *clones.LastStationChangeDate
+		result["last_station_change_date"] = clones.LastStationChangeDate.Format(time.RFC3339)
 	}
 
 	return result, nil
