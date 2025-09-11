@@ -164,6 +164,17 @@ func (m *Module) RegisterPermissions(ctx context.Context, permissionManager *per
 			Category:    "System Administration",
 			CreatedAt:   time.Now(),
 		},
+		{
+			ID:          "corporation:membertracking:view",
+			Service:     "corporation",
+			Resource:    "membertracking",
+			Action:      "view",
+			IsStatic:    false,
+			Name:        "View Corporation Member Tracking",
+			Description: "Access corporation member tracking data including login/logout times and locations",
+			Category:    "Corporation Management",
+			CreatedAt:   time.Now(),
+		},
 	}
 
 	return permissionManager.RegisterServicePermissions(ctx, corporationPermissions)

@@ -56,6 +56,17 @@ internal/corporation/
 - **Database Persistence**: Member tracking data stored in `track_corporation_members` collection
 - **Structure Database**: Dedicated `structures` collection for player-owned structure name caching
 
+### 5. Permission System Integration
+- **Fine-Grained Access Control**: Individual endpoints protected by specific permissions
+- **Permission-Based Authorization**: Uses centralized permission middleware system
+- **Corporation Permissions**:
+  - `corporation:info:view` - View corporation information and search
+  - `corporation:search:access` - Access corporation search functionality  
+  - `corporation:data:manage` - Administrative data management operations
+  - `corporation:membertracking:view` - Access member tracking data (sensitive)
+- **Super Admin Bypass**: Super administrators bypass all permission checks
+- **Legacy CEO Validation**: Member tracking still requires CEO ID matching for ESI calls
+
 ## Implementation Pattern
 
 ### 1. Module Interface (`module.go`)
@@ -351,7 +362,8 @@ GET /search?name=Investment Bank  # Multi-word text search
 **Description**: Retrieves member tracking information for a corporation, including location names with intelligent lookup.
 
 **Authentication**: Required (JWT token)
-**Authorization**: CEO ID must match corporation's actual CEO
+**Authorization**: Requires `corporation:membertracking:view` permission
+**Legacy Requirement**: CEO ID must match corporation's actual CEO
 
 **Parameters**:
 - `corporation_id` (path, required): EVE Online corporation ID (minimum: 1)
@@ -394,7 +406,7 @@ GET /search?name=Investment Bank  # Multi-word text search
 **Error Handling**:
 - `400`: Invalid corporation ID or CEO ID format
 - `401`: Missing or invalid authentication token  
-- `403`: CEO ID does not match corporation CEO or insufficient permissions
+- `403`: Missing required permission (`corporation:membertracking:view`) or CEO ID does not match corporation CEO
 - `404`: Corporation not found
 - `500`: ESI communication errors or database issues
 

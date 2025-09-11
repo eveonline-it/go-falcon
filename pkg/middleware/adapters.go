@@ -331,6 +331,11 @@ func (ca *CorporationAdapter) RequireSuperAdmin(ctx context.Context, authHeader,
 	return ca.permissionMiddleware.RequireSuperAdmin(ctx, authHeader, cookieHeader)
 }
 
+// RequireMemberTrackingAccess checks for corporation member tracking permissions
+func (ca *CorporationAdapter) RequireMemberTrackingAccess(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ca.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, "corporation:membertracking:view")
+}
+
 // SiteSettingsAdapter provides site settings-specific permission methods
 type SiteSettingsAdapter struct {
 	*ModuleAdapter
