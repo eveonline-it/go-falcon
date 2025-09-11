@@ -27,7 +27,7 @@ type Service struct {
 // NewService creates a new service instance
 func NewService(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client, sdeService sde.SDEService) *Service {
 	// Create character service first (needed for corporation service)
-	characterSvc := characterServices.NewService(mongodb, redis, eveGateway)
+	characterSvc := characterServices.NewService(mongodb, redis, eveGateway, sdeService)
 
 	// Create corporation repository and service
 	corporationRepo := corporationServices.NewRepository(mongodb)

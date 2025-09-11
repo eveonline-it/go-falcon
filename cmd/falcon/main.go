@@ -382,8 +382,8 @@ func main() {
 		log.Fatalf("Failed to set permission manager on groups module: %v", err)
 	}
 
-	// 7. Initialize character module with auth dependency
-	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule)
+	// 7. Initialize character module with auth and SDE dependencies
+	characterModule := character.New(appCtx.MongoDB, appCtx.Redis, evegateClient, authModule, appCtx.SDEService)
 	characterModule.SetGroupService(groupsModule.GetService())
 
 	// 8. Initialize corporation module with auth, character and SDE dependencies

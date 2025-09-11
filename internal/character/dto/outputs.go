@@ -157,17 +157,21 @@ type CharacterCorporationHistoryOutput struct {
 
 // HomeLocation represents the character's home location
 type HomeLocation struct {
-	LocationID   int64  `json:"location_id" doc:"Location ID of the home location"`
-	LocationType string `json:"location_type" doc:"Type of location (station or structure)"`
+	LocationID     int64  `json:"location_id" doc:"Location ID of the home location"`
+	LocationType   string `json:"location_type" doc:"Type of location (station or structure)"`
+	LocationName   string `json:"location_name,omitempty" doc:"Name of the location"`
+	LocationTypeID int32  `json:"location_type_id,omitempty" doc:"Type ID of the structure/station"`
 }
 
 // JumpClone represents a single jump clone
 type JumpClone struct {
-	Implants     []int  `json:"implants" doc:"List of implant type IDs"`
-	JumpCloneID  int    `json:"jump_clone_id" doc:"Unique jump clone ID"`
-	LocationID   int64  `json:"location_id" doc:"Location ID of the jump clone"`
-	LocationType string `json:"location_type" doc:"Type of location (station or structure)"`
-	Name         string `json:"name,omitempty" doc:"Optional name for the jump clone"`
+	Implants       []int  `json:"implants" doc:"List of implant type IDs"`
+	JumpCloneID    int    `json:"jump_clone_id" doc:"Unique jump clone ID"`
+	LocationID     int64  `json:"location_id" doc:"Location ID of the jump clone"`
+	LocationType   string `json:"location_type" doc:"Type of location (station or structure)"`
+	LocationName   string `json:"location_name,omitempty" doc:"Name of the location"`
+	LocationTypeID int32  `json:"location_type_id,omitempty" doc:"Type ID of the structure/station"`
+	Name           string `json:"name,omitempty" doc:"Optional name for the jump clone"`
 }
 
 // CharacterClones represents the character's clone information

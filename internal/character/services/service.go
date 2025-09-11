@@ -12,6 +12,7 @@ import (
 	"go-falcon/internal/character/models"
 	"go-falcon/pkg/database"
 	"go-falcon/pkg/evegateway"
+	"go-falcon/pkg/sde"
 )
 
 // Service provides business logic for character operations
@@ -19,20 +20,70 @@ type Service struct {
 	repository *Repository
 	eveGateway *evegateway.Client
 	redis      *database.Redis
+	sdeService sde.SDEService
 }
 
 // NewService creates a new service instance
-func NewService(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client) *Service {
+func NewService(mongodb *database.MongoDB, redis *database.Redis, eveGateway *evegateway.Client, sdeService sde.SDEService) *Service {
 	return &Service{
 		repository: NewRepository(mongodb),
 		eveGateway: eveGateway,
 		redis:      redis,
+		sdeService: sdeService,
 	}
 }
 
 // CreateIndexes creates database indexes for optimal performance
 func (s *Service) CreateIndexes(ctx context.Context) error {
 	return s.repository.CreateIndexes(ctx)
+}
+
+// LocationInfo holds location name and type ID
+type LocationInfo struct {
+	Name   string
+	TypeID int32
+}
+
+// resolveLocationInfo resolves a location name and type ID based on location ID and type
+func (s *Service) resolveLocationInfo(ctx context.Context, locationID int64, locationType string, token string) (*LocationInfo, error) {
+	const npcStationThreshold = 100000000
+
+	if locationID < npcStationThreshold {
+		// NPC Station - use SDE
+		station, err := s.sdeService.GetStaStation(int(locationID))
+		if err != nil {
+			log.Printf("Warning: Station not found in SDE for ID %d: %v", locationID, err)
+			return &LocationInfo{}, nil // Return empty info, not error, to avoid breaking the API response
+		}
+		return &LocationInfo{
+			Name:   station.StationName,
+			TypeID: int32(station.StationTypeID),
+		}, nil
+	} else {
+		// Player Structure - use EVE Gateway (requires token)
+		if token == "" {
+			log.Printf("Warning: Cannot resolve structure info for ID %d: no token provided", locationID)
+			return &LocationInfo{}, nil // Return empty info instead of error
+		}
+
+		structure, err := s.eveGateway.Structures.GetStructure(ctx, locationID, token)
+		if err != nil {
+			log.Printf("Warning: Failed to get structure info for ID %d: %v", locationID, err)
+			return &LocationInfo{}, nil // Return empty info instead of error to avoid breaking API
+		}
+
+		info := &LocationInfo{}
+		if name, ok := structure["name"].(string); ok {
+			info.Name = name
+		}
+		if typeID, ok := structure["type_id"].(int32); ok {
+			info.TypeID = typeID
+		} else if typeID, ok := structure["type_id"].(float64); ok {
+			info.TypeID = int32(typeID)
+		}
+
+		return info, nil
+	}
 }
 
 // GetCharacterAttributes retrieves character attributes following cache → DB → ESI flow
@@ -249,21 +300,51 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 
 		// Convert home location
 		if dbClones.HomeLocation != nil {
+			locationName := dbClones.HomeLocation.LocationName
+			locationTypeID := dbClones.HomeLocation.LocationTypeID
+			// If no cached location info, try to resolve it
+			if locationName == "" || locationTypeID == 0 {
+				if locationInfo, err := s.resolveLocationInfo(ctx, dbClones.HomeLocation.LocationID, dbClones.HomeLocation.LocationType, token); err == nil {
+					if locationName == "" && locationInfo.Name != "" {
+						locationName = locationInfo.Name
+					}
+					if locationTypeID == 0 && locationInfo.TypeID != 0 {
+						locationTypeID = locationInfo.TypeID
+					}
+				}
+			}
 			dtoClones.HomeLocation = &dto.HomeLocation{
-				LocationID:   dbClones.HomeLocation.LocationID,
-				LocationType: dbClones.HomeLocation.LocationType,
+				LocationID:     dbClones.HomeLocation.LocationID,
+				LocationType:   dbClones.HomeLocation.LocationType,
+				LocationName:   locationName,
+				LocationTypeID: locationTypeID,
 			}
 		}
 
 		// Convert jump clones
 		dtoClones.JumpClones = make([]dto.JumpClone, len(dbClones.JumpClones))
 		for i, clone := range dbClones.JumpClones {
+			locationName := clone.LocationName
+			locationTypeID := clone.LocationTypeID
+			// If no cached location info, try to resolve it
+			if locationName == "" || locationTypeID == 0 {
+				if locationInfo, err := s.resolveLocationInfo(ctx, clone.LocationID, clone.LocationType, token); err == nil {
+					if locationName == "" && locationInfo.Name != "" {
+						locationName = locationInfo.Name
+					}
+					if locationTypeID == 0 && locationInfo.TypeID != 0 {
+						locationTypeID = locationInfo.TypeID
+					}
+				}
+			}
 			dtoClones.JumpClones[i] = dto.JumpClone{
-				Implants:     clone.Implants,
-				JumpCloneID:  clone.JumpCloneID,
-				LocationID:   clone.LocationID,
-				LocationType: clone.LocationType,
-				Name:         clone.Name,
+				Implants:       clone.Implants,
+				JumpCloneID:    clone.JumpCloneID,
+				LocationID:     clone.LocationID,
+				LocationType:   clone.LocationType,
+				LocationName:   locationName,
+				LocationTypeID: locationTypeID,
+				Name:           clone.Name,
 			}
 		}
 
@@ -301,9 +382,20 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 			locationID = int64(lid)
 		}
 		locationType, _ := homeLocation["location_type"].(string)
+
+		// Resolve location info
+		locationName := ""
+		var locationTypeID int32
+		if locationInfo, err := s.resolveLocationInfo(ctx, locationID, locationType, token); err == nil {
+			locationName = locationInfo.Name
+			locationTypeID = locationInfo.TypeID
+		}
+
 		result.HomeLocation = &dto.HomeLocation{
-			LocationID:   locationID,
-			LocationType: locationType,
+			LocationID:     locationID,
+			LocationType:   locationType,
+			LocationName:   locationName,
+			LocationTypeID: locationTypeID,
 		}
 	}
 
@@ -328,6 +420,14 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 			locationType, _ := clone["location_type"].(string)
 			name, _ := clone["name"].(string)
 
+			// Resolve location info
+			locationName := ""
+			var locationTypeID int32
+			if locationInfo, err := s.resolveLocationInfo(ctx, locationID, locationType, token); err == nil {
+				locationName = locationInfo.Name
+				locationTypeID = locationInfo.TypeID
+			}
+
 			// Handle implants
 			var implants []int
 			if implantsRaw, ok := clone["implants"].([]int); ok {
@@ -344,11 +444,13 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 			}
 
 			result.JumpClones[i] = dto.JumpClone{
-				Implants:     implants,
-				JumpCloneID:  jumpCloneID,
-				LocationID:   locationID,
-				LocationType: locationType,
-				Name:         name,
+				Implants:       implants,
+				JumpCloneID:    jumpCloneID,
+				LocationID:     locationID,
+				LocationType:   locationType,
+				LocationName:   locationName,
+				LocationTypeID: locationTypeID,
+				Name:           name,
 			}
 		}
 	} else if jumpClonesRaw, ok := esiClones["jump_clones"].([]any); ok {
@@ -372,6 +474,14 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 				locationType, _ := clone["location_type"].(string)
 				name, _ := clone["name"].(string)
 
+				// Resolve location info
+				locationName := ""
+				var locationTypeID int32
+				if locationInfo, err := s.resolveLocationInfo(ctx, locationID, locationType, token); err == nil {
+					locationName = locationInfo.Name
+					locationTypeID = locationInfo.TypeID
+				}
+
 				// Handle implants
 				var implants []int
 				if implantsRaw, ok := clone["implants"].([]int); ok {
@@ -388,11 +498,13 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 				}
 
 				result.JumpClones[i] = dto.JumpClone{
-					Implants:     implants,
-					JumpCloneID:  jumpCloneID,
-					LocationID:   locationID,
-					LocationType: locationType,
-					Name:         name,
+					Implants:       implants,
+					JumpCloneID:    jumpCloneID,
+					LocationID:     locationID,
+					LocationType:   locationType,
+					LocationName:   locationName,
+					LocationTypeID: locationTypeID,
+					Name:           name,
 				}
 			}
 		}
@@ -423,8 +535,10 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 	// Convert DTO to model for home location
 	if result.HomeLocation != nil {
 		dbModel.HomeLocation = &models.HomeLocation{
-			LocationID:   result.HomeLocation.LocationID,
-			LocationType: result.HomeLocation.LocationType,
+			LocationID:     result.HomeLocation.LocationID,
+			LocationType:   result.HomeLocation.LocationType,
+			LocationName:   result.HomeLocation.LocationName,
+			LocationTypeID: result.HomeLocation.LocationTypeID,
 		}
 	}
 
@@ -432,11 +546,13 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 	dbModel.JumpClones = make([]models.JumpClone, len(result.JumpClones))
 	for i, clone := range result.JumpClones {
 		dbModel.JumpClones[i] = models.JumpClone{
-			Implants:     clone.Implants,
-			JumpCloneID:  clone.JumpCloneID,
-			LocationID:   clone.LocationID,
-			LocationType: clone.LocationType,
-			Name:         clone.Name,
+			Implants:       clone.Implants,
+			JumpCloneID:    clone.JumpCloneID,
+			LocationID:     clone.LocationID,
+			LocationType:   clone.LocationType,
+			LocationName:   clone.LocationName,
+			LocationTypeID: clone.LocationTypeID,
+			Name:           clone.Name,
 		}
 	}
 

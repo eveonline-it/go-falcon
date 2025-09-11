@@ -125,17 +125,21 @@ func (cch *CharacterCorporationHistory) CollectionName() string {
 
 // HomeLocation represents the character's home location in the database
 type HomeLocation struct {
-	LocationID   int64  `bson:"location_id" json:"location_id"`
-	LocationType string `bson:"location_type" json:"location_type"`
+	LocationID     int64  `bson:"location_id" json:"location_id"`
+	LocationType   string `bson:"location_type" json:"location_type"`
+	LocationName   string `bson:"location_name,omitempty" json:"location_name,omitempty"`
+	LocationTypeID int32  `bson:"location_type_id,omitempty" json:"location_type_id,omitempty"`
 }
 
 // JumpClone represents a single jump clone in the database
 type JumpClone struct {
-	Implants     []int  `bson:"implants" json:"implants"`
-	JumpCloneID  int    `bson:"jump_clone_id" json:"jump_clone_id"`
-	LocationID   int64  `bson:"location_id" json:"location_id"`
-	LocationType string `bson:"location_type" json:"location_type"`
-	Name         string `bson:"name,omitempty" json:"name,omitempty"`
+	Implants       []int  `bson:"implants" json:"implants"`
+	JumpCloneID    int    `bson:"jump_clone_id" json:"jump_clone_id"`
+	LocationID     int64  `bson:"location_id" json:"location_id"`
+	LocationType   string `bson:"location_type" json:"location_type"`
+	LocationName   string `bson:"location_name,omitempty" json:"location_name,omitempty"`
+	LocationTypeID int32  `bson:"location_type_id,omitempty" json:"location_type_id,omitempty"`
+	Name           string `bson:"name,omitempty" json:"name,omitempty"`
 }
 
 // CharacterClones represents the character's clone information in the database
