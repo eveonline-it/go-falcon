@@ -287,22 +287,8 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 			return nil, huma.Error500InternalServerError("Failed to get user profile", err)
 		}
 
-		// Convert to DTO response
-		response := &dto.ProfileResponse{
-			UserID:          profile.UserID,
-			CharacterID:     profile.CharacterID,
-			CharacterName:   profile.CharacterName,
-			CorporationID:   profile.CorporationID,
-			CorporationName: profile.CorporationName,
-			AllianceID:      profile.AllianceID,
-			AllianceName:    profile.AllianceName,
-			SecurityStatus:  profile.SecurityStatus,
-			Birthday:        profile.Birthday,
-			Scopes:          profile.Scopes,
-			LastLogin:       profile.LastLogin,
-		}
-
-		return &dto.ProfileOutput{Body: *response}, nil
+		// Profile is already a DTO response
+		return &dto.ProfileOutput{Body: *profile}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -326,22 +312,8 @@ func RegisterAuthRoutes(api huma.API, basePath string, authService *services.Aut
 			return nil, huma.Error500InternalServerError("Failed to refresh user profile", err)
 		}
 
-		// Convert to DTO response
-		response := &dto.ProfileResponse{
-			UserID:          profile.UserID,
-			CharacterID:     profile.CharacterID,
-			CharacterName:   profile.CharacterName,
-			CorporationID:   profile.CorporationID,
-			CorporationName: profile.CorporationName,
-			AllianceID:      profile.AllianceID,
-			AllianceName:    profile.AllianceName,
-			SecurityStatus:  profile.SecurityStatus,
-			Birthday:        profile.Birthday,
-			Scopes:          profile.Scopes,
-			LastLogin:       profile.LastLogin,
-		}
-
-		return &dto.ProfileRefreshOutput{Body: *response}, nil
+		// Profile is already a DTO response
+		return &dto.ProfileRefreshOutput{Body: *profile}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -556,22 +528,8 @@ func (hr *Routes) profile(ctx context.Context, input *dto.ProfileInput) (*dto.Pr
 		return nil, huma.Error500InternalServerError("Failed to get user profile", err)
 	}
 
-	// Convert to DTO response
-	response := &dto.ProfileResponse{
-		UserID:          profile.UserID,
-		CharacterID:     profile.CharacterID,
-		CharacterName:   profile.CharacterName,
-		CorporationID:   profile.CorporationID,
-		CorporationName: profile.CorporationName,
-		AllianceID:      profile.AllianceID,
-		AllianceName:    profile.AllianceName,
-		SecurityStatus:  profile.SecurityStatus,
-		Birthday:        profile.Birthday,
-		Scopes:          profile.Scopes,
-		LastLogin:       profile.LastLogin,
-	}
-
-	return &dto.ProfileOutput{Body: *response}, nil
+	// Profile is already a DTO response
+	return &dto.ProfileOutput{Body: *profile}, nil
 }
 
 func (hr *Routes) profileRefresh(ctx context.Context, input *dto.ProfileRefreshInput) (*dto.ProfileRefreshOutput, error) {
@@ -587,22 +545,8 @@ func (hr *Routes) profileRefresh(ctx context.Context, input *dto.ProfileRefreshI
 		return nil, huma.Error500InternalServerError("Failed to refresh user profile", err)
 	}
 
-	// Convert to DTO response
-	response := &dto.ProfileResponse{
-		UserID:          profile.UserID,
-		CharacterID:     profile.CharacterID,
-		CharacterName:   profile.CharacterName,
-		CorporationID:   profile.CorporationID,
-		CorporationName: profile.CorporationName,
-		AllianceID:      profile.AllianceID,
-		AllianceName:    profile.AllianceName,
-		SecurityStatus:  profile.SecurityStatus,
-		Birthday:        profile.Birthday,
-		Scopes:          profile.Scopes,
-		LastLogin:       profile.LastLogin,
-	}
-
-	return &dto.ProfileRefreshOutput{Body: *response}, nil
+	// Profile is already a DTO response
+	return &dto.ProfileRefreshOutput{Body: *profile}, nil
 }
 
 func (hr *Routes) token(ctx context.Context, input *dto.TokenInput) (*dto.TokenOutput, error) {

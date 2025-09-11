@@ -452,7 +452,7 @@ func (s *AuthService) GetUserProfile(ctx context.Context, characterID int) (*dto
 		return nil, fmt.Errorf("profile not found")
 	}
 
-	return s.profileToDTO(profile), nil
+	return s.ProfileToDTO(profile), nil
 }
 
 // RefreshUserProfile refreshes user profile from ESI
@@ -485,7 +485,7 @@ func (s *AuthService) RefreshUserProfile(ctx context.Context, characterID int) (
 		}
 	}
 
-	return s.profileToDTO(profile), nil
+	return s.ProfileToDTO(profile), nil
 }
 
 // GetPublicProfile returns public character information
@@ -577,8 +577,8 @@ func (s *AuthService) verifyEVEAccessToken(ctx context.Context, accessToken stri
 	return &charInfo, nil
 }
 
-// profileToDTO converts a profile model to DTO
-func (s *AuthService) profileToDTO(profile *models.UserProfile) *dto.ProfileResponse {
+// ProfileToDTO converts a profile model to DTO
+func (s *AuthService) ProfileToDTO(profile *models.UserProfile) *dto.ProfileResponse {
 	return &dto.ProfileResponse{
 		UserID:          profile.UserID,
 		CharacterID:     profile.CharacterID,
