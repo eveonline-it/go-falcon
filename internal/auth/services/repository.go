@@ -243,7 +243,6 @@ func (r *Repository) GetExpiringTokens(ctx context.Context, beforeTime time.Time
 	collection := r.mongodb.Collection("user_profiles")
 
 	filter := bson.M{
-		"valid":         true,
 		"token_expiry":  bson.M{"$lt": beforeTime},
 		"refresh_token": bson.M{"$ne": ""},
 	}
