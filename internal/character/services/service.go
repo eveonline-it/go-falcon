@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"strconv"
 	"time"
 
 	"go-falcon/internal/character/dto"
@@ -36,6 +37,40 @@ func NewService(mongodb *database.MongoDB, redis *database.Redis, eveGateway *ev
 // CreateIndexes creates database indexes for optimal performance
 func (s *Service) CreateIndexes(ctx context.Context) error {
 	return s.repository.CreateIndexes(ctx)
+}
+
+// resolveImplantInfo converts a slice of implant type IDs to ImplantInfo structs with names and descriptions
+func (s *Service) resolveImplantInfo(implantTypeIDs []int) []dto.ImplantInfo {
+	implantInfos := make([]dto.ImplantInfo, len(implantTypeIDs))
+
+	for i, typeID := range implantTypeIDs {
+		implantInfo := dto.ImplantInfo{
+			TypeID:      typeID,
+			Name:        fmt.Sprintf("Unknown Implant %d", typeID), // Fallback name
+			Description: "",                                        // Default empty description
+		}
+
+		// Get type information from SDE service
+		if s.sdeService != nil {
+			typeIDStr := strconv.Itoa(typeID)
+			if typeInfo, err := s.sdeService.GetType(typeIDStr); err == nil && typeInfo != nil {
+				// Extract English name
+				if enName, ok := typeInfo.Name["en"]; ok && enName != "" {
+					implantInfo.Name = enName
+				}
+				// Extract English description
+				if enDesc, ok := typeInfo.Description["en"]; ok && enDesc != "" {
+					implantInfo.Description = enDesc
+				}
+			} else {
+				log.Printf("Failed to get implant type info for ID %d: %v", typeID, err)
+			}
+		}
+
+		implantInfos[i] = implantInfo
+	}
+
+	return implantInfos
 }
 
 // LocationInfo holds location name and type ID
@@ -293,9 +328,26 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 		// Found in database, convert to DTO
 		dtoClones := &dto.CharacterClones{
 			CharacterID:           characterID,
+			ActiveImplants:        s.resolveImplantInfo(dbClones.ActiveImplants), // Convert []int to []dto.ImplantInfo
 			LastCloneJumpDate:     dbClones.LastCloneJumpDate,
 			LastStationChangeDate: dbClones.LastStationChangeDate,
 			UpdatedAt:             dbClones.UpdatedAt,
+		}
+
+		// If no active implants in database, try to fetch them
+		if len(dbClones.ActiveImplants) == 0 {
+			if activeImplants, err := s.getActiveImplantsInternal(ctx, characterID, token); err == nil {
+				dtoClones.ActiveImplants = s.resolveImplantInfo(activeImplants) // Convert []int to []dto.ImplantInfo
+				// Update the database record with the fetched implants (as []int)
+				dbClones.ActiveImplants = activeImplants
+				dbClones.UpdatedAt = time.Now()
+				if err := s.repository.SaveCharacterClones(ctx, dbClones); err != nil {
+					log.Printf("Failed to update character clones with implants in DB: %v", err)
+				}
+			} else {
+				log.Printf("Failed to fetch active implants for character_id: %d, error: %v", characterID, err)
+				dtoClones.ActiveImplants = []dto.ImplantInfo{} // Ensure empty array instead of nil
+			}
 		}
 
 		// Convert home location
@@ -338,7 +390,7 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 				}
 			}
 			dtoClones.JumpClones[i] = dto.JumpClone{
-				Implants:       clone.Implants,
+				Implants:       s.resolveImplantInfo(clone.Implants), // Convert []int to []dto.ImplantInfo
 				JumpCloneID:    clone.JumpCloneID,
 				LocationID:     clone.LocationID,
 				LocationType:   clone.LocationType,
@@ -444,7 +496,7 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 			}
 
 			result.JumpClones[i] = dto.JumpClone{
-				Implants:       implants,
+				Implants:       s.resolveImplantInfo(implants), // Convert []int to []dto.ImplantInfo
 				JumpCloneID:    jumpCloneID,
 				LocationID:     locationID,
 				LocationType:   locationType,
@@ -498,7 +550,7 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 				}
 
 				result.JumpClones[i] = dto.JumpClone{
-					Implants:       implants,
+					Implants:       s.resolveImplantInfo(implants), // Convert []int to []dto.ImplantInfo
 					JumpCloneID:    jumpCloneID,
 					LocationID:     locationID,
 					LocationType:   locationType,
@@ -545,8 +597,14 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 	// Convert DTO to model for jump clones
 	dbModel.JumpClones = make([]models.JumpClone, len(result.JumpClones))
 	for i, clone := range result.JumpClones {
+		// Extract type IDs from ImplantInfo structs for database storage
+		implantTypeIDs := make([]int, len(clone.Implants))
+		for j, implant := range clone.Implants {
+			implantTypeIDs[j] = implant.TypeID
+		}
+
 		dbModel.JumpClones[i] = models.JumpClone{
-			Implants:       clone.Implants,
+			Implants:       implantTypeIDs, // Store only type IDs in database
 			JumpCloneID:    clone.JumpCloneID,
 			LocationID:     clone.LocationID,
 			LocationType:   clone.LocationType,
@@ -569,8 +627,62 @@ func (s *Service) GetCharacterClones(ctx context.Context, characterID int, token
 		}
 	}
 
+	// 6. Fetch active implants and add to result
+	activeImplantsTypeIDs, err := s.getActiveImplantsInternal(ctx, characterID, token)
+	if err != nil {
+		log.Printf("Failed to fetch active implants for character_id: %d, error: %v", characterID, err)
+		// Continue without implants data rather than failing the whole request
+		result.ActiveImplants = []dto.ImplantInfo{}
+	} else {
+		result.ActiveImplants = s.resolveImplantInfo(activeImplantsTypeIDs) // Convert []int to []dto.ImplantInfo
+		// Update database model with active implants (as type IDs)
+		dbModel.ActiveImplants = activeImplantsTypeIDs
+		// Re-save to database with implants data
+		if err := s.repository.SaveCharacterClones(ctx, dbModel); err != nil {
+			log.Printf("Failed to update character clones with implants in DB: %v", err)
+		}
+	}
+
+	// 7. Update cache with complete data including implants
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			// Cache for 1 hour
+			_ = s.redis.Set(ctx, cacheKey, string(data), 1*time.Hour)
+		}
+	}
+
 	log.Printf("Successfully fetched and saved character clones for character_id: %d", characterID)
 	return &dto.CharacterClonesOutput{Body: *result}, nil
+}
+
+// getActiveImplantsInternal is a helper method to get active implants data without the full DTO wrapper
+// This is used internally by GetCharacterClones to fetch implants data
+func (s *Service) getActiveImplantsInternal(ctx context.Context, characterID int, token string) ([]int, error) {
+	// 1. Check database first
+	dbImplants, err := s.repository.GetCharacterImplants(ctx, characterID)
+	if err == nil && dbImplants != nil {
+		return dbImplants.Implants, nil
+	}
+
+	// 2. Fetch from ESI as fallback
+	esiImplants, err := s.eveGateway.Character.GetCharacterImplants(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch character implants from ESI: %w", err)
+	}
+
+	// 3. Save to database (async, don't block on errors)
+	go func() {
+		dbModel := &models.CharacterImplants{
+			CharacterID: characterID,
+			Implants:    esiImplants,
+			UpdatedAt:   time.Now(),
+		}
+		if err := s.repository.SaveCharacterImplants(context.Background(), dbModel); err != nil {
+			log.Printf("Failed to save character implants to DB (async): %v", err)
+		}
+	}()
+
+	return esiImplants, nil
 }
 
 // GetCharacterImplants retrieves character implants following cache → DB → ESI flow

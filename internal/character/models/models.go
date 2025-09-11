@@ -148,6 +148,7 @@ type CharacterClones struct {
 	CharacterID           int                `bson:"character_id" json:"character_id"`
 	HomeLocation          *HomeLocation      `bson:"home_location,omitempty" json:"home_location,omitempty"`
 	JumpClones            []JumpClone        `bson:"jump_clones" json:"jump_clones"`
+	ActiveImplants        []int              `bson:"active_implants" json:"active_implants"`
 	LastCloneJumpDate     *time.Time         `bson:"last_clone_jump_date,omitempty" json:"last_clone_jump_date,omitempty"`
 	LastStationChangeDate *time.Time         `bson:"last_station_change_date,omitempty" json:"last_station_change_date,omitempty"`
 	CreatedAt             time.Time          `bson:"created_at" json:"created_at"`

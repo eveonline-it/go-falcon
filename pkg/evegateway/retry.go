@@ -8,7 +8,24 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"go-falcon/internal/auth/models"
 )
+
+// AuthContextKey key for storing user info in context (matches pkg/middleware)
+type AuthContextKey string
+
+const (
+	AuthContextKeyUser = AuthContextKey("authenticated_user")
+)
+
+// getAuthenticatedUser retrieves authenticated user from context (avoids import cycle with pkg/middleware)
+func getAuthenticatedUser(ctx context.Context) *models.AuthenticatedUser {
+	if user, ok := ctx.Value(AuthContextKeyUser).(*models.AuthenticatedUser); ok {
+		return user
+	}
+	return nil
+}
 
 // DefaultRetryClient implements retry logic with exponential backoff
 type DefaultRetryClient struct {
@@ -59,7 +76,7 @@ func (r *DefaultRetryClient) DoWithRetry(ctx context.Context, req *http.Request,
 		// All errors except 404 (Not Found) count against the error limit
 		// 403 (Forbidden) DOES count against the limit
 		if resp.StatusCode != 404 {
-			r.updateErrorLimits(resp.Header)
+			r.updateErrorLimitsWithContext(resp.Header, ctx, req)
 		}
 
 		// Check if we need to retry based on status code
@@ -84,8 +101,13 @@ func (r *DefaultRetryClient) DoWithRetry(ctx context.Context, req *http.Request,
 	return resp, nil
 }
 
-// updateErrorLimits updates the client's error limit tracking from response headers
+// updateErrorLimits updates the client's error limit tracking from response headers (legacy function for backward compatibility)
 func (r *DefaultRetryClient) updateErrorLimits(headers http.Header) {
+	r.updateErrorLimitsWithContext(headers, nil, nil)
+}
+
+// updateErrorLimitsWithContext updates the client's error limit tracking from response headers with critical error logging
+func (r *DefaultRetryClient) updateErrorLimitsWithContext(headers http.Header, ctx context.Context, req *http.Request) {
 	r.limitsMutex.Lock()
 	defer r.limitsMutex.Unlock()
 
@@ -93,6 +115,42 @@ func (r *DefaultRetryClient) updateErrorLimits(headers http.Header) {
 	if remainStr := headers.Get("X-ESI-Error-Limit-Remain"); remainStr != "" {
 		if remain, err := strconv.Atoi(remainStr); err == nil {
 			r.errorLimits.Remain = remain
+
+			// Log critical error when X-ESI-Error-Limit-Remain header is present and indicates potential issues
+			// This helps track ESI rate limiting events and the users/endpoints that trigger them
+			if remain <= 50 { // Critical threshold - log when remaining errors are low
+				var userID string = "unknown"
+				var characterID int = 0
+				var characterName string = "unknown"
+				var endpoint string = "unknown"
+				var method string = "unknown"
+
+				// Extract user information from context if available
+				if ctx != nil {
+					if user := getAuthenticatedUser(ctx); user != nil {
+						userID = user.UserID
+						characterID = user.CharacterID
+						characterName = user.CharacterName
+					}
+				}
+
+				// Extract endpoint information from request if available
+				if req != nil {
+					endpoint = req.URL.String()
+					method = req.Method
+				}
+
+				slog.ErrorContext(ctx, "ESI Error Limit Warning - X-ESI-Error-Limit-Remain triggered",
+					"x_esi_error_limit_remain", remain,
+					"user_id", userID,
+					"character_id", characterID,
+					"character_name", characterName,
+					"endpoint", endpoint,
+					"method", method,
+					"reset_time", r.errorLimits.Reset.Format(time.RFC3339),
+					"window", r.errorLimits.Window,
+				)
+			}
 		}
 	}
 

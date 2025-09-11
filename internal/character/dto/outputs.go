@@ -163,15 +163,22 @@ type HomeLocation struct {
 	LocationTypeID int32  `json:"location_type_id,omitempty" doc:"Type ID of the structure/station"`
 }
 
+// ImplantInfo represents detailed implant information
+type ImplantInfo struct {
+	TypeID      int    `json:"type_id" doc:"EVE implant type ID"`
+	Name        string `json:"name" doc:"Implant name"`
+	Description string `json:"description" doc:"Implant description"`
+}
+
 // JumpClone represents a single jump clone
 type JumpClone struct {
-	Implants       []int  `json:"implants" doc:"List of implant type IDs"`
-	JumpCloneID    int    `json:"jump_clone_id" doc:"Unique jump clone ID"`
-	LocationID     int64  `json:"location_id" doc:"Location ID of the jump clone"`
-	LocationType   string `json:"location_type" doc:"Type of location (station or structure)"`
-	LocationName   string `json:"location_name,omitempty" doc:"Name of the location"`
-	LocationTypeID int32  `json:"location_type_id,omitempty" doc:"Type ID of the structure/station"`
-	Name           string `json:"name,omitempty" doc:"Optional name for the jump clone"`
+	Implants       []ImplantInfo `json:"implants" doc:"List of implants with detailed information"`
+	JumpCloneID    int           `json:"jump_clone_id" doc:"Unique jump clone ID"`
+	LocationID     int64         `json:"location_id" doc:"Location ID of the jump clone"`
+	LocationType   string        `json:"location_type" doc:"Type of location (station or structure)"`
+	LocationName   string        `json:"location_name,omitempty" doc:"Name of the location"`
+	LocationTypeID int32         `json:"location_type_id,omitempty" doc:"Type ID of the structure/station"`
+	Name           string        `json:"name,omitempty" doc:"Optional name for the jump clone"`
 }
 
 // CharacterClones represents the character's clone information
@@ -179,6 +186,7 @@ type CharacterClones struct {
 	CharacterID           int           `json:"character_id" doc:"EVE Online character ID"`
 	HomeLocation          *HomeLocation `json:"home_location,omitempty" doc:"Home location details"`
 	JumpClones            []JumpClone   `json:"jump_clones" doc:"List of jump clones"`
+	ActiveImplants        []ImplantInfo `json:"active_implants" doc:"List of currently active implants with detailed information"`
 	LastCloneJumpDate     *time.Time    `json:"last_clone_jump_date,omitempty" doc:"Last clone jump timestamp"`
 	LastStationChangeDate *time.Time    `json:"last_station_change_date,omitempty" doc:"Last station change timestamp"`
 	UpdatedAt             time.Time     `json:"updated_at" doc:"Last update timestamp"`
