@@ -961,8 +961,27 @@ func (s *Service) parseESISkillQueue(esiQueue []map[string]any, characterID int)
 func (s *Service) skillQueueModelToDTO(model *models.CharacterSkillQueue) *dto.CharacterSkillQueue {
 	skills := make([]dto.SkillQueueItem, 0, len(model.Skills))
 	for _, skill := range model.Skills {
+		// Get skill name from SDE service if available
+		skillName := ""
+		if s.sdeService != nil {
+			typeID := fmt.Sprintf("%d", skill.SkillID)
+			if typeInfo, err := s.sdeService.GetType(typeID); err == nil && typeInfo != nil {
+				// Get English name from the localized name map
+				if name, ok := typeInfo.Name["en"]; ok {
+					skillName = name
+				} else {
+					// Fallback to any available language if English not found
+					for _, name := range typeInfo.Name {
+						skillName = name
+						break
+					}
+				}
+			}
+		}
+
 		skills = append(skills, dto.SkillQueueItem{
 			SkillID:         skill.SkillID,
+			SkillName:       skillName,
 			FinishedLevel:   skill.FinishedLevel,
 			QueuePosition:   skill.QueuePosition,
 			StartDate:       skill.StartDate,

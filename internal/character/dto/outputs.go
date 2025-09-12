@@ -92,6 +92,7 @@ type CharacterAttributesOutput struct {
 // SkillQueueItem represents a single skill in the character's skill queue
 type SkillQueueItem struct {
 	SkillID         int        `json:"skill_id" doc:"Skill type ID"`
+	SkillName       string     `json:"skill_name" doc:"Name of the skill"`
 	FinishedLevel   int        `json:"finished_level" doc:"Level this skill will complete to"`
 	QueuePosition   int        `json:"queue_position" doc:"Position in the skill queue"`
 	StartDate       *time.Time `json:"start_date,omitempty" doc:"Start date of training"`
