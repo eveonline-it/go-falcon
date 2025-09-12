@@ -30,6 +30,7 @@ import (
 	groupsDto "go-falcon/internal/groups/dto"
 	groupsServices "go-falcon/internal/groups/services"
 	"go-falcon/internal/killmails"
+	"go-falcon/internal/market"
 	"go-falcon/internal/scheduler"
 	"go-falcon/internal/sde_admin"
 	"go-falcon/internal/site_settings"
@@ -529,6 +530,14 @@ func main() {
 	usersModule := users.New(appCtx.MongoDB, appCtx.Redis, authModule, evegateClient, appCtx.SDEService)
 	usersModule.SetGroupService(groupsModule.GetService())
 
+	// Initialize market module
+	marketModule := market.New(appCtx.MongoDB, appCtx.Redis, evegateClient, appCtx.SDEService)
+	if err := marketModule.Initialize(ctx); err != nil {
+		log.Printf("❌ Failed to initialize market module: %v", err)
+	} else {
+		log.Printf("✅ Market module initialized successfully")
+	}
+
 	// Initialize Discord module with groups service adapter and permission middleware
 	discordGroupsAdapter := &DiscordGroupsAdapter{groupsService: groupsModule.GetService()}
 	discordPermissionMiddleware := middleware.NewPermissionMiddleware(authModule.GetAuthService(), permissionManager)
@@ -540,7 +549,7 @@ func main() {
 
 	discordModule := discord.NewModule(appCtx.MongoDB, appCtx.Redis, discordGroupsAdapter, discordCharacterAdapter, discordCorporationAdapter, discordUserAdapter, discordPermissionMiddleware)
 
-	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule)
+	schedulerModule := scheduler.New(appCtx.MongoDB, appCtx.Redis, authModule, characterModule, allianceModule.GetService(), corporationModule, marketModule)
 	schedulerModule.SetGroupService(groupsModule.GetService())
 	sdeAdminModule := sde_admin.New(appCtx.MongoDB, appCtx.Redis, authModule, permissionManager, appCtx.SDEService)
 
@@ -840,6 +849,10 @@ func main() {
 	// Register alliance module routes
 	log.Printf("   🤝 Alliance module: /alliances/*")
 	allianceModule.RegisterUnifiedRoutes(unifiedAPI, "/alliances")
+
+	// Register market module routes
+	log.Printf("   📈 Market module: /market/*")
+	marketModule.RegisterUnifiedRoutes(unifiedAPI, "/market")
 
 	// Register killmails module routes
 	log.Printf("   ⚔️  Killmails module: /killmails/*")

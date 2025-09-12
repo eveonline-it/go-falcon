@@ -54,6 +54,7 @@ type EngineService struct {
 	allianceModule    AllianceModule
 	corporationModule CorporationModule
 	groupsModule      GroupsModule
+	marketModule      MarketModule
 }
 
 // AuthModule interface defines the methods needed from the auth module
@@ -66,13 +67,19 @@ type GroupsModule interface {
 	ValidateGroupMembershipsAgainstEntityStatus(ctx context.Context) error
 }
 
+// MarketModule interface defines the methods needed from the market module
+type MarketModule interface {
+	FetchAllRegionalOrders(ctx context.Context, force bool) error
+	GetMarketStatus(ctx context.Context) (string, error) // Returns pagination mode detection status
+}
+
 // TaskExecutor interface for different task types
 type TaskExecutor interface {
 	Execute(ctx context.Context, task *models.Task) (*models.TaskResult, error)
 }
 
 // NewEngineService creates a new scheduler engine
-func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule, groupsModule GroupsModule) *EngineService {
+func NewEngineService(repository *Repository, redis *database.Redis, authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule, groupsModule GroupsModule, marketModule MarketModule) *EngineService {
 	engine := &EngineService{
 		repository:        repository,
 		redis:             redis,
@@ -87,6 +94,7 @@ func NewEngineService(repository *Repository, redis *database.Redis, authModule 
 		allianceModule:    allianceModule,
 		corporationModule: corporationModule,
 		groupsModule:      groupsModule,
+		marketModule:      marketModule,
 	}
 
 	// Initialize cron scheduler
@@ -550,7 +558,7 @@ func (e *EngineService) finishExecution(ctx context.Context, execution *models.T
 // registerBuiltinExecutors registers the built-in task executors
 func (e *EngineService) registerBuiltinExecutors() {
 	e.executors[models.TaskTypeHTTP] = NewHTTPExecutor()
-	e.executors[models.TaskTypeSystem] = NewSystemExecutor(e.authModule, e.characterModule, e.allianceModule, e.corporationModule, e.groupsModule)
+	e.executors[models.TaskTypeSystem] = NewSystemExecutor(e.authModule, e.characterModule, e.allianceModule, e.corporationModule, e.groupsModule, e.marketModule)
 	e.executors[models.TaskTypeFunction] = NewFunctionExecutor()
 }
 

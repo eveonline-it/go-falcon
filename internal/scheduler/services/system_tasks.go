@@ -356,6 +356,68 @@ func GetSystemTasks() []*models.Task {
 			UpdatedAt: now,
 			CreatedBy: "system",
 		},
+		{
+			ID:          "system-market-data-fetch",
+			Name:        "Regional Market Data Fetch",
+			Description: "Fetches market orders from all EVE Online regions with adaptive pagination support",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 0 * * * *", // Every hour
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityNormal,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "market_data_fetch",
+				"parameters": map[string]interface{}{
+					"concurrent_workers":       8,
+					"regions_per_batch":        20,
+					"timeout":                  "45m",
+					"pagination_mode":          "auto", // "auto", "offset", "token"
+					"enable_incremental":       true,   // Use after tokens when available
+					"max_duplicates_threshold": 1000,   // Alert threshold for token pagination
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    2,
+				RetryInterval: models.Duration(15 * time.Minute),
+				Timeout:       models.Duration(60 * time.Minute),
+				Tags:          []string{"system", "market", "esi", "data_fetch"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
+		{
+			ID:          "system-market-pagination-monitor",
+			Name:        "Market Pagination Migration Monitor",
+			Description: "Monitors ESI market endpoints for token-based pagination availability and migration status",
+			Type:        models.TaskTypeSystem,
+			Schedule:    "0 */6 * * * *", // Every 6 hours
+			Status:      models.TaskStatusPending,
+			Priority:    models.TaskPriorityLow,
+			Enabled:     true,
+			Config: map[string]interface{}{
+				"task_name": "pagination_migration_monitor",
+				"parameters": map[string]interface{}{
+					"test_regions": []int{10000002, 10000030}, // Jita, Heimatar
+					"timeout":      "5m",
+				},
+			},
+			Metadata: models.TaskMetadata{
+				MaxRetries:    1,
+				RetryInterval: models.Duration(30 * time.Minute),
+				Timeout:       models.Duration(10 * time.Minute),
+				Tags:          []string{"system", "market", "pagination", "monitoring"},
+				IsSystem:      true,
+				Source:        "system",
+				Version:       1,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+			CreatedBy: "system",
+		},
 	}
 }
 
@@ -423,5 +485,19 @@ var SystemTaskDefinitions = map[string]models.SystemTaskDefinition{
 		Schedule:    "Every 15 minutes",
 		Purpose:     "Maintains Discord role consistency by syncing group memberships to Discord roles",
 		Priority:    "Normal",
+	},
+	"system-market-data-fetch": {
+		Name:        "Regional Market Data Fetch",
+		Description: "Fetches market orders from all EVE Online regions with adaptive pagination support and atomic collection swapping",
+		Schedule:    "Every hour",
+		Purpose:     "Maintains up-to-date market data by fetching orders from all regions with parallel processing and ESI rate limiting compliance",
+		Priority:    "Normal",
+	},
+	"system-market-pagination-monitor": {
+		Name:        "Market Pagination Migration Monitor",
+		Description: "Monitors ESI market endpoints for token-based pagination availability and migration status",
+		Schedule:    "Every 6 hours",
+		Purpose:     "Detects when EVE ESI transitions to token-based pagination and adjusts market fetching strategy accordingly",
+		Priority:    "Low",
 	},
 }

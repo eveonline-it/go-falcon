@@ -32,6 +32,7 @@ type Module struct {
 	characterModule   CharacterModule
 	allianceModule    AllianceModule
 	corporationModule CorporationModule
+	marketModule      MarketModule
 	groupService      *groupsServices.Service
 }
 
@@ -56,12 +57,18 @@ type CorporationModule interface {
 	ValidateCEOTokens(ctx context.Context) error
 }
 
+// MarketModule interface defines the methods needed from the market module
+type MarketModule interface {
+	FetchAllRegionalOrders(ctx context.Context, force bool) error
+	GetMarketStatus(ctx context.Context) (string, error) // Returns pagination mode detection status
+}
+
 // New creates a new scheduler module with standardized structure
-func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule) *Module {
+func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Module, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule, marketModule MarketModule) *Module {
 	baseModule := module.NewBaseModule("scheduler", mongodb, redis)
 
 	// Create services (note: groups module will be set later via SetGroupService)
-	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule, corporationModule, nil)
+	schedulerService := services.NewSchedulerService(mongodb, redis, authModule, characterModule, allianceModule, corporationModule, nil, marketModule)
 
 	// Note: SchedulerAdapter will be created in SetGroupService when PermissionManager becomes available
 	var schedulerAdapter *middleware.SchedulerAdapter
@@ -75,6 +82,7 @@ func New(mongodb *database.MongoDB, redis *database.Redis, authModule *auth.Modu
 		characterModule:   characterModule,
 		allianceModule:    allianceModule,
 		corporationModule: corporationModule,
+		marketModule:      marketModule,
 		groupService:      nil, // Will be set after groups module initialization
 	}
 }
@@ -88,7 +96,7 @@ func (m *Module) SetGroupService(groupService *groupsServices.Service) {
 		m.schedulerService = services.NewSchedulerService(
 			m.BaseModule.MongoDB(), m.BaseModule.Redis(),
 			m.authModule, m.characterModule, m.allianceModule, m.corporationModule,
-			groupService,
+			groupService, m.marketModule,
 		)
 		slog.Info("Scheduler service recreated with groups module dependency")
 	}

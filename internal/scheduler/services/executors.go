@@ -188,16 +188,18 @@ type SystemExecutor struct {
 	allianceModule    AllianceModule
 	corporationModule CorporationModule
 	groupsModule      GroupsModule
+	marketModule      MarketModule
 }
 
 // NewSystemExecutor creates a new system executor
-func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule, groupsModule GroupsModule) *SystemExecutor {
+func NewSystemExecutor(authModule AuthModule, characterModule CharacterModule, allianceModule AllianceModule, corporationModule CorporationModule, groupsModule GroupsModule, marketModule MarketModule) *SystemExecutor {
 	return &SystemExecutor{
 		authModule:        authModule,
 		characterModule:   characterModule,
 		allianceModule:    allianceModule,
 		corporationModule: corporationModule,
 		groupsModule:      groupsModule,
+		marketModule:      marketModule,
 	}
 }
 
@@ -228,6 +230,10 @@ func (e *SystemExecutor) Execute(ctx context.Context, task *models.Task) (*model
 		return e.executeCEOTokenValidation(ctx, config, start)
 	case "groups_sync":
 		return e.executeGroupsSync(ctx, config, start)
+	case "market_data_fetch":
+		return e.executeMarketDataFetch(ctx, config, start)
+	case "pagination_migration_monitor":
+		return e.executePaginationMigrationMonitor(ctx, config, start)
 	default:
 		return &models.TaskResult{
 			Success:  false,
@@ -498,6 +504,93 @@ func (e *SystemExecutor) executeGroupsSync(ctx context.Context, config *models.S
 		Duration: models.Duration(time.Since(start)),
 		Metadata: map[string]interface{}{
 			"task_type": "groups_sync",
+		},
+	}, nil
+}
+
+// executeMarketDataFetch executes the market data fetch system task
+func (e *SystemExecutor) executeMarketDataFetch(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
+	if e.marketModule == nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    "Market module not available",
+			Duration: models.Duration(time.Since(start)),
+		}, nil
+	}
+
+	// Get force parameter
+	force := false
+	if forceParam, ok := config.Parameters["force"]; ok {
+		if forceBool, ok := forceParam.(bool); ok {
+			force = forceBool
+		}
+	}
+
+	slog.Info("Starting market data fetch system task",
+		slog.Bool("force", force))
+
+	// Execute market data fetch
+	err := e.marketModule.FetchAllRegionalOrders(ctx, force)
+	if err != nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    fmt.Sprintf("Market data fetch failed: %v", err),
+			Duration: models.Duration(time.Since(start)),
+		}, nil
+	}
+
+	output := "Market data fetch completed successfully"
+
+	slog.Info("Market data fetch system task completed",
+		slog.Bool("force", force),
+		slog.String("duration", time.Since(start).String()))
+
+	return &models.TaskResult{
+		Success:  true,
+		Output:   output,
+		Duration: models.Duration(time.Since(start)),
+		Metadata: map[string]interface{}{
+			"task_type": "market_data_fetch",
+			"force":     force,
+		},
+	}, nil
+}
+
+// executePaginationMigrationMonitor executes the pagination migration monitor system task
+func (e *SystemExecutor) executePaginationMigrationMonitor(ctx context.Context, config *models.SystemTaskConfig, start time.Time) (*models.TaskResult, error) {
+	if e.marketModule == nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    "Market module not available",
+			Duration: models.Duration(time.Since(start)),
+		}, nil
+	}
+
+	slog.Info("Starting pagination migration monitor system task")
+
+	// Check pagination mode status
+	paginationStatus, err := e.marketModule.GetMarketStatus(ctx)
+	if err != nil {
+		return &models.TaskResult{
+			Success:  false,
+			Error:    fmt.Sprintf("Pagination monitor failed: %v", err),
+			Duration: models.Duration(time.Since(start)),
+		}, nil
+	}
+
+	output := fmt.Sprintf("Pagination migration monitor completed: %s", paginationStatus)
+
+	slog.Info("Pagination migration monitor system task completed",
+		slog.String("status", paginationStatus),
+		slog.String("duration", time.Since(start).String()))
+
+	return &models.TaskResult{
+		Success:  true,
+		Output:   output,
+		Duration: models.Duration(time.Since(start)),
+		Metadata: map[string]interface{}{
+			"task_type":         "pagination_migration_monitor",
+			"pagination_status": paginationStatus,
 		},
 	}, nil
 }
