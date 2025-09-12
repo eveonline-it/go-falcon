@@ -1142,9 +1142,29 @@ func (s *Service) parseESISkills(esiSkills map[string]any, characterID int) *mod
 // skillsModelToDTO converts database model to DTO
 func (s *Service) skillsModelToDTO(model *models.CharacterSkills) *dto.CharacterSkills {
 	skills := make([]dto.Skill, 0, len(model.Skills))
+
 	for _, skill := range model.Skills {
+		// Get skill name from SDE service if available
+		skillName := ""
+		if s.sdeService != nil {
+			typeID := fmt.Sprintf("%d", skill.SkillID)
+			if typeInfo, err := s.sdeService.GetType(typeID); err == nil && typeInfo != nil {
+				// Get English name from the localized name map
+				if name, ok := typeInfo.Name["en"]; ok {
+					skillName = name
+				} else {
+					// Fallback to any available language if English not found
+					for _, name := range typeInfo.Name {
+						skillName = name
+						break
+					}
+				}
+			}
+		}
+
 		skills = append(skills, dto.Skill{
 			SkillID:            skill.SkillID,
+			SkillName:          skillName,
 			SkillpointsInSkill: skill.SkillpointsInSkill,
 			TrainedSkillLevel:  skill.TrainedSkillLevel,
 			ActiveSkillLevel:   skill.ActiveSkillLevel,

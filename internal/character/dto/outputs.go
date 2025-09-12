@@ -115,10 +115,11 @@ type CharacterSkillQueueOutput struct {
 
 // Skill represents a single trained skill
 type Skill struct {
-	SkillID            int `json:"skill_id" doc:"Skill type ID"`
-	SkillpointsInSkill int `json:"skillpoints_in_skill" doc:"Total skill points in this skill"`
-	TrainedSkillLevel  int `json:"trained_skill_level" doc:"Trained skill level"`
-	ActiveSkillLevel   int `json:"active_skill_level" doc:"Active skill level"`
+	SkillID            int    `json:"skill_id" doc:"Skill type ID"`
+	SkillName          string `json:"skill_name" doc:"Name of the skill"`
+	SkillpointsInSkill int    `json:"skillpoints_in_skill" doc:"Total skill points in this skill"`
+	TrainedSkillLevel  int    `json:"trained_skill_level" doc:"Trained skill level"`
+	ActiveSkillLevel   int    `json:"active_skill_level" doc:"Active skill level"`
 }
 
 // CharacterSkills represents the character's complete skills
