@@ -248,6 +248,61 @@ func RegisterCharacterRoutes(api huma.API, basePath string, service *services.Se
 		return result, nil
 	})
 
+	// Get character enriched skill tree endpoint (authenticated, requires ESI token)
+	huma.Register(api, huma.Operation{
+		OperationID: "character-get-enriched-skill-tree",
+		Method:      "GET",
+		Path:        basePath + "/{character_id}/skills/tree",
+		Summary:     "Get character enriched skill tree",
+		Description: "Get character skills organized by categories with statistics and enriched data from EVE ESI and SDE. Requires authentication and esi-skills.read_skills.v1 scope for the character.",
+		Tags:        []string{"Character"},
+	}, func(ctx context.Context, input *dto.GetCharacterEnrichedSkillTreeInput) (*dto.EnrichedSkillTreeOutput, error) {
+		// Require authentication
+		var user *models.AuthenticatedUser
+		if characterAdapter != nil {
+			authUser, err := characterAdapter.RequireCharacterAccess(ctx, input.Authorization, input.Cookie)
+			if err != nil {
+				return nil, err
+			}
+			user = authUser
+		}
+
+		// Check if the user is requesting their own skills or if they have permission
+		if user == nil || user.CharacterID != input.CharacterID {
+			return nil, huma.Error403Forbidden("You can only view your own character enriched skill tree")
+		}
+
+		// Get the user profile to retrieve the ESI access token
+		if authRepository == nil {
+			return nil, huma.Error500InternalServerError("Authentication service not available")
+		}
+
+		profile, err := authRepository.GetUserProfileByCharacterID(ctx, input.CharacterID)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to retrieve user profile", err)
+		}
+		if profile == nil {
+			return nil, huma.Error404NotFound("User profile not found")
+		}
+
+		// Check if access token is expired
+		if time.Now().After(profile.TokenExpiry) {
+			return nil, huma.Error401Unauthorized("EVE access token expired, please re-authenticate")
+		}
+
+		// Use the ESI access token from the profile
+		token := profile.AccessToken
+		if token == "" {
+			return nil, huma.Error401Unauthorized("No EVE access token available")
+		}
+
+		result, err := service.GetEnrichedSkillTree(ctx, input.CharacterID, token)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to get character enriched skill tree", err)
+		}
+		return result, nil
+	})
+
 	// Get character corporation history endpoint (public, no token required)
 	huma.Register(api, huma.Operation{
 		OperationID: "character-get-corporation-history",

@@ -100,3 +100,10 @@ type GetCharacterWalletInput struct {
 	Authorization string `header:"Authorization" doc:"JWT Bearer token for authentication"`
 	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
 }
+
+// GetCharacterEnrichedSkillTreeInput represents the authenticated input for getting character enriched skill tree
+type GetCharacterEnrichedSkillTreeInput struct {
+	CharacterID   int    `path:"character_id" validate:"required" minimum:"90000000" maximum:"2147483647" doc:"EVE Online character ID"`
+	Authorization string `header:"Authorization" doc:"JWT Bearer token for authentication"`
+	Cookie        string `header:"Cookie" doc:"Authentication cookie"`
+}

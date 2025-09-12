@@ -1706,3 +1706,210 @@ func (s *Service) GetCharacterWallet(ctx context.Context, characterID int, token
 	log.Printf("Character wallet fetched from ESI for character_id: %d (balance: %.2f ISK)", characterID, result.Balance)
 	return &dto.CharacterWalletOutput{Body: *result}, nil
 }
+
+// GetEnrichedSkillTree retrieves character skills organized by categories with statistics
+func (s *Service) GetEnrichedSkillTree(ctx context.Context, characterID int, token string) (*dto.EnrichedSkillTreeOutput, error) {
+	// 1. Check Redis cache first
+	cacheKey := fmt.Sprintf("c:character:skill-tree:%d", characterID)
+	if s.redis != nil {
+		cachedData, err := s.redis.Get(ctx, cacheKey)
+		if err == nil && cachedData != "" {
+			// Parse cached data
+			var result dto.EnrichedSkillTree
+			if err := json.Unmarshal([]byte(cachedData), &result); err == nil {
+				log.Printf("Enriched skill tree found in cache for character_id: %d", characterID)
+				return &dto.EnrichedSkillTreeOutput{Body: result}, nil
+			}
+		}
+	}
+
+	// 2. Get character skills using existing service method
+	skillsResponse, err := s.GetCharacterSkills(ctx, characterID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get character skills: %w", err)
+	}
+
+	// 3. Build skill tree from SDE data and enrich with character skills
+	enrichedTree, err := s.buildEnrichedSkillTree(skillsResponse.Body.Skills, skillsResponse.Body.TotalSP, skillsResponse.Body.UnallocatedSP)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build enriched skill tree: %w", err)
+	}
+
+	enrichedTree.CharacterID = characterID
+	enrichedTree.UpdatedAt = time.Now()
+
+	// 4. Update cache
+	if s.redis != nil {
+		if data, err := json.Marshal(enrichedTree); err == nil {
+			// Cache for 30 minutes (skills don't change often)
+			_ = s.redis.Set(ctx, cacheKey, string(data), 30*time.Minute)
+		}
+	}
+
+	log.Printf("Enriched skill tree built for character_id: %d with %d categories", characterID, len(enrichedTree.SkillTree))
+	return &dto.EnrichedSkillTreeOutput{Body: *enrichedTree}, nil
+}
+
+// buildEnrichedSkillTree constructs the skill tree organized by categories with statistics
+func (s *Service) buildEnrichedSkillTree(characterSkills []dto.Skill, totalSP int64, unallocatedSP *int) (*dto.EnrichedSkillTree, error) {
+	// Maximum skill points per category (from Node.js implementation)
+	maxSkillPoints := map[string]int{
+		"Armor":                  12032000,
+		"Corporation Management": 4864000,
+		"Drones":                 35840000,
+		"Electronic Systems":     17408000,
+		"Engineering":            11008000,
+		"Fleet Support":          22784000,
+		"Gunnery":                86528000,
+		"Missiles":               29184000,
+		"Navigation":             15872000,
+		"Neural Enhancement":     10496000,
+		"Planet Management":      4352000,
+		"Production":             21248000,
+		"Resource Processing":    36608000,
+		"Rigging":                7424000,
+		"Scanning":               7168000,
+		"Science":                49408000,
+		"Shields":                12288000,
+		"Spaceship Command":      151808000,
+		"Structure Management":   4608000,
+		"Subsystems":             4096000,
+		"Targeting":              3840000,
+		"Trade":                  12032000,
+	}
+
+	// Create a map of character skills for fast lookup
+	skillMap := make(map[int]dto.Skill)
+	for _, skill := range characterSkills {
+		skillMap[skill.SkillID] = skill
+	}
+
+	// Get all skill groups from SDE
+	allGroups, err := s.sdeService.GetAllGroups()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get skill groups from SDE: %w", err)
+	}
+
+	// Build categories map for skill groups
+	skillGroupMap := make(map[int]string) // groupID -> categoryName
+
+	// Process each group to find skill groups (category ID 16 is Skills in EVE)
+	for groupIDStr, group := range allGroups {
+		if group.CategoryID != 16 { // Skip non-skill groups
+			continue
+		}
+
+		// Get group name (use English if available)
+		categoryName := "Unknown"
+		if enName, ok := group.Name["en"]; ok && enName != "" {
+			categoryName = enName
+		} else if len(group.Name) > 0 {
+			// Use first available language if English not found
+			for _, name := range group.Name {
+				if name != "" {
+					categoryName = name
+					break
+				}
+			}
+		}
+
+		// Skip fake skills category
+		if categoryName == "Fake Skills" {
+			continue
+		}
+
+		groupID, _ := strconv.Atoi(groupIDStr)
+		skillGroupMap[groupID] = categoryName
+	}
+
+	// Get all types and filter for skills
+	allTypes, err := s.sdeService.GetAllTypes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all types from SDE: %w", err)
+	}
+
+	// Build categories
+	categories := make(map[string]*dto.SkillCategory)
+
+	// Process each type to find skills
+	for typeIDStr, typeInfo := range allTypes {
+		// Check if this type belongs to a skill group and is published
+		categoryName, isSkillGroup := skillGroupMap[typeInfo.GroupID]
+		if !isSkillGroup || !typeInfo.Published {
+			continue
+		}
+
+		// Initialize category if not exists
+		if categories[categoryName] == nil {
+			categories[categoryName] = &dto.SkillCategory{
+				Category:          categoryName,
+				Skills:            []dto.EnrichedSkill{},
+				TotalSpInCategory: 0,
+			}
+			// Set max SP if we have it
+			if maxSP, exists := maxSkillPoints[categoryName]; exists {
+				categories[categoryName].MaxCategorySP = &maxSP
+			}
+		}
+
+		typeID, _ := strconv.Atoi(typeIDStr)
+
+		// Get skill name
+		skillName := "Unknown Skill"
+		if enName, ok := typeInfo.Name["en"]; ok && enName != "" {
+			skillName = enName
+		}
+
+		// Create enriched skill
+		enrichedSkill := dto.EnrichedSkill{
+			SkillID:            typeID,
+			Name:               skillName,
+			ActiveSkillLevel:   0,
+			SkillpointsInSkill: 0,
+			TrainedSkillLevel:  0,
+		}
+
+		// Enrich with character data if character has this skill
+		if charSkill, hasSkill := skillMap[typeID]; hasSkill {
+			enrichedSkill.ActiveSkillLevel = charSkill.ActiveSkillLevel
+			enrichedSkill.SkillpointsInSkill = charSkill.SkillpointsInSkill
+			enrichedSkill.TrainedSkillLevel = charSkill.TrainedSkillLevel
+			enrichedSkill.Name = charSkill.SkillName // Use name from ESI response if available
+
+			categories[categoryName].TotalSpInCategory += charSkill.SkillpointsInSkill
+		}
+
+		categories[categoryName].Skills = append(categories[categoryName].Skills, enrichedSkill)
+	}
+
+	// Calculate statistics for each category
+	for _, category := range categories {
+		if len(category.Skills) > 0 {
+			// Calculate percentage fulfilled
+			categoryLevel := 0
+			for _, skill := range category.Skills {
+				categoryLevel += skill.TrainedSkillLevel
+			}
+			howManySkillsInCategory := len(category.Skills)
+			percentFulfilled := float64(categoryLevel) / float64(howManySkillsInCategory) / 5.0 * 100.0
+			category.PercentFulfilled = fmt.Sprintf("%.0f", percentFulfilled)
+		}
+	}
+
+	// Convert map to slice
+	skillTree := make([]dto.SkillCategory, 0, len(categories))
+	for _, category := range categories {
+		skillTree = append(skillTree, *category)
+	}
+
+	unallocatedSPValue := 0
+	if unallocatedSP != nil {
+		unallocatedSPValue = *unallocatedSP
+	}
+
+	return &dto.EnrichedSkillTree{
+		TotalSP:       totalSP,
+		UnallocatedSP: unallocatedSPValue,
+		SkillTree:     skillTree,
+	}, nil
+}

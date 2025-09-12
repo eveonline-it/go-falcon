@@ -278,3 +278,35 @@ type CharacterWallet struct {
 type CharacterWalletOutput struct {
 	Body CharacterWallet `json:"body"`
 }
+
+// EnrichedSkill represents a skill with additional training information
+type EnrichedSkill struct {
+	SkillID            int    `json:"skill_id" doc:"Skill type ID"`
+	Name               string `json:"name" doc:"Name of the skill"`
+	ActiveSkillLevel   int    `json:"active_skill_level" doc:"Active skill level"`
+	SkillpointsInSkill int    `json:"skillpoints_in_skill" doc:"Total skill points in this skill"`
+	TrainedSkillLevel  int    `json:"trained_skill_level" doc:"Trained skill level"`
+}
+
+// SkillCategory represents a category of skills with statistics
+type SkillCategory struct {
+	Category          string          `json:"category" doc:"Name of the skill category"`
+	Skills            []EnrichedSkill `json:"skills" doc:"List of skills in this category"`
+	PercentFulfilled  string          `json:"percent_fulfilled" doc:"Percentage of skills maxed in category"`
+	TotalSpInCategory int             `json:"total_sp_in_category" doc:"Total skill points in this category"`
+	MaxCategorySP     *int            `json:"max_category_sp,omitempty" doc:"Maximum possible skill points in category"`
+}
+
+// EnrichedSkillTree represents the complete enriched skill tree
+type EnrichedSkillTree struct {
+	CharacterID   int             `json:"character_id" doc:"EVE Online character ID"`
+	TotalSP       int64           `json:"total_sp" doc:"Total skill points"`
+	UnallocatedSP int             `json:"unallocated_sp" doc:"Unallocated skill points"`
+	SkillTree     []SkillCategory `json:"skill_tree" doc:"Organized skill tree by category"`
+	UpdatedAt     time.Time       `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// EnrichedSkillTreeOutput represents the enriched skill tree response (Huma wrapper)
+type EnrichedSkillTreeOutput struct {
+	Body EnrichedSkillTree `json:"body"`
+}
