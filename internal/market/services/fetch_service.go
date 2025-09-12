@@ -2,11 +2,8 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"sync"
 	"time"
 
@@ -240,7 +237,7 @@ func (f *FetchService) fetchRegionData(ctx context.Context, region *sde.Region) 
 	return result
 }
 
-// fetchRegionOrdersByType fetches orders for a specific region and order type with pagination
+// fetchRegionOrdersByType fetches orders for a specific region and order type using evegateway
 func (f *FetchService) fetchRegionOrdersByType(ctx context.Context, regionID int, orderType string, params models.PaginationParams) ([]models.MarketOrder, int, models.PaginationMode, error) {
 	var allOrders []models.MarketOrder
 	requestCount := 0
@@ -257,62 +254,38 @@ func (f *FetchService) fetchRegionOrdersByType(ctx context.Context, regionID int
 		default:
 		}
 
-		// Prepare ESI request parameters
-		esiParams := map[string]interface{}{
-			"order_type": orderType,
-		}
-
-		// Add pagination parameters
-		if params.Before != nil || params.After != nil {
-			// Token-based pagination
-			paginationMode = models.PaginationModeToken
-			if params.Before != nil {
-				esiParams["before"] = *params.Before
-			}
-			if params.After != nil {
-				esiParams["after"] = *params.After
-			}
-		} else {
-			// Offset-based pagination
-			esiParams["page"] = page
-		}
-
-		// Make ESI request
-		path := fmt.Sprintf("/v1/markets/%d/orders/", regionID)
-		response, err := f.makeESIRequest(ctx, path, esiParams)
+		// Use evegateway market client to fetch orders
+		esiOrders, err := f.eveGateway.Market.GetMarketOrders(ctx, regionID, orderType, page)
 		if err != nil {
 			return allOrders, requestCount, paginationMode, fmt.Errorf("ESI request failed: %w", err)
 		}
 
 		requestCount++
 
-		// Parse response
-		orders, paginationInfo, err := f.parseMarketOrdersResponse(response, regionID)
+		// Convert ESI response to internal market order format
+		orders, err := f.convertESIOrdersToModels(esiOrders, regionID)
 		if err != nil {
-			return allOrders, requestCount, paginationMode, fmt.Errorf("failed to parse ESI response: %w", err)
+			return allOrders, requestCount, paginationMode, fmt.Errorf("failed to convert ESI orders: %w", err)
 		}
 
 		allOrders = append(allOrders, orders...)
 
 		// Check if we need to continue pagination
-		if paginationInfo.Mode == models.PaginationModeToken {
-			paginationMode = models.PaginationModeToken
-			if paginationInfo.Before != nil {
-				params.Before = paginationInfo.Before
-			} else {
-				break // No more pages
-			}
-		} else {
-			// Offset-based pagination
-			if len(orders) == 0 || !paginationInfo.HasMore {
-				break // No more pages
-			}
-			page++
+		// Simple pagination: if we get less than expected, we're done
+		if len(esiOrders) == 0 {
+			break // No more pages
 		}
+
+		page++
 
 		// Safety check to prevent infinite loops
 		if requestCount > 1000 {
 			slog.Warn("Too many requests for region, stopping", "region_id", regionID, "order_type", orderType, "requests", requestCount)
+			break
+		}
+
+		// Break if we get less than a full page (indicates last page)
+		if len(esiOrders) < 1000 { // ESI typically returns up to 1000 orders per page
 			break
 		}
 	}
@@ -320,21 +293,63 @@ func (f *FetchService) fetchRegionOrdersByType(ctx context.Context, regionID int
 	return allOrders, requestCount, paginationMode, nil
 }
 
-// parseMarketOrdersResponse parses ESI market orders response
-func (f *FetchService) parseMarketOrdersResponse(response interface{}, regionID int) ([]models.MarketOrder, *models.PaginationInfo, error) {
-	// TODO: Implement proper ESI response parsing
-	// This is a placeholder - in reality you would parse the actual ESI JSON response
+// convertESIOrdersToModels converts evegateway ESI response to internal model format
+func (f *FetchService) convertESIOrdersToModels(esiOrders []map[string]any, regionID int) ([]models.MarketOrder, error) {
+	orders := make([]models.MarketOrder, 0, len(esiOrders))
+	fetchedAt := time.Now()
 
-	orders := []models.MarketOrder{}
-	paginationInfo := &models.PaginationInfo{
-		Mode:    models.PaginationModeOffset,
-		HasMore: false,
+	for _, esiOrder := range esiOrders {
+		order := models.MarketOrder{
+			RegionID:  regionID,
+			FetchedAt: fetchedAt,
+			CreatedAt: fetchedAt,
+			UpdatedAt: fetchedAt,
+		}
+
+		// Extract fields from ESI response with type assertions
+		if orderID, ok := esiOrder["order_id"].(float64); ok {
+			order.OrderID = int64(orderID)
+		}
+		if typeID, ok := esiOrder["type_id"].(float64); ok {
+			order.TypeID = int(typeID)
+		}
+		if locationID, ok := esiOrder["location_id"].(float64); ok {
+			order.LocationID = int64(locationID)
+		}
+		if volumeTotal, ok := esiOrder["volume_total"].(float64); ok {
+			order.VolumeTotal = int(volumeTotal)
+		}
+		if volumeRemain, ok := esiOrder["volume_remain"].(float64); ok {
+			order.VolumeRemain = int(volumeRemain)
+		}
+		if minVolume, ok := esiOrder["min_volume"].(float64); ok {
+			order.MinVolume = int(minVolume)
+		}
+		if price, ok := esiOrder["price"].(float64); ok {
+			order.Price = price
+		}
+		if isBuyOrder, ok := esiOrder["is_buy_order"].(bool); ok {
+			order.IsBuyOrder = isBuyOrder
+		}
+		if duration, ok := esiOrder["duration"].(float64); ok {
+			order.Duration = int(duration)
+		}
+		if issued, ok := esiOrder["issued"].(string); ok {
+			if parsedTime, err := time.Parse(time.RFC3339, issued); err == nil {
+				order.Issued = parsedTime
+			}
+		}
+		if orderRange, ok := esiOrder["range"].(string); ok {
+			order.Range = orderRange
+		}
+
+		// For now, we'll leave SystemID as 0 - it can be resolved later if needed
+		// This could be done by looking up station data in SDE or making additional ESI calls
+
+		orders = append(orders, order)
 	}
 
-	// For now, return empty orders to allow the system to work
-	// In production, you would implement proper JSON unmarshaling here
-
-	return orders, paginationInfo, nil
+	return orders, nil
 }
 
 // processResults analyzes fetch results and performs atomic collection swap
@@ -503,58 +518,4 @@ type RegionFetchResult struct {
 	PaginationMode  models.PaginationMode `json:"pagination_mode"`
 	Error           error                 `json:"error,omitempty"`
 	Skipped         bool                  `json:"skipped"`
-}
-
-// makeESIRequest makes an HTTP request to the EVE ESI API
-func (f *FetchService) makeESIRequest(ctx context.Context, path string, params map[string]interface{}) ([]map[string]interface{}, error) {
-	// Build URL with parameters
-	url := "https://esi.evetech.net" + path
-	if len(params) > 0 {
-		url += "?"
-		first := true
-		for key, value := range params {
-			if !first {
-				url += "&"
-			}
-			url += fmt.Sprintf("%s=%v", key, value)
-			first = false
-		}
-	}
-
-	// Create HTTP request
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Set required headers
-	req.Header.Set("User-Agent", "go-falcon/1.0.0")
-	req.Header.Set("Accept", "application/json")
-
-	// Make request using the evegateway HTTP client
-	client := f.eveGateway.HTTPClient()
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("HTTP request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Check response status
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ESI API returned status %d", resp.StatusCode)
-	}
-
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	// Parse JSON response
-	var result []map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
-	}
-
-	return result, nil
 }

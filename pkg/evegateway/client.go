@@ -20,6 +20,7 @@ import (
 	"go-falcon/pkg/evegateway/character"
 	"go-falcon/pkg/evegateway/corporation"
 	"go-falcon/pkg/evegateway/killmails"
+	"go-falcon/pkg/evegateway/market"
 	"go-falcon/pkg/evegateway/structures"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -46,6 +47,7 @@ type Client struct {
 	Alliance    AllianceClient
 	Corporation CorporationClient
 	Killmails   KillmailClient
+	Market      MarketClient
 	Assets      AssetsClient
 	Structures  StructuresClient
 }
@@ -140,6 +142,15 @@ type AssetsClient interface {
 	GetCorporationAssets(ctx context.Context, corporationID int32, token string) ([]map[string]any, error)
 }
 
+// MarketClient interface for market operations
+type MarketClient interface {
+	GetMarketOrders(ctx context.Context, regionID int, orderType string, page int) ([]map[string]any, error)
+	GetMarketHistory(ctx context.Context, regionID int, typeID int) ([]map[string]any, error)
+	GetMarketStats(ctx context.Context, regionID int) ([]map[string]any, error)
+	GetMarketTypes(ctx context.Context, regionID int) ([]int, error)
+	GetStructureOrders(ctx context.Context, structureID int64, token string, page int) ([]map[string]any, error)
+}
+
 // StructuresClient interface for structures operations
 type StructuresClient interface {
 	GetStructure(ctx context.Context, structureID int64, token string) (map[string]any, error)
@@ -203,6 +214,8 @@ func NewClient() *Client {
 	corporationClient := &corporationClientImpl{client: corporationClientDirect}
 	killmailClientDirect := killmails.NewKillmailClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	killmailClient := &killmailClientImpl{client: killmailClientDirect}
+	marketClientDirect := market.NewMarketClient(httpClient, cacheManager)
+	marketClient := &marketClientImpl{client: marketClientDirect}
 	assetsClientDirect := assets.NewAssetsClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	assetsClient := &assetsClientImpl{client: assetsClientDirect}
 	structuresClientDirect := structures.NewStructuresClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
@@ -222,6 +235,7 @@ func NewClient() *Client {
 		Alliance:     allianceClient,
 		Corporation:  corporationClient,
 		Killmails:    killmailClient,
+		Market:       marketClient,
 		Assets:       assetsClient,
 		Structures:   structuresClient,
 	}
@@ -265,6 +279,8 @@ func NewClientWithRedis(redisClient *database.Redis) *Client {
 	corporationClient := &corporationClientImpl{client: corporationClientDirect}
 	killmailClientDirect := killmails.NewKillmailClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	killmailClient := &killmailClientImpl{client: killmailClientDirect}
+	marketClientDirect := market.NewMarketClient(httpClient, cacheManager)
+	marketClient := &marketClientImpl{client: marketClientDirect}
 	assetsClientDirect := assets.NewAssetsClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
 	assetsClient := &assetsClientImpl{client: assetsClientDirect}
 	structuresClientDirect := structures.NewStructuresClient(httpClient, "https://esi.evetech.net", userAgent, cacheManager, retryClient)
@@ -284,6 +300,7 @@ func NewClientWithRedis(redisClient *database.Redis) *Client {
 		Alliance:     allianceClient,
 		Corporation:  corporationClient,
 		Killmails:    killmailClient,
+		Market:       marketClient,
 		Assets:       assetsClient,
 		Structures:   structuresClient,
 	}
@@ -1127,6 +1144,120 @@ func (c *corporationClientImpl) GetCorporationWalletsWithCache(ctx context.Conte
 }
 
 // Killmail client adapter
+// Market client adapter
+type marketClientImpl struct {
+	client market.Client
+}
+
+func (m *marketClientImpl) GetMarketOrders(ctx context.Context, regionID int, orderType string, page int) ([]map[string]any, error) {
+	orders, err := m.client.GetMarketOrders(ctx, regionID, orderType, page)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to map[string]any for backward compatibility
+	result := make([]map[string]any, len(orders))
+	for i, order := range orders {
+		orderMap := map[string]any{
+			"order_id":      order.OrderID,
+			"type_id":       order.TypeID,
+			"location_id":   order.LocationID,
+			"volume_total":  order.VolumeTotal,
+			"volume_remain": order.VolumeRemain,
+			"min_volume":    order.MinVolume,
+			"price":         order.Price,
+			"is_buy_order":  order.IsBuyOrder,
+			"duration":      order.Duration,
+			"issued":        order.Issued,
+			"range":         order.Range,
+		}
+		result[i] = orderMap
+	}
+
+	return result, nil
+}
+
+func (m *marketClientImpl) GetMarketHistory(ctx context.Context, regionID int, typeID int) ([]map[string]any, error) {
+	history, err := m.client.GetMarketHistory(ctx, regionID, typeID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to map[string]any for backward compatibility
+	result := make([]map[string]any, len(history))
+	for i, item := range history {
+		historyMap := map[string]any{
+			"date":        item.Date,
+			"order_count": item.OrderCount,
+			"volume":      item.Volume,
+			"highest":     item.Highest,
+			"average":     item.Average,
+			"lowest":      item.Lowest,
+		}
+		result[i] = historyMap
+	}
+
+	return result, nil
+}
+
+func (m *marketClientImpl) GetMarketStats(ctx context.Context, regionID int) ([]map[string]any, error) {
+	stats, err := m.client.GetMarketStats(ctx, regionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to map[string]any for backward compatibility
+	result := make([]map[string]any, len(stats))
+	for i, stat := range stats {
+		statMap := map[string]any{
+			"type_id":            stat.TypeID,
+			"sell_order_count":   stat.SellOrderCount,
+			"sell_volume_remain": stat.SellVolumeRemain,
+			"sell_orders_min":    stat.SellOrdersMin,
+			"sell_orders_max":    stat.SellOrdersMax,
+			"buy_order_count":    stat.BuyOrderCount,
+			"buy_volume_remain":  stat.BuyVolumeRemain,
+			"buy_orders_min":     stat.BuyOrdersMin,
+			"buy_orders_max":     stat.BuyOrdersMax,
+		}
+		result[i] = statMap
+	}
+
+	return result, nil
+}
+
+func (m *marketClientImpl) GetMarketTypes(ctx context.Context, regionID int) ([]int, error) {
+	return m.client.GetMarketTypes(ctx, regionID)
+}
+
+func (m *marketClientImpl) GetStructureOrders(ctx context.Context, structureID int64, token string, page int) ([]map[string]any, error) {
+	orders, err := m.client.GetStructureOrders(ctx, structureID, token, page)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to map[string]any for backward compatibility
+	result := make([]map[string]any, len(orders))
+	for i, order := range orders {
+		orderMap := map[string]any{
+			"order_id":      order.OrderID,
+			"type_id":       order.TypeID,
+			"location_id":   order.LocationID,
+			"volume_total":  order.VolumeTotal,
+			"volume_remain": order.VolumeRemain,
+			"min_volume":    order.MinVolume,
+			"price":         order.Price,
+			"is_buy_order":  order.IsBuyOrder,
+			"duration":      order.Duration,
+			"issued":        order.Issued,
+			"range":         order.Range,
+		}
+		result[i] = orderMap
+	}
+
+	return result, nil
+}
+
 type killmailClientImpl struct {
 	client killmails.Client
 }
