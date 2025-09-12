@@ -12,6 +12,7 @@ import (
 	"go-falcon/pkg/sde"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Service provides business logic for market operations
@@ -489,6 +490,73 @@ func (s *Service) TriggerFetch(ctx context.Context, regionID *int, force bool) (
 	result.Body.EstimatedTime = estimatedTime
 
 	return result, nil
+}
+
+// GetCollectionCounts returns document counts for debugging (temporary)
+func (s *Service) GetCollectionCounts(ctx context.Context) (*struct {
+	MarketOrders     int64 `json:"market_orders"`
+	MarketOrdersTemp int64 `json:"market_orders_temp"`
+	MarketOrdersOld  int64 `json:"market_orders_old"`
+}, error) {
+	counts := &struct {
+		MarketOrders     int64 `json:"market_orders"`
+		MarketOrdersTemp int64 `json:"market_orders_temp"`
+		MarketOrdersOld  int64 `json:"market_orders_old"`
+	}{}
+
+	// Count documents in each collection
+	collections := []struct {
+		name  string
+		count *int64
+	}{
+		{"market_orders", &counts.MarketOrders},
+		{"market_orders_temp", &counts.MarketOrdersTemp},
+		{"market_orders_old", &counts.MarketOrdersOld},
+	}
+
+	for _, col := range collections {
+		collection := s.repository.mongodb.Database.Collection(col.name)
+		count, err := collection.CountDocuments(ctx, bson.M{})
+		if err != nil {
+			// Set to -1 to indicate error
+			*col.count = -1
+		} else {
+			*col.count = count
+		}
+	}
+
+	return counts, nil
+}
+
+// GetSampleTempOrders returns sample documents from temp collection for debugging
+func (s *Service) GetSampleTempOrders(ctx context.Context) ([]interface{}, int64, error) {
+	collection := s.repository.mongodb.Database.Collection("market_orders_temp")
+
+	// Get total count
+	totalCount, err := collection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get first 5 documents
+	cursor, err := collection.Find(ctx, bson.M{}, &options.FindOptions{
+		Limit: func() *int64 { l := int64(5); return &l }(),
+	})
+	if err != nil {
+		return nil, totalCount, err
+	}
+	defer cursor.Close(ctx)
+
+	var samples []interface{}
+	for cursor.Next(ctx) {
+		var doc bson.M
+		if err := cursor.Decode(&doc); err != nil {
+			continue
+		}
+		samples = append(samples, doc)
+	}
+
+	return samples, totalCount, nil
 }
 
 // Helper methods

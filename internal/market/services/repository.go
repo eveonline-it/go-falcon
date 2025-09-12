@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"go-falcon/internal/market/models"
@@ -188,6 +189,10 @@ func (r *Repository) BulkUpsertOrders(ctx context.Context, collectionName string
 		return nil
 	}
 
+	// Create a longer timeout context for bulk operations (20 minutes per collection)
+	bulkCtx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	defer cancel()
+
 	collection := r.mongodb.Database.Collection(collectionName)
 
 	var operations []mongo.WriteModel
@@ -198,7 +203,11 @@ func (r *Repository) BulkUpsertOrders(ctx context.Context, collectionName string
 		}
 		order.UpdatedAt = now
 
-		filter := bson.M{"order_id": order.OrderID}
+		// Use composite key: order_id + region_id for uniqueness across regions
+		filter := bson.M{
+			"order_id":  order.OrderID,
+			"region_id": order.RegionID,
+		}
 		update := bson.M{"$set": order}
 
 		operation := mongo.NewUpdateOneModel()
@@ -209,21 +218,65 @@ func (r *Repository) BulkUpsertOrders(ctx context.Context, collectionName string
 		operations = append(operations, operation)
 	}
 
-	// Execute bulk write in batches to avoid memory issues
-	batchSize := 1000
+	// Execute bulk write in larger batches for better performance
+	batchSize := 5000 // Increased batch size for better performance
+	totalBatches := (len(operations) + batchSize - 1) / batchSize
+
 	for i := 0; i < len(operations); i += batchSize {
 		end := i + batchSize
 		if end > len(operations) {
 			end = len(operations)
 		}
 
+		batchNum := (i / batchSize) + 1
 		batch := operations[i:end]
-		opts := options.BulkWrite().SetOrdered(false)
 
-		_, err := collection.BulkWrite(ctx, batch, opts)
+		// Optimize bulk write options for performance
+		opts := options.BulkWrite().
+			SetOrdered(false).                // Unordered for better performance
+			SetBypassDocumentValidation(true) // Skip validation for speed
+
+		// Use the bulk context with longer timeout
+		result, err := collection.BulkWrite(bulkCtx, batch, opts)
 		if err != nil {
-			return fmt.Errorf("failed to bulk write orders (batch %d-%d): %w", i, end, err)
+			return fmt.Errorf("failed to bulk write orders (batch %d/%d, records %d-%d): %w", batchNum, totalBatches, i, end, err)
 		}
+
+		// Log actual write results for verification
+		if result != nil {
+			slog.Debug("Bulk write batch completed",
+				"collection", collectionName,
+				"batch", batchNum,
+				"inserted", result.InsertedCount,
+				"modified", result.ModifiedCount,
+				"upserted", result.UpsertedCount,
+				"matched", result.MatchedCount)
+		}
+
+		// Log progress for large operations with actual write counts
+		if totalBatches > 10 && batchNum%5 == 0 {
+			writeCount := int64(0)
+			if result != nil {
+				writeCount = result.InsertedCount + result.ModifiedCount + result.UpsertedCount
+			}
+			slog.Info("Bulk write progress",
+				"collection", collectionName,
+				"batch", batchNum,
+				"total_batches", totalBatches,
+				"records_processed", end,
+				"records_written_this_batch", writeCount)
+		}
+	}
+
+	// Final verification: count documents in collection
+	count, err := collection.CountDocuments(bulkCtx, bson.M{})
+	if err != nil {
+		slog.Warn("Failed to count documents after bulk write", "collection", collectionName, "error", err)
+	} else {
+		slog.Info("Bulk write operation completed",
+			"collection", collectionName,
+			"total_operations", len(operations),
+			"final_document_count", count)
 	}
 
 	return nil

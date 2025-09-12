@@ -163,4 +163,76 @@ func RegisterMarketRoutes(api huma.API, basePath string, service *services.Servi
 
 		return service.TriggerFetch(ctx, regionID, force)
 	})
+
+	// Debug: Check collection counts (temporary for debugging)
+	huma.Register(api, huma.Operation{
+		OperationID: "market-debug-collections",
+		Method:      "GET",
+		Path:        basePath + "/debug/collections",
+		Summary:     "Debug: Check collection document counts",
+		Description: "Temporary debug endpoint to check document counts in market collections.",
+		Tags:        []string{"Market Debug"},
+	}, func(ctx context.Context, input *struct{}) (*struct {
+		Body struct {
+			MarketOrders     int64 `json:"market_orders"`
+			MarketOrdersTemp int64 `json:"market_orders_temp"`
+			MarketOrdersOld  int64 `json:"market_orders_old"`
+		} `json:"body"`
+	}, error) {
+		counts, err := service.GetCollectionCounts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &struct {
+			Body struct {
+				MarketOrders     int64 `json:"market_orders"`
+				MarketOrdersTemp int64 `json:"market_orders_temp"`
+				MarketOrdersOld  int64 `json:"market_orders_old"`
+			} `json:"body"`
+		}{
+			Body: struct {
+				MarketOrders     int64 `json:"market_orders"`
+				MarketOrdersTemp int64 `json:"market_orders_temp"`
+				MarketOrdersOld  int64 `json:"market_orders_old"`
+			}{
+				MarketOrders:     counts.MarketOrders,
+				MarketOrdersTemp: counts.MarketOrdersTemp,
+				MarketOrdersOld:  counts.MarketOrdersOld,
+			},
+		}, nil
+	})
+
+	// Debug: Sample documents from temp collection
+	huma.Register(api, huma.Operation{
+		OperationID: "market-debug-sample-temp",
+		Method:      "GET",
+		Path:        basePath + "/debug/sample-temp",
+		Summary:     "Debug: Show sample documents from temp collection",
+		Description: "Show first 5 documents from market_orders_temp for debugging.",
+		Tags:        []string{"Market Debug"},
+	}, func(ctx context.Context, input *struct{}) (*struct {
+		Body struct {
+			SampleOrders []interface{} `json:"sample_orders"`
+			TotalCount   int64         `json:"total_count"`
+		} `json:"body"`
+	}, error) {
+		samples, count, err := service.GetSampleTempOrders(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &struct {
+			Body struct {
+				SampleOrders []interface{} `json:"sample_orders"`
+				TotalCount   int64         `json:"total_count"`
+			} `json:"body"`
+		}{
+			Body: struct {
+				SampleOrders []interface{} `json:"sample_orders"`
+				TotalCount   int64         `json:"total_count"`
+			}{
+				SampleOrders: samples,
+				TotalCount:   count,
+			},
+		}, nil
+	})
 }
