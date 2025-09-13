@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go-falcon/internal/killmails/models"
@@ -204,22 +205,33 @@ func (r *Repository) Exists(ctx context.Context, killmailID int64, hash string) 
 	return count > 0, nil
 }
 
-// CreateMany inserts multiple killmails in a batch operation
+// CreateMany inserts multiple killmails in a batch operation using upserts to handle duplicates
 func (r *Repository) CreateMany(ctx context.Context, killmails []*models.Killmail) error {
 	if len(killmails) == 0 {
 		return nil
 	}
 
-	// Prepare documents for insertion
-	documents := make([]interface{}, len(killmails))
+	// Prepare bulk write operations with upserts
+	writeModels := make([]mongo.WriteModel, len(killmails))
 	for i, killmail := range killmails {
-		documents[i] = killmail
+		// Use killmail_id as the unique identifier for upsert
+		filter := bson.M{"killmail_id": killmail.KillmailID}
+
+		// Replace the entire document if it exists, or insert if it doesn't
+		writeModels[i] = mongo.NewReplaceOneModel().
+			SetFilter(filter).
+			SetReplacement(killmail).
+			SetUpsert(true)
 	}
 
 	// Use ordered=false for better performance (continues on errors)
-	opts := options.InsertMany().SetOrdered(false)
-	_, err := r.collection.InsertMany(ctx, documents, opts)
-	return err
+	opts := options.BulkWrite().SetOrdered(false)
+	_, err := r.collection.BulkWrite(ctx, writeModels, opts)
+	if err != nil {
+		return fmt.Errorf("failed to batch save killmails: %w", err)
+	}
+
+	return nil
 }
 
 // CreateIndexes creates necessary indexes for the killmails collection
