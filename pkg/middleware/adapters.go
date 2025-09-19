@@ -270,6 +270,11 @@ func (mh *MigrationHelper) CreateSDEAdminAdapter() *SDEAdminAdapter {
 	return NewSDEAdminAdapter(mh.permissionMiddleware)
 }
 
+// CreateMapAdapter creates a map adapter for migration
+func (mh *MigrationHelper) CreateMapAdapter() *MapAdapter {
+	return NewMapAdapter(mh.permissionMiddleware)
+}
+
 // CharacterAdapter provides character-specific permission methods
 type CharacterAdapter struct {
 	*ModuleAdapter
@@ -388,4 +393,48 @@ func (saa *SDEAdminAdapter) RequireSuperAdmin(ctx context.Context, authHeader, c
 // RequireAuth ensures the user is authenticated (for status endpoints)
 func (saa *SDEAdminAdapter) RequireAuth(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
 	return saa.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// MapAdapter provides map-specific permission methods
+type MapAdapter struct {
+	*ModuleAdapter
+}
+
+// NewMapAdapter creates a new map adapter
+func NewMapAdapter(permissionMiddleware *PermissionMiddleware) *MapAdapter {
+	return &MapAdapter{
+		ModuleAdapter: NewModuleAdapter(permissionMiddleware),
+	}
+}
+
+// RequireAuth ensures the user is authenticated
+func (ma *MapAdapter) RequireAuth(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ma.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// RequireMapAccess ensures the user has access to map data
+func (ma *MapAdapter) RequireMapAccess(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	// For now, any authenticated user can access map data
+	return ma.permissionMiddleware.RequireAuth(ctx, authHeader, cookieHeader)
+}
+
+// RequireMapManagement checks for map management permissions
+func (ma *MapAdapter) RequireMapManagement(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ma.permissionMiddleware.RequirePermission(ctx, authHeader, cookieHeader, "map:management:full")
+}
+
+// RequireSignatureManagement checks for signature management permissions
+func (ma *MapAdapter) RequireSignatureManagement(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ma.permissionMiddleware.RequireAnyPermission(ctx, authHeader, cookieHeader, []string{
+		"map:signatures:manage",
+		"map:management:full",
+	})
+}
+
+// RequireWormholeManagement checks for wormhole management permissions
+func (ma *MapAdapter) RequireWormholeManagement(ctx context.Context, authHeader, cookieHeader string) (*models.AuthenticatedUser, error) {
+	return ma.permissionMiddleware.RequireAnyPermission(ctx, authHeader, cookieHeader, []string{
+		"map:wormholes:manage",
+		"map:management:full",
+	})
 }

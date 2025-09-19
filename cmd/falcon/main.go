@@ -30,6 +30,7 @@ import (
 	groupsDto "go-falcon/internal/groups/dto"
 	groupsServices "go-falcon/internal/groups/services"
 	"go-falcon/internal/killmails"
+	"go-falcon/internal/mapservice"
 	"go-falcon/internal/market"
 	"go-falcon/internal/scheduler"
 	"go-falcon/internal/sde_admin"
@@ -538,6 +539,16 @@ func main() {
 		log.Printf("✅ Market module initialized successfully")
 	}
 
+	// Initialize map module
+	mapModule := mapservice.NewModule(appCtx.MongoDB, appCtx.Redis, appCtx.SDEService)
+	// Set groups service dependency for map module
+	mapModule.SetGroupsService(groupsModule.GetService())
+	if err := mapModule.Initialize(ctx); err != nil {
+		log.Printf("❌ Failed to initialize map module: %v", err)
+	} else {
+		log.Printf("✅ Map module initialized successfully")
+	}
+
 	// Initialize Discord module with groups service adapter and permission middleware
 	discordGroupsAdapter := &DiscordGroupsAdapter{groupsService: groupsModule.GetService()}
 	discordPermissionMiddleware := middleware.NewPermissionMiddleware(authModule.GetAuthService(), permissionManager)
@@ -681,7 +692,7 @@ func main() {
 	// Update site settings with auth, groups services, and permission manager
 	siteSettingsModule.SetDependenciesWithPermissions(authModule.GetAuthService(), groupsModule.GetService(), permissionManager)
 
-	modules = append(modules, authModule, usersModule, discordModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, zkillboardModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule, structuresModule, assetsModule)
+	modules = append(modules, authModule, usersModule, discordModule, schedulerModule, characterModule, corporationModule, allianceModule, killmailsModule, zkillboardModule, groupsModule, sitemapModule, siteSettingsModule, sdeAdminModule, websocketModule, structuresModule, assetsModule, marketModule, mapModule)
 
 	// Initialize remaining modules
 	// Initialize character module in background to avoid index creation hang during startup
@@ -853,6 +864,10 @@ func main() {
 	// Register market module routes
 	log.Printf("   📈 Market module: /market/*")
 	marketModule.RegisterUnifiedRoutes(unifiedAPI, "/market")
+
+	// Register map module routes
+	log.Printf("   🗺️ Map module: /map/*")
+	mapModule.RegisterUnifiedRoutes(unifiedAPI, "/map", permissionManager, authModule.GetAuthService())
 
 	// Register killmails module routes
 	log.Printf("   ⚔️  Killmails module: /killmails/*")
