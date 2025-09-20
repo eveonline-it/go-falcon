@@ -598,6 +598,11 @@ func (s *MapService) GetRegionSystems(ctx context.Context, regionID int32) (*dto
 // Search Systems
 
 func (s *MapService) SearchSystems(ctx context.Context, query string, limit int) ([]dto.SearchSystemOutput, error) {
+	// Return empty array for empty or too short queries
+	if len(strings.TrimSpace(query)) < 2 {
+		return []dto.SearchSystemOutput{}, nil
+	}
+
 	// Check cache first
 	cacheKey := fmt.Sprintf("search:systems:%s:%d", strings.ToLower(query), limit)
 	if cachedResults, err := s.getSearchFromCache(ctx, cacheKey); err == nil {
@@ -620,7 +625,7 @@ func (s *MapService) SearchSystems(ctx context.Context, query string, limit int)
 		}
 
 		systemName := GetSystemName(s.sde, system)
-		if systemName == query {
+		if strings.EqualFold(systemName, query) {
 			constellationID := getConstellationIDForSystem(s.sde, system)
 			constellation, _ := s.sde.GetConstellation(int(constellationID))
 			var regionName, constellationName string
@@ -652,7 +657,9 @@ func (s *MapService) SearchSystems(ctx context.Context, query string, limit int)
 		}
 
 		systemName := GetSystemName(s.sde, system)
-		if len(systemName) >= len(query) && systemName[:len(query)] == query && systemName != query {
+		if len(systemName) >= len(query) &&
+			strings.EqualFold(systemName[:len(query)], query) &&
+			!strings.EqualFold(systemName, query) {
 			constellationID := getConstellationIDForSystem(s.sde, system)
 			constellation, _ := s.sde.GetConstellation(int(constellationID))
 			var regionName, constellationName string

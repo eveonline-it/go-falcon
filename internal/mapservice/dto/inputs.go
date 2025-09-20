@@ -100,7 +100,7 @@ type UpdateNoteInput struct {
 
 // SearchSystemInput represents the input for searching systems
 type SearchSystemInput struct {
-	Query string `query:"q" validate:"required,min=2" doc:"Search query"`
+	Query string `query:"q" doc:"Search query (minimum 2 characters)"`
 	Limit int    `query:"limit" validate:"min=1,max=100" doc:"Maximum results" default:"20"`
 }
 

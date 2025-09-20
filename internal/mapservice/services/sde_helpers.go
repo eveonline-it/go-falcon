@@ -15,8 +15,9 @@ func GetSystemName(sdeService *sde.Service, system *sde.SolarSystem) string {
 		return ""
 	}
 
-	// Look up the name using the SolarSystemNameID
-	if invName, err := sdeService.GetInvName(system.SolarSystemNameID); err == nil && invName != nil {
+	// Look up the name using the SolarSystemID (not SolarSystemNameID)
+	// The invNames.json uses solarSystemID as the itemID for solar systems
+	if invName, err := sdeService.GetInvName(system.SolarSystemID); err == nil && invName != nil {
 		if name, ok := invName.ItemName.(string); ok {
 			return name
 		}
@@ -32,8 +33,9 @@ func GetRegionName(sdeService *sde.Service, region *sde.Region) string {
 		return ""
 	}
 
-	// Look up the name using the NameID
-	if invName, err := sdeService.GetInvName(region.NameID); err == nil && invName != nil {
+	// Look up the name using the RegionID (not NameID)
+	// The invNames.json uses regionID as the itemID for regions
+	if invName, err := sdeService.GetInvName(region.RegionID); err == nil && invName != nil {
 		if name, ok := invName.ItemName.(string); ok {
 			return name
 		}
@@ -49,8 +51,9 @@ func GetConstellationName(sdeService *sde.Service, constellation *sde.Constellat
 		return ""
 	}
 
-	// Look up the name using the NameID
-	if invName, err := sdeService.GetInvName(constellation.NameID); err == nil && invName != nil {
+	// Look up the name using the ConstellationID (not NameID)
+	// The invNames.json uses constellationID as the itemID for constellations
+	if invName, err := sdeService.GetInvName(constellation.ConstellationID); err == nil && invName != nil {
 		if name, ok := invName.ItemName.(string); ok {
 			return name
 		}
